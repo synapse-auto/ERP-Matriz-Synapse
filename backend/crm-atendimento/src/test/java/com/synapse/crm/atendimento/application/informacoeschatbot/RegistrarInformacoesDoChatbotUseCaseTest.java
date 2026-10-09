@@ -3,6 +3,7 @@ package com.synapse.crm.atendimento.application.informacoeschatbot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -28,6 +29,7 @@ import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.evento.InformacoesDoChatbotParaTempoReal;
 import com.synapse.crm.atendimento.domain.informacoeschatbot.ConteudoDasInformacoesInvalidoException;
+import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 
 class RegistrarInformacoesDoChatbotUseCaseTest {
 
@@ -35,6 +37,7 @@ class RegistrarInformacoesDoChatbotUseCaseTest {
     private static final int LIMITE = 100;
 
     private final AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+    private final LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
     private final InformacoesDoChatbotRepositorio informacoes = mock(InformacoesDoChatbotRepositorio.class);
     private final HabilitacaoDasInformacoesDoChatbot habilitacao = mock(HabilitacaoDasInformacoesDoChatbot.class);
     private final ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
@@ -48,6 +51,7 @@ class RegistrarInformacoesDoChatbotUseCaseTest {
     void preparar() {
         casoDeUso = novo(LIMITE);
         when(habilitacao.habilitada()).thenReturn(true);
+        when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
     }
 
     @Test
@@ -63,6 +67,53 @@ class RegistrarInformacoesDoChatbotUseCaseTest {
         assertThat(aviso.getValue())
                 .isEqualTo(new InformacoesDoChatbotParaTempoReal(atendimentoId, leadId, resultado.id(), AGORA));
         assertThat(aviso.getValue().toString()).doesNotContain("Maria");
+    }
+
+    @Test
+    @DisplayName("a decisao vale SOB LOCK: bloqueia o lead e rele o atendimento antes de gravar, na ordem de finalizar")
+    void conferenciaEhSobLock() {
+        com(StatusAtendimento.EM_ATENDIMENTO);
+
+        casoDeUso.executar(atendimentoId, "chave-1", "texto");
+
+        var ordem = inOrder(atendimentos, leads, informacoes);
+        ordem.verify(atendimentos).porId(atendimentoId);
+        ordem.verify(leads).bloquearParaAtendimento(leadId);
+        ordem.verify(atendimentos).porIdParaAlteracao(atendimentoId);
+        ordem.verify(informacoes).inserir(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("estado mudou entre a pre-checagem e o lock: o que vale e o estado sob lock, e nada e gravado")
+    void estadoSobLockPrevalece() {
+        UUID dono = UUID.randomUUID();
+        var aberto = atendimento(StatusAtendimento.EM_ATENDIMENTO, dono);
+        var finalizado = atendimento(StatusAtendimento.FINALIZADO, dono);
+        // Visivel e aberto na leitura sem lock; ja finalizado quando o lock e obtido.
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(aberto));
+        when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(finalizado));
+
+        casoDeUso.validarDestino(atendimentoId);
+        assertThatThrownBy(() -> casoDeUso.executar(atendimentoId, "chave-1", "texto"))
+                .isInstanceOfSatisfying(InformacoesDoChatbotRecusadasException.class,
+                        erro -> assertThat(erro.motivo()).isEqualTo(Motivo.ATENDIMENTO_FINALIZADO));
+
+        verify(informacoes, never()).inserir(any(), any(), any(), any(), any());
+        verifyNoInteractions(eventos);
+    }
+
+    @Test
+    @DisplayName("devolvido para a IA sob lock: recusa como nao transferido")
+    void devolvidoParaIaSobLock() {
+        var aberto = atendimento(StatusAtendimento.EM_ATENDIMENTO, UUID.randomUUID());
+        var emIa = atendimento(StatusAtendimento.EM_IA, null);
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(aberto));
+        when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(emIa));
+
+        assertThatThrownBy(() -> casoDeUso.executar(atendimentoId, "chave-1", "texto"))
+                .isInstanceOfSatisfying(InformacoesDoChatbotRecusadasException.class,
+                        erro -> assertThat(erro.motivo()).isEqualTo(Motivo.ATENDIMENTO_NAO_TRANSFERIDO));
+        verify(informacoes, never()).inserir(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -98,6 +149,8 @@ class RegistrarInformacoesDoChatbotUseCaseTest {
 
         assertThatThrownBy(() -> casoDeUso.validarDestino(atendimentoId))
                 .isInstanceOf(RecursoDeAtendimentoIndisponivelException.class);
+        assertThatThrownBy(() -> casoDeUso.executar(atendimentoId, "chave-1", "texto"))
+                .isInstanceOf(RecursoDeAtendimentoIndisponivelException.class);
     }
 
     @Test
@@ -111,10 +164,24 @@ class RegistrarInformacoesDoChatbotUseCaseTest {
     }
 
     @Test
-    @DisplayName("normaliza com o limite da instancia")
-    void normalizaComOLimite() {
-        assertThat(casoDeUso.normalizar("a\r\nb")).isEqualTo("a\nb");
-        assertThatThrownBy(() -> casoDeUso.normalizar("x".repeat(LIMITE + 1)))
+    @DisplayName("normalizar para idempotencia nao valida: limite pequeno nao muda o hash de um replay")
+    void normalizacaoParaHashIgnoraLimite() {
+        var restritivo = novo(5);
+
+        assertThat(restritivo.normalizarParaIdempotencia("  um texto bem maior que o limite\r\nlinha 2  "))
+                .isEqualTo("um texto bem maior que o limite\nlinha 2");
+        assertThat(restritivo.normalizarParaIdempotencia(null)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("validar conteudo usa o limite ATUAL e recusa vazio, nulo e caractere nulo")
+    void validaConteudoComOLimiteAtual() {
+        casoDeUso.validarConteudo("ok");
+        assertThatThrownBy(() -> casoDeUso.validarConteudo("x".repeat(LIMITE + 1)))
+                .isInstanceOf(ConteudoDasInformacoesInvalidoException.class);
+        assertThatThrownBy(() -> casoDeUso.validarConteudo("  "))
+                .isInstanceOf(ConteudoDasInformacoesInvalidoException.class);
+        assertThatThrownBy(() -> casoDeUso.validarConteudo("a\u0000b"))
                 .isInstanceOf(ConteudoDasInformacoesInvalidoException.class);
     }
 
@@ -128,13 +195,20 @@ class RegistrarInformacoesDoChatbotUseCaseTest {
 
     private RegistrarInformacoesDoChatbotUseCase novo(int limite) {
         return new RegistrarInformacoesDoChatbotUseCase(
-                atendimentos, informacoes, habilitacao, eventos, relogio, limite);
+                atendimentos, leads, informacoes, habilitacao, eventos, relogio, limite);
     }
 
+    private Atendimento atendimento(StatusAtendimento status, UUID atendente) {
+        return new Atendimento(
+                atendimentoId, leadId, UUID.randomUUID(), UUID.randomUUID(), atendente, status,
+                AGORA.minusSeconds(60), status == StatusAtendimento.FINALIZADO ? AGORA : null);
+    }
+
+    /** Mesmo estado na leitura visivel e na leitura sob lock. */
     private void com(StatusAtendimento status) {
         UUID atendente = status == StatusAtendimento.EM_IA ? null : UUID.randomUUID();
-        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(new Atendimento(
-                atendimentoId, leadId, UUID.randomUUID(), UUID.randomUUID(), atendente, status,
-                AGORA.minusSeconds(60), status == StatusAtendimento.FINALIZADO ? AGORA : null)));
+        Atendimento atendimento = atendimento(status, atendente);
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(atendimento));
+        when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(atendimento));
     }
 }

@@ -3,7 +3,6 @@ package com.synapse.crm.atendimento.infrastructure.persistencia.informacoeschatb
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,19 +42,34 @@ class InformacoesDoChatbotRepositorioJdbc implements InformacoesDoChatbotReposit
     }
 
     @Override
-    public List<InformacoesDoChatbot> recentesDoAtendimento(UUID atendimentoId, int limite) {
+    public List<InformacoesDoChatbot> anteriores(
+            UUID atendimentoId, Instant desde, Instant cursorRegistradoEm, UUID cursorId, int limite) {
         TransacaoObrigatoria.exigir("listar informacoes do chatbot");
-        List<InformacoesDoChatbot> maisRecentesPrimeiro = new ArrayList<>(chat.query(
+        // Comparacao de linha (registrado_em, id) casa com o indice (atendimento_id, registrado_em DESC,
+        // id DESC): cada pagina e uma varredura curta do indice, sem OFFSET.
+        StringBuilder sql = new StringBuilder(
                 "SELECT id, atendimento_id, conteudo, registrado_em FROM atendimento_informacao_chatbot "
-                        + "WHERE atendimento_id = ? ORDER BY registrado_em DESC, id DESC LIMIT ?",
+                        + "WHERE atendimento_id = ?");
+        List<Object> argumentos = new ArrayList<>();
+        argumentos.add(atendimentoId);
+        if (desde != null) {
+            sql.append(" AND registrado_em >= ?");
+            argumentos.add(Timestamp.from(desde));
+        }
+        if (cursorRegistradoEm != null && cursorId != null) {
+            sql.append(" AND (registrado_em, id) < (?, ?)");
+            argumentos.add(Timestamp.from(cursorRegistradoEm));
+            argumentos.add(cursorId);
+        }
+        sql.append(" ORDER BY registrado_em DESC, id DESC LIMIT ?");
+        argumentos.add(limite);
+        return chat.query(
+                sql.toString(),
                 (rs, linha) -> new InformacoesDoChatbot(
                         rs.getObject("id", UUID.class),
                         rs.getObject("atendimento_id", UUID.class),
                         rs.getString("conteudo"),
                         rs.getTimestamp("registrado_em").toInstant()),
-                atendimentoId,
-                limite));
-        Collections.reverse(maisRecentesPrimeiro);
-        return List.copyOf(maisRecentesPrimeiro);
+                argumentos.toArray());
     }
 }

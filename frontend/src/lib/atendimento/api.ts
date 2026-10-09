@@ -114,10 +114,21 @@ export function paginaMensagens(
   return apiFetch<PaginaMensagens>(`/api/v1/atendimentos/${atendimentoId}/mensagens${query}`);
 }
 
-/** Cards do chatbot (não são mensagens): vazio quando a instância não habilitou o recurso. */
-export function listarInformacoesDoChatbot(atendimentoId: string): Promise<InformacoesChatbotResposta> {
+/**
+ * Uma página de cards do chatbot (não são mensagens), da mais recente para a mais antiga. `desde`
+ * limita a janela ao trecho do histórico já carregado. Vazio quando a instância não habilitou o recurso.
+ */
+export function paginaInformacoesDoChatbot(
+  atendimentoId: string,
+  cursor: string | null,
+  desde: string | null,
+): Promise<InformacoesChatbotResposta> {
+  const parametros = new URLSearchParams();
+  if (cursor) parametros.set("cursor", cursor);
+  if (desde) parametros.set("desde", desde);
+  const consulta = parametros.size > 0 ? `?${parametros.toString()}` : "";
   return apiFetch<InformacoesChatbotResposta>(
-    `/api/v1/atendimentos/${encodeURIComponent(atendimentoId)}/informacoes-do-chatbot`,
+    `/api/v1/atendimentos/${encodeURIComponent(atendimentoId)}/informacoes-do-chatbot${consulta}`,
   );
 }
 

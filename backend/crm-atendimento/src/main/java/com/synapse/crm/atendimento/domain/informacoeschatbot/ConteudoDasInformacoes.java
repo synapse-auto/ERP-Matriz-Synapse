@@ -18,6 +18,16 @@ public record ConteudoDasInformacoes(String texto) {
     }
 
     /**
+     * So a normalizacao, sem validar tamanho nem conteudo: e o que entra no hash da Idempotency-Key.
+     * O replay de uma operacao ja concluida precisa do MESMO hash de quando ela foi aceita, entao nao
+     * pode depender do limite de hoje — configuracao atual valida operacao nova, nunca invalida uma
+     * concluida.
+     */
+    public static String normalizar(String bruto) {
+        return bruto == null ? "" : bruto.replace("\r\n", "\n").replace('\r', '\n').strip();
+    }
+
+    /**
      * @param bruto o que o n8n enviou
      * @param tamanhoMaximo limite em caracteres, depois de aparar e normalizar as quebras de linha
      * @throws ConteudoDasInformacoesInvalidoException vazio, com caractere nulo ou acima do limite
@@ -29,7 +39,7 @@ public record ConteudoDasInformacoes(String texto) {
         if (bruto.indexOf('\u0000') >= 0) {
             throw new ConteudoDasInformacoesInvalidoException("o conteudo contem caractere nulo");
         }
-        String normalizado = bruto.replace("\r\n", "\n").replace('\r', '\n').strip();
+        String normalizado = normalizar(bruto);
         if (normalizado.length() > tamanhoMaximo) {
             throw new ConteudoDasInformacoesInvalidoException(
                     "o conteudo excede o limite de " + tamanhoMaximo + " caracteres");

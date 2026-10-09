@@ -6,104 +6,44 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
-import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
-import com.synapse.crm.atendimento.domain.evento.InformacoesDoChatbotParaTempoReal;
 
 /**
- * Card interno com as informacoes do chatbot, de ponta a ponta: contrato do n8n, idempotencia,
- * recusas, isolamento entre atendimentos, flag por instancia e leitura autorizada.
+ * Contrato do card de informacoes do chatbot, de ponta a ponta: contrato do n8n, idempotencia,
+ * recusas, flag por instancia, paginacao da leitura e o contrato publicado.
  *
  * <p>O negativo que mais importa: o card nao e mensagem. Nada vai para `mensagem` nem para a outbox,
  * e responsavel, participantes e resumo da ficha seguem exatamente como estavam.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("dev")
-@TestPropertySource(properties = {
-    "synapse.seguranca.token-interno=token-informacoes-chatbot",
-    "synapse.automacao.informacoes-chatbot-tamanho-maximo=200",
-    "synapse.automacao.informacoes-chatbot-limite-listagem=3"
-})
-class InformacoesDoChatbotIT extends PostgresIT {
-
-    private static final String TOKEN = "token-informacoes-chatbot";
-    private static final String PREFIXO = "INFO-CHATBOT-";
-    private static final String FLAG = "informacoes_chatbot_historico";
-    private static final String RESUMO_DA_FICHA = "RESUMO-DA-FICHA-NAO-PODE-MUDAR";
-
-    @TestConfiguration
-    static class Captura {
-        @Bean
-        CapturaDeAvisos capturaDeAvisos() {
-            return new CapturaDeAvisos();
-        }
-    }
-
-    static class CapturaDeAvisos {
-        final List<InformacoesDoChatbotParaTempoReal> avisos = new CopyOnWriteArrayList<>();
-
-        @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-        void aoAvisar(InformacoesDoChatbotParaTempoReal aviso) {
-            avisos.add(aviso);
-        }
-    }
-
-    @Autowired
-    private TestRestTemplate http;
-
-    @Autowired
-    private JdbcTemplate jdbc;
-
-    @Autowired
-    private ObjectMapper json;
-
-    @Autowired
-    private CapturaDeAvisos captura;
-
-    private UUID ana;
-
-    @BeforeEach
-    void preparar() {
-        ana = jdbc.queryForObject("SELECT id FROM usuario WHERE email = ?", UUID.class, EMAIL_ANA);
-        definirFlag(true);
-        captura.avisos.clear();
-    }
-
-    @AfterEach
-    void limpar() {
-        jdbc.update("DELETE FROM atendimento WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?)", PREFIXO + "%");
-        jdbc.update("DELETE FROM lead WHERE nome LIKE ?", PREFIXO + "%");
-        definirFlag(false);
-    }
+class InformacoesDoChatbotIT extends InformacoesDoChatbotITBase {
 
     // --- caminho feliz e o que o card NAO e -------------------------------------------------------
 
@@ -152,13 +92,49 @@ class InformacoesDoChatbotIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("duas requisicoes simultaneas com a mesma chave gravam um unico card e devolvem o mesmo id")
+    @DisplayName("replay de operacao concluida devolve a resposta original mesmo com a flag desligada depois")
+    void replayAposDesligarAFlag() {
+        Atendimento atendimento = atendimentoComHumano("REPLAY-FLAG");
+        ResponseEntity<String> original = postar(TOKEN, atendimento.id(), "chave-replay-flag", "texto original");
+        assertThat(original.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        definirFlag(false);
+        ResponseEntity<String> replay = postar(TOKEN, atendimento.id(), "chave-replay-flag", "texto original");
+        ResponseEntity<String> nova = postar(TOKEN, atendimento.id(), "chave-outra", "texto novo");
+
+        assertThat(replay.getStatusCode()).as("configuracao atual nao invalida o que ja foi concluido").isEqualTo(HttpStatus.OK);
+        assertThat(ler(replay)).isEqualTo(ler(original));
+        assertThat(nova.getStatusCode()).as("operacao nova continua validada pela flag").isEqualTo(HttpStatus.CONFLICT);
+        assertThat(ler(nova).path("motivo").asText()).isEqualTo("FUNCIONALIDADE_DESABILITADA");
+        assertThat(cards(atendimento.id())).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("replay de operacao concluida devolve a resposta original mesmo depois de o atendimento ser finalizado")
+    void replayAposFinalizacao() {
+        Atendimento atendimento = atendimentoComHumano("REPLAY-FIM");
+        ResponseEntity<String> original = postar(TOKEN, atendimento.id(), "chave-replay-fim", "texto original");
+        assertThat(original.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        jdbc.update("UPDATE atendimento SET status = 'FINALIZADO', finalizado_em = now() WHERE id = ?", atendimento.id());
+        ResponseEntity<String> replay = postar(TOKEN, atendimento.id(), "chave-replay-fim", "texto original");
+        ResponseEntity<String> nova = postar(TOKEN, atendimento.id(), "chave-outra-fim", "texto novo");
+
+        assertThat(replay.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(ler(replay)).isEqualTo(ler(original));
+        assertThat(nova.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(ler(nova).path("motivo").asText()).isEqualTo("ATENDIMENTO_FINALIZADO");
+        assertThat(cards(atendimento.id())).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("quatro requisicoes simultaneas com a mesma chave gravam um unico card e devolvem o mesmo id")
     void mesmaChaveEmParalelo() throws Exception {
         Atendimento atendimento = atendimentoComHumano("PARALELO");
-        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(4);
+        ExecutorService pool = Executors.newFixedThreadPool(4);
         try {
-            java.util.concurrent.CountDownLatch largada = new java.util.concurrent.CountDownLatch(1);
-            List<java.util.concurrent.Future<ResponseEntity<String>>> chamadas = new java.util.ArrayList<>();
+            CountDownLatch largada = new CountDownLatch(1);
+            List<Future<ResponseEntity<String>>> chamadas = new ArrayList<>();
             for (int i = 0; i < 4; i++) {
                 chamadas.add(pool.submit(() -> {
                     largada.await();
@@ -167,9 +143,9 @@ class InformacoesDoChatbotIT extends PostgresIT {
             }
             largada.countDown();
 
-            java.util.Set<String> ids = new java.util.HashSet<>();
+            Set<String> ids = new HashSet<>();
             for (var chamada : chamadas) {
-                ResponseEntity<String> resposta = chamada.get(30, java.util.concurrent.TimeUnit.SECONDS);
+                ResponseEntity<String> resposta = chamada.get(30, TimeUnit.SECONDS);
                 assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
                 ids.add(ler(resposta).path("id").asText());
             }
@@ -276,9 +252,15 @@ class InformacoesDoChatbotIT extends PostgresIT {
         comChave.set("Idempotency-Key", "chave-mal-formada");
         ResponseEntity<String> aoSemConteudo = http.exchange(
                 url(atendimento.id()), HttpMethod.POST, new HttpEntity<>("{}", comChave), String.class);
+        HttpHeaders chaveEmBranco = cabecalhos(TOKEN);
+        chaveEmBranco.set("Idempotency-Key", " ");
+        ResponseEntity<String> aoChaveEmBranco = http.exchange(
+                url(atendimento.id()), HttpMethod.POST, new HttpEntity<>("{\"conteudo\":\"\"}", chaveEmBranco), String.class);
 
         assertThat(aoSemChave.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(aoSemConteudo.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(aoChaveEmBranco.getStatusCode())
+                .as("chave em branco e 400 antes do 422 de conteudo").isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(cards(atendimento.id())).isZero();
     }
 
@@ -327,7 +309,9 @@ class InformacoesDoChatbotIT extends PostgresIT {
         definirFlag(true);
         postar(TOKEN, atendimento.id(), "chave-flag-2", "registrado com a flag ligada");
         definirFlag(false);
-        assertThat(ler(lerCards(atendimento.id(), loginAna())).path("itens")).isEmpty();
+        JsonNode lido = ler(lerCards(atendimento.id(), loginAna()));
+        assertThat(lido.path("itens")).isEmpty();
+        assertThat(lido.path("proximoCursor").isNull()).isTrue();
         assertThat(cards(atendimento.id())).isEqualTo(1);
     }
 
@@ -338,12 +322,12 @@ class InformacoesDoChatbotIT extends PostgresIT {
         // Reaplica o INSERT da V101 (idempotente): sem linha previa, a flag entra desligada.
         jdbc.update("INSERT INTO feature_flag (chave, habilitado, descricao) VALUES (?, FALSE, 'x') ON CONFLICT (chave) DO NOTHING", FLAG);
 
-        assertThat(jdbc.queryForObject("SELECT habilitado FROM feature_flag WHERE chave = ?", Boolean.class, FLAG)).isFalse();
+        assertThat(flagLigada()).isFalse();
     }
 
     @Test
     @DisplayName("script operacional liga a flag da instancia, e repetir e neutro")
-    void scriptOperacionalLigaAFlag() throws java.io.IOException {
+    void scriptOperacionalLigaAFlag() throws IOException {
         definirFlag(false);
 
         executarScriptDeHabilitacao();
@@ -358,13 +342,56 @@ class InformacoesDoChatbotIT extends PostgresIT {
     void scriptOperacionalRecusaSemAFlag() {
         jdbc.update("DELETE FROM feature_flag WHERE chave = ?", FLAG);
 
-        org.assertj.core.api.Assertions.assertThatThrownBy(this::executarScriptDeHabilitacao)
-                .hasMessageContaining("implante a versao com a V101");
+        assertThatThrownBy(this::executarScriptDeHabilitacao).hasMessageContaining("implante a versao com a V101");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM feature_flag WHERE chave = ?", Long.class, FLAG))
                 .as("nenhuma linha criada pelo script").isZero();
     }
 
-    // --- leitura autorizada -------------------------------------------------------------------------
+    // --- leitura: paginacao e acesso --------------------------------------------------------------
+
+    @Test
+    @DisplayName("nenhum card antigo some: a leitura pagina por cursor, em ordem cronologica, sem repetir")
+    void leituraPaginadaNaoPerdeCard() {
+        Atendimento atendimento = atendimentoComHumano("PAGINAS");
+        Instant inicio = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
+        inserirCardsDatados(atendimento.id(), inicio, 7);
+        String bearer = loginAna();
+
+        JsonNode primeira = ler(lerCards(atendimento.id(), bearer));
+        assertThat(conteudos(primeira)).containsExactly("card 5", "card 6", "card 7");
+        assertThat(primeira.path("proximoCursor").asText()).isNotBlank();
+
+        JsonNode segunda = ler(lerCards(atendimento.id(), bearer, "?cursor=" + primeira.path("proximoCursor").asText()));
+        assertThat(conteudos(segunda)).containsExactly("card 2", "card 3", "card 4");
+
+        JsonNode terceira = ler(lerCards(atendimento.id(), bearer, "?cursor=" + segunda.path("proximoCursor").asText()));
+        assertThat(conteudos(terceira)).containsExactly("card 1");
+        assertThat(terceira.path("proximoCursor").isNull()).as("ultima pagina nao tem cursor").isTrue();
+    }
+
+    @Test
+    @DisplayName("'desde' alinha os cards ao trecho de mensagens carregado, sem trazer o historico inteiro")
+    void leituraComJanela() {
+        Atendimento atendimento = atendimentoComHumano("JANELA");
+        Instant inicio = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
+        inserirCardsDatados(atendimento.id(), inicio, 5);
+
+        // card 3 esta exatamente em inicio+30s: o limite e inclusivo.
+        JsonNode janela = ler(lerCards(atendimento.id(), loginAna(), "?desde=" + inicio.plusSeconds(30)));
+
+        assertThat(conteudos(janela)).containsExactly("card 3", "card 4", "card 5");
+        assertThat(janela.path("proximoCursor").isNull()).isTrue();
+    }
+
+    @Test
+    @DisplayName("cursor ou 'desde' malformado: 400, sem consultar nem vazar nada")
+    void leituraRecusaParametroMalformado() {
+        Atendimento atendimento = atendimentoComHumano("MALFORMADO");
+        String bearer = loginAna();
+
+        assertThat(lerCards(atendimento.id(), bearer, "?cursor=%23%23%23").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(lerCards(atendimento.id(), bearer, "?desde=ontem").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
 
     @Test
     @DisplayName("responsavel e gestor leem os cards em ordem cronologica; atendente sem acesso recebe 404")
@@ -374,14 +401,11 @@ class InformacoesDoChatbotIT extends PostgresIT {
         postar(TOKEN, atendimento.id(), "chave-leitura-2", "segundo");
 
         JsonNode doResponsavel = ler(lerCards(atendimento.id(), loginAna()));
-        JsonNode doGestor = ler(lerCards(atendimento.id(), ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken()));
-        ResponseEntity<String> doColega = lerCards(
-                atendimento.id(), ApoioAutenticacao.login(http, EMAIL_BRUNO, SENHA_ATENDENTE).accessToken());
+        JsonNode doGestor = ler(lerCards(atendimento.id(), bearerDe(EMAIL_GESTOR, SENHA_GESTOR)));
+        ResponseEntity<String> doColega = lerCards(atendimento.id(), bearerDe(EMAIL_BRUNO, SENHA_ATENDENTE));
         ResponseEntity<String> anonimo = http.getForEntity(urlLeitura(atendimento.id()), String.class);
 
-        assertThat(doResponsavel.path("itens")).hasSize(2);
-        assertThat(doResponsavel.path("itens").get(0).path("conteudo").asText()).isEqualTo("primeiro");
-        assertThat(doResponsavel.path("itens").get(1).path("conteudo").asText()).isEqualTo("segundo");
+        assertThat(conteudos(doResponsavel)).containsExactly("primeiro", "segundo");
         assertThat(doResponsavel.path("itens").get(0).path("origem").asText()).isEqualTo("AUTOMACAO");
         assertThat(doGestor.path("itens")).hasSize(2);
         assertThat(doColega.getStatusCode()).as("quem nao alcanca o atendimento nao le o card").isEqualTo(HttpStatus.NOT_FOUND);
@@ -389,147 +413,66 @@ class InformacoesDoChatbotIT extends PostgresIT {
         assertThat(anonimo.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
+    // --- contrato publicado -------------------------------------------------------------------------
+
     @Test
-    @DisplayName("com mais cards que o limite, a leitura traz os mais recentes em ordem cronologica")
-    void leituraTrazOsMaisRecentesEmOrdem() {
-        Atendimento atendimento = atendimentoComHumano("LIMITE");
-        for (int i = 1; i <= 5; i++) {
-            assertThat(postar(TOKEN, atendimento.id(), "chave-limite-" + i, "card " + i).getStatusCode())
-                    .isEqualTo(HttpStatus.OK);
-        }
+    @DisplayName("o contrato publicado no OpenAPI e o que os testes exercitam: parametros, seguranca e codigos de resposta")
+    void contratoPublicadoCorrespondeAoComportamento() {
+        JsonNode raiz = ler(http.getForEntity("/v3/api-docs", String.class));
 
-        JsonNode itens = ler(lerCards(atendimento.id(), loginAna())).path("itens");
+        JsonNode escrita = raiz.path("paths").path("/internal/v1/atendimentos/{id}/informacoes-do-chatbot").path("post");
+        assertThat(escrita.isMissingNode()).as("rota interna publicada").isFalse();
+        assertThat(codigos(escrita)).containsExactlyInAnyOrder("200", "400", "401", "403", "404", "409", "422");
+        List<String> parametros = new ArrayList<>();
+        escrita.path("parameters").forEach(parametro -> parametros.add(
+                parametro.path("in").asText() + ":" + parametro.path("name").asText() + ":" + parametro.path("required").asBoolean()));
+        assertThat(parametros).containsExactlyInAnyOrder("path:id:true", "header:Idempotency-Key:true");
+        assertThat(escrita.path("security").toString()).contains("synapseToken");
+        assertThat(raiz.path("components").path("schemas").path("InformacoesRequisicao").path("required").toString())
+                .contains("conteudo");
 
-        assertThat(itens).hasSize(3);
-        assertThat(List.of(
-                        itens.get(0).path("conteudo").asText(),
-                        itens.get(1).path("conteudo").asText(),
-                        itens.get(2).path("conteudo").asText()))
-                .containsExactly("card 3", "card 4", "card 5");
+        JsonNode leitura = raiz.path("paths").path("/api/v1/atendimentos/{atendimentoId}/informacoes-do-chatbot").path("get");
+        assertThat(leitura.isMissingNode()).as("rota de leitura publicada").isFalse();
+        assertThat(codigos(leitura)).contains("200", "400", "404");
+        List<String> consulta = new ArrayList<>();
+        leitura.path("parameters").forEach(parametro -> consulta.add(parametro.path("name").asText()));
+        assertThat(consulta).contains("desde", "cursor");
     }
 
-    // --- apoio ---------------------------------------------------------------------------------------
+    // --- apoio --------------------------------------------------------------------------------------
 
-    private record Atendimento(UUID id, UUID leadId) {}
-
-    private Atendimento atendimentoComHumano(String marcador) {
-        UUID leadId = criarLead(marcador, ana, "EM_ATENDIMENTO");
-        jdbc.update("UPDATE lead SET resumo_ia = ? WHERE id = ?", RESUMO_DA_FICHA, leadId);
-        return new Atendimento(criarAtendimento(leadId, ana, "EM_ATENDIMENTO"), leadId);
-    }
-
-    private UUID criarLead(String marcador, UUID dono, String statusBasico) {
-        UUID id = UUID.randomUUID();
-        jdbc.update(
-                "INSERT INTO lead(id,nome,atendente_responsavel_id,status_basico) VALUES (?,?,?,?::status_basico_lead)",
-                id, PREFIXO + marcador + "-" + id.toString().substring(0, 8), dono, statusBasico);
-        return id;
-    }
-
-    private UUID criarAtendimento(UUID leadId, UUID atendente, String status) {
-        UUID id = UUID.randomUUID();
-        if ("FINALIZADO".equals(status)) {
+    private void inserirCardsDatados(UUID atendimentoId, Instant inicio, int quantidade) {
+        for (int i = 1; i <= quantidade; i++) {
             jdbc.update(
-                    "INSERT INTO atendimento(id,lead_id,atendente_id,status,finalizado_em) VALUES (?,?,?,?::status_atendimento, now())",
-                    id, leadId, atendente, status);
-        } else {
-            jdbc.update(
-                    "INSERT INTO atendimento(id,lead_id,atendente_id,status) VALUES (?,?,?,?::status_atendimento)",
-                    id, leadId, atendente, status);
+                    "INSERT INTO atendimento_informacao_chatbot (id, atendimento_id, chave_idempotencia, conteudo, registrado_em)"
+                            + " VALUES (?,?,?,?,?)",
+                    UUID.randomUUID(), atendimentoId, "chave-datada-" + atendimentoId + "-" + i, "card " + i,
+                    Timestamp.from(inicio.plusSeconds(i * 10L)));
         }
-        return id;
     }
 
-    private boolean flagLigada() {
-        return Boolean.TRUE.equals(
-                jdbc.queryForObject("SELECT habilitado FROM feature_flag WHERE chave = ?", Boolean.class, FLAG));
+    private static List<String> conteudos(JsonNode pagina) {
+        List<String> conteudos = new ArrayList<>();
+        pagina.path("itens").forEach(item -> conteudos.add(item.path("conteudo").asText()));
+        return conteudos;
     }
 
-    private void executarScriptDeHabilitacao() throws java.io.IOException {
-        java.nio.file.Path atual = java.nio.file.Path.of(System.getProperty("user.dir")).toAbsolutePath();
+    private static List<String> codigos(JsonNode operacao) {
+        List<String> codigos = new ArrayList<>();
+        operacao.path("responses").fieldNames().forEachRemaining(codigos::add);
+        return codigos;
+    }
+
+    private void executarScriptDeHabilitacao() throws IOException {
+        Path atual = Path.of(System.getProperty("user.dir")).toAbsolutePath();
         while (atual != null) {
-            java.nio.file.Path script = atual.resolve("docker/provisionamento/habilitar-informacoes-do-chatbot.sql");
-            if (java.nio.file.Files.isRegularFile(script)) {
-                jdbc.execute(java.nio.file.Files.readString(script));
+            Path script = atual.resolve("docker/provisionamento/habilitar-informacoes-do-chatbot.sql");
+            if (Files.isRegularFile(script)) {
+                jdbc.execute(Files.readString(script));
                 return;
             }
             atual = atual.getParent();
         }
-        throw new java.io.IOException("script de habilitacao das informacoes do chatbot nao encontrado");
-    }
-
-    private void definirFlag(boolean habilitada) {
-        jdbc.update(
-                "INSERT INTO feature_flag (chave, habilitado, descricao) VALUES (?, ?, 'teste') "
-                        + "ON CONFLICT (chave) DO UPDATE SET habilitado = EXCLUDED.habilitado",
-                FLAG, habilitada);
-    }
-
-    private long cards(UUID atendimentoId) {
-        return jdbc.queryForObject(
-                "SELECT count(*) FROM atendimento_informacao_chatbot WHERE atendimento_id = ?", Long.class, atendimentoId);
-    }
-
-    private String conteudoDoCard(UUID atendimentoId) {
-        return jdbc.queryForObject(
-                "SELECT conteudo FROM atendimento_informacao_chatbot WHERE atendimento_id = ? ORDER BY registrado_em LIMIT 1",
-                String.class, atendimentoId);
-    }
-
-    private UUID donoDoAtendimento(UUID atendimentoId) {
-        return jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId);
-    }
-
-    private long participantes(UUID atendimentoId) {
-        return jdbc.queryForObject(
-                "SELECT count(*) FROM atendimento_participante WHERE atendimento_id = ?", Long.class, atendimentoId);
-    }
-
-    private String resumoDaFicha(UUID leadId) {
-        return jdbc.queryForObject("SELECT resumo_ia FROM lead WHERE id = ?", String.class, leadId);
-    }
-
-    private String loginAna() {
-        return ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
-    }
-
-    private ResponseEntity<String> lerCards(UUID atendimentoId, String bearer) {
-        return ApoioAutenticacao.comToken(http, bearer, HttpMethod.GET, urlLeitura(atendimentoId), String.class);
-    }
-
-    private ResponseEntity<String> postar(String token, UUID atendimentoId, String chave, String conteudo) {
-        HttpHeaders cabecalhos = cabecalhos(token);
-        cabecalhos.set("Idempotency-Key", chave);
-        try {
-            String corpo = json.writeValueAsString(Map.of("conteudo", conteudo));
-            return http.exchange(url(atendimentoId), HttpMethod.POST, new HttpEntity<>(corpo, cabecalhos), String.class);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException erro) {
-            throw new IllegalStateException(erro);
-        }
-    }
-
-    private static HttpHeaders cabecalhos(String token) {
-        HttpHeaders cabecalhos = new HttpHeaders();
-        cabecalhos.setContentType(MediaType.APPLICATION_JSON);
-        if (token != null) {
-            cabecalhos.set("X-Synapse-Token", token);
-        }
-        return cabecalhos;
-    }
-
-    private JsonNode ler(ResponseEntity<String> resposta) {
-        try {
-            return json.readTree(resposta.getBody());
-        } catch (com.fasterxml.jackson.core.JsonProcessingException erro) {
-            throw new IllegalStateException("corpo ilegivel: " + resposta.getBody(), erro);
-        }
-    }
-
-    private static String url(UUID atendimentoId) {
-        return "/internal/v1/atendimentos/" + atendimentoId + "/informacoes-do-chatbot";
-    }
-
-    private static String urlLeitura(UUID atendimentoId) {
-        return "/api/v1/atendimentos/" + atendimentoId + "/informacoes-do-chatbot";
+        throw new IOException("script de habilitacao das informacoes do chatbot nao encontrado");
     }
 }

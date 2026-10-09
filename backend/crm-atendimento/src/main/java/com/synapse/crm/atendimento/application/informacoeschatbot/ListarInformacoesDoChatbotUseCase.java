@@ -1,5 +1,7 @@
 package com.synapse.crm.atendimento.application.informacoeschatbot;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,7 +16,11 @@ import com.synapse.crm.atendimento.domain.informacoeschatbot.InformacoesDoChatbo
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
- * Le os cards do historico de UM atendimento, numa unica consulta limitada.
+ * Le os cards do historico de UM atendimento em paginas estaveis, do mais recente para o mais antigo.
+ *
+ * <p>Nenhum card some em silencio: a lista e paginada por cursor, no mesmo espirito do historico de
+ * mensagens, e quem le decide ate onde ir. O parametro {@code desde} alinha os cards ao trecho de
+ * mensagens que a tela ja carregou, entao uma conversa longa nunca traz todos os cards de uma vez.
  *
  * <p>Fica fora da paginacao de mensagens de proposito: o card nao e mensagem e nao pode distorcer o
  * cursor, a contagem nem a reconciliacao do historico. Quem alcanca o atendimento alcanca os cards —
@@ -27,36 +33,59 @@ public class ListarInformacoesDoChatbotUseCase {
     private final AtendimentoRepositorio atendimentos;
     private final InformacoesDoChatbotRepositorio informacoes;
     private final HabilitacaoDasInformacoesDoChatbot habilitacao;
-    private final int limite;
+    private final int tamanhoDaPagina;
 
     public ListarInformacoesDoChatbotUseCase(
             AtendimentoRepositorio atendimentos,
             InformacoesDoChatbotRepositorio informacoes,
             HabilitacaoDasInformacoesDoChatbot habilitacao,
-            @Value("${synapse.automacao.informacoes-chatbot-limite-listagem:50}") int limite) {
-        if (limite < 1) {
-            throw new IllegalStateException("synapse.automacao.informacoes-chatbot-limite-listagem deve ser >= 1");
+            @Value("${synapse.automacao.informacoes-chatbot-tamanho-pagina:50}") int tamanhoDaPagina) {
+        if (tamanhoDaPagina < 1) {
+            throw new IllegalStateException("synapse.automacao.informacoes-chatbot-tamanho-pagina deve ser >= 1");
         }
         this.atendimentos = atendimentos;
         this.informacoes = informacoes;
         this.habilitacao = habilitacao;
-        this.limite = limite;
+        this.tamanhoDaPagina = tamanhoDaPagina;
     }
 
     /**
-     * @return vazio quando a instancia nao habilitou o recurso, sem sequer consultar o atendimento: a
-     *     flag desligada nao muda nenhuma resposta existente nem revela se o atendimento existe
+     * @param desde limite inferior inclusivo do trecho de interesse; {@code null} = todo o historico
+     * @param cursor devolvido pela pagina anterior; {@code null} = primeira pagina (a mais recente)
+     * @return pagina vazia quando a instancia nao habilitou o recurso, sem sequer consultar o
+     *     atendimento: a flag desligada nao muda nenhuma resposta existente nem revela se ele existe
      * @throws RecursoDeAtendimentoIndisponivelException atendimento inexistente ou fora do alcance
      */
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
-    public List<InformacoesDoChatbot> executar(UUID atendimentoId) {
+    public Pagina executar(UUID atendimentoId, Instant desde, Cursor cursor) {
         if (!habilitacao.habilitada()) {
-            return List.of();
+            return new Pagina(List.of(), null);
         }
         atendimentos
                 .porId(atendimentoId)
                 .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId));
-        return informacoes.recentesDoAtendimento(atendimentoId, limite);
+
+        List<InformacoesDoChatbot> encontradas = informacoes.anteriores(
+                atendimentoId,
+                desde,
+                cursor == null ? null : cursor.registradoEm(),
+                cursor == null ? null : cursor.id(),
+                tamanhoDaPagina + 1);
+        boolean temMais = encontradas.size() > tamanhoDaPagina;
+        List<InformacoesDoChatbot> pagina = new ArrayList<>(temMais ? encontradas.subList(0, tamanhoDaPagina) : encontradas);
+        Cursor proximo = temMais
+                ? new Cursor(pagina.getLast().registradoEm(), pagina.getLast().id())
+                : null;
+        // Cada pagina sai em ordem cronologica; quem junta as paginas (mais antigas por ultimo) inverte a lista.
+        return new Pagina(pagina.reversed(), proximo);
+    }
+
+    public record Cursor(Instant registradoEm, UUID id) {}
+
+    public record Pagina(List<InformacoesDoChatbot> itens, Cursor proximoCursor) {
+        public Pagina {
+            itens = List.copyOf(itens);
+        }
     }
 }

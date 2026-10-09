@@ -18,13 +18,15 @@ import org.junit.jupiter.api.Test;
 
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
+import com.synapse.crm.atendimento.application.informacoeschatbot.ListarInformacoesDoChatbotUseCase.Cursor;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.informacoeschatbot.InformacoesDoChatbot;
 
 class ListarInformacoesDoChatbotUseCaseTest {
 
-    private static final int LIMITE = 7;
+    private static final int PAGINA = 3;
+    private static final Instant BASE = Instant.parse("2026-10-08T14:00:00Z");
 
     private final AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
     private final InformacoesDoChatbotRepositorio informacoes = mock(InformacoesDoChatbotRepositorio.class);
@@ -34,15 +36,18 @@ class ListarInformacoesDoChatbotUseCaseTest {
 
     @BeforeEach
     void preparar() {
-        casoDeUso = new ListarInformacoesDoChatbotUseCase(atendimentos, informacoes, habilitacao, LIMITE);
+        casoDeUso = new ListarInformacoesDoChatbotUseCase(atendimentos, informacoes, habilitacao, PAGINA);
     }
 
     @Test
-    @DisplayName("flag desligada: lista vazia sem consultar atendimento nem cards")
+    @DisplayName("flag desligada: pagina vazia sem consultar atendimento nem cards")
     void desabilitadaDevolveVazioSemConsultar() {
         when(habilitacao.habilitada()).thenReturn(false);
 
-        assertThat(casoDeUso.executar(atendimentoId)).isEmpty();
+        var pagina = casoDeUso.executar(atendimentoId, null, null);
+
+        assertThat(pagina.itens()).isEmpty();
+        assertThat(pagina.proximoCursor()).isNull();
         verifyNoInteractions(atendimentos, informacoes);
     }
 
@@ -52,30 +57,70 @@ class ListarInformacoesDoChatbotUseCaseTest {
         when(habilitacao.habilitada()).thenReturn(true);
         when(atendimentos.porId(atendimentoId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> casoDeUso.executar(atendimentoId))
+        assertThatThrownBy(() -> casoDeUso.executar(atendimentoId, null, null))
                 .isInstanceOf(RecursoDeAtendimentoIndisponivelException.class);
         verifyNoInteractions(informacoes);
     }
 
     @Test
-    @DisplayName("devolve os cards do atendimento com o limite configurado")
-    void devolveOsCardsComLimite() {
-        when(habilitacao.habilitada()).thenReturn(true);
-        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(new Atendimento(
-                atendimentoId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                StatusAtendimento.EM_ATENDIMENTO, Instant.parse("2026-10-08T13:00:00Z"), null)));
-        var card = new InformacoesDoChatbot(
-                UUID.randomUUID(), atendimentoId, "Nome: Maria", Instant.parse("2026-10-08T14:00:00Z"));
-        when(informacoes.recentesDoAtendimento(atendimentoId, LIMITE)).thenReturn(List.of(card));
+    @DisplayName("pede uma linha a mais, devolve a pagina em ordem cronologica e o cursor do mais antigo")
+    void paginaComCursor() {
+        liberar();
+        // O repositorio devolve do mais recente para o mais antigo; sobram 4 = ha mais.
+        var c5 = card(5);
+        var c4 = card(4);
+        var c3 = card(3);
+        var c2 = card(2);
+        when(informacoes.anteriores(atendimentoId, null, null, null, PAGINA + 1)).thenReturn(List.of(c5, c4, c3, c2));
 
-        assertThat(casoDeUso.executar(atendimentoId)).containsExactly(card);
-        verify(informacoes).recentesDoAtendimento(atendimentoId, LIMITE);
+        var pagina = casoDeUso.executar(atendimentoId, null, null);
+
+        assertThat(pagina.itens()).containsExactly(c3, c4, c5);
+        assertThat(pagina.proximoCursor()).isEqualTo(new Cursor(c3.registradoEm(), c3.id()));
     }
 
     @Test
-    @DisplayName("limite invalido derruba a subida")
-    void recusaLimiteInvalido() {
+    @DisplayName("ultima pagina: sem cursor, sem perder nenhum card")
+    void ultimaPagina() {
+        liberar();
+        var c2 = card(2);
+        var c1 = card(1);
+        var cursor = new Cursor(BASE.plusSeconds(3), UUID.randomUUID());
+        when(informacoes.anteriores(atendimentoId, null, cursor.registradoEm(), cursor.id(), PAGINA + 1))
+                .thenReturn(List.of(c2, c1));
+
+        var pagina = casoDeUso.executar(atendimentoId, null, cursor);
+
+        assertThat(pagina.itens()).containsExactly(c1, c2);
+        assertThat(pagina.proximoCursor()).isNull();
+    }
+
+    @Test
+    @DisplayName("repassa a janela 'desde' ao repositorio")
+    void repassaDesde() {
+        liberar();
+        var desde = BASE.minusSeconds(60);
+        when(informacoes.anteriores(atendimentoId, desde, null, null, PAGINA + 1)).thenReturn(List.of());
+
+        assertThat(casoDeUso.executar(atendimentoId, desde, null).itens()).isEmpty();
+        verify(informacoes).anteriores(atendimentoId, desde, null, null, PAGINA + 1);
+    }
+
+    @Test
+    @DisplayName("tamanho de pagina invalido derruba a subida")
+    void recusaTamanhoInvalido() {
         assertThatThrownBy(() -> new ListarInformacoesDoChatbotUseCase(atendimentos, informacoes, habilitacao, 0))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    private void liberar() {
+        when(habilitacao.habilitada()).thenReturn(true);
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(new Atendimento(
+                atendimentoId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                StatusAtendimento.EM_ATENDIMENTO, BASE.minusSeconds(3600), null)));
+    }
+
+    private InformacoesDoChatbot card(int ordem) {
+        return new InformacoesDoChatbot(UUID.randomUUID(), atendimentoId, "card " + ordem, BASE.plusSeconds(ordem));
     }
 }

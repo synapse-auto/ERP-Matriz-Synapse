@@ -18,9 +18,14 @@ public interface InformacoesDoChatbotRepositorio {
     void inserir(UUID id, UUID atendimentoId, String chaveIdempotencia, String conteudo, Instant registradoEm);
 
     /**
-     * Os cards mais recentes do atendimento, em ordem cronologica crescente.
+     * Uma pagina de cards do atendimento, do mais recente para o mais antigo, a partir de um cursor.
      *
-     * @param limite teto de linhas; o recorte e sempre o dos <em>mais recentes</em>
+     * @param desde limite inferior inclusivo ({@code null} = sem limite): e o que alinha os cards ao
+     *     trecho do historico de mensagens ja carregado
+     * @param cursorRegistradoEm junto de {@code cursorId}, devolve so o que e estritamente anterior a
+     *     eles; {@code null} = primeira pagina
+     * @param limite quantidade maxima de linhas devolvidas (o chamador pede uma a mais para saber se ha mais)
      */
-    List<InformacoesDoChatbot> recentesDoAtendimento(UUID atendimentoId, int limite);
+    List<InformacoesDoChatbot> anteriores(
+            UUID atendimentoId, Instant desde, Instant cursorRegistradoEm, UUID cursorId, int limite);
 }

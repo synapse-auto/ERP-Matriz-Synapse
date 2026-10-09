@@ -378,7 +378,7 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `SYNAPSE_TOKEN_INTERNO` | Segredo de `X-Synapse-Token` usado pelo n8n no contrato privado `/internal/v1`. |
 | `AUTOMACAO_RESUMO_IA_TAMANHO_MAXIMO` | Limite de caracteres aceito ao sobrescrever o resumo da IA; padrão `8000`. |
 | `AUTOMACAO_INFORMACOES_CHATBOT_TAMANHO_MAXIMO` | Limite de caracteres do card de informações do chatbot no histórico (docs/69); padrão `4000`, faixa 1–20000. O recurso em si liga por feature flag por instância, não por esta variável. |
-| `AUTOMACAO_INFORMACOES_CHATBOT_LIMITE_LISTAGEM` | Quantos cards (os mais recentes) a leitura devolve por atendimento; padrão `50`. Opcional. |
+| `AUTOMACAO_INFORMACOES_CHATBOT_TAMANHO_PAGINA` | Tamanho da página de cards do histórico (leitura por cursor; nenhum card some); padrão `50`. Opcional. |
 | `AUTOMACAO_RESUMO_IA_URL` | URL interna do webhook n8n que recebe solicitações de geração sob demanda; vazio mantém o recurso desligado. |
 | `AUTOMACAO_RESUMO_IA_TOKEN` | Segredo do webhook de resumo por IA, enviado somente no header configurado; vazio mantém o recurso desligado. Nunca versionar o valor. |
 | `AUTOMACAO_RESUMO_IA_AUTH_HEADER` | Nome do header do webhook de resumo; padrão `CRM-Synapse-RES`. Deve coincidir com o workflow n8n. |

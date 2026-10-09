@@ -426,8 +426,10 @@ export interface CartaoInformacoesChatbot {
   registradoEm: string;
 }
 
+/** Página em ordem cronológica; `proximoCursor` aponta para a página MAIS ANTIGA, e é nulo na última. */
 export interface InformacoesChatbotResposta {
   itens: CartaoInformacoesChatbot[];
+  proximoCursor: string | null;
 }
 
 export type TipoEventoEstadoAtendimento =

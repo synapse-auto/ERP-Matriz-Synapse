@@ -58,6 +58,7 @@ import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import {
   chaveInformacoesChatbot,
+  type JanelaDoHistorico,
   useInformacoesDoChatbot,
 } from "@/lib/atendimento/use-informacoes-chatbot";
 import { useMensagens } from "@/lib/atendimento/use-mensagens";
@@ -672,7 +673,22 @@ export function PaginaAtendimentosCliente({
     },
     incrementaisLiberados,
   );
-  const cartoesDoChatbot = useInformacoesDoChatbot(conversa?.atendimentoId ?? null, estado);
+  // Os cards acompanham a janela de mensagens já carregada: carregar mensagens mais antigas amplia a
+  // janela e traz os cards desse trecho, sem nunca buscar a conversa inteira de uma vez.
+  const temMaisMensagens = mensagensQuery.hasNextPage;
+  const mensagemMaisAntiga = useMemo(
+    () => mensagensQuery.data.reduce<string | null>(
+      (menor, mensagem) =>
+        menor == null || Date.parse(mensagem.enviadoEm) < Date.parse(menor) ? mensagem.enviadoEm : menor,
+      null,
+    ),
+    [mensagensQuery.data],
+  );
+  const janelaDosCartoes: JanelaDoHistorico | null =
+    mensagensQuery.isLoading || (temMaisMensagens && mensagemMaisAntiga == null)
+      ? null
+      : { desde: temMaisMensagens ? mensagemMaisAntiga : null };
+  const cartoesDoChatbot = useInformacoesDoChatbot(conversa?.atendimentoId ?? null, estado, janelaDosCartoes);
   const enviar = useEnviarMensagem();
   const reenviarMidia = useEnviarMidia();
   const aposMensagemEnviada = useCallback(() => {

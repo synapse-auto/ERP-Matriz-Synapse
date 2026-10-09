@@ -156,23 +156,31 @@ public class ComandosAutomacaoUseCase {
     }
 
     /**
-     * Card interno com o que o chatbot coletou antes da transferencia. A flag e a primeira barreira
-     * (instancia desligada nao reserva chave nem grava); o conteudo normalizado entra no hash, entao
-     * o mesmo texto reenviado com outra quebra de linha continua sendo o mesmo pedido.
+     * Card interno com o que o chatbot coletou antes da transferencia. Ordem: chave (400) → replay de
+     * operacao ja concluida (resposta original, mesmo com a flag desligada ou o limite alterado) →
+     * so para operacao nova: flag (409), conteudo (422) e destino. O conteudo normalizado entra no
+     * hash, entao o mesmo texto reenviado com outra quebra de linha continua sendo o mesmo pedido.
      */
     @PreAuthorize("hasRole('SERVICO')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public InformacoesDoChatbotResposta registrarInformacoesDoChatbot(
             UUID atendimentoId, String chave, String conteudo) {
-        informacoesDoChatbot.exigirHabilitada();
-        String normalizado = informacoesDoChatbot.normalizar(conteudo);
+        // O hash usa so a normalizacao: o replay de uma operacao concluida precisa do mesmo hash de
+        // quando foi aceita, independentemente da flag e do limite de hoje.
+        String normalizado = informacoesDoChatbot.normalizarParaIdempotencia(conteudo);
         return executar(
                 chave,
                 "REGISTRAR_INFORMACOES_CHATBOT",
                 atendimentoId,
                 normalizado,
                 InformacoesDoChatbotResposta.class,
-                () -> informacoesDoChatbot.validarDestino(atendimentoId),
+                // So roda para operacao NOVA (o replay ja foi devolvido antes): configuracao atual
+                // valida o que ainda nao aconteceu e nunca invalida o que ja foi concluido.
+                () -> {
+                    informacoesDoChatbot.exigirHabilitada();
+                    informacoesDoChatbot.validarConteudo(conteudo);
+                    informacoesDoChatbot.validarDestino(atendimentoId);
+                },
                 () -> InformacoesDoChatbotResposta.de(
                         informacoesDoChatbot.executar(atendimentoId, chave, normalizado)));
     }

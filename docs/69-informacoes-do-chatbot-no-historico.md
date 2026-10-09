@@ -78,7 +78,13 @@ transferência.
 
 ### Idempotência (obrigatória)
 
-`Idempotency-Key` ausente: `400`.
+`Idempotency-Key` ausente ou em branco: `400`, antes de qualquer outra validação.
+
+**Ordem das decisões:** chave → **replay de operação já concluída** → só para operação **nova**: flag
+(`409`), conteúdo (`422`) e estado do atendimento (`409`). A configuração de hoje valida o que ainda não
+aconteceu e **nunca invalida o que já foi concluído**: o replay devolve a resposta original mesmo que a
+flag tenha sido desligada, o limite de caracteres reduzido ou o atendimento finalizado depois. O hash do
+pedido usa só o texto normalizado, não o limite.
 
 | Situação | Resposta |
 |---|---|
@@ -136,20 +142,35 @@ Valores de `motivo` (campo aditivo do `409`):
   (chave nova) se fizer sentido.
 - Nunca escrever direto no banco: a escrita direta não dispara tempo real nem respeita a idempotência.
 
-### Callback atrasado
+### Callback atrasado e concorrência
 
 Se a execução do n8n demorar e o atendimento for finalizado (ou o lead abrir outro atendimento) antes da
 chamada, o CRM responde `409 ATENDIMENTO_FINALIZADO` e **não** grava em nenhum outro atendimento.
+
+**Validar o estado e gravar são uma decisão só.** O CRM toma o lock do lead e do atendimento, na mesma
+ordem de finalizar e transferir, e só então confere o estado e grava. Uma finalização ou devolução para a
+IA em paralelo termina antes (o card é recusado: `ATENDIMENTO_FINALIZADO` ou
+`ATENDIMENTO_NAO_TRANSFERIDO`) ou depois (o card já está gravado). Nunca no meio, num destino obsoleto.
 
 ---
 
 ## 4. Quem vê o card
 
-- Leitura pela API autenticada: `GET /api/v1/atendimentos/{id}/informacoes-do-chatbot` →
-  `{"itens":[{"id","atendimentoId","conteudo","origem":"AUTOMACAO","registradoEm"}]}`, em ordem
-  cronológica, os mais recentes até o limite da instância (50 por padrão).
-- **Mesma visibilidade do atendimento:** quem não alcança o atendimento recebe `404` (nunca `403`) e não
-  lê o conteúdo. A regra mora numa única política (RLS de `atendimento`) e a tabela do card herda dela.
+- Leitura pela API autenticada: `GET /api/v1/atendimentos/{id}/informacoes-do-chatbot[?desde=&cursor=]` →
+  `{"itens":[{"id","atendimentoId","conteudo","origem":"AUTOMACAO","registradoEm"}],"proximoCursor":"…"|null}`.
+  **Nenhum card some:** a leitura é paginada por cursor opaco (do mais recente para o mais antigo; cada
+  página sai em ordem cronológica; tamanho da página 50 por padrão), no mesmo espírito do histórico de
+  mensagens. A tela acompanha a janela de mensagens que já carregou: `desde` é o instante da mensagem
+  mais antiga carregada e os cards desse trecho vêm em páginas, uma de cada vez. Ao carregar mensagens
+  mais antigas a janela cresce e os cards daquele trecho entram. Nenhuma consulta traz a conversa inteira.
+  Cursor ou `desde` malformado: `400`.
+- **Mesma visibilidade do atendimento, exatamente:** quem não alcança o atendimento recebe `404` (nunca
+  `403`) e não lê o conteúdo. A regra mora numa única política (RLS de `atendimento`) e a tabela do card
+  herda dela; o card **não amplia** o acesso a atendimentos de colegas. Um IT compara, usuário a usuário e
+  cenário a cenário (dono, gestor, subgestor, atendente sem relação, participante ativo, participante que
+  saiu, convite pendente, convite vencido, solicitação de entrada, atendimento em IA e finalizado), a
+  resposta dos cards com a das **mensagens**. O que a regra existente concede, e que o card apenas herda,
+  está em [`70-visibilidade-de-atendimentos-em-ia-e-finalizados.md`](./70-visibilidade-de-atendimentos-em-ia-e-finalizados.md).
 - Tempo real: o evento `INFORMACOES_CHATBOT` chega pelo canal do atendimento **sem o texto** (só ids); a
   tela revalida pela API autorizada. A tela revalida uma vez a cada conexão do WebSocket (a primeira e as reconexões), para recuperar um card criado antes de o canal estar assinado.
   Não existe polling.
@@ -188,7 +209,7 @@ Variável opcional (default seguro, **sem ação obrigatória no Dokploy**):
 | Variável | Padrão | Função |
 |---|---|---|
 | `AUTOMACAO_INFORMACOES_CHATBOT_TAMANHO_MAXIMO` | `4000` | Limite de caracteres do `conteudo`. Faixa 1–20000; fora dela o backend não sobe. |
-| `AUTOMACAO_INFORMACOES_CHATBOT_LIMITE_LISTAGEM` | `50` | Quantos cards (os mais recentes) a leitura devolve por atendimento. Cards mais antigos que isso deixam de aparecer na tela, sem aviso. |
+| `AUTOMACAO_INFORMACOES_CHATBOT_TAMANHO_PAGINA` | `50` | Tamanho da página de cards da leitura (cursor). Não limita quantos cards existem nem quantos a tela alcança: define só quantos vêm por requisição. |
 
 ---
 
@@ -213,10 +234,19 @@ Os workflows de produção **não** foram alterados por esta entrega.
 ## 7. Evidência
 
 - `InformacoesDoChatbotIT` (HTTP + Postgres real): registro sem efeito colateral (sem `mensagem`, sem
-  outbox, responsável/participantes/resumo da ficha intactos), retry sem duplicar, chave com conteúdo ou
-  destino diferente, atendimento em IA, callback atrasado sem contaminar o atendimento atual, 404, 422,
-  400, 401, flag desligada (sem reserva de chave) e leitura por responsável/gestão/colega sem acesso.
+  outbox, responsável/participantes/resumo da ficha intactos), retry sem duplicar, **replay depois de
+  desligar a flag e depois de finalizar o atendimento**, chave com conteúdo ou destino diferente,
+  atendimento em IA, callback atrasado sem contaminar o atendimento atual, 404, 422, 400 (inclusive chave
+  em branco), 401, flag desligada (sem reserva de chave), **leitura paginada sem perder card, janela
+  `desde` e cursor malformado**, e o contrato publicado no OpenAPI (parâmetros, segurança e códigos).
+- `InformacoesDoChatbotConcorrenciaIT`: finalização e devolução à IA em curso (o card espera o lock do
+  lead, vê o novo estado e é recusado sem gravar) e 12 corridas reais contra `/finalizar` e `/modo-ia`.
+  Sem o lock, estes testes reprovam (verificado removendo-o).
+- `InformacoesDoChatbotVisibilidadeIT`: paridade de status entre cards e mensagens para cada usuário em
+  cada cenário de acesso.
 - `RlsInformacoesDoChatbotIT`: política de leitura herdada de `atendimento`, só o contexto de serviço
-  insere, UPDATE/DELETE não alteram nada, chave única.
-- Testes unitários do conteúdo, dos casos de uso e do relay de tempo real; no front, o card, a
-  intercalação com as mensagens e o hook (flag desligada = nenhuma requisição).
+  insere, UPDATE/DELETE negados (privilégio revogado e sem política), chave única.
+- `RegistrarInformacoesDoChatbotIdempotenciaTest` e demais unitários: ordem das decisões, replay imune à
+  configuração atual, lock na ordem de finalizar, páginas e cursor, relay de tempo real. No front, o card,
+  a intercalação com as mensagens e o hook (janela, páginas em sequência, flag desligada = nenhuma
+  requisição).
