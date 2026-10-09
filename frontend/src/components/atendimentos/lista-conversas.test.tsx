@@ -543,7 +543,7 @@ describe("ListaConversas", () => {
 
     expect(screen.getAllByRole("separator", { name: "Finalizados" })).toHaveLength(1);
     expect(screen.getByText("Daniela finalizada")).toHaveClass("text-muted-foreground");
-    expect(screen.getByText("Carla com histórico")).toHaveClass("text-foreground");
+    expect(screen.getByText("Carla com histórico")).toHaveClass("text-chat-texto-forte");
 
     fireEvent.click(screen.getByRole("tab", { name: /Ativos/ }));
     expect(screen.queryByRole("separator", { name: "Finalizados" })).not.toBeInTheDocument();

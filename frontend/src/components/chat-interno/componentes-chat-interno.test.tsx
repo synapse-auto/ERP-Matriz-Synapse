@@ -198,7 +198,10 @@ describe("componentes de apresentação do chat interno", () => {
       "rounded-2xl",
       "rounded-tl-md",
       "border",
+      "text-chat-texto-forte",
     );
+    expect(container.querySelector("time")).toHaveClass("text-primary-foreground");
+    expect(container.querySelector("time")).not.toHaveClass("text-primary-foreground/70");
     expect(container.querySelector('[data-slot="historico-chat-interno"]')).toHaveClass(
       "min-h-0",
       "flex-1",

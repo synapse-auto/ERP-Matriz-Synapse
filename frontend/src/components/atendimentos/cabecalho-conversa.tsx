@@ -474,7 +474,7 @@ export function CabecalhoConversa({
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <p className="min-w-[min(100%,12ch)] max-w-full flex-1 truncate font-bold text-foreground" title={nomeDoLead} data-slot="nome-do-lead">
+            <p className="min-w-[min(100%,12ch)] max-w-full flex-1 truncate font-semibold text-chat-texto-forte" title={nomeDoLead} data-slot="nome-do-lead">
               {nomeDoLead}
             </p>
             {canal && (

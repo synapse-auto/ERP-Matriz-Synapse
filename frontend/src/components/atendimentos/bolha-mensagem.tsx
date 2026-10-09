@@ -196,11 +196,11 @@ export function BolhaMensagem({
           "w-fit max-w-full rounded-2xl px-3.5 py-3 text-sm font-normal",
           doAtendente
             ? "rounded-tr-md bg-primary text-primary-foreground"
-            : "rounded-tl-md border border-border bg-muted text-foreground shadow-sm",
+            : "rounded-tl-md border border-border bg-muted text-chat-texto-forte shadow-sm",
         )}
       >
         {doAtendente && nomeDoRemetente && (
-          <p className="mb-1 text-xs font-bold text-primary-foreground/80">
+          <p className="mb-1 text-xs font-semibold text-primary-foreground">
             {nomeDoRemetente}
           </p>
         )}
@@ -432,7 +432,7 @@ export function BolhaMensagem({
           className={cn(
             "mt-1 flex items-center gap-1.5 text-[0.7rem]",
             doAtendente
-              ? "justify-end text-primary-foreground/70"
+              ? "justify-end text-primary-foreground"
               : "text-muted-foreground",
           )}
         >

@@ -56,13 +56,13 @@ export function CartaoConversa({
         />}
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <p className="truncate text-sm font-bold text-foreground">{cartao.nome}</p>
+            <p className="truncate text-sm font-semibold text-chat-texto-forte">{cartao.nome}</p>
             <span className="flex shrink-0 items-center gap-1.5">
               {hora && <time className="text-[0.7rem] text-muted-foreground">{hora}</time>}
               {cartao.naoLidas > 0 && <Badge className="h-5 min-w-5 justify-center rounded-full px-1 text-[0.625rem]">{cartao.naoLidas}</Badge>}
             </span>
           </div>
-          {cartao.ultimaMensagemPreview && <p className="mt-1 truncate text-xs text-foreground/70">{cartao.ultimaMensagemPreview}</p>}
+          {cartao.ultimaMensagemPreview && <p className="mt-1 truncate text-xs text-foreground">{cartao.ultimaMensagemPreview}</p>}
           <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[0.65rem] font-semibold text-muted-foreground">
             <Users className="size-[calc(var(--tamanho-icone-interface)*0.75)]" aria-hidden />{catalogo.chatInterno.titulo}
           </span>
@@ -121,8 +121,8 @@ export function CartaoConversa({
         <div className="flex items-center justify-between gap-2">
           <p
             className={cn(
-              "truncate text-sm font-bold",
-              semAtendimentoAberto ? "text-muted-foreground" : "text-foreground",
+              "truncate text-sm font-semibold",
+              semAtendimentoAberto ? "text-muted-foreground" : "text-chat-texto-forte",
             )}
           >
             {cartao.leadNome}
@@ -161,7 +161,7 @@ export function CartaoConversa({
         )}
 
         {cartao.ultimaMensagemPreview && (
-          <p className="mt-1 truncate text-xs text-foreground/70">
+          <p className="mt-1 truncate text-xs text-foreground">
             {cartao.ultimaMensagemPreview}
           </p>
         )}

@@ -63,6 +63,12 @@ const cartao: CartaoAtendimento = {
 };
 
 describe("CartaoConversa — RN-CRM-05", () => {
+  it.each([true, false])("mantém nome forte e prévia opaca com seleção %s", (selecionado) => {
+    render(<CartaoConversa cartao={{ ...cartao, atendenteId: "atendente", ultimaMensagemPreview: "Prévia sintética" }} selecionado={selecionado} onAbrirAtendimento={vi.fn()} />);
+    expect(screen.getByText(cartao.leadNome)).toHaveClass("font-semibold", "text-chat-texto-forte", "truncate");
+    expect(screen.getByText("Prévia sintética")).toHaveClass("text-foreground", "truncate");
+    expect(screen.getByText("Prévia sintética")).not.toHaveClass("text-foreground/70");
+  });
   it("identifica somente o convite pessoal pendente recebido no contrato", () => {
     const props = { selecionado: false, onAbrirAtendimento: vi.fn() };
     const { rerender } = render(<CartaoConversa {...props} cartao={{ ...cartao, convitePendente: true }} />);

@@ -112,7 +112,7 @@ export function PlayerAudio({ src, rotulo, reproduzir, pausar, posicao, onError 
             setAtual(proximo);
           }}
         />
-        <p className={cn("mt-0.5 font-mono text-[0.65rem] tabular-nums opacity-80")}>
+        <p className={cn("mt-0.5 font-mono text-[0.65rem] tabular-nums")}>
           {formatarDuracaoDoAudio(atual)} / {formatarDuracaoDoAudio(teto)}
         </p>
       </div>
