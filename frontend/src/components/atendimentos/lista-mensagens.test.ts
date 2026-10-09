@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { MensagemResposta } from "@/lib/atendimento/types";
 
-import { chaveDaMensagem, mudouDeAtendimento, nomeDaAutoria, rotuloDaData } from "./lista-mensagens";
+import { intercalarCartoes, mudouDeAtendimento, nomeDaAutoria, rotuloDaData } from "./lista-mensagens";
 
 function mensagem(parcial: Partial<MensagemResposta>): MensagemResposta {
   return {
@@ -41,14 +41,20 @@ describe("rotuloDaData", () => {
   });
 });
 
-describe("chaveDaMensagem", () => {
+describe("chave das linhas do histórico", () => {
   it("mantem a altura associada ao id quando uma pagina anterior entra no topo", () => {
-    const paginaInicial = [mensagem({ id: "nova" }), mensagem({ id: "mais-nova" })];
-    const depoisDoBackfill = [mensagem({ id: "antiga" }), ...paginaInicial];
+    const paginaInicial = [
+      mensagem({ id: "nova", enviadoEm: "2026-08-15T12:00:00Z" }),
+      mensagem({ id: "mais-nova", enviadoEm: "2026-08-15T12:01:00Z" }),
+    ];
+    const depoisDoBackfill = [mensagem({ id: "antiga", enviadoEm: "2026-08-15T11:00:00Z" }), ...paginaInicial];
 
-    expect(chaveDaMensagem(paginaInicial, 0)).toBe("nova");
-    expect(chaveDaMensagem(depoisDoBackfill, 1)).toBe("nova");
-    expect(chaveDaMensagem(depoisDoBackfill, 2)).toBe("mais-nova");
+    expect(intercalarCartoes(paginaInicial, []).map((linha) => linha.chave)).toEqual(["nova", "mais-nova"]);
+    expect(intercalarCartoes(depoisDoBackfill, []).map((linha) => linha.chave)).toEqual([
+      "antiga",
+      "nova",
+      "mais-nova",
+    ]);
   });
 });
 

@@ -342,6 +342,14 @@ O arquivo `docs/n8n/resumo-ia-sob-demanda.json` é o template versionado sem cre
 configure a Header Auth `SYNAPSE_TOKEN_INTERNO` para o CRM e a validação do webhook com
 `AUTOMACAO_RESUMO_IA_TOKEN`; não coloque segredos no JSON exportado.
 
+### 5.2 Informações do chatbot no histórico (docs/69)
+
+Contrato **à parte** do resumo: `POST /internal/v1/atendimentos/{id}/informacoes-do-chatbot` grava um
+card interno no histórico, depois da transferência, e **não** toca em `lead.resumo_ia`, no botão de
+gerar nem no EV-05. Recurso desligado por padrão e habilitado por instância (feature flag). Contrato
+completo, ordem das chamadas e comportamento de falha em
+[`69-informacoes-do-chatbot-no-historico.md`](./69-informacoes-do-chatbot-no-historico.md).
+
 ## 6. O que ficou de fora, e por quê
 
 - **FAQ institucional** — é etapa própria: precisa de tela para o cliente editar o conteúdo. Não

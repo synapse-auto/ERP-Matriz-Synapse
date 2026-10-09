@@ -531,6 +531,12 @@
       "erro": "Não foi possível registrar a avaliação.",
       "nota": "Nota {nota}"
     },
+    "informacoesChatbot": {
+      "titulo": "Resumo da IA para o atendimento",
+      "origem": "Transferência para atendimento humano",
+      "verMais": "Ver tudo",
+      "verMenos": "Ver menos"
+    },
     "mensagem": {
       "hoje": "Hoje",
       "ontem": "Ontem",

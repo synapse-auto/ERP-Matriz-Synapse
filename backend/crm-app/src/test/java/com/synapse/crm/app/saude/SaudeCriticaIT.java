@@ -52,6 +52,12 @@ class SaudeCriticaIT extends PostgresIT {
     void preparar() {
         jdbc.update("DELETE FROM outbox_evento WHERE tipo = 'e22.saude.teste'");
         consumidor.publicarPendentes();
+        // Pre-condicao do proprio teste: o componente "acumulo-outbox" conta pendencias com mais de
+        // cinco minutos, e varios ITs anteriores da suite deixam linhas de outbox que ninguem entrega
+        // (leads/atendimentos de fixture ja removidos). Quanto mais longa a suite, mais delas
+        // "envelhecem" e a saude vira DEGRADED por um residuo que nao e do que este teste prova. As
+        // assercoes seguem exigindo UP e os seis componentes; so o estado inicial e garantido aqui.
+        jdbc.update("DELETE FROM outbox_evento WHERE publicado_em IS NULL AND esgotado_em IS NULL");
         nomeCredencialAtiva = "canal_credencial_e22_" + UUID.randomUUID().toString().replace("-", "");
         nomeOutbox = "outbox_evento_e22_" + UUID.randomUUID().toString().replace("-", "");
         canaisAtivosAntes = jdbc.queryForList("SELECT id FROM canal WHERE ativo", UUID.class);
@@ -77,7 +83,9 @@ class SaudeCriticaIT extends PostgresIT {
     void todosOsComponentesSaudaveis() throws Exception {
         JsonNode corpo = chamarCritical().corpo();
 
-        assertThat(corpo.path("status").asText()).isEqualTo("UP");
+        assertThat(corpo.path("status").asText())
+                .as("corpo completo da saude (qual componente degradou): %s", corpo)
+                .isEqualTo("UP");
         assertThat(corpo.path("componentes")).hasSize(6);
         assertThat(nomes(corpo)).containsExactlyInAnyOrder(
                 "banco-chat",

@@ -9,6 +9,11 @@ provisionamento padrao nem do Flyway. Para a Estrutural, siga a verificacao
 previa, aplicacao controlada e validacao em
 [`docs/48-habilitar-data-nascimento-estrutural.md`](../../docs/48-habilitar-data-nascimento-estrutural.md).
 
+`habilitar-informacoes-do-chatbot.sql` tambem e uma **operacao pontual por instancia** (liga a feature
+flag `informacoes_chatbot_historico`, que a V101 cria desligada). Execute somente no banco da instancia
+escolhida; detalhes e rollback em
+[`docs/69-informacoes-do-chatbot-no-historico.md`](../../docs/69-informacoes-do-chatbot-no-historico.md).
+
 O canal usa `WHATSAPP_NUMERO` (Phone Number ID numerico, nao o telefone exibido
 nem o WABA ID) e `WHATSAPP_PROVEDOR`, as mesmas variaveis do deploy. O executor
 e o SQL recusam valor ausente, vazio ou nao numerico. O token nao e copiado:

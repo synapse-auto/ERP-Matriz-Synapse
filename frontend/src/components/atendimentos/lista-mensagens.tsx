@@ -12,9 +12,18 @@ import { useTextos } from "@/lib/config/textos-provider";
 import { obterMensagem } from "@/lib/atendimento/api";
 import { origemDaMensagem } from "@/lib/atendimento/citacao";
 import { cn } from "@/lib/utils";
-import type { CitacaoMensagem, MensagemResposta, OrigemDaCitacao } from "@/lib/atendimento/types";
+import type {
+  CartaoInformacoesChatbot,
+  CitacaoMensagem,
+  MensagemResposta,
+  OrigemDaCitacao,
+} from "@/lib/atendimento/types";
 
 import { BolhaMensagem } from "./bolha-mensagem";
+import {
+  alturaEstimadaDoCartao,
+  CartaoInformacoesChatbot as CartaoDoChatbot,
+} from "./cartao-informacoes-chatbot";
 
 type Props = {
   mensagens: MensagemResposta[];
@@ -38,7 +47,77 @@ type Props = {
   reacoesHabilitadas?: boolean;
   onResponder?: (mensagem: MensagemResposta) => void;
   onEncaminhar?: (mensagem: MensagemResposta) => void;
+  /** Cards internos do chatbot: entram na linha do tempo, mas não são mensagens nem entram na paginação. */
+  cartoes?: ReadonlyArray<CartaoInformacoesChatbot>;
 };
+
+export type LinhaDoHistorico =
+  | {
+      tipo: "mensagem";
+      chave: string;
+      enviadoEm: string;
+      mensagem: MensagemResposta;
+      /** Última MENSAGEM antes desta (cards não contam): é com ela que se detecta troca de atendimento. */
+      anteriorMensagem: MensagemResposta | undefined;
+    }
+  | { tipo: "cartao"; chave: string; enviadoEm: string; cartao: CartaoInformacoesChatbot };
+
+const SEM_CARTOES: ReadonlyArray<CartaoInformacoesChatbot> = [];
+
+function instante(valor: string): number {
+  return Date.parse(valor);
+}
+
+/**
+ * Um card só entra na linha do tempo dentro do trecho do histórico já carregado. Os cards chegam
+ * numa consulta própria, sem cursor; sem esta regra um card antigo apareceria sozinho no topo,
+ * antes de mensagens que ainda nem foram buscadas, e o histórico pareceria fora de ordem.
+ */
+export function cartoesDoTrechoCarregado(
+  cartoes: ReadonlyArray<CartaoInformacoesChatbot>,
+  mensagens: ReadonlyArray<MensagemResposta>,
+  temMais: boolean,
+): CartaoInformacoesChatbot[] {
+  if (cartoes.length === 0) return [];
+  if (!temMais) return [...cartoes];
+  if (mensagens.length === 0) return [];
+  const inicioDoTrecho = Math.min(...mensagens.map((mensagem) => instante(mensagem.enviadoEm)));
+  return cartoes.filter((cartao) => instante(cartao.registradoEm) >= inicioDoTrecho);
+}
+
+/** Intercala por instante; num empate a mensagem vem antes do card (o card descreve o que veio antes dele). */
+export function intercalarCartoes(
+  mensagens: ReadonlyArray<MensagemResposta>,
+  cartoes: ReadonlyArray<CartaoInformacoesChatbot>,
+): LinhaDoHistorico[] {
+  const ordenados = [...cartoes].sort(
+    (a, b) => instante(a.registradoEm) - instante(b.registradoEm) || a.id.localeCompare(b.id),
+  );
+  const linhas: LinhaDoHistorico[] = [];
+  let anteriorMensagem: MensagemResposta | undefined;
+  let proximoCartao = 0;
+  const empilharCartao = (cartao: CartaoInformacoesChatbot) =>
+    linhas.push({ tipo: "cartao", chave: `cartao-${cartao.id}`, enviadoEm: cartao.registradoEm, cartao });
+
+  for (const mensagem of mensagens) {
+    while (
+      proximoCartao < ordenados.length
+      && instante(ordenados[proximoCartao].registradoEm) < instante(mensagem.enviadoEm)
+    ) {
+      empilharCartao(ordenados[proximoCartao++]);
+    }
+    linhas.push({
+      tipo: "mensagem",
+      chave: mensagem.id,
+      enviadoEm: mensagem.enviadoEm,
+      mensagem,
+      anteriorMensagem,
+    });
+    anteriorMensagem = mensagem;
+  }
+  while (proximoCartao < ordenados.length) empilharCartao(ordenados[proximoCartao++]);
+  return linhas;
+}
 
 /** Espaço real dentro do virtualizador para nenhuma mensagem encostar no cabeçalho ou composer. */
 export const ESPACAMENTO_DE_SEGURANCA_DO_HISTORICO = 16;
@@ -67,6 +146,7 @@ export function ListaMensagens({
   reacoesHabilitadas,
   onResponder,
   onEncaminhar,
+  cartoes = SEM_CARTOES,
 }: Props) {
   const textos = useTextos();
   const [busca, setBusca] = useState("");
@@ -105,11 +185,23 @@ export function ListaMensagens({
     return mapa;
   }, [mensagensComExtras]);
 
+  const linhas = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    const doTrecho = cartoesDoTrechoCarregado(cartoes, mensagens, temMais);
+    const buscados = termo
+      ? doTrecho.filter((cartao) => cartao.conteudo.toLowerCase().includes(termo))
+      : doTrecho;
+    return intercalarCartoes(filtradas, buscados);
+  }, [busca, cartoes, filtradas, mensagens, temMais]);
+
   const virtualizador = useVirtualizer({
-    count: filtradas.length,
+    count: linhas.length,
     getScrollElement: () => containerRef.current,
-    getItemKey: (indice) => chaveDaMensagem(filtradas, indice),
-    estimateSize: () => 48,
+    getItemKey: (indice) => linhas[indice]?.chave ?? indice,
+    estimateSize: (indice) => {
+      const linha = linhas[indice];
+      return linha?.tipo === "cartao" ? alturaEstimadaDoCartao(linha.cartao.conteudo) : 48;
+    },
     overscan: 8,
     paddingStart: ESPACAMENTO_DE_SEGURANCA_DO_HISTORICO,
     paddingEnd: ESPACAMENTO_DE_SEGURANCA_DO_HISTORICO,
@@ -117,10 +209,10 @@ export function ListaMensagens({
     scrollPaddingEnd: ESPACAMENTO_DE_SEGURANCA_DO_HISTORICO,
   });
 
-  const ultimoId = filtradas.at(-1)?.id;
+  const ultimoId = linhas.at(-1)?.chave;
   useEffect(() => {
-    if (filtradas.length > 0) {
-      virtualizador.scrollToIndex(filtradas.length - 1, { align: "end" });
+    if (linhas.length > 0) {
+      virtualizador.scrollToIndex(linhas.length - 1, { align: "end" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao entrar novas mensagens no fim, não a cada resize do virtualizador
   }, [ultimoId]);
@@ -137,11 +229,11 @@ export function ListaMensagens({
 
   useEffect(() => {
     if (!mensagemDestacadaId) return;
-    const indice = filtradas.findIndex((mensagem) => mensagem.id === mensagemDestacadaId);
+    const indice = linhas.findIndex((linha) => linha.chave === mensagemDestacadaId);
     if (indice < 0) return;
     const frame = requestAnimationFrame(() => virtualizador.scrollToIndex(indice, { align: "center" }));
     return () => cancelAnimationFrame(frame);
-  }, [filtradas, mensagemDestacadaId, virtualizador]);
+  }, [linhas, mensagemDestacadaId, virtualizador]);
 
   async function navegarParaCitacao(citacao: CitacaoMensagem) {
     if (!citacao.origemId || citacao.origemRemovida) return;
@@ -202,7 +294,7 @@ export function ListaMensagens({
               <Skeleton key={indice} className="h-12 w-2/3" />
             ))}
           </div>
-        ) : filtradas.length === 0 ? (
+        ) : linhas.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             {textos.estados.vazio}
           </p>
@@ -230,13 +322,34 @@ export function ListaMensagens({
               }}
             >
               {virtualizador.getVirtualItems().map((item) => {
-                const mensagem = filtradas[item.index];
-                const anterior = filtradas[item.index - 1];
+                const linha = linhas[item.index];
+                const anteriorDaLinha = linhas[item.index - 1];
                 const mostrarData =
-                  !anterior ||
-                  diaDaMensagem(anterior.enviadoEm) !==
-                    diaDaMensagem(mensagem.enviadoEm);
-                const mudouAtendimento = mudouDeAtendimento(anterior, mensagem);
+                  !anteriorDaLinha ||
+                  diaDaMensagem(anteriorDaLinha.enviadoEm) !== diaDaMensagem(linha.enviadoEm);
+                if (linha.tipo === "cartao") {
+                  return (
+                    <div
+                      key={linha.chave}
+                      data-cartao-id={linha.cartao.id}
+                      data-index={item.index}
+                      ref={virtualizador.measureElement}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${item.start}px)`,
+                      }}
+                      className="py-1"
+                    >
+                      {mostrarData && <SeparadorDeData enviadoEm={linha.enviadoEm} />}
+                      <CartaoDoChatbot cartao={linha.cartao} />
+                    </div>
+                  );
+                }
+                const mensagem = linha.mensagem;
+                const mudouAtendimento = mudouDeAtendimento(linha.anteriorMensagem, mensagem);
                 const nomeDoRemetente = nomeDaAutoria(
                   mensagem,
                   atendenteId,
@@ -265,12 +378,12 @@ export function ListaMensagens({
                     {mostrarData && (
                       <SeparadorDeData enviadoEm={mensagem.enviadoEm} />
                     )}
-                    {(item.index === 0 || mudouAtendimento) && (
+                    {(!linha.anteriorMensagem || mudouAtendimento) && (
                       <LinhaDeInicio
                         canalTipo={canalTipo}
                         atendenteNome={
                           mensagem.atendimentoResponsavelNome ??
-                          (item.index === 0 ? atendenteNome : null)
+                          (!linha.anteriorMensagem ? atendenteNome : null)
                         }
                         troca={mudouAtendimento}
                       />
@@ -306,10 +419,6 @@ export function ListaMensagens({
 }
 
 /** A altura medida acompanha a mensagem, mesmo quando uma página antiga entra no topo da lista. */
-export function chaveDaMensagem(mensagens: MensagemResposta[], indice: number): string | number {
-  return mensagens[indice]?.id ?? indice;
-}
-
 /** O marcador aparece apenas quando a ordem cronologica cruza a fronteira de dois atendimentos. */
 export function mudouDeAtendimento(
   anterior: MensagemResposta | undefined,

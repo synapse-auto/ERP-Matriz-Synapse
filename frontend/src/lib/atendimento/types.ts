@@ -409,6 +409,29 @@ export interface ResumoIaStatusTempoReal {
   ocorridoEm: string;
 }
 
+/** Aviso leve: o texto do card nunca viaja pelo WebSocket, a tela revalida pela API autorizada. */
+export interface InformacoesChatbotTempoReal {
+  atendimentoId: string;
+  leadId: string;
+  informacaoId: string;
+  ocorridoEm: string;
+}
+
+/** Card interno com o que o chatbot coletou antes da transferência; não é mensagem. */
+export interface CartaoInformacoesChatbot {
+  id: string;
+  atendimentoId: string;
+  conteudo: string;
+  origem: "AUTOMACAO";
+  registradoEm: string;
+}
+
+/** Página em ordem cronológica; `proximoCursor` aponta para a página MAIS ANTIGA, e é nulo na última. */
+export interface InformacoesChatbotResposta {
+  itens: CartaoInformacoesChatbot[];
+  proximoCursor: string | null;
+}
+
 export type TipoEventoEstadoAtendimento =
   | "ATENDIMENTO_INICIADO"
   | "MENSAGEM_RECEBIDA"
@@ -451,6 +474,7 @@ export type EventoTempoReal =
   | { tipo: "REACAO"; dados: ReacaoTempoReal }
   | { tipo: "REACAO_CLIENTE"; dados: ReacaoClienteTempoReal }
   | { tipo: "RESUMO_IA_STATUS"; dados: ResumoIaStatusTempoReal }
+  | { tipo: "INFORMACOES_CHATBOT"; dados: InformacoesChatbotTempoReal }
   | EventoCanonicoAtendimentoTempoReal;
 
 export type NotificacaoTempoReal = {

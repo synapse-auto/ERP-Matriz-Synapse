@@ -56,6 +56,11 @@ import type {
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
+import {
+  chaveInformacoesChatbot,
+  type JanelaDoHistorico,
+  useInformacoesDoChatbot,
+} from "@/lib/atendimento/use-informacoes-chatbot";
 import { useMensagens } from "@/lib/atendimento/use-mensagens";
 import { chaveDaTransferenciaPropria, type TransferenciaPropria } from "@/lib/atendimento/use-transferir-finalizar";
 import { invalidarParticipacao } from "@/lib/atendimento/use-participacao";
@@ -661,9 +666,29 @@ export function PaginaAtendimentosCliente({
         void cache.invalidateQueries({ queryKey: ["resumo-ia", evento.dados.atendimentoId] });
         return;
       }
+      if (evento.tipo === "INFORMACOES_CHATBOT") {
+        void cache.invalidateQueries({ queryKey: chaveInformacoesChatbot(evento.dados.atendimentoId) });
+        return;
+      }
     },
     incrementaisLiberados,
   );
+  // Os cards acompanham a janela de mensagens já carregada: carregar mensagens mais antigas amplia a
+  // janela e traz os cards desse trecho, sem nunca buscar a conversa inteira de uma vez.
+  const temMaisMensagens = mensagensQuery.hasNextPage;
+  const mensagemMaisAntiga = useMemo(
+    () => mensagensQuery.data.reduce<string | null>(
+      (menor, mensagem) =>
+        menor == null || Date.parse(mensagem.enviadoEm) < Date.parse(menor) ? mensagem.enviadoEm : menor,
+      null,
+    ),
+    [mensagensQuery.data],
+  );
+  const janelaDosCartoes: JanelaDoHistorico | null =
+    mensagensQuery.isLoading || (temMaisMensagens && mensagemMaisAntiga == null)
+      ? null
+      : { desde: temMaisMensagens ? mensagemMaisAntiga : null };
+  const cartoesDoChatbot = useInformacoesDoChatbot(conversa?.atendimentoId ?? null, estado, janelaDosCartoes);
   const enviar = useEnviarMensagem();
   const reenviarMidia = useEnviarMidia();
   const aposMensagemEnviada = useCallback(() => {
@@ -997,6 +1022,7 @@ export function PaginaAtendimentosCliente({
             >
               <ListaMensagens
                 mensagens={mensagensQuery.data}
+                cartoes={cartoesDoChatbot}
                 carregando={mensagensQuery.isLoading}
                 onReenviar={convite.pendente ? undefined : reenviar}
                 onDefinirReacao={definirReacaoDaMensagem}

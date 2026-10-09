@@ -12,6 +12,7 @@ import type {
   ContagemPorVisao,
   EnvioResposta,
   FinalizacaoEmLotePrevia,
+  InformacoesChatbotResposta,
   MensagemResposta,
   NovoContatoResposta,
   PaginaMensagens,
@@ -111,6 +112,24 @@ export function paginaMensagens(
 ): Promise<PaginaMensagens> {
   const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
   return apiFetch<PaginaMensagens>(`/api/v1/atendimentos/${atendimentoId}/mensagens${query}`);
+}
+
+/**
+ * Uma página de cards do chatbot (não são mensagens), da mais recente para a mais antiga. `desde`
+ * limita a janela ao trecho do histórico já carregado. Vazio quando a instância não habilitou o recurso.
+ */
+export function paginaInformacoesDoChatbot(
+  atendimentoId: string,
+  cursor: string | null,
+  desde: string | null,
+): Promise<InformacoesChatbotResposta> {
+  const parametros = new URLSearchParams();
+  if (cursor) parametros.set("cursor", cursor);
+  if (desde) parametros.set("desde", desde);
+  const consulta = parametros.size > 0 ? `?${parametros.toString()}` : "";
+  return apiFetch<InformacoesChatbotResposta>(
+    `/api/v1/atendimentos/${encodeURIComponent(atendimentoId)}/informacoes-do-chatbot${consulta}`,
+  );
 }
 
 /** Leitura pontual para navegar a uma citação antiga sem substituir as páginas já carregadas. */

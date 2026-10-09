@@ -668,6 +668,21 @@ export const TextosSchema = z.object({
       erro: z.string(),
       nota: z.string(),
     }),
+    // Bloco novo: com default para o frontend novo subir antes do backend (ou o backend voltar de
+    // versão) sem derrubar o app inteiro, já que o catálogo é validado em toda requisição.
+    informacoesChatbot: z
+      .object({
+        titulo: z.string(),
+        origem: z.string(),
+        verMais: z.string(),
+        verMenos: z.string(),
+      })
+      .default({
+        titulo: "Resumo da IA para o atendimento",
+        origem: "Transferência para atendimento humano",
+        verMais: "Ver tudo",
+        verMenos: "Ver menos",
+      }),
     mensagem: z.object({
       hoje: z.string(),
       ontem: z.string(),
