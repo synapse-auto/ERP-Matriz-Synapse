@@ -47,6 +47,16 @@ describe("TextosSchema", () => {
     expect(textos.agenda.exportacao.arquivo).toBeTruthy();
   });
 
+  it("completa o bloco das informações do chatbot quando o backend ainda serve o catálogo anterior", () => {
+    const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
+    delete (catalogo.atendimentos as Record<string, unknown>).informacoesChatbot;
+
+    const textos = TextosSchema.parse(catalogo);
+
+    expect(textos.atendimentos.informacoesChatbot.titulo).toBeTruthy();
+    expect(textos.atendimentos.informacoesChatbot.verMais).toBeTruthy();
+  });
+
   it("mantém obrigatória a estrutura anterior do catálogo", () => {
     const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
     delete catalogo.login;

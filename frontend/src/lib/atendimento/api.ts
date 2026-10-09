@@ -12,6 +12,7 @@ import type {
   ContagemPorVisao,
   EnvioResposta,
   FinalizacaoEmLotePrevia,
+  InformacoesChatbotResposta,
   MensagemResposta,
   NovoContatoResposta,
   PaginaMensagens,
@@ -111,6 +112,13 @@ export function paginaMensagens(
 ): Promise<PaginaMensagens> {
   const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
   return apiFetch<PaginaMensagens>(`/api/v1/atendimentos/${atendimentoId}/mensagens${query}`);
+}
+
+/** Cards do chatbot (não são mensagens): vazio quando a instância não habilitou o recurso. */
+export function listarInformacoesDoChatbot(atendimentoId: string): Promise<InformacoesChatbotResposta> {
+  return apiFetch<InformacoesChatbotResposta>(
+    `/api/v1/atendimentos/${encodeURIComponent(atendimentoId)}/informacoes-do-chatbot`,
+  );
 }
 
 /** Leitura pontual para navegar a uma citação antiga sem substituir as páginas já carregadas. */

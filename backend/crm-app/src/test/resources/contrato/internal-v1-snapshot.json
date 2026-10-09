@@ -239,6 +239,53 @@
         }
       }
     },
+    "/internal/v1/atendimentos/{id}/informacoes-do-chatbot" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/InformacoesRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InformacoesDoChatbotResposta"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { },
+          "422" : { }
+        }
+      }
+    },
     "/internal/v1/atendimentos/{id}/lembretes" : {
       "post" : {
         "parameters" : [ {
@@ -1889,6 +1936,33 @@
           "type" : "string"
         }
       },
+      "type" : "object"
+    },
+    "InformacoesDoChatbotResposta" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "id" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "registradoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "InformacoesRequisicao" : {
+      "properties" : {
+        "conteudo" : {
+          "example" : "Nome: Maria\nInteresse: avaliação\nMelhor horário: manhã",
+          "type" : "string"
+        }
+      },
+      "required" : [ "conteudo" ],
       "type" : "object"
     },
     "ItemResposta" : {

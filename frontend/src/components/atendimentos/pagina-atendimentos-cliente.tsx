@@ -56,6 +56,10 @@ import type {
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
+import {
+  chaveInformacoesChatbot,
+  useInformacoesDoChatbot,
+} from "@/lib/atendimento/use-informacoes-chatbot";
 import { useMensagens } from "@/lib/atendimento/use-mensagens";
 import { chaveDaTransferenciaPropria, type TransferenciaPropria } from "@/lib/atendimento/use-transferir-finalizar";
 import { invalidarParticipacao } from "@/lib/atendimento/use-participacao";
@@ -661,9 +665,14 @@ export function PaginaAtendimentosCliente({
         void cache.invalidateQueries({ queryKey: ["resumo-ia", evento.dados.atendimentoId] });
         return;
       }
+      if (evento.tipo === "INFORMACOES_CHATBOT") {
+        void cache.invalidateQueries({ queryKey: chaveInformacoesChatbot(evento.dados.atendimentoId) });
+        return;
+      }
     },
     incrementaisLiberados,
   );
+  const cartoesDoChatbot = useInformacoesDoChatbot(conversa?.atendimentoId ?? null, estado);
   const enviar = useEnviarMensagem();
   const reenviarMidia = useEnviarMidia();
   const aposMensagemEnviada = useCallback(() => {
@@ -997,6 +1006,7 @@ export function PaginaAtendimentosCliente({
             >
               <ListaMensagens
                 mensagens={mensagensQuery.data}
+                cartoes={cartoesDoChatbot}
                 carregando={mensagensQuery.isLoading}
                 onReenviar={convite.pendente ? undefined : reenviar}
                 onDefinirReacao={definirReacaoDaMensagem}

@@ -327,6 +327,10 @@ synapse:
     token-permanente: ${AUTOMACAO_TOKEN:}
     # Protege a ficha do lead e o contrato com o n8n de respostas sem limite operacional.
     resumo-ia-tamanho-maximo: ${AUTOMACAO_RESUMO_IA_TAMANHO_MAXIMO:8000}
+    # Card do historico com o que o chatbot coletou na transferencia (docs/69). Teto do banco: 20000.
+    informacoes-chatbot-tamanho-maximo: ${AUTOMACAO_INFORMACOES_CHATBOT_TAMANHO_MAXIMO:4000}
+    # Quantos cards (os mais recentes) a leitura devolve por atendimento.
+    informacoes-chatbot-limite-listagem: ${AUTOMACAO_INFORMACOES_CHATBOT_LIMITE_LISTAGEM:50}
     resumo-ia:
       # Vazio desliga somente a geração sob demanda; a ficha continua disponível.
       url: ${AUTOMACAO_RESUMO_IA_URL:}

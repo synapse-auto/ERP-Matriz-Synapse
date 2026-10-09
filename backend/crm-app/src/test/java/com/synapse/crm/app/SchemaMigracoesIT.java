@@ -71,6 +71,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     "arquivo_banco",
                     "atendimento",
                     "atendimento_leitura",
+                    // V101: card interno com o que o chatbot coletou na transferencia (nao e mensagem).
+                    "atendimento_informacao_chatbot",
                     "audit_log",
                     "avaliacao",
                     "campanha",

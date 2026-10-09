@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.atendimento.application.informacoeschatbot.RegistrarInformacoesDoChatbotUseCase;
 import com.synapse.crm.atendimento.application.internal.CriarLembreteDaAutomacaoUseCase;
 import com.synapse.crm.atendimento.application.origem.OrigemDaMensagem;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
@@ -29,6 +30,7 @@ public class ComandosAutomacaoUseCase {
     private final FinalizarAtendimentoUseCase finalizarAtendimento;
     private final CriarLembreteDaAutomacaoUseCase criarLembrete;
     private final ClassificarNegociacaoDoAtendimentoUseCase classificarNegociacao;
+    private final RegistrarInformacoesDoChatbotUseCase informacoesDoChatbot;
     private final IdempotenciaDeComandoAutomacao idempotencia;
     private final ObjectMapper json;
 
@@ -39,6 +41,7 @@ public class ComandosAutomacaoUseCase {
             FinalizarAtendimentoUseCase finalizarAtendimento,
             CriarLembreteDaAutomacaoUseCase criarLembrete,
             ClassificarNegociacaoDoAtendimentoUseCase classificarNegociacao,
+            RegistrarInformacoesDoChatbotUseCase informacoesDoChatbot,
             IdempotenciaDeComandoAutomacao idempotencia,
             ObjectMapper json) {
         this.responder = responder;
@@ -47,6 +50,7 @@ public class ComandosAutomacaoUseCase {
         this.finalizarAtendimento = finalizarAtendimento;
         this.criarLembrete = criarLembrete;
         this.classificarNegociacao = classificarNegociacao;
+        this.informacoesDoChatbot = informacoesDoChatbot;
         this.idempotencia = idempotencia;
         this.json = json;
     }
@@ -149,6 +153,28 @@ public class ComandosAutomacaoUseCase {
                 LembreteResposta.class,
                 () -> LembreteResposta.de(
                         atendimentoId, criarLembrete.executar(atendimentoId, texto, dataHora)));
+    }
+
+    /**
+     * Card interno com o que o chatbot coletou antes da transferencia. A flag e a primeira barreira
+     * (instancia desligada nao reserva chave nem grava); o conteudo normalizado entra no hash, entao
+     * o mesmo texto reenviado com outra quebra de linha continua sendo o mesmo pedido.
+     */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public InformacoesDoChatbotResposta registrarInformacoesDoChatbot(
+            UUID atendimentoId, String chave, String conteudo) {
+        informacoesDoChatbot.exigirHabilitada();
+        String normalizado = informacoesDoChatbot.normalizar(conteudo);
+        return executar(
+                chave,
+                "REGISTRAR_INFORMACOES_CHATBOT",
+                atendimentoId,
+                normalizado,
+                InformacoesDoChatbotResposta.class,
+                () -> informacoesDoChatbot.validarDestino(atendimentoId),
+                () -> InformacoesDoChatbotResposta.de(
+                        informacoesDoChatbot.executar(atendimentoId, chave, normalizado)));
     }
 
     private <T> T executar(
@@ -289,6 +315,15 @@ public class ComandosAutomacaoUseCase {
                     atendimento.status().name(),
                     atendimento.finalizadoEm(),
                     "AUTOMACAO");
+        }
+    }
+
+    /** So ids e instante: o texto recebido nao volta na resposta nem fica no log. */
+    public record InformacoesDoChatbotResposta(UUID id, UUID atendimentoId, Instant registradoEm) {
+
+        static InformacoesDoChatbotResposta de(RegistrarInformacoesDoChatbotUseCase.Resultado resultado) {
+            return new InformacoesDoChatbotResposta(
+                    resultado.id(), resultado.atendimentoId(), resultado.registradoEm());
         }
     }
 

@@ -4,6 +4,16 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 08/10/2026 — Card com as informações do chatbot no histórico do atendimento (flag por instância)
+
+O n8n entrega ao CRM o que o chatbot coletou, **depois** de transferir o atendimento a um humano
+(`POST /internal/v1/atendimentos/{id}/informacoes-do-chatbot`, idempotente por `Idempotency-Key`), e a equipe vê um card
+interno entre as mensagens, em tempo real. **Não é mensagem** (tabela própria `atendimento_informacao_chatbot`, V101; fora
+de `mensagem`, outbox, métricas e EV-05) e **não é o resumo da ficha** (`lead.resumo_ia`, botão Gerar e EV-05 intactos).
+Atrás da flag `informacoes_chatbot_historico`, criada **desligada** em toda instância; só a Femina liga, por
+`docker/provisionamento/habilitar-informacoes-do-chatbot.sql`. Contrato, ordem das chamadas, falhas e rollback em
+`docs/69`. **Não há deploy nem alteração de workflow do n8n nesta entrega.**
+
 ### 06/10/2026 — JIT desligado no Postgres e pools de conexão declarados no stack (E224, só configuração)
 
 **O HML e o FMNA tiveram o JIT do Postgres desligado em 06/10 por `ALTER SYSTEM SET jit = off`**, feito pelo responsável na

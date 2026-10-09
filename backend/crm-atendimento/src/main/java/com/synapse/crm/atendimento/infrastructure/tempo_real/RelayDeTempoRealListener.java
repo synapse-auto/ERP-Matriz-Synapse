@@ -14,6 +14,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
+import com.synapse.crm.atendimento.domain.evento.InformacoesDoChatbotParaTempoReal;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.evento.MudancaDeStatusDeEntrega;
 import com.synapse.crm.atendimento.domain.evento.ReacaoDaMensagemParaTempoReal;
@@ -241,6 +242,18 @@ class RelayDeTempoRealListener {
         dados.put("erroCodigo", evento.erroCodigo());
         dados.put("ocorridoEm", evento.ocorridoEm().toString());
         publicar(evento.atendimentoId(), "RESUMO_IA_STATUS", dados);
+    }
+
+    /** So o aviso: o texto do card nunca passa pelo backplane; quem recebe le pela API autorizada. */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void aoRegistrarInformacoesDoChatbot(InformacoesDoChatbotParaTempoReal evento) {
+        ObjectNode dados = json.createObjectNode();
+        dados.put("eventoId", evento.informacaoId().toString());
+        dados.put("atendimentoId", evento.atendimentoId().toString());
+        dados.put("leadId", evento.leadId().toString());
+        dados.put("informacaoId", evento.informacaoId().toString());
+        dados.put("ocorridoEm", evento.ocorridoEm().toString());
+        publicar(evento.atendimentoId(), "INFORMACOES_CHATBOT", dados);
     }
 
     private ArrayNode resumoPublico(List<ResumoDeReacao> reacoes) {
