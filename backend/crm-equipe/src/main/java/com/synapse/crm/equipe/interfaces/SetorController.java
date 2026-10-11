@@ -67,6 +67,7 @@ class SetorController {
 
     @Operation(
             summary = "Listar setores e atribuições",
+            description = "Setores da instância (com a contagem de integrantes ativos) e quem está em qual. Exige a capacidade equipe.ver.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Setores e quem está em qual."),
                 @ApiResponse(responseCode = "403", description = "Sem permissão para ver a equipe."),
@@ -79,6 +80,7 @@ class SetorController {
 
     @Operation(
             summary = "Criar setor",
+            description = "Cria um setor (Vendas, Suporte, Diretoria...). Só GESTOR e ADMINISTRADOR; o nome é único sem diferenciar caixa.",
             responses = {
                 @ApiResponse(responseCode = "201", description = "Setor criado."),
                 @ApiResponse(responseCode = "403", description = "Só GESTOR e ADMINISTRADOR."),
@@ -94,6 +96,7 @@ class SetorController {
 
     @Operation(
             summary = "Atualizar setor",
+            description = "Renomeia, liga/desliga o recebimento de lead da triagem e ativa/inativa o setor. Só GESTOR e ADMINISTRADOR.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Setor atualizado."),
                 @ApiResponse(responseCode = "403", description = "Só GESTOR e ADMINISTRADOR."),
