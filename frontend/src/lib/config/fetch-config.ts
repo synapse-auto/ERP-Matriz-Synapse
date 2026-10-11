@@ -82,6 +82,8 @@ export function temaParaCssVariaveis(tema: Tema): string {
     `--borda-suave: ${tema.bordaSuave}`,
     `--cor-sucesso: ${tema.corSucesso}`,
     `--mensagem-lida-texto: ${tema.mensagemLidaTexto}`,
+    `--sidebar-texto-forte: ${tema.sidebarTextoForte}`,
+    `--mensagem-falha-texto: ${tema.mensagemFalhaTexto}`,
     `--cor-atencao: ${tema.corAtencao}`,
     `--cor-atencao-escura: ${tema.corAtencaoEscura}`,
     `--cor-ia: ${tema.corIa}`,

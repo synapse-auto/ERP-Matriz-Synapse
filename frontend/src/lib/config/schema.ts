@@ -39,6 +39,12 @@ const TemaBaseSchema = z.object({
   marcaIconeGradienteFim: z.string().optional(),
   sidebarItemTextoPerigo: z.string().optional(),
   sidebarItemOverlayPerigo: z.string().optional(),
+  // Texto forte sobre a sidebar (nome da marca, item ativo, usuário) e divisórias derivadas dele. Antes era
+  // `text-white`/`bg-white/N` fixo, o que só funciona com sidebar escura; uma sidebar clara precisa de um tom escuro.
+  sidebarTextoForte: z.string().optional(),
+  // Texto de falha de entrega sobre o balão de saída (cor primária). Antes reaproveitava
+  // `sidebarItemTextoPerigo`, que numa sidebar clara tem de ser escuro e some sobre o balão.
+  mensagemFalhaTexto: z.string().optional(),
 
   borda: z.string(),
   bordaForte: z.string(),
@@ -94,6 +100,10 @@ export const TemaSchema = TemaBaseSchema.transform((tema) => ({
   marcaIconeGradienteFim: tema.marcaIconeGradienteFim ?? tema.corPrimariaHover,
   sidebarItemTextoPerigo: tema.sidebarItemTextoPerigo ?? tema.corErro,
   sidebarItemOverlayPerigo: tema.sidebarItemOverlayPerigo ?? tema.fundoSidebarBloco,
+  // Os dois padrões abaixo reproduzem o comportamento anterior à existência dos tokens: texto branco na sidebar
+  // e a mesma cor de perigo da sidebar sobre o balão. Tema sem as chaves renderiza exatamente como antes.
+  sidebarTextoForte: tema.sidebarTextoForte ?? "#FFFFFF",
+  mensagemFalhaTexto: tema.mensagemFalhaTexto ?? tema.sidebarItemTextoPerigo ?? tema.corErro,
   mensagemLidaTexto: tema.mensagemLidaTexto ?? tema.corSucesso,
 }));
 
