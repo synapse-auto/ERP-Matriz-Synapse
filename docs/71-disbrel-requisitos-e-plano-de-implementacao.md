@@ -126,6 +126,33 @@ precisa de decisão e de ajuste do teste. Enquanto isso, a proteção é a do sc
 em `textos.json:1070` e `schema-campanhas.ts:19`, a marca Synapse na transição pós-login, e o texto de falha de entrega do
 tema padrão (1,82:1 sobre o balão azul). O login continua com a identidade Synapse (D-9).
 
+**Auditoria do que está fixo no frontend (arquivo:linha, na cabeça do PR).** Corrigido no PR: `sidebar.tsx:251,297,322,325,339,352,398,499`
+(`text-white` e `bg-white/N` viraram o token) e `status-entrega.tsx:35,48` (cor de falha de entrega). O resto, para decisão:
+
+| Onde | O quê | Efeito na Disbrel | Mexi? |
+|---|---|---|---|
+| `globals.css:127-177` | 31 hexadecimais, todos como fallback de `var(--token, #hex)` (os da Estrutural) | Nenhum: o shell injeta o tema antes | Não (é fallback) |
+| `.tsx`/`.ts` | Nenhuma cor hexadecimal ou `rgb()` fora dos tokens | — | — |
+| `bolha-mensagem.tsx:346` | `bg-red-500/10 text-red-500` (paleta do Tailwind, não token) | Ícone de arquivo indisponível fica no vermelho `#EF4444` em qualquer tema | Não (mudaria o padrão) |
+| `sidebar.tsx:297` | Painel de erro do menu usa `text-cor-erro-suave` (claro, pensado para sidebar escura) | **Tema B:** quase ilegível, mas só no estado raro de falha ao carregar o menu | Não (mudaria o padrão) |
+| `sidebar.tsx:246` | `bg-white` no losango do logo padrão | Sobre o gradiente vinho, ok | Não |
+| `ui/dialog.tsx:34` | `bg-black/10` no fundo dos modais | Neutro, ok | Não |
+| `textos.json:3` | `app.nome` = "Synapse CRM" vira o `<title>` da aba; `PUT /marca/identidade` só troca `marca` e `subtitulo` | A aba da Disbrel continua "Synapse CRM" | Não (precisa de decisão) |
+| `textos.json:4` | `app.marca` = "Estrutural Vidros" | Coberto pela identidade (`PUT /marca/identidade`) | Via script |
+| `textos.json:1070`, `schema-campanhas.ts:19` | "...provedor oficial (Estrutural)." | Texto errado para a Disbrel; fora do alcance da API de identidade | Não (precisa de decisão) |
+| `login/page.tsx:19`, `transicao-de-abertura.tsx:44`, `textos.json:116,144` | Marca e rodapé Synapse; a transição "abrindo painel" (pós-login) também usa a marca Synapse | Login fica Synapse (D-9); a transição é decisão | Não |
+| `metadata.ts:12-16` | Favicon = `logoUrl` (`/api/v1/config/logo`), inclusive no login | Segue a logo aplicada | Não |
+
+**Bugs encontrados no caminho (preexistentes, fora do escopo, nada foi alterado neles):**
+
+- `lista-conversas.tsx:373-376` com `ui/tabs.tsx:63`: no celular (abaixo de `md`), a aba ativa da lista fica com texto branco sobre fundo claro (o
+  `data-active:bg-background` do componente base vence o `data-active:bg-primary`). Acontece **em qualquer tema, inclusive o padrão**; no desktop está certo.
+- O texto de falha de entrega sobre o balão azul do tema padrão tem contraste de **1,82:1** (`sidebarItemTextoPerigo` coral sobre `corPrimaria`).
+- O botão "Remover" de uma tag (`/tags`) remove na hora, sem confirmação.
+- `README.md` diz que `SPRING_PROFILES_ACTIVE=dev java -jar ...` sobe o banco populado, mas num banco vazio o boot pausa na V72 (`docs/41`) e a API responde 500 até
+  rodar o one-shot `--synapse.migrations.run-once`.
+- O Javadoc de `GET /config/logo` diz 404 quando a instância "não tem logo", mas o classpath tem `logo.png`, então o normal é 200 com a logo do classpath.
+
 - **Risco:** baixo para quem não aplicar (padrão intacto, provado pixel a pixel nas capturas). **Pronto quando:** o responsável
   escolher A ou B, fornecer nome, subtítulo e o PNG, e a aplicação for feita fora do horário de atendimento, com a reversão
   testada antes na homologação.
