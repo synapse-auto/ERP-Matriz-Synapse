@@ -172,6 +172,11 @@ a chave em outro atendimento ou operação, ou tentar finalizar novamente com um
 
 #### Marcar negociação para um ciclo de atendimento
 
+O registro comercial técnico, separado da classificação, usa agora
+`POST /internal/v1/atendimentos/{atendimentoId}/resultado-venda`.
+Veja o contrato, conflitos e passagem para a automação em
+[Auditoria de negociação e resultado comercial](auditoria-negociacao-resultado-comercial.md).
+
 O n8n é responsável por classificar negociação. Para informar o estado de um atendimento aberto,
 use a rota abaixo quando a classificação estiver disponível. O identificador é o `atendimentoId`
 do ciclo — não o `leadId` — e o corpo não deve incluir mensagens, anexos, telefone ou explicação
@@ -202,7 +207,7 @@ precisa de uma chave nova; a auditoria registra o estado anterior e o novo.
 Na finalização feita pela Automação, `POST /internal/v1/atendimentos/{atendimentoId}/finalizar`
 continua sem corpo e exige `Idempotency-Key`. Se `emNegociacao=true` e não houver resultado
 previamente registrado, a rota recusa com `422` (`ProblemDetail`) sem finalizar. A Automação não
-registra o resultado por essa rota.
+  registra o resultado por essa rota.
 
 Para escolha humana, `POST /api/v1/atendimentos/{atendimentoId}/finalizar` aceita corpo opcional:
 

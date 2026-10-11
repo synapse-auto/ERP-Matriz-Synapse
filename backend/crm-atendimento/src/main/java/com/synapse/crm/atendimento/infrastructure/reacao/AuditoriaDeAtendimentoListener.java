@@ -109,7 +109,8 @@ class AuditoriaDeAtendimentoListener {
 
             case EventoDeAtendimento.ResultadoVendaAtualizado resultado -> new Registro(
                     resultado.atorId(),
-                    "USUARIO",
+                    resultado.origem() == com.synapse.crm.atendimento.domain.atendimento.OrigemResultadoVenda.AUTOMACAO
+                            ? "AUTOMACAO" : "USUARIO",
                     "RESULTADO_VENDA_" + resultado.resultadoNovo().name() + "_" + resultado.origem().name());
         };
     }

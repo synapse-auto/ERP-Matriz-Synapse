@@ -551,6 +551,7 @@ export const TextosSchema = z.object({
       naoVendeu: z.string().default("Não vendeu"),
       cancelarResultado: z.string().default("Cancelar"),
       registrarVenda: z.string().default("Registrar venda"),
+      semResultadoRegistrado: z.string().default("Sem resultado registrado"),
       registrarVendaTitulo: z.string().default("Registrar venda"),
       registrarVendaDescricao: z.string().default("Confirme que este atendimento resultou em uma venda."),
       registrarVendaConfirmar: z.string().default("Confirmar venda"),

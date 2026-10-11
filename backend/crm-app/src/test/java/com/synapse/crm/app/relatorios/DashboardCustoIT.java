@@ -60,20 +60,20 @@ class DashboardCustoIT extends PostgresIT {
         Medicao primeira = medir(token, URL, "primeira");
         Medicao segunda = medir(token, URL, "segunda");
 
-        assertThat(primeira.consultas()).isEqualTo(20);
+        assertThat(primeira.consultas()).isEqualTo(21);
         assertThat(segunda.consultas()).isEqualTo(4);
         assertThat(segunda.resposta().path("periodo")).isEqualTo(primeira.resposta().path("periodo"));
         assertThat(segunda.resposta().path("atendimentos"))
                 .isEqualTo(primeira.resposta().path("atendimentos"));
 
-        String chave = redis.keys("dashboard:visao-geral:v2:*").stream()
+        String chave = redis.keys("dashboard:visao-geral:v3:*").stream()
                 .filter(valor -> !valor.endsWith(":lock"))
                 .findFirst()
                 .orElseThrow();
         assertThat(redis.getExpire(chave)).isPositive();
         redis.expire(chave, Duration.ofMillis(1));
         await().until(() -> !Boolean.TRUE.equals(redis.hasKey(chave)));
-        assertThat(medir(token, URL, "apos-expiracao").consultas()).isEqualTo(20);
+        assertThat(medir(token, URL, "apos-expiracao").consultas()).isEqualTo(21);
     }
 
     @Test
@@ -85,19 +85,19 @@ class DashboardCustoIT extends PostgresIT {
                 .accessToken();
         String atendente = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
 
-        assertThat(medir(gestor, URL, "gestor-frio").consultas()).isEqualTo(20);
+        assertThat(medir(gestor, URL, "gestor-frio").consultas()).isEqualTo(21);
         assertThat(medir(gestor, URL, "gestor-quente").consultas()).isEqualTo(4);
         assertThat(medir(gestor, "/api/v1/dashboard/visao-geral?ano=2040&meses=9", "outro-filtro")
                         .consultas())
-                .isEqualTo(20);
+                .isEqualTo(21);
         assertThat(medir(
                                 gestor,
                                 URL + "&origemInicio=2040-01-01&origemFim=2040-12-31",
                                 "outra-coorte")
                         .consultas())
-                .isEqualTo(21);
-        assertThat(medir(subgestor, URL, "subgestor").consultas()).isEqualTo(20);
-        assertThat(medir(administrador, URL, "administrador").consultas()).isEqualTo(20);
+                .isEqualTo(22);
+        assertThat(medir(subgestor, URL, "subgestor").consultas()).isEqualTo(21);
+        assertThat(medir(administrador, URL, "administrador").consultas()).isEqualTo(21);
 
         Mockito.clearInvocations(jdbc);
         var negada = ApoioAutenticacao.comToken(
@@ -151,7 +151,7 @@ class DashboardCustoIT extends PostgresIT {
             partida.countDown();
             assertThat(primeira.get(30, TimeUnit.SECONDS).getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(segunda.get(30, TimeUnit.SECONDS).getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(consultasJdbc()).isEqualTo(24);
+            assertThat(consultasJdbc()).isEqualTo(25);
         }
     }
 

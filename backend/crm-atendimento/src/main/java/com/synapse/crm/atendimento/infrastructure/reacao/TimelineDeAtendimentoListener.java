@@ -173,9 +173,12 @@ class TimelineDeAtendimentoListener {
                 dados.put("resultadoNovo", resultado.resultadoNovo().name());
                 dados.put("valor", resultado.valor());
                 dados.put("origem", resultado.origem().name());
+                boolean automacao = resultado.origem()
+                        == com.synapse.crm.atendimento.domain.atendimento.OrigemResultadoVenda.AUTOMACAO;
                 yield new Anotacao("RESULTADO_VENDA_ATUALIZADO",
-                    "Resultado da venda do atendimento registrado por " + nome(resultado.atorId()) + ".",
-                        "USUARIO", resultado.atorId(), dados);
+                    "Resultado da venda do atendimento registrado por "
+                            + (automacao ? "Automacao" : nome(resultado.atorId())) + ".",
+                        automacao ? "AUTOMACAO" : "USUARIO", resultado.atorId(), dados);
             }
         };
     }

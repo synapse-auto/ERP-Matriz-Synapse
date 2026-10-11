@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import type { ReactElement } from "react";
+import { Popover, PopoverTrigger, PopoverContent, PopoverTitle, PopoverDescription } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +22,7 @@ type Props = {
   sucesso?: string | null;
   onSelecionar: (resultado: ResultadoVenda) => void;
   onFechar: () => void;
+  gatilho?: ReactElement;
 };
 
 /** Uma escolha explícita de resultado; o servidor continua sendo a autoridade do registro. */
@@ -31,10 +34,35 @@ export function DialogoResultadoVenda({
   sucesso,
   onSelecionar,
   onFechar,
+  gatilho,
 }: Props) {
   const textos = useTextos().atendimentos.finalizar;
   const titulo = modo === "finalizacao" ? textos.vendeuTitulo : textos.registrarVendaTitulo;
   const descricao = modo === "finalizacao" ? textos.vendeuDescricao : textos.registrarVendaDescricao;
+
+  if (modo === "finalizacao" && gatilho) {
+    return (
+      <Popover open={aberto} onOpenChange={(open) => !open && !processando && onFechar()}>
+        <PopoverTrigger render={gatilho} />
+        <PopoverContent align="end" className="max-w-[calc(100vw-2rem)]">
+          <PopoverTitle>{titulo}</PopoverTitle>
+          <PopoverDescription>{descricao}</PopoverDescription>
+          {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={() => onSelecionar("VENDEU")} disabled={processando}>
+              {processando ? textos.registrando : textos.vendeu}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => onSelecionar("NAO_VENDEU")} disabled={processando}>
+              {processando ? textos.registrando : textos.naoVendeu}
+            </Button>
+            <Button type="button" variant="ghost" onClick={onFechar} disabled={processando}>
+              {textos.cancelarResultado}
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
 
   return (
     <Dialog open={aberto} onOpenChange={(open) => !open && !processando && onFechar()}>
