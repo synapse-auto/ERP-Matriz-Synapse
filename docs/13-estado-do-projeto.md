@@ -4,6 +4,18 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 11/10/2026 — Disbrel E229: setores, funil, horário por dia e distribuição (5 PRs em rascunho, nada em produção)
+
+Cinco PRs, uma por assunto, todas **desligadas por padrão** e sem variável de ambiente nova: **#296** setores (V103, feature flag
+`setores`); **#300** rodízio por setor, atendente vinculado e chaves de distribuição (V104, empilhada na #296); **#299** janela de
+aviso ao cliente por dia da semana (sem migration; o padrão é a janela de hoje); **#297** scripts do funil de cinco etapas
+(diagnóstico, simulação por padrão, backup e reversão; nunca renomeiam etapa); **#298** Agenda para o OPERADOR — **parada pelo gate**: a
+ficha da Agenda expõe `notas` e `resumoIa` de leads alheios, então só entrou o relatório e um teste de caracterização, sem mudar a RLS.
+Ordem de merge das migrations: #295 (V102) → #296 (V103) → #300 (V104). Premissas do `docs/71` desmentidas (rótulos de papel por
+instância não saem de `textos.json`; `equipe.editar` nasce negada ao SUBGESTOR; janela crítica só decide o aviso ao cliente) e
+decisões que seguem com o responsável estão na §7 do [`docs/71`](./71-disbrel-requisitos-e-plano-de-implementacao.md). **Sem prova de
+desempenho do rodízio até as saídas de `docker/operacoes/e229-explain-rodizio-*.sql` virem da VPS.**
+
 ### 11/10/2026 — Disbrel D1: tema, logo e nome da instância (E228)
 
 A premissa do `docs/71` estava errada: o override de marca por instância **já existe** desde a E31b (`marca_da_instancia`,

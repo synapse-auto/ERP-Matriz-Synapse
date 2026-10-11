@@ -1,6 +1,6 @@
 # 71. Disbrel — requisitos e plano de implementação em etapas
 
-Documento de planejamento. **Nada aqui foi implementado.** Ele cruza os requisitos do cliente Disbrel com o que a base
+Documento de planejamento. **O que foi implementado, e em qual PR, está na §7 (E228 e E229); o restante continua sendo plano.** Ele cruza os requisitos do cliente Disbrel com o que a base
 (Base PAI) já tem e propõe etapas pequenas, ordenadas por risco e dependência.
 
 - **Fonte:** *Requisitos do Projeto — Disbrel*, versão 1.2, 28/09/2026 (PDF de 4 páginas, "uso interno").
@@ -288,3 +288,58 @@ D3 é a que não deve ser apressada.
   `PUT /marca/logo` do backend devolveu 500; o caminho da logo só foi provado contra uma instância de mentira); a aplicação em
   produção e na homologação; e a avaliação de olho humano do tema (as capturas existem, a escolha A ou B é do responsável).
   Os 30 pares de contraste cobrem o que a interface usa nas telas capturadas, não toda combinação possível de componentes.
+
+---
+
+## 7. Andamento: o que o E228 e o E229 entregaram (11/10/2026)
+
+Tudo abaixo está em **PRs em rascunho, não mergeadas**, e **nada foi aplicado em produção**. Cada capacidade nasce
+desligada; com ela desligada o comportamento é o de antes. Rótulos: **verificado** (arquivo:linha ou número de execução da
+CI), **inferido**, **não verificado**.
+
+| Etapa | PR | Situação | Chave para ligar | CI (Backend / Frontend / Stack; `imagens` = *skipped* em PR) |
+|---|---|---|---|---|
+| D1 tema, logo, nome | #294 (esta) | feito; escolha A/B é do responsável | script `aplicar-marca-da-instancia.mjs` | execuções 38110578857 e 38110576555 (verde) |
+| D2 setores | [#296](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/296) | feito, **V103** | feature flag `setores` (`habilitar-setores.sql`) | 38113270285 e 38113272478 (verde) |
+| D3a rodízio por setor, D3b vinculado, D3c chaves | [#300](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/300) (empilhada na #296) | feito, **V104** | `setores` + `ia.distribuicao.atendente_vinculado` | aguardando |
+| D3d fora do expediente | — | **não feito** (fora do escopo; D-5/D-6 abertas) | — | — |
+| D4 janela por dia | [#299](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/299) | feito, sem migration | chaves `alerta.horario_cliente.<dia>` (`horario-alerta-por-dia.sql`) | 38112599979 e 38112587520 (verde) |
+| D5a Agenda para o OPERADOR | [#298](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/298) | **parado pelo gate**: só relatório e teste de caracterização | — | 38112276215 e 38112263413 (verde) |
+| D5b funil de 5 etapas | [#297](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/297) | feito (scripts), sem migration | `funil-disbrel.sql` (simula por padrão) | 38112150346 e 38112164607 (verde) |
+
+**Ordem de merge das migrations (Flyway sem *out of order*):** `#295 (V102)` → `#296 (V103)` → `#300 (V104)`. Se uma entrar antes
+da anterior, a produção (em V101) recusa a migration de número menor que chegar depois. A V100 nunca foi preenchida.
+
+### Premissas deste documento que o código desmentiu ou completou
+
+1. **Rótulos de papel por instância (Proprietário/Diretoria/Interno) não saem de `textos.json`.** O arquivo é de classpath, lido uma
+   vez no boot (`ConfiguracaoDeInstanciaResources`), único para os três stacks; só tema, logo e nome têm override por instância
+   (`marca_da_instancia`). **Não implementado**: exige mecanismo novo (decisão abaixo).
+2. **"Mesmos papéis que gerenciam usuários" não inclui o SUBGESTOR por padrão.** `equipe.editar` nasce negada ao SUBGESTOR
+   (`Capacidade.java:157-160`); ele só edita (e só atribui setor) por delegação. Setor é criado por GESTOR/ADMINISTRADOR.
+3. **D5a: a ficha da Agenda expõe `notas` sem filtro e `resumoIa` a quem tem `resumo_ia.ver` (padrão: todos).** Por isso a regra do
+   E229 mandou parar a mudança de `app_e_agenda()`. Confirmado que `app_e_agenda()` (`V60:10-13`) exclui OPERADOR.
+4. **D4: a "janela crítica" só decide se o alerta crítico também vai ao grupo do cliente** (único consumidor:
+   `MonitorarSaudeCriticaUseCase.java:35`). Nenhum job agendado muda. A API de configuração só **edita** chaves existentes
+   (`PUT /api/v1/automacao/config/{chave}`), então as chaves por dia nascem por script, não por migration.
+5. **D5b: vendas são contadas por evento da timeline**, não pela etapa do lead; mover lead por SQL para uma etapa GANHO não gera
+   venda. Por isso o remapeamento exige o mesmo resultado dos dois lados. `lead` tem RLS FORCE: os scripts recusam papel que
+   não enxerga todos os leads. "Sem Retorno" não é etapa: é o filtro `semRetornoDias` (`CampoFiltravel.java:64`).
+6. **D3: `transferir-proximo-humano` não tinha corpo**; agora aceita `{setorId}` opcional (aditivo). `SUBGESTOR` continua
+   recebendo triagem por papel; quem não recebe é decidido por **setor** (`recebe da triagem = não`), não por papel.
+7. **`OpenApiIT` exige `description` em toda operação**; a #296 só passou depois de acrescentá-las.
+
+### Decisões que continuam com o responsável
+
+D-4 (definição final de "vinculado"; a #300 usa: gravado quando um humano recebe/assume ou o envio manual troca o dono; não ao
+finalizar), D-5/D-6 (fora do expediente), D-8 (campos da ficha da Agenda para OPERADOR: aceitar equivalência com ATENDENTE, ficha reduzida
+ou manter fora), D-3 (um ou mais setores por usuário: hoje um, índice relaxável), rótulos de papel por instância, **quando aplicar
+cada script na Disbrel** e **quando promover cada chave para Estrutural/Fêmina**. Antes de ligar `setores`/vinculado: rodar na VPS
+`docker/operacoes/e229-explain-rodizio-{antes,depois}.sql` e colar as saídas (sem isso **não há prova de desempenho**).
+
+### O que ficou sem prova
+
+EXPLAIN real do rodízio (scripts prontos e testados contra o schema, mas só a VPS mede); execução dos scripts SQL com o `psql`
+da VPS (versão não verificada; exigem 13+) e contra dados reais da Disbrel; suíte inteira do backend localmente (o ambiente de
+desenvolvimento não baixa a imagem do MinIO usada por outros ITs; a CI cobre); aplicação em qualquer instância; a tela de setores
+foi testada por vitest, **sem captura visual**.
