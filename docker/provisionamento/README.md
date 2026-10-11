@@ -309,3 +309,22 @@ Tudo roda numa transacao so, com as linhas travadas: o `UPDATE` repete as condic
 `FINALIZADO`, mesmo responsavel, sem atendimento aberto) e uma verificacao final aborta o commit se
 algum elegivel continuar com responsavel. `atendimento.atendente_id` nao e tocado — historico,
 avaliacao e comissao do ciclo encerrado continuam com quem atendeu.
+
+## Funil da Disbrel (`instancias/disbrel/funil-disbrel*.sql`)
+
+Tres scripts para o funil de cinco etapas da Disbrel (Novo Contato, Aguardando Medidas, Negociação,
+Fechado = GANHO, Pós-venda; sem etapa de Orçamento). Sao operacao pontual por instancia, nao migration e
+nao parte do provisionamento padrao. Diferente de `funil-padrao.sql`, **nunca renomeiam** etapa e nao usam
+`ON CONFLICT (ordem) DO UPDATE`.
+
+| Script | O que faz |
+|---|---|
+| `funil-disbrel-diagnostico.sql` | Somente leitura: etapas de hoje com contagem de leads, o que falta, o que diverge, conflito de GANHO. |
+| `funil-disbrel.sql` | Simula por padrao (termina em ROLLBACK). Com `-v confirmar=APLICAR` grava, com backup do estado anterior. Idempotente. |
+| `funil-disbrel-reverter.sql` | Desfaz uma execucao pelo id que a aplicacao imprimiu (`-v execucao=<id> -v confirmar=REVERTER`). |
+
+Etapa com lead so deixa de existir por **remapeamento explicito** (`-v remapear='{"Venda fechada":"Fechado"}'`),
+que move os leads e apaga a origem na mesma transacao e exige o mesmo resultado dos dois lados. Etapas fora do
+desenho (inclusive Perdido) sao mantidas depois das cinco. "Sem Retorno" nao e etapa: use o filtro `semRetornoDias`.
+Os scripts exigem papel que enxergue todos os leads (a RLS de `lead` e FORCE) e `psql` 13+. Passo a passo e
+comandos exatos: cabecalho de cada script.
