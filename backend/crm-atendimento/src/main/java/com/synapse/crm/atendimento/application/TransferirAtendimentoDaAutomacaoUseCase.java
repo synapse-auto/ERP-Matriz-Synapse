@@ -1,5 +1,6 @@
 package com.synapse.crm.atendimento.application;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -32,28 +33,54 @@ public class TransferirAtendimentoDaAutomacaoUseCase {
     private final AtendimentoRepositorio atendimentos;
     private final AtendenteParaTransferenciaRepositorio destinos;
     private final TransferirAtendimentoUseCase transferir;
+    private final VinculoDoLeadRepositorio vinculos;
 
     public TransferirAtendimentoDaAutomacaoUseCase(
             ListarAtendentesDisponiveisUseCase listarDisponiveis,
             AtendimentoRepositorio atendimentos,
             AtendenteParaTransferenciaRepositorio destinos,
-            TransferirAtendimentoUseCase transferir) {
+            TransferirAtendimentoUseCase transferir,
+            VinculoDoLeadRepositorio vinculos) {
         this.listarDisponiveis = listarDisponiveis;
         this.atendimentos = atendimentos;
         this.destinos = destinos;
         this.transferir = transferir;
+        this.vinculos = vinculos;
     }
 
     @PreAuthorize("hasRole('SERVICO')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Atendimento executar(UUID atendimentoId) {
+        return executarNoSetor(atendimentoId, null);
+    }
+
+    /**
+     * Rodizio, opcionalmente restrito a <em>um setor</em> (D3a). O chamador escolhe o setor, nunca o usuario. Antes
+     * do rodizio, com a chave {@code ia.distribuicao.atendente_vinculado} ligada, o atendente vinculado ao lead
+     * recebe direto se ainda estiver elegivel agora (ativo, online, disponivel para a IA, fora de setor que nao
+     * recebe da triagem); senao vale o rodizio e quem recebe passa a ser o vinculado (listener de reacao).
+     */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Atendimento executarNoSetor(UUID atendimentoId, UUID setorId) {
         atendimentos.bloquearDistribuicaoDaAutomacao();
 
-        AtendenteDisponivelParaIa destino = listarDisponiveis.executar().stream()
-                .findFirst()
-                .orElseThrow(() -> semDestino(atendimentoId));
+        AtendenteDisponivelParaIa destino = vinculadoElegivel(atendimentoId)
+                .or(() -> primeiroDoRodizio(setorId))
+                .orElseThrow(() -> semDestino(atendimentoId, setorId));
 
         return transferir.executarPelaAutomacao(atendimentoId, destino.usuarioId());
+    }
+
+    private Optional<AtendenteDisponivelParaIa> vinculadoElegivel(UUID atendimentoId) {
+        return vinculos.vinculadoDoAtendimento(atendimentoId).flatMap(listarDisponiveis::disponivelPorId);
+    }
+
+    /** Sem setor pedido chama exatamente o que sempre chamou ({@code executar()}), sem argumento. */
+    private Optional<AtendenteDisponivelParaIa> primeiroDoRodizio(UUID setorId) {
+        return (setorId == null ? listarDisponiveis.executar() : listarDisponiveis.executar(setorId))
+                .stream()
+                .findFirst();
     }
 
     /**
@@ -61,10 +88,11 @@ public class TransferirAtendimentoDaAutomacaoUseCase {
      * para o corpo do 409. O diagnostico e so leitura e nunca pode trocar o 409 por outro erro: se falhar, o motivo
      * vira {@code NAO_DETERMINADO} e o log diz que o diagnostico nao estava disponivel.
      */
-    private NenhumAtendenteDisponivelException semDestino(UUID atendimentoId) {
+    private NenhumAtendenteDisponivelException semDestino(UUID atendimentoId, UUID setorId) {
         MotivoSemAtendente motivo = MotivoSemAtendente.NAO_DETERMINADO;
         try {
-            DiagnosticoDoRodizio funil = listarDisponiveis.diagnosticar();
+            DiagnosticoDoRodizio funil =
+                    setorId == null ? listarDisponiveis.diagnosticar() : listarDisponiveis.diagnosticar(setorId);
             motivo = MotivoSemAtendente.de(funil);
             var situacao = atendimentos.situacaoParaDiagnostico(atendimentoId);
             log.warn(

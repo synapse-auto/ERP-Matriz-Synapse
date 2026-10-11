@@ -613,6 +613,15 @@
             "type" : "string"
           }
         } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TransferirProximoHumanoRequisicao"
+              }
+            }
+          }
+        },
         "responses" : {
           "200" : {
             "content" : {
@@ -627,7 +636,8 @@
           "401" : { },
           "403" : { },
           "404" : { },
-          "409" : { }
+          "409" : { },
+          "422" : { }
         }
       }
     },
@@ -2697,6 +2707,15 @@
           "type" : "string"
         },
         "status" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "TransferirProximoHumanoRequisicao" : {
+      "properties" : {
+        "setorId" : {
+          "format" : "uuid",
           "type" : "string"
         }
       },

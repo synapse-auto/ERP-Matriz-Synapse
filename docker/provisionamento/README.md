@@ -314,3 +314,15 @@ Tudo roda numa transacao so, com as linhas travadas: o `UPDATE` repete as condic
 `FINALIZADO`, mesmo responsavel, sem atendimento aberto) e uma verificacao final aborta o commit se
 algum elegivel continuar com responsavel. `atendimento.atendente_id` nao e tocado — historico,
 avaliacao e comissao do ciclo encerrado continuam com quem atendeu.
+
+## Distribuicao da IA: setor, vinculado e chaves (`instancias/disbrel/distribuicao-disbrel.sql`)
+
+Operacao pontual por instancia (hoje: Disbrel), nao migration. Liga/desliga, por variavel, as chaves
+`ia.distribuicao.sequencial`, `ia.distribuicao.atendente_vinculado`, `ia.distribuicao.por_botoes` e
+`ia.distribuicao.perguntar_preferencia` (todas nascem `false` na V104). Sem `-v`, so mostra o estado; sem
+`-v confirmar=APLICAR`, termina em ROLLBACK. O filtro por setor depende da outra capacidade (`habilitar-setores.sql`).
+Edicao direta no banco nao passa pela auditoria do CRUD de configuracao: para ter o registro de quem alterou, prefira
+`PUT /api/v1/automacao/config/{chave}` (GESTOR/ADMINISTRADOR). Comandos e rollback no cabecalho do script.
+
+EXPLAIN do rodizio (antes/depois), para rodar na VPS e colar as saidas na PR:
+`docker/operacoes/e229-explain-rodizio-antes.sql` e `e229-explain-rodizio-depois.sql` (comando exato no cabecalho).
