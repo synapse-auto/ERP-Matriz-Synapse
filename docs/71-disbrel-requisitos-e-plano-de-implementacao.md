@@ -7,12 +7,16 @@ Documento de planejamento. **Nada aqui foi implementado.** Ele cruza os requisit
 - **Fora do escopo por decisão do responsável:** a **seção 2 (Canal)** inteira — `DIS-NEW-01`, `DIS-NEW-02` e
   `DIS-NEW-03` (coexistência com o WhatsApp Business app, webhooks `smb_*`, alerta de desconexão). O responsável
   informou que essa parte está errada. Nenhuma etapa abaixo a toca; quando ela for reescrita, entra como etapa nova.
+- **Escopo: somente o CRM.** Fora deste plano, por decisão do responsável: `DIS-ALT-06` (saudação e base de
+  conhecimento da IA), a persona da IA, a classificação de mensagens por IA, o modo "botões" e os critérios de
+  classificação do funil. Onde um requisito mistura as duas partes, o plano cobre só o que o CRM guarda, valida ou
+  expõe pela própria API.
 - **Como o documento do cliente lê a legenda:** itens `MATRIZ` são configuração genérica da base e **vão para todos os
   filhos**; itens `DISBREL` são parâmetros só deste cliente. O PDF só lista **diferenças** sobre a base; requisito que
   não aparece lá é igual à base.
 - **Limite desta análise:** os documentos-base citados no PDF (*Requisitos da Automação*, *Requisitos do CRM*,
-  *Requisitos técnicos Matriz*) **não estão no repositório**. Os IDs `RF-AUT-xx`, `RN-AUT-xx` e `RF-CRM-xx` que o PDF
-  menciona só foram resolvidos onde o `docs/05` ou o código os cita. O restante está marcado como **não verificado**.
+  *Requisitos técnicos Matriz*) **não estão no repositório**. Os IDs de requisito que o PDF menciona só foram
+  resolvidos onde o `docs/05` ou o código os cita. O restante está marcado como **não verificado**.
 
 ---
 
@@ -42,7 +46,7 @@ Vêm do `AGENTS.md` e valem para toda etapa:
 
 ## 2. Requisito × o que a base já tem
 
-Legenda de situação: ✅ já atendido · 🟡 parcial · 🔴 lacuna · ⚪ fora do repositório (Automação/n8n) · 🚫 fora do escopo.
+Legenda de situação: ✅ já atendido · 🟡 parcial · 🔴 lacuna · ⚪ só a configuração é do CRM · 🚫 fora do escopo.
 
 ### 2.1 Parâmetros (seção 1 do PDF)
 
@@ -52,11 +56,10 @@ Legenda de situação: ✅ já atendido · 🟡 parcial · 🔴 lacuna · ⚪ fo
 | Horário humano Seg–Sex 08–18, Sáb 08–12, Dom fechado | 🔴 | `horario_trabalho` e `rotina_disponibilidade*` existem **só como migration**, sem código (`docs/05`, RF-CRM-54 e RF-CRM-75 rebaixados). A única janela em uso é `alerta.horario_cliente.inicio/fim` (`08:00`–`18:30`, **uma janela por dia, igual para todos os dias**) | Horário semanal por dia da semana | D4 |
 | Usuários 10–15; setores Vendas, Suporte, Diretoria | 🔴 | Não existe entidade de setor/equipe/departamento no modelo: a busca por "setor" só acha texto de UI | Setor como conceito | D2 |
 | Distribuição: atendente vinculado; senão rodízio sequencial por setor | 🔴 | Ver `DIS-NEW-04/05` | — | D3 |
-| Pergunta de preferência de atendente: desligada | ⚪ | Não existe no CRM; é fluxo da Automação (`RF-AUT-02/03`) | Chave de configuração + a Automação ler | D3 / D6 |
+| Pergunta de preferência de atendente: desligada | ⚪ | Não existe chave no CRM | Chave booleana em `configuracao_automacao`; o CRM só guarda e expõe | D3 |
 | Agenda de Contatos compartilhada | 🟡 | Ver `DIS-ALT-04` | — | D5 |
 | Funil de 5 etapas sem Orçamento | 🟡 | Ver `DIS-ALT-05` | — | D5 |
 | Campo "Origem do lead": **não implementar** | ✅ | Nenhum campo com esse nome existe no repositório | Só garantir que ninguém o crie | — |
-| Persona da IA "Assistente virtual da Disbrel" | ⚪ | Prompts e workflows do n8n **não estão versionados** aqui (só `docs/n8n/resumo-ia-sob-demanda.json`) | Definir onde o prompt mora | D6 |
 
 ### 2.2 Requisitos numerados
 
@@ -64,14 +67,13 @@ Legenda de situação: ✅ já atendido · 🟡 parcial · 🔴 lacuna · ⚪ fo
 |---|---|---|---|---|---|
 | `DIS-ALT-01` (`DISBREL`, crítico) | Disponibilidade de 100% vale Seg–Sex 08:00–18:00 **e Sáb 08:00–12:00**; sábado como rotina de plantão (RF-CRM-75) | 🔴 | A regra de precedência e o alerta ao cliente assumem 08:00–18:30 todos os dias. `DataSourceConfig` e jobs agendados citam essa janela em comentário | Janela por dia; auditar jobs agendados contra o sábado; RF-CRM-75 implementado de verdade | D4 |
 | `DIS-NEW-04` (`MATRIZ`, crítico) | Toggle **atendente vinculado**: contato com atendente anterior vai direto a ele; se indisponível/desativado, rodízio do setor e o novo atendente vira o vinculado | 🔴 | Ao **finalizar**, o responsável do lead é limpo; quando o cliente volta, o atendimento abre `EM_IA`, sem responsável (`RetornoDoLeadFinalizadoIT`, script `docker/provisionamento/liberar-responsavel-de-leads-finalizados.sql`). **Não existe vínculo persistido.** O último atendente é recuperável por `atendimento.atendente_id`, mas isso não é um vínculo | Conceito de vinculado, toggle, regra de fallback | D3 |
-| `DIS-NEW-05` (`MATRIZ`, crítico) | Atendentes em setores; IA classifica a 1ª mensagem (Vendas/Suporte); rodízio sequencial **entre os disponíveis do setor**; sem certeza pergunta com botões; **Diretoria não recebe leads da triagem** | 🔴 | O rodízio é global: `AtendenteDisponivelRepositorioJdbc` filtra disponível-para-IA + `ONLINE` + papel `ATENDENTE`/`SUBGESTOR` (`PapelUsuario.recebeAtendimento()`), ordenado por menor carga ou sequencial (`ia.distribuicao.sequencial`, V71). O contrato `transferir-proximo-humano` **só recebe o `atendimentoId`**; o servidor decide o destino de propósito, para a Automação não forjar distribuição. **`SUBGESTOR` hoje recebe triagem**, o que contradiz "Diretoria não recebe" | Setor; filtro por setor no rodízio; como o setor chega ao CRM sem abrir mão de o servidor escolher a pessoa; Diretoria fora da triagem | D2, D3 |
-| `DIS-NEW-06` (`MATRIZ`, média) | Modo de distribuição configurável: rodízio sequencial ou botões. Disbrel: sequencial | 🟡 | `ia.distribuicao.sequencial` (booleano) já escolhe entre "menor carga" e "sequencial". O modo "botões" é fluxo da Automação | Nomear o modo como configuração própria sem quebrar o booleano atual | D3 / D6 |
-| `DIS-ALT-02` (`MATRIZ`, média) | Pergunta de preferência de atendente vira toggle | ⚪ | Vive na Automação. A Automação já lê configuração por `/internal/v1/automation-config/{chave}` | Chave nova de configuração; a Automação passar a lê-la | D3 / D6 |
+| `DIS-NEW-05` (`MATRIZ`, crítico) | Atendentes em setores; rodízio sequencial **entre os disponíveis do setor** (Vendas ou Suporte); **Diretoria não recebe leads da triagem** | 🔴 | O rodízio é global: `AtendenteDisponivelRepositorioJdbc` filtra disponível-para-IA + `ONLINE` + papel `ATENDENTE`/`SUBGESTOR` (`PapelUsuario.recebeAtendimento()`), ordenado por menor carga ou sequencial (`ia.distribuicao.sequencial`, V71). O contrato `transferir-proximo-humano` **só recebe o `atendimentoId`**; o servidor decide o destino de propósito, para o chamador não forjar distribuição. **`SUBGESTOR` hoje recebe triagem**, o que contradiz "Diretoria não recebe" | Setor; filtro por setor no rodízio; como o setor chega ao CRM sem abrir mão de o servidor escolher a pessoa; Diretoria fora da triagem | D2, D3 |
+| `DIS-NEW-06` (`MATRIZ`, média) | Modo de distribuição configurável: rodízio sequencial ou botões. Disbrel: sequencial | 🟡 | `ia.distribuicao.sequencial` (booleano) já escolhe entre "menor carga" e "sequencial". O modo "botões" não tem representação no CRM | Nomear o modo como configuração própria sem quebrar o booleano atual; o CRM só guarda a escolha | D3 |
+| `DIS-ALT-02` (`MATRIZ`, média) | Pergunta de preferência de atendente vira toggle | ⚪ | O CRM já serve configuração por `/internal/v1/automation-config/{chave}` | Chave nova de configuração (a mesma da linha de parâmetros) | D3 |
 | `DIS-ALT-03` (`MATRIZ`, alta) | Fora do expediente, atribuir ao vinculado ou a atendente do setor, para retomada no próximo período útil | 🔴 | O rodízio exige atendente `ONLINE` e marcado para a IA; fora do expediente não há ninguém online, então o resultado é **409 sem destino** (já investigado em `docs/62`) | Política de atribuição **sem exigir presença** fora do horário — é a mudança mais sensível de distribuição | D3 |
 | Papéis (seção 4) | Gestor = Proprietário; Subgestor = Diretoria; Atendente = Vendas, Suporte; **Interno** = usuário interno com permissões detalhadas definidas pelo gestor, incluindo quem pode transferir atendimentos para ele | 🟡 | O papel **`OPERADOR`** (V92/V93, `docs/47` §15) é o "Interno": configurável, com `atendimentos.receber_de_operador` ("quem pode transferir para ele") | Só rótulos por instância (Proprietário/Diretoria/Interno) via `textos.json`; **o enum não muda** | D2 |
 | `DIS-ALT-04` (`MATRIZ`, alta) | **Agenda de Contatos compartilhada**: todos os usuários veem todos os contatos; a aba Atendimentos mantém as visões por papel e a propriedade do lead | 🟡 | A V60 já deixa `ATENDENTE`, `SUBGESTOR`, `GESTOR` e `ADMINISTRADOR` **localizarem qualquer contato e abrir a conversa existente** pela Agenda, via `app_e_agenda()` e o marcador `app.contexto_agenda`; a ficha sai por `GET /api/v1/leads/{id}/agenda`. `RF-CRM-03` consta ✅ com `IsolamentoDeAgendaIT`. **`OPERADOR` não está na função** (a V93 não a alterou) | Incluir `OPERADOR`; confirmar o que a ficha da Agenda expõe (`resumo_ia`, notas, campos customizados) e provar com teste negativo que a aba Atendimentos não mudou | D5 |
-| `DIS-ALT-05` (`DISBREL`, alta) | Funil sem Orçamento: Novo Contato → Aguardando Medidas → Negociação → Fechado → Pós-venda; estado fora do funil: **Sem Retorno** (7 dias sem resposta) | 🟡 | `etapa_atendimento` é **dado**, não enum (`/api/v1/etapas`, `/internal/v1/etapas`), com `resultado` (`GANHO`/`PERDIDO`). O seed de dev tem outras 7 etapas e só roda no perfil `dev`. Existe o filtro `semRetornoDias`, mas **não existe um estado "Sem Retorno"** | Provisionar as 5 etapas por script (não migration); decidir o que é "Sem Retorno"; os critérios de classificação são prompt da IA | D5 / D6 |
-| `DIS-ALT-06` (`DISBREL`, alta) | Saudação por período do dia, base de conhecimento (endereço, horários, marcas, prazo etc.), IA não informa preço nem estoque | ⚪ | Fora do repositório | Cinco itens do PDF estão **"[a definir]"**: frete, desconto à vista, preço internet × loja, nota fiscal, assistência/garantia | D6 |
+| `DIS-ALT-05` (`DISBREL`, alta) | Funil sem Orçamento: Novo Contato → Aguardando Medidas → Negociação → Fechado → Pós-venda; estado fora do funil: **Sem Retorno** (7 dias sem resposta) | 🟡 | `etapa_atendimento` é **dado**, não enum (`/api/v1/etapas`, `/internal/v1/etapas`), com `resultado` (`GANHO`/`PERDIDO`). O seed de dev tem outras 7 etapas e só roda no perfil `dev`. Existe o filtro `semRetornoDias`, mas **não existe um estado "Sem Retorno"** | Provisionar as 5 etapas por script (não migration); decidir o que é "Sem Retorno" | D5 |
 | `DIS-NEW-01/02/03` | Coexistência, webhooks `smb_*`, alerta de desconexão | 🚫 | Seção 2 ignorada por decisão do responsável | — | — |
 
 ---
@@ -84,8 +86,7 @@ dos outros filhos**. A ordem põe primeiro o que é visível e de baixo risco, d
 ### Etapa D0 — Decisões e insumos (sem código)
 
 Nada começa a ser construído sem as respostas da seção 5 que bloqueiam a etapa seguinte. Entregáveis:
-decisões D-1 a D-12 respondidas, ativos de marca recebidos (logo, favicon, nome exibido), lista de usuários e setores,
-e o texto dos cinco itens "[a definir]" da base de conhecimento.
+decisões D-1 a D-10 respondidas, ativos de marca recebidos (logo, favicon, nome exibido) e lista de usuários e setores.
 
 ### Etapa D1 — Identidade visual por instância (tema branco + `#6b0504`)
 
@@ -130,17 +131,17 @@ e o texto dos cinco itens "[a definir]" da base de conhecimento.
 **Objetivo:** `DIS-NEW-04`, `DIS-NEW-05`, `DIS-NEW-06`, `DIS-ALT-02` e `DIS-ALT-03`. É a etapa de maior risco comercial e
 deve ser fatiada em PRs menores, cada um atrás de chave própria:
 
-- **D3a — Rodízio por setor.** O rodízio ganha filtro de setor; o contrato de transferência da Automação passa a aceitar
-  um **setor opcional** (compatível com o contrato atual: ausente = comportamento de hoje). A Automação diz *qual setor*;
+- **D3a — Rodízio por setor.** O rodízio ganha filtro de setor; o contrato interno de transferência passa a aceitar
+  um **setor opcional** (compatível com o contrato atual: ausente = comportamento de hoje). O chamador diz *qual setor*;
   **quem** recebe continua sendo decisão do servidor. Setor com `recebe da triagem = não` nunca é destino. Teste de
-  contrato `/internal/v1` e teste de que a Automação não consegue escolher usuário.
+  contrato `/internal/v1` e teste de que o chamador não consegue escolher usuário.
 - **D3b — Atendente vinculado (toggle).** Persistir o vínculo (decisão D-4), toggle em `configuracao_automacao`, regra:
   vinculado disponível → direto; indisponível ou desativado → rodízio do setor e o novo atendente passa a ser o
   vinculado. Teste negativo de RN-CRM-01/02/06: o vínculo **não** dá a outro atendente acesso ao lead, e não
   transfere por si só quando o toggle está desligado.
 - **D3c — Modo de distribuição e pergunta de preferência.** Configuração explícita do modo (sequencial × botões),
-  compatível com `ia.distribuicao.sequencial`, e a chave do toggle da pergunta de preferência. O CRM **só expõe a
-  configuração**; o comportamento de botões e da pergunta é da Automação (D6).
+  compatível com `ia.distribuicao.sequencial`, e a chave do toggle da pergunta de preferência. O CRM **só guarda e
+  expõe a configuração**, com validação e auditoria.
 - **D3d — Fora do expediente (`DIS-ALT-03`).** Atribuir ao vinculado ou a atendente do setor **sem exigir `ONLINE`**,
   para retomada no próximo período útil. Hoje a presença é pré-requisito do rodízio; mudar isso afeta quem é notificado
   e a carga do primeiro minuto da manhã. Só entra depois das decisões D-5 e D-6.
@@ -177,21 +178,7 @@ deve ser fatiada em PRs menores, cada um atrás de chave própria:
   lead alheio. Como `DIS-ALT-04` é `MATRIZ`, ela é revisada para **todos** os filhos antes de qualquer mudança.
 - **Risco:** médio (RLS), por isso a mudança de política exige teste que a viole de propósito.
 
-### Etapa D6 — IA e Automação da Disbrel (fora do repositório)
-
-**Objetivo:** `DIS-ALT-06`, o lado da Automação de `DIS-NEW-05/06` e `DIS-ALT-02`. O CRM entrega contrato e
-configuração; **o prompt e o workflow moram no n8n, que não está versionado aqui**.
-
-- Persona "Assistente virtual da Disbrel", sem nome próprio, tom consultivo; saudação conforme o período do dia
-  ("Bom dia! Bem-vindo à Disbrel!").
-- Base de conhecimento: endereço, horário, contatos, loja física, marcas, bancadas somente em aço inox, prazo de 10 a
-  15 dias, compra a prazo com análise de crédito, formas de pagamento.
-- **A IA não informa preço nem estoque**, e para os cinco itens "[a definir]" deve **encaminhar a um humano**, nunca
-  responder por suposição.
-- Classificação Vendas × Suporte, botões quando sem certeza, critérios de etapa do funil, estado Sem Retorno.
-- **Decisão D-9:** onde os prompts passam a viver (versionados no repositório, como o template de resumo, ou só no n8n).
-
-### Etapa D7 — Provisionamento, homologação e entrada no ar
+### Etapa D6 — Provisionamento, homologação e entrada no ar
 
 - Provisionar a instância `disbrel-dbl`: usuários (10–15), setores, horário, funil, tema/logo/textos, configuração de
   distribuição e do toggle de preferência, número principal `(61) 99666-6025` pelo canal já existente na base.
@@ -206,9 +193,8 @@ configuração; **o prompt e o workflow moram no n8n, que não está versionado 
 ```
 D0 ──┬─► D1 (tema)               ──────────────────────────────┐
      ├─► D2 (setores) ──► D3a ──► D3b ──► D3c ──► D3d ──────────┤
-     ├─► D4 (horário/sábado)      (independente)                ├─► D7 (homologação e go-live)
+     ├─► D4 (horário/sábado)      (independente)                ├─► D6 (homologação e go-live)
      ├─► D5 (funil + Agenda)      (independente; RLS com cuidado)│
-     └─► D6 (IA/n8n)              (precisa do contrato da D3a/c)┘
 ```
 
 Mapeamento sugerido com as tarefas que você mostrou (a data exata não aparece nas capturas; só que uma vence "amanhã" e
@@ -217,9 +203,9 @@ a outra está **atrasada há 2 dias**):
 | Tarefa no ClickUp | Status mostrado | Etapas |
 |---|---|---|
 | **Sistemas novos, Departamento, Front end de toggles etc** ("tudo seguindo como base os requisitos") | Em progresso, atrasada | **D2** (departamento = setor), **D3** (toggles de vinculado, modo, preferência) |
-| **Versão CRM Disbrel Completo, Tema novo** | Pendente, vence "amanhã" | **D1** (tema), **D4** e **D5** (horário, funil, Agenda), **D7** |
+| **Versão CRM Disbrel Completo, Tema novo** | Pendente, vence "amanhã" | **D1** (tema), **D4** e **D5** (horário, funil, Agenda), **D6** |
 
-Se o prazo apertar, a ordem de menor risco para o cliente enxergar progresso é **D1 → D2 → D5 (funil) → D4 → D3 → D6**.
+Se o prazo apertar, a ordem de menor risco para o cliente enxergar progresso é **D1 → D2 → D5 (funil) → D4 → D3**.
 D3 é a que não deve ser apressada.
 
 ---
@@ -236,10 +222,8 @@ D3 é a que não deve ser apressada.
 | D-6 | Fora do expediente, setor sem nenhum atendente ativo (ex.: Suporte inteiro de folga) | Cair no rodízio de outro setor, ou ficar na fila sem dono? | D3d |
 | D-7 | "Sem Retorno" é um **estado novo** (migration e regra) ou basta o filtro `semRetornoDias` que já existe? | Filtro/etiqueta primeiro; estado só se o cliente precisar dele em relatório | D5 |
 | D-8 | Na Agenda compartilhada, o **Interno** (`OPERADOR`) também vê todos os contatos? Quais campos da ficha ficam visíveis a quem não é o dono? | Sim ao Operador; ficha sem `resumo_ia` e notas de lead alheio | D5 |
-| D-9 | Onde ficam os prompts da IA (repositório ou só n8n) | Versionar no repositório, como o template de resumo | D6 |
-| D-10 | Os cinco itens "[a definir]" (frete, desconto à vista, preço internet × loja, nota fiscal, assistência/garantia) | Cliente responde antes da D6; até lá a IA encaminha ao humano | D6 |
-| D-11 | Ativos de marca: logo (SVG ou PNG), favicon, nome exibido, texto do login. O login usa a identidade **Synapse** (`identidade-synapse.css`); fica assim ou vira da Disbrel? | Login continua Synapse, a menos que o contrato diga o contrário | D1 |
-| D-12 | O PDF diz "Usuários 10–15" e "Diretoria **não recebe** leads da triagem, só por transferência manual": Diretoria também **atende** (recebe por transferência) ou só supervisiona? | Recebe por transferência manual; não entra no rodízio | D2/D3 |
+| D-9 | Ativos de marca: logo (SVG ou PNG), favicon, nome exibido, texto do login. O login usa a identidade **Synapse** (`identidade-synapse.css`); fica assim ou vira da Disbrel? | Login continua Synapse, a menos que o contrato diga o contrário | D1 |
+| D-10 | O PDF diz "Usuários 10–15" e "Diretoria **não recebe** leads da triagem, só por transferência manual": Diretoria também **atende** (recebe por transferência) ou só supervisiona? | Recebe por transferência manual; não entra no rodízio | D2/D3 |
 
 ---
 
@@ -248,7 +232,6 @@ D3 é a que não deve ser apressada.
 - Os três documentos-base do PDF; por isso `RF-AUT-01/02/03/09/10/12` e `RN-AUT-03/04/10` só foram lidos como o PDF os
   descreve, não como a base os define.
 - O estado real do stack `disbrel-dbl` no Dokploy (variáveis, volumes, Auto Deploy).
-- O n8n e a Automação: nada do que é prompt ou workflow foi lido, porque não está no repositório.
 - Cobertura de testes das áreas que as etapas tocam além dos ITs citados; cada etapa deve começar relendo os testes
   vigentes e provando que eles continuam passando com a capacidade desligada.
 - O cálculo de contraste do `#6b0504` foi feito pela fórmula WCAG, sem ferramenta visual.
