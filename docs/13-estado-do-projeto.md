@@ -4,6 +4,16 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 11/10/2026 — Disbrel: requisitos mapeados e plano de implementação em etapas (só documentação)
+
+Novo filho, Disbrel (tema branco + `#6b0504`, setores Vendas/Suporte/Diretoria, atendente vinculado, rodízio por setor, funil
+de 5 etapas, sábado na janela crítica). **Nada foi implementado:** o `docs/71` cruza cada requisito do PDF v1.2 com o que a
+base já tem e propõe as etapas D0–D7. A **seção 2 (Canal) do PDF foi ignorada** por decisão do responsável. Achados que
+mudam o plano: o tema é lido do classpath e a imagem é uma só para os três stacks (falta override por instância); não
+existe setor no modelo; o rodízio é global e inclui `SUBGESTOR`; `horario_trabalho` e as rotinas de plantão nunca tiveram
+código; a Agenda colaborativa (V60) já existe, mas não inclui `OPERADOR`. Doze decisões em aberto estão listadas no doc.
+Detalhe em [`71-disbrel-requisitos-e-plano-de-implementacao.md`](./71-disbrel-requisitos-e-plano-de-implementacao.md).
+
 ### 08/10/2026 — Card com as informações do chatbot no histórico do atendimento (flag por instância)
 
 O n8n entrega ao CRM o que o chatbot coletou, **depois** de transferir o atendimento a um humano
