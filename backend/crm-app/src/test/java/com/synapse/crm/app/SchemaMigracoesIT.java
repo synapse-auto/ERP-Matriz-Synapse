@@ -142,6 +142,9 @@ class SchemaMigracoesIT extends PostgresIT {
                     "mensagem_referencia",
                     // V98 (historico de presenca, E223)
                     "presenca_historico",
+                    // V103 (setores, D2 da Disbrel, docs/71)
+                    "setor",
+                    "usuario_setor",
                     // V94 (finalizacao em massa, docs/59)
                     "finalizacao_em_massa",
                     "finalizacao_em_massa_item",
