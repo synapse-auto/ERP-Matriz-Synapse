@@ -9,6 +9,11 @@ provisionamento padrao nem do Flyway. Para a Estrutural, siga a verificacao
 previa, aplicacao controlada e validacao em
 [`docs/48-habilitar-data-nascimento-estrutural.md`](../../docs/48-habilitar-data-nascimento-estrutural.md).
 
+`aplicar-marca-da-instancia.mjs` aplica e reverte a **marca** (tema, nome/subtitulo e logo) de uma instancia pela API que ja
+existe (`PUT /api/v1/config/marca/*`), com validacao local, backup, `--dry-run` e conferencia por leitura. Nao toca no banco
+nem no Swarm. Passo a passo da Disbrel, contraste calculado e SQL de rollback em
+[`instancias/disbrel/README.md`](instancias/disbrel/README.md).
+
 `habilitar-informacoes-do-chatbot.sql` tambem e uma **operacao pontual por instancia** (liga a feature
 flag `informacoes_chatbot_historico`, que a V101 cria desligada). Execute somente no banco da instancia
 escolhida; detalhes e rollback em
