@@ -87,6 +87,11 @@ e exigem decisão explícita. O novo agregado é disponibilizado, não reinterpr
 
 ## Operação
 
+A inbox unificada agora preserva os campos comerciais já projetados pelo painel (negociação,
+resultado, valor opcional, origem e metadados de registro). Antes, seu DTO descartava esses campos,
+fazendo o cartão mostrar ausência mesmo com resultado persistido. É uma adição compatível ao
+contrato; conversas internas continuam sem campos comerciais. Não acrescenta consultas.
+
 Nenhuma variável nova no Dokploy. Aplicar V102 pelo runner de migrations existente no próximo
 deploy autorizado; não foi feito deploy, alteração no n8n ou reprocessamento de produção.
 Os exemplos não contêm credenciais reais. Resultados concretos dos testes e CI constam na PR.
