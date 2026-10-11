@@ -343,3 +343,54 @@ EXPLAIN real do rodízio (scripts prontos e testados contra o schema, mas só a 
 da VPS (versão não verificada; exigem 13+) e contra dados reais da Disbrel; suíte inteira do backend localmente (o ambiente de
 desenvolvimento não baixa a imagem do MinIO usada por outros ITs; a CI cobre); aplicação em qualquer instância; a tela de setores
 foi testada por vitest, **sem captura visual**.
+
+---
+
+## 8. Decisões registradas em 11/10/2026 (E230)
+
+Decisões **provisórias e reversíveis** do responsável do projeto. As marcadas **(cliente)** dependem da confirmação da Disbrel e
+**não destravam ligar nada em produção**. Esta seção vale mais que o texto antigo das §§ 2–6 sempre que houver conflito.
+
+| # | Decisão | Valor decidido | Onde está / efeito |
+|---|---|---|---|
+| D-1 | Mecanismo de tema/marca | Usar o que já existe (`PUT /api/v1/config/marca/{tema,logo,identidade}`), sem variável nova | Feito na D1 (#294) |
+| D-2 | Sidebar do tema Disbrel | **Tema A provisório** (conteúdo branco, sidebar vinho); a escolha final é do responsável olhando as capturas **(cliente)** | A e B ficam no repositório até a escolha |
+| D-3 | Setores por usuário | Um setor por usuário; vínculo em tabela separada com `UNIQUE(usuario_id)` removível | #296: `V103` (`ux_usuario_setor_usuario`, `DROP INDEX` relaxa) |
+| D-4 | "Atendente vinculado" | O **último humano que assumiu ou recebeu** o atendimento do lead (não necessariamente quem finalizou). Vale só se o usuário está ativo, disponível e em setor que recebe da triagem; senão cai no rodízio do setor e o novo atendente vira o vinculado | #300 (divergências na PR e na §9) |
+| D-5 / D-6 | Fora do expediente (atribuir a atendente offline; setor sem ninguém) | **Não decidido** — depende do dono da Disbrel **(cliente)**. Nenhum código | Opções abaixo |
+| D-7 | "Sem Retorno" | Sem estado novo: filtro `semRetornoDias` existente | #297 não cria estado (`CampoFiltravel.java:64`) |
+| D-8 | Agenda para o OPERADOR | **Manter o OPERADOR fora por enquanto**. Se o cliente confirmar que o "Interno" precisa da Agenda: **ficha reduzida** | #298 fica só de caracterização; opção detalhada abaixo **(cliente)** |
+| D-11 | Login | Continua com a identidade Synapse | Nada |
+| D-12 | Diretoria (SUBGESTOR na Disbrel) | Recebe por transferência manual; **não entra no rodízio da triagem** | Setor com "recebe da triagem = não"; nenhum enum muda; provado em `DiretoriaPorTransferenciaManualIT` (#300) |
+| — | Rótulos de papel (Proprietário/Diretoria/Interno) | Aceitar os nomes atuais agora; estender a marca depois, em PR próprio | Pendência de **baixa prioridade**; nenhum código |
+| — | Itens "[a definir]", IA, n8n, Canal | Fora do escopo deste repositório/plano | Nada |
+
+### Continua em aberto
+- **D-5/D-6 (cliente).** Opção **A**: fora do expediente, atribuir **só ao vinculado** (sem vinculado, o lead espera). Opção **B**:
+  **no início do expediente**, distribuir entre os que estiverem online. Hoje o rodízio exige `ONLINE`; o resultado fora do expediente é 409
+  sem destino (`docs/62`). Qualquer das duas muda quem é notificado e a carga do primeiro minuto da manhã. Nada foi implementado (D3d).
+- **Escolha final entre os temas A e B** e os textos da identidade (nome exibido, subtítulo, PNG da logo).
+- **D-8: o que o cliente precisa confirmar** — se o papel "Interno" (OPERADOR) realmente precisa abrir contatos da Agenda e o que pode ver.
+- **Rótulos de papel por instância**, quando alguém quiser (PR próprio).
+
+### D-8, "ficha reduzida": o que precisaria mudar (não implementado)
+Mostrar, a quem abre um lead alheio pela Agenda, só **nome, telefone, empresa e responsável atual** (sem `notas`, `resumoIa`, e-mail, CPF,
+localização nem campos customizados). Superfície de mudança, verificada na leitura do código:
+1. `FichaDoLead.de` (`LeadController.java:253-260`) e `LeadController.porIdNaAgenda` (`:117-123`): devolver a forma reduzida quando
+   `ContextoDeAgenda.ativo()` e o lead não é do usuário — isso **muda o contrato também para o ATENDENTE**, que hoje recebe a ficha completa.
+2. `app_e_agenda()` (`V60:10-13`) passaria a incluir `OPERADOR`, atrás de chave, e as políticas que a chamam (`V60`, `V75`, `V78`, `V87`,
+   `V93`) precisariam de teste de **equivalência por papel** (ATENDENTE/OPERADOR/SUBGESTOR/GESTOR/ADMINISTRADOR) — sem isso, nenhuma mudança de RLS.
+3. Abrir a conversa pela Agenda (`AtendimentoAcoesController.java:187-191`) registra o solicitante como participante e dá leitura do
+   histórico: a ficha reduzida **não** limita isso; é decisão separada.
+4. Frontend das telas da Agenda e `IsolamentoDeAgendaIT`/`AgendaDoOperadorCaracterizacaoIT` (o segundo falha de propósito quando a função muda).
+
+## 9. Auditoria do E230 (PRs contra as decisões)
+
+Resultado completo, com `arquivo:linha`, no relatório da E230. Resumo do que mudou no plano:
+- **Conferido:** D-3 (`V103:30-41`), D-7 (#297 sem migration nem estado), D-12 (agora com teste), D-8 (#298 só teste).
+- **D-4, divergências a decidir (nada foi alterado em silêncio):** (a) usuário **sem setor** continua elegível a vinculado com `setores`
+  ligado (a decisão diz "em setor que recebe da triagem"); (b) o vínculo só é gravado em transferência com destino humano e em envio manual
+  que trocou o dono — **abrir contato pela Agenda e responder sem troca de dono não grava**; (c) com a chave desligada nada é gravado, então
+  ligar depois só vincula dali em diante. Correções propostas na PR #300.
+- **Plano de mesclagem e deploy:** [`72-plano-de-mesclagem-e-deploy-disbrel.md`](./72-plano-de-mesclagem-e-deploy-disbrel.md).
+

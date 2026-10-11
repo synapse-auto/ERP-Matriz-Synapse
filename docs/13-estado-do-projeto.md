@@ -4,6 +4,16 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 11/10/2026 — Disbrel E230: decisões registradas e fechamento das PRs (#294, #296–#300)
+
+As decisões do responsável (D-1 a D-12) estão na §8 do [`docs/71`](./71-disbrel-requisitos-e-plano-de-implementacao.md): tema A provisório,
+um setor por usuário, "vinculado" = último humano que assumiu/recebeu, Diretoria fora do rodízio mas destino de transferência manual,
+OPERADOR **fora** da Agenda por enquanto (ficha reduzida só se o cliente confirmar), rótulos de papel como estão. **Em aberto:** D-5/D-6
+(fora do expediente, opções A/B), escolha final A/B e o que a Disbrel precisa confirmar sobre a Agenda. A auditoria das PRs contra as decisões
+achou três divergências no vínculo (usuário sem setor, abertura pela Agenda sem troca de dono, chave ligada só vale daqui em diante), relatadas
+sem alteração de comportamento. Plano de mesclagem (V102 → V103 → V104), nenhuma ação no Dokploy e reversões:
+[`docs/72`](./72-plano-de-mesclagem-e-deploy-disbrel.md). **Nada foi mesclado, aplicado ou ligado.**
+
 ### 11/10/2026 — Disbrel E229: setores, funil, horário por dia e distribuição (5 PRs em rascunho, nada em produção)
 
 Cinco PRs, uma por assunto, todas **desligadas por padrão** e sem variável de ambiente nova: **#296** setores (V103, feature flag
