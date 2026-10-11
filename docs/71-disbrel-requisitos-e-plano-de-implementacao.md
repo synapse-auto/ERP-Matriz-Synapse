@@ -39,8 +39,8 @@ Vêm do `AGENTS.md` e valem para toda etapa:
    mensagem. Distribuição por setor é consulta rápida no banco, nunca chamada externa.
 6. **Migrations:** `git fetch` e próximo número livre a partir da `origin/main` (hoje a última é a `V101`); nunca editar
    migration aplicada.
-7. **Strings de UI vão para `textos.json`, cores para tokens de `tema.json`.** Já é regra; a Disbrel só a torna
-   obrigatória de verdade, porque pela primeira vez a mesma imagem precisa servir dois temas.
+7. **Strings de UI vão para `textos.json`, cores para tokens de `tema.json`.** Já é regra, e a Disbrel a exercita de
+   verdade: a mesma imagem serve dois temas, pela marca gravada no banco (`marca_da_instancia`), sem variável nova.
 
 ---
 
@@ -52,7 +52,7 @@ Legenda de situação: ✅ já atendido · 🟡 parcial · 🔴 lacuna · ⚪ s�
 
 | Parâmetro | Situação | O que existe hoje (evidência) | Lacuna | Etapa |
 |---|---|---|---|---|
-| Tema branco + `#6b0504` | 🔴 | `tema.json`, `textos.json` e `logo.png` são lidos **do classpath** (`ConfiguracaoDeInstanciaResources`); o comentário diz "cada filho substitui os arquivos no próprio `src/main/resources`". Como a imagem é uma só para os três stacks, **não há como um stack ter tema diferente do outro** sem fork ou imagem própria. Não há cor hexadecimal solta em `.tsx`/`.ts` do frontend (o contrato de tokens está respeitado). `textos.json` traz `"marca": "Estrutural Vidros"` e uma frase com "(Estrutural)" | Override de marca **por instância**, sem rebuild; tokens do tema branco/vinho; textos de marca | D1 |
+| Tema branco + `#6b0504` | 🟡 | **O mecanismo já existe** desde a E31b: `GET /api/v1/config/{tema,textos,logo}` (público) e `PUT /api/v1/config/marca/{tema,identidade,logo}` (`GESTOR`, `SUBGESTOR`, `ADMINISTRADOR`), gravados na linha única `marca_da_instancia`; vale na leitura seguinte, sem reiniciar; `NULL/NULL` usa o classpath (`MarcaDaInstanciaIT`). A versão anterior deste documento dizia que faltava override por instância: **estava errada**. Restam: o tema da Disbrel (dado), uma forma segura de aplicar e reverter, e o que o frontend deixava fixo (sidebar só funciona escura; falha de entrega sobre o balão). O `PUT` **não valida** o schema, e um tema incompleto derruba o layout raiz (login incluído) | Tema e marca como dados; aplicar e reverter com segurança; limpar o frontend; textos de marca fora do alcance da API de identidade (ver D1) | D1 |
 | Horário humano Seg–Sex 08–18, Sáb 08–12, Dom fechado | 🔴 | `horario_trabalho` e `rotina_disponibilidade*` existem **só como migration**, sem código (`docs/05`, RF-CRM-54 e RF-CRM-75 rebaixados). A única janela em uso é `alerta.horario_cliente.inicio/fim` (`08:00`–`18:30`, **uma janela por dia, igual para todos os dias**) | Horário semanal por dia da semana | D4 |
 | Usuários 10–15; setores Vendas, Suporte, Diretoria | 🔴 | Não existe entidade de setor/equipe/departamento no modelo: a busca por "setor" só acha texto de UI | Setor como conceito | D2 |
 | Distribuição: atendente vinculado; senão rodízio sequencial por setor | 🔴 | Ver `DIS-NEW-04/05` | — | D3 |
@@ -86,29 +86,49 @@ dos outros filhos**. A ordem põe primeiro o que é visível e de baixo risco, d
 ### Etapa D0 — Decisões e insumos (sem código)
 
 Nada começa a ser construído sem as respostas da seção 5 que bloqueiam a etapa seguinte. Entregáveis:
-decisões D-1 a D-10 respondidas, ativos de marca recebidos (logo, favicon, nome exibido) e lista de usuários e setores.
+decisões D-2 a D-10 respondidas (a D-1 está fechada), ativos de marca recebidos (logo PNG, nome exibido e subtítulo) e lista
+de usuários e setores.
 
-### Etapa D1 — Identidade visual por instância (tema branco + `#6b0504`)
+### Etapa D1 — Tema, logo e nome da instância (usando o que já existe)
 
-**Objetivo:** a Disbrel ter o próprio tema, logo e nome **na mesma imagem** que os outros stacks usam.
+**Decisão D-1 fechada:** usar o mecanismo existente (`marca_da_instancia` e `PUT /api/v1/config/marca/*`). **Não** há
+diretório de instância, variável nova, mudança no `dokploy-stack.yml` nem imagem por filho.
 
-- **Mecanismo recomendado:** variável **opcional** que aponta para um diretório de instância (ex.:
-  `SYNAPSE_INSTANCIA_DIR`, default vazio) onde `tema.json`, `textos.json` e `logo.png` sobrepõem os do classpath. O
-  classpath continua sendo o padrão, então Estrutural e Fêmina não mudam. O diretório entra no stack por volume ou
-  config do Swarm. Alternativas na seção 5 (D-1).
-- **Tokens:** montar o `tema.json` da Disbrel. O contraste de `#6b0504` sobre branco, pela fórmula WCAG, é de cerca de
-  **12,7:1** (passa AAA), então serve como cor de ação e de texto. Faltam derivados (hover, suave, borda) e decidir a
-  sidebar (hoje azul-escura): D-2.
-- **Cuidado de produto:** `corErro` é um vermelho (`#C0392B`). Um primário vinho ao lado do erro vermelho pode
-  confundir "ação" com "problema". A etapa inclui revisar estados de erro e perigo nas telas principais.
-- **Textos de marca:** trocar `"marca": "Estrutural Vidros"` e a frase com "(Estrutural)" por valor vindo do override
-  de instância.
-- **Teste:** carrega o tema da instância quando o diretório existe; cai no classpath quando não existe; falha alto
-  se o diretório existe e o arquivo é inválido (a regra de hoje: não servir tema vazio em silêncio). Verificação visual
-  por captura de tela das telas principais nos dois temas.
-- **Variável nova:** sim → "ação necessária no Dokploy", `.env.example`, README.
-- **Risco:** baixo. **Pronto quando:** um stack sobe com o tema Disbrel e outro, na mesma tag de imagem, continua com o
-  tema atual.
+**Entregue (código e dados; nada aplicado em produção):**
+
+- **Dois temas candidatos**, versionados em `docker/provisionamento/instancias/disbrel/`, com as mesmas chaves do `tema.json`
+  padrão: **A** (conteúdo branco, sidebar vinho escuro derivada de `#6B0504`) e **B** (conteúdo branco, sidebar clara). Não há
+  protótipo, então a escolha é do responsável, olhando as capturas em `docs/evidencias/disbrel-d1/`. Contraste calculado
+  (30 pares, os que a interface usa): **A 30/30 e B 30/30**; `#6B0504` sobre branco, **12,74:1**.
+- **Erro separado da ação principal.** O vinho e o `corErro` padrão são parentes, e o fundo suave rosado do primário era
+  indistinguível do fundo suave do erro. Só nos temas da Disbrel: `corErro` `#BF360C`, `corErroSuave` `#FFEDE5`, perigo da sidebar
+  ajustado, e `corPrimariaSuave` quase neutro (`#F6F0EF`). Sucesso e atenção intactos; o tema padrão intacto.
+- **Frontend: o que estava fixo e travava o tema B.** A sidebar usava `text-white` e `bg-white/N`, o que só funciona com sidebar
+  escura (no B, o nome da marca, o item ativo e o usuário ficavam brancos sobre branco), e a falha de entrega sobre o balão de
+  saída reaproveitava a cor de perigo da sidebar (ilegível sobre um balão vinho). Dois **tokens opcionais** com padrão que reproduz
+  o comportamento antigo: `sidebarTextoForte` e `mensagemFalhaTexto`. Nenhum dado do tema padrão mudou.
+- **Script de aplicar e reverter** (`docker/provisionamento/aplicar-marca-da-instancia.mjs`, Node 18+, sem dependências):
+  token só por variável de ambiente (não existe `--token`), validação local antes de qualquer `PUT` (mesmas chaves, cores
+  legíveis e contraste), backup do estado atual, conferência por leitura depois de cada `PUT`, `--dry-run` sem rede, reversão
+  pelo backup. A API **não** tem rota para voltar ao classpath (`NULL`): o SQL de rollback exato está no README da instância e
+  foi validado em banco real.
+- **Testes:** chaves de cada tema iguais às do padrão; os dois temas aceitos pelo schema do frontend; contraste; proteções
+  que reprovam de propósito (tema incompleto, chave desconhecida, contraste baixo, sidebar clara com texto branco);
+  18 testes do script contra uma instância de mentira (token nunca impresso nem gravado, backup antes de escrever,
+  conferência por leitura, reversão); `MarcaDaInstanciaIT` sem alteração.
+
+**Proposta, não feita (muda comportamento):** validar o schema no `PUT /marca/tema`. O `MarcaDaInstanciaIT` hoje envia um tema
+**parcial** (`{corPrimaria, logoUrl}`) e espera 200, então a validação quebraria um teste e qualquer cliente que dependa disso;
+precisa de decisão e de ajuste do teste. Enquanto isso, a proteção é a do script.
+
+**Fica para o responsável decidir** (lista com arquivo e linha no relatório do PR): título da aba (`textos.app.nome` =
+"Synapse CRM", fora do alcance de `PUT /marca/identidade`, que só troca `marca` e `subtitulo`), a frase com "(Estrutural)"
+em `textos.json:1070` e `schema-campanhas.ts:19`, a marca Synapse na transição pós-login, e o texto de falha de entrega do
+tema padrão (1,82:1 sobre o balão azul). O login continua com a identidade Synapse (D-9).
+
+- **Risco:** baixo para quem não aplicar (padrão intacto, provado pixel a pixel nas capturas). **Pronto quando:** o responsável
+  escolher A ou B, fornecer nome, subtítulo e o PNG, e a aplicação for feita fora do horário de atendimento, com a reversão
+  testada antes na homologação.
 
 ### Etapa D2 — Setores e papéis da Disbrel
 
@@ -178,13 +198,15 @@ deve ser fatiada em PRs menores, cada um atrás de chave própria:
   lead alheio. Como `DIS-ALT-04` é `MATRIZ`, ela é revisada para **todos** os filhos antes de qualquer mudança.
 - **Risco:** médio (RLS), por isso a mudança de política exige teste que a viole de propósito.
 
-### Etapa D6 — Provisionamento, homologação e entrada no ar
+### Etapa D6 — Homologação com o cliente (a entrada no ar já foi feita)
 
-- Provisionar a instância `disbrel-dbl`: usuários (10–15), setores, horário, funil, tema/logo/textos, configuração de
-  distribuição e do toggle de preferência, número principal `(61) 99666-6025` pelo canal já existente na base.
-- Checklist de homologação com o cliente, no horário em que o sábado ainda não vale; só depois liga a janela de 100%.
-- Mudança de infraestrutura com impacto em outros stacks segue a regra do runbook: janela de madrugada, um stack por
-  vez, e conferência do Auto Deploy de cada app antes de mesclar (ver `docs/18`, E221).
+A Disbrel (`disbrel-dbl`) **já está no ar**. O que resta desta etapa é só a homologação do que cada etapa acima entregar:
+
+- Checklist de homologação com o cliente a cada etapa liberada. A janela de 100% com sábado (D4) só liga depois de o sábado
+  ter sido homologado.
+- Aplicar a marca (D1) fora do horário de atendimento, com a reversão testada antes na homologação.
+- Mudança de infraestrutura com impacto em outros stacks segue a regra do runbook: janela de madrugada, um stack por vez, e
+  conferência do Auto Deploy de cada app antes de mesclar (ver `docs/18`, E221).
 
 ---
 
@@ -193,7 +215,7 @@ deve ser fatiada em PRs menores, cada um atrás de chave própria:
 ```
 D0 ──┬─► D1 (tema)               ──────────────────────────────┐
      ├─► D2 (setores) ──► D3a ──► D3b ──► D3c ──► D3d ──────────┤
-     ├─► D4 (horário/sábado)      (independente)                ├─► D6 (homologação e go-live)
+     ├─► D4 (horário/sábado)      (independente)                ├─► D6 (homologação com o cliente; o go-live já ocorreu)
      ├─► D5 (funil + Agenda)      (independente; RLS com cuidado)│
 ```
 
@@ -203,7 +225,7 @@ a outra está **atrasada há 2 dias**):
 | Tarefa no ClickUp | Status mostrado | Etapas |
 |---|---|---|
 | **Sistemas novos, Departamento, Front end de toggles etc** ("tudo seguindo como base os requisitos") | Em progresso, atrasada | **D2** (departamento = setor), **D3** (toggles de vinculado, modo, preferência) |
-| **Versão CRM Disbrel Completo, Tema novo** | Pendente, vence "amanhã" | **D1** (tema), **D4** e **D5** (horário, funil, Agenda), **D6** |
+| **Versão CRM Disbrel Completo, Tema novo** | Pendente, vence "amanhã" | **D1** (tema), **D4** e **D5** (horário, funil, Agenda), **D6** (só a homologação) |
 
 Se o prazo apertar, a ordem de menor risco para o cliente enxergar progresso é **D1 → D2 → D5 (funil) → D4 → D3**.
 D3 é a que não deve ser apressada.
@@ -214,15 +236,15 @@ D3 é a que não deve ser apressada.
 
 | # | Decisão | Minha recomendação | Bloqueia |
 |---|---|---|---|
-| D-1 | Como a Disbrel ganha tema próprio na mesma imagem | Diretório de instância opcional sobrepondo o classpath (variável com default vazio). Alternativas: imagem por filho (volta a ser fork de fato) ou tema no banco (editável na tela, mas essa tela foi cortada do escopo da primeira entrega) | D1 |
-| D-2 | "Tema branco" inclui a **sidebar** branca, ou só o conteúdo, com a sidebar em `#6b0504`? Existe protótipo? | Pedir o protótipo antes de montar os tokens | D1 |
+| ~~D-1~~ | ~~Como a Disbrel ganha tema próprio na mesma imagem~~ | **Decidida:** usar a marca no banco (`marca_da_instancia`, `PUT /api/v1/config/marca/*`), que já existe. Sem diretório de instância, variável nova ou imagem por filho | D1 |
+| D-2 | **Tema A (sidebar vinho) ou B (sidebar branca)?** Olhar as capturas em `docs/evidencias/disbrel-d1/`. Não há protótipo | A decisão é do responsável. Os dois passam em 30/30 pares de contraste | D1 (aplicar) |
 | D-3 | Setor: tabela própria, ou reaproveitar "Equipe"? Um usuário pode estar em **mais de um** setor? | Tabela própria `setor`; um usuário em um setor só, exceto se o cliente disser o contrário | D2 |
 | D-4 | **O que é "atendente vinculado"?** O último que finalizou, o último que respondeu, ou quem o lead tem como responsável? Quando passa a valer, e quando é desfeito? | Coluna explícita no lead, gravada quando o atendimento é assumido ou finalizado e limpa quando o usuário é desativado | D3b |
 | D-5 | Fora do expediente, **atribuir a atendente offline** muda o que a comissão significa: o lead "pertence" a alguém que ainda não viu. Confirmar com o cliente | Atribuir só ao vinculado ou, sem vinculado, ao próximo do setor, com notificação no início do expediente | D3d |
 | D-6 | Fora do expediente, setor sem nenhum atendente ativo (ex.: Suporte inteiro de folga) | Cair no rodízio de outro setor, ou ficar na fila sem dono? | D3d |
 | D-7 | "Sem Retorno" é um **estado novo** (migration e regra) ou basta o filtro `semRetornoDias` que já existe? | Filtro/etiqueta primeiro; estado só se o cliente precisar dele em relatório | D5 |
 | D-8 | Na Agenda compartilhada, o **Interno** (`OPERADOR`) também vê todos os contatos? Quais campos da ficha ficam visíveis a quem não é o dono? | Sim ao Operador; ficha sem `resumo_ia` e notas de lead alheio | D5 |
-| D-9 | Ativos de marca: logo (SVG ou PNG), favicon, nome exibido, texto do login. O login usa a identidade **Synapse** (`identidade-synapse.css`); fica assim ou vira da Disbrel? | Login continua Synapse, a menos que o contrato diga o contrário | D1 |
+| D-9 | Ativos de marca: **logo em PNG** (a API só aceita PNG), nome exibido e subtítulo, e o texto do login (D-11 na primeira versão deste documento). O login usa a identidade **Synapse** (`identidade-synapse.css`); fica assim ou vira da Disbrel? | Login continua Synapse, a menos que o contrato diga o contrário | D1 |
 | D-10 | O PDF diz "Usuários 10–15" e "Diretoria **não recebe** leads da triagem, só por transferência manual": Diretoria também **atende** (recebe por transferência) ou só supervisiona? | Recebe por transferência manual; não entra no rodízio | D2/D3 |
 
 ---
@@ -235,3 +257,7 @@ D3 é a que não deve ser apressada.
 - Cobertura de testes das áreas que as etapas tocam além dos ITs citados; cada etapa deve começar relendo os testes
   vigentes e provando que eles continuam passando com a capacidade desligada.
 - O cálculo de contraste do `#6b0504` foi feito pela fórmula WCAG, sem ferramenta visual.
+- **D1, o que ficou sem prova:** o upload da logo contra um storage real (o MinIO não subiu no ambiente de desenvolvimento, e o
+  `PUT /marca/logo` do backend devolveu 500; o caminho da logo só foi provado contra uma instância de mentira); a aplicação em
+  produção e na homologação; e a avaliação de olho humano do tema (as capturas existem, a escolha A ou B é do responsável).
+  Os 30 pares de contraste cobrem o que a interface usa nas telas capturadas, não toda combinação possível de componentes.

@@ -4,6 +4,20 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 11/10/2026 — Disbrel D1: tema, logo e nome da instância (E228)
+
+A premissa do `docs/71` estava errada: o override de marca por instância **já existe** desde a E31b (`marca_da_instancia`,
+`GET /api/v1/config/{tema,textos,logo}` e `PUT /api/v1/config/marca/{tema,identidade,logo}`, vale na leitura seguinte, `NULL/NULL` =
+classpath). Não há variável nova, mudança no `dokploy-stack.yml` nem imagem por filho. A D1 entregou **dois temas candidatos da
+Disbrel** (`docker/provisionamento/instancias/disbrel/`, A com sidebar vinho e B com sidebar clara; 30/30 pares de contraste
+calculados em cada um), um **script de aplicar e reverter com segurança** (`docker/provisionamento/aplicar-marca-da-instancia.mjs`: token
+só por ambiente, validação local, backup, conferência por leitura, `--dry-run`) e a limpeza do que o frontend deixava fixo (sidebar
+só funcionava escura; falha de entrega sobre o balão), com dois tokens **opcionais** cujo padrão reproduz o comportamento antigo: o
+tema padrão ficou como estava (capturas comparadas pixel a pixel). A API não volta a `NULL`: o SQL de rollback está no README e foi
+validado em banco real. **Nada foi aplicado em produção.** A escolha entre A e B, o nome exibido, o subtítulo e o PNG da logo são do
+responsável. Detalhe em [`71-disbrel-requisitos-e-plano-de-implementacao.md`](./71-disbrel-requisitos-e-plano-de-implementacao.md) (etapa D1) e
+em [`instancias/disbrel/README.md`](../docker/provisionamento/instancias/disbrel/README.md).
+
 ### 11/10/2026 — Disbrel: requisitos mapeados e plano de implementação em etapas (só documentação)
 
 Novo filho, Disbrel (tema branco + `#6b0504`, setores Vendas/Suporte/Diretoria, atendente vinculado, rodízio por setor, funil
