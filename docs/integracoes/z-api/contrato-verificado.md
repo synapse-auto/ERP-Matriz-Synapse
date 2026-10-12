@@ -135,10 +135,13 @@ IPs de saída ou preservação de um segredo na URL. HTTPS protege transporte, n
 envia. instanceId/phone são campos falsificáveis. Client-Token e o controle de IP descritos
 protegem chamadas à API, não provam origem do callback.
 
-Decisão necessária: obter contrato oficial de autenticação da entrada; ou aprovar explicitamente
-uma proteção do CRM por segredo dedicado em URL HTTPS (bearer, **não assinatura**), após confirmar
-preservação da URL completa com o fornecedor, redação nos logs de proxy/aplicação, rotação,
-validação de instância e testes fail-closed. Sem essa decisão, não implementar/ativar entrada.
+Decisão do responsável em 12/10/2026: **obter contrato oficial de autenticação antes de implementar
+a entrada**. A alternativa de proteção própria por segredo na URL não foi escolhida. O gate
+continua aberto até receber e verificar a fonte oficial, sem implementar/ativar entrada.
+Para G2 foi aprovado suporte inicial a telefones, com descarte/quarentena rastreável de LID-only
+e limitação explícita; sem conversão fictícia ou ampliação do modelo. Ainda não implementado.
+Resultados e limites do API Documentation Checker e perguntas para o fornecedor estão em
+[autenticacao-callback-pendente.md](./autenticacao-callback-pendente.md).
 Não substituir por HMAC inventado, cabeçalho Client-Token presumido ou acesso público sem proteção.
 
 Nenhuma ação no Dokploy agora. Nenhuma chamada a api.z-api.io, número conectado ou callback registrado.

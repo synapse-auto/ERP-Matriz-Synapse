@@ -6,7 +6,7 @@ Base: origin/main e6bc480. Worktree isolado; alterações preexistentes preserva
 
 | Fase | Estado | Entrega / pendência | PR/base |
 |---|---|---|---|
-| 1 | Entrega documental pronta; gates bloqueiam passagem | contrato, desenho, fixtures e gates G1–G4; CI a conferir no último SHA | [PR #301](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/301), codex/z-api-fase-1 / main |
+| 1 | Entrega documental pronta; G1 continua bloqueando passagem | G2 decidido; checagem documental adicional sem contrato de entrada obtido; CI do último SHA nos checks | [PR #301](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/301), codex/z-api-fase-1 / main |
 | 2 | Não iniciada | Gate essencial de autenticação + decisões arquiteturais da Fase 1 | futuramente base fase-1 se PR aberta |
 | 3 | Não iniciada | Autenticação/correlação/eco/status antecipado e identidade LID | futuramente base fase-2 |
 | 4 | Não iniciada | Mídia/capacidades/SSRF/limites e fontes completas | futuramente base fase-3 |
@@ -26,9 +26,11 @@ Base: origin/main e6bc480. Worktree isolado; alterações preexistentes preserva
 ## Gates — parar antes de escrever o adaptador
 
 - **G1 essencial:** autenticação/origem do callback não documentada nas páginas verificadas.
-  Aguardar contrato oficial ou decisão explícita sobre proteção própria e suas limitações.
-- **G2 identidade:** phone pode ser LID sem conversão para telefone; decidir suporte parcial
-  com descarte/quarentena rastreável ou uma ampliação separada do modelo de contato.
+  Decisão de 12/10: **aguardar contrato oficial antes de implementar entrada**, sem fallback
+  próprio presumido. [Pendência ao fornecedor e resultado do Checker](./autenticacao-callback-pendente.md).
+- **G2 identidade — decidido, não implementado:** phone pode ser LID sem conversão para telefone.
+  Aprovado suporte inicial a telefones, com descarte/quarentena rastreável de LID-only e
+  limitação explícita. Sem ampliação do modelo ou criação de telefone fictício.
 - **G3 correlação:** esquema/portas atuais têm ID global; aprovar extensão isolada por canal/
   instância e aliases, preservando IDs brutos e contratos existentes, sem migrar histórico.
 - **G4 envio ambíguo:** resultado tipado atual não possui ambiguidade. Aprovar extensão que
@@ -48,6 +50,11 @@ existente roda a suíte completa independentemente de paths; resultado do últim
 conferido e registrado no relatório/PR antes de qualquer passagem.
 Os checks da [PR #301](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/301/checks)
 são a fonte do resultado do último SHA; não usar uma run anterior como prova do commit atual.
+Na revisão anterior, SHA 6760ede: runs PR 38208887630/push 38208884379 passaram (backend
+clean verify Java 21, frontend 1187 testes, Stack). Essa evidência não substitui os checks
+da revisão que registra estas decisões. Checker: duas extrações retornaram sucesso com
+zero endpoints, inclusive para cURL explícito; resultado **não avaliativo**, não aprovação
+da autenticação. Nada foi homologado na conta real.
 
 ## Operação e continuidade
 
