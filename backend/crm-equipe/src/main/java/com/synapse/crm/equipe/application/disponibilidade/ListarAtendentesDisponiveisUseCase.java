@@ -72,7 +72,7 @@ public class ListarAtendentesDisponiveisUseCase {
     @PreAuthorize("hasRole('SERVICO')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public Optional<AtendenteDisponivelParaIa> disponivelPorId(UUID usuarioId) {
-        return disponibilidade.disponivelPorId(usuarioId, setoresHabilitados.habilitada());
+        return disponibilidade.disponivelPorId(usuarioId, setoresHabilitados.habilitadaEmCache());
     }
 
     /**
@@ -81,7 +81,7 @@ public class ListarAtendentesDisponiveisUseCase {
      * e do setor.
      */
     private EscopoDoRodizio escopo(UUID setorId) {
-        boolean ligada = setoresHabilitados.habilitada();
+        boolean ligada = setoresHabilitados.habilitadaEmCache();
         if (setorId == null) {
             return ligada ? new EscopoDoRodizio(null, true) : EscopoDoRodizio.GLOBAL;
         }

@@ -133,6 +133,12 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
     private static final String FILTRO_DO_SETOR =
             " AND EXISTS (SELECT 1 FROM usuario_setor us WHERE us.usuario_id = u.id AND us.setor_id = ?)";
 
+    /** Vinculado direto (E231 (a)): com setores ligados, so quem esta num setor ativo que recebe da triagem. */
+    private static final String FILTRO_EM_SETOR_QUE_RECEBE =
+            """
+             AND EXISTS (SELECT 1 FROM usuario_setor us JOIN setor s ON s.id = us.setor_id
+                          WHERE us.usuario_id = u.id AND s.recebe_da_triagem = TRUE AND s.ativo = TRUE)""";
+
     private static final String FILTRO_SETOR_QUE_NAO_RECEBE =
             """
              AND NOT EXISTS (SELECT 1 FROM usuario_setor us JOIN setor s ON s.id = us.setor_id
@@ -191,8 +197,12 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
     }
 
     @Override
-    public Optional<AtendenteDisponivelParaIa> disponivelPorId(UUID usuarioId, boolean excluirSetoresQueNaoRecebem) {
-        String sql = excluirSetoresQueNaoRecebem ? SQL_DISPONIVEL_POR_ID + FILTRO_SETOR_QUE_NAO_RECEBE : SQL_DISPONIVEL_POR_ID;
+    public Optional<AtendenteDisponivelParaIa> disponivelPorId(UUID usuarioId, boolean comSetores) {
+        // Os dois filtros: pertencer a um setor que recebe E nao estar em nenhum que nao recebe (se um dia o
+        // UNIQUE(usuario_id) for removido, quem tem Diretoria junto com Vendas continua fora do vinculo direto).
+        String sql = comSetores
+                ? SQL_DISPONIVEL_POR_ID + FILTRO_EM_SETOR_QUE_RECEBE + FILTRO_SETOR_QUE_NAO_RECEBE
+                : SQL_DISPONIVEL_POR_ID;
         return jdbc.query(
                         sql,
                         (linha, indice) -> new AtendenteDisponivelParaIa(

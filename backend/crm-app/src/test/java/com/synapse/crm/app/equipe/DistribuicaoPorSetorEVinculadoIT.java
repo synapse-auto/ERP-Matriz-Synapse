@@ -30,6 +30,8 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
+import com.synapse.crm.atendimento.application.VinculoDoLeadRepositorio;
+import com.synapse.crm.equipe.application.permissao.ResolvedorDePermissoesEfetivas;
 
 /**
  * Rodizio por setor (D3a) e atendente vinculado (D3b) da Disbrel. Tudo nasce desligado: com as chaves desligadas os
@@ -48,6 +50,8 @@ class DistribuicaoPorSetorEVinculadoIT extends PostgresIT {
     @Autowired private TestRestTemplate http;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private ObjectMapper json;
+    @Autowired private ResolvedorDePermissoesEfetivas flags;
+    @Autowired private VinculoDoLeadRepositorio vinculos;
 
     private final AtomicInteger sequencia = new AtomicInteger();
 
@@ -76,14 +80,18 @@ class DistribuicaoPorSetorEVinculadoIT extends PostgresIT {
     private void desligarTudo() {
         jdbc.update("UPDATE feature_flag SET habilitado = FALSE WHERE chave = 'setores'");
         jdbc.update("UPDATE configuracao_automacao SET valor = 'false' WHERE chave = ?", CHAVE_VINCULADO);
+        CachesDeConfiguracao.aguardarSetores(flags, false);
+        CachesDeConfiguracao.aguardarVinculado(vinculos, false);
     }
 
     private void ligarSetores() {
         jdbc.update("UPDATE feature_flag SET habilitado = TRUE WHERE chave = 'setores'");
+        CachesDeConfiguracao.aguardarSetores(flags, true);
     }
 
     private void ligarVinculado() {
         jdbc.update("UPDATE configuracao_automacao SET valor = 'true' WHERE chave = ?", CHAVE_VINCULADO);
+        CachesDeConfiguracao.aguardarVinculado(vinculos, true);
     }
 
     // --- D3c: chaves ---------------------------------------------------------------------------------------------

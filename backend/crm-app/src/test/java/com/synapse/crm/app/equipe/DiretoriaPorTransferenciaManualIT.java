@@ -28,6 +28,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
+import com.synapse.crm.equipe.application.permissao.ResolvedorDePermissoesEfetivas;
 
 /**
  * Decisao D-12 (docs/71): a Diretoria "recebe por transferencia manual; nao entra no rodizio da triagem". O setor com
@@ -44,6 +45,7 @@ class DiretoriaPorTransferenciaManualIT extends PostgresIT {
 
     @Autowired private TestRestTemplate http;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private ResolvedorDePermissoesEfetivas flags;
 
     private UUID diretor;
     private UUID ana;
@@ -52,6 +54,7 @@ class DiretoriaPorTransferenciaManualIT extends PostgresIT {
     void preparar() {
         jdbc.update("UPDATE usuario SET status_presenca = 'OFFLINE' WHERE email IN ('ana@dev.local', 'bruno@dev.local')");
         jdbc.update("UPDATE feature_flag SET habilitado = TRUE WHERE chave = 'setores'");
+        CachesDeConfiguracao.aguardarSetores(flags, true);
         ana = jdbc.queryForObject("SELECT id FROM usuario WHERE email = ?", UUID.class, EMAIL_ANA);
         UUID setor = jdbc.queryForObject(
                 "INSERT INTO setor (nome, recebe_da_triagem) VALUES (?, FALSE) RETURNING id", UUID.class, PREFIXO + "Diretoria");
@@ -73,6 +76,7 @@ class DiretoriaPorTransferenciaManualIT extends PostgresIT {
         jdbc.update("DELETE FROM disponibilidade_atendente_ia WHERE atendente_id = ?", diretor);
         jdbc.update("DELETE FROM usuario WHERE id = ?", diretor);
         jdbc.update("UPDATE feature_flag SET habilitado = FALSE WHERE chave = 'setores'");
+        CachesDeConfiguracao.aguardarSetores(flags, false);
         jdbc.update("UPDATE usuario SET status_presenca = 'OFFLINE' WHERE email IN ('ana@dev.local', 'bruno@dev.local')");
     }
 

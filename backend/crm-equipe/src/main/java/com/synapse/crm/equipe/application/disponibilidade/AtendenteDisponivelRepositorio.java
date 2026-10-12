@@ -28,8 +28,9 @@ public interface AtendenteDisponivelRepositorio {
 
     /**
      * Um usuario especifico, se ele passa nos MESMOS filtros do rodizio (ativo, papel que recebe, disponivel para a
-     * IA, ONLINE e, com {@code excluirSetoresQueNaoRecebem}, fora de setor que nao recebe da triagem). Busca por
-     * chave primaria; usada para honrar o atendente vinculado sem reordenar a fila.
+     * IA, ONLINE) e, com {@code comSetores} (capacidade "setores" ligada), se pertence a um setor ativo que recebe da
+     * triagem — quem nao tem setor nao e elegivel aqui (E231 (a)). Busca por chave primaria; usada para honrar o
+     * atendente vinculado sem reordenar a fila. O rodizio em si continua tratando usuario sem setor como elegivel.
      */
-    Optional<AtendenteDisponivelParaIa> disponivelPorId(UUID usuarioId, boolean excluirSetoresQueNaoRecebem);
+    Optional<AtendenteDisponivelParaIa> disponivelPorId(UUID usuarioId, boolean comSetores);
 }
