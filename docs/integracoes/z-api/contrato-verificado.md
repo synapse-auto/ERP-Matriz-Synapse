@@ -36,7 +36,7 @@ Fontes: [base/autenticação](https://developer.z-api.io/api-reference/introduct
 | Retenção de mídia | Arquivos recebidos disponíveis por 30 dias | [expiração](https://developer.z-api.io/tips/file-expiration) | Comprovado; não garante download infalível durante todo prazo |
 | Autenticação de callback | POST HTTPS com JSON; assinatura, chave de entrada ou headers customizados não descritos nas páginas consultadas | [webhooks](https://developer.z-api.io/webhooks/introduction), [configuração](https://developer.z-api.io/webhooks/update-every-webhooks) | **Lacuna essencial G1** |
 | Restrição por IP | Recurso restringe quem chama a API da Z-API, não prova os IPs de saída dos callbacks | [IP](https://developer.z-api.io/security/ip-block) | Não usar como allowlist de origem do CRM |
-| Identidade privada | phone pode conter @lid; não existe conversão LID → telefone | [LID](https://developer.z-api.io/tips/lid) | **Incompatibilidade G2** com entrada do CRM baseada em telefone |
+| Identidade privada | phone pode conter @lid; não existe conversão LID → telefone | [LID](https://developer.z-api.io/tips/lid) | Limitação G2; suporte inicial a telefones aprovado, ainda não implementado |
 | Idempotência/reentrega | Não há chave de envio, exactly-once, ID único de evento nem SLA/backoff de callback nas fontes verificadas | [texto](https://developer.z-api.io/message/send-text), [webhooks](https://developer.z-api.io/webhooks/introduction) | Lacuna; não afirmar que fornecedor não tem o recurso, somente que não foi comprovado |
 | Limites/erros | Introdução não fixa limite de quantidade, mas impõe uso compatível com WhatsApp; API descreve 400/405/415 | [introdução](https://developer.z-api.io/quickstart/introduction), [referência](https://developer.z-api.io/api-reference/introduction) | Sem quota/SLA global comprovados; aplicar limites existentes do CRM, não criar rate arbitrário |
 
@@ -74,7 +74,8 @@ que transforma data inválida no horário atual.
 - Repasse para automação preserva o envelope do provedor; n8n não passa a compreender um JSON
   Z-API só porque o CRM o aceitou. Contrato a alinhar com Dylan, sem tradução Meta fictícia.
 
-G1 é contrato essencial ausente; G2/G3/G4 são fronteiras arquiteturais a decidir antes do código.
+G1 é contrato essencial ausente. G2 tem escopo parcial aprovado; G3/G4 são fronteiras
+arquiteturais a resolver antes do código, sem alterar outros canais silenciosamente.
 Não editar V16/V46 aplicadas. Não criar migration na Fase 1.
 
 ## 4. Desenho proposto — ainda não implementado
@@ -103,8 +104,8 @@ Não editar V16/V46 aplicadas. Não criar migration na Fase 1.
    recusa rede privada/loopback/metadata, limita bytes/tempo, valida MIME real e grava no MinIO.
    Sem Authorization/Client-Token para host de mídia; sem URL temporária no navegador/log.
    Domínios de mídia/CDN autorizados são lacuna a confirmar, não liberados por `endsWith` genérico.
-6. Não mapear LID para dígitos. Opções G2: rejeitar/quarentenar LID-only com diagnóstico e declarar
-   suporte parcial; ou ampliar modelo de identidade de contato em etapa separada. Não criar lead
+6. Não mapear LID para dígitos. Escopo G2 aprovado: rejeitar/quarentenar LID-only com diagnóstico
+   rastreável e declarar suporte inicial a telefones; não ampliar o modelo nesta etapa. Não criar lead
    com telefone fictício. Grupos/newsletters/Status e tipos não suportados seguem política de
    descarte rastreável; fromMe correlaciona sem assumir responsável ou emitir resposta duplicada.
 7. Handoff Dylan: providerKey e identificadores de ciclo existentes continuam válidos; IA envia

@@ -25,8 +25,8 @@ Foram fornecidos os textos oficiais das seis páginas abaixo, com suas URLs:
 Resultado: `status: success`, `endpoints: []`, `errors: []`. Segunda chamada com o cURL
 literal da página HTML oficial [send-text](https://developer.z-api.io/message/send-text),
 contendo método POST, URL, Client-Token, Content-Type, phone e message, produziu novamente
-`endpoints: []`. Não houve fonte estruturada alternativa vinculada localizada nessa página;
-o conteúdo narrativo/HTML não foi convertido pelo plugin em contrato estruturado.
+`endpoints: []`. Não foi obtida uma especificação estruturada adicional nessa consulta;
+o conteúdo narrativo/cURL não foi convertido pelo plugin em contrato estruturado.
 
 **Isso não é cobertura completa nem prova da ausência de uma capacidade do fornecedor.**
 O resultado vazio é uma limitação observada da extração utilizada. Não confirma autenticação,
