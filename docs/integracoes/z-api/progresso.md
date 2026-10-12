@@ -6,7 +6,7 @@ Base: origin/main e6bc480. Worktree isolado; alterações preexistentes preserva
 
 | Fase | Estado | Entrega / pendência | PR/base |
 |---|---|---|---|
-| 1 | Entrega documental pronta; gates bloqueiam passagem | contrato, desenho, fixtures e gates G1–G4; CI a conferir no último SHA | branch codex/z-api-fase-1 / main; PR a abrir |
+| 1 | Entrega documental pronta; gates bloqueiam passagem | contrato, desenho, fixtures e gates G1–G4; CI a conferir no último SHA | [PR #301](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/301), codex/z-api-fase-1 / main |
 | 2 | Não iniciada | Gate essencial de autenticação + decisões arquiteturais da Fase 1 | futuramente base fase-1 se PR aberta |
 | 3 | Não iniciada | Autenticação/correlação/eco/status antecipado e identidade LID | futuramente base fase-2 |
 | 4 | Não iniciada | Mídia/capacidades/SSRF/limites e fontes completas | futuramente base fase-3 |
@@ -46,6 +46,8 @@ Fase exclusivamente documental: backend/frontend não alterados. Clean verify lo
 aplica à entrega sem código segundo o planejamento; Docker local está indisponível. A CI
 existente roda a suíte completa independentemente de paths; resultado do último SHA será
 conferido e registrado no relatório/PR antes de qualquer passagem.
+Os checks da [PR #301](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/301/checks)
+são a fonte do resultado do último SHA; não usar uma run anterior como prova do commit atual.
 
 ## Operação e continuidade
 
