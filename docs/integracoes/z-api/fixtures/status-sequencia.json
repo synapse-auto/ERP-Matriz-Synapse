@@ -1,0 +1,5 @@
+[
+  { "instanceId": "SINTETICA-A", "status": "READ", "ids": ["SINTETICO-WHATSAPP-001"], "momment": 1791800002000, "phoneDevice": 0, "phone": "5561999990000", "type": "MessageStatusCallback", "isGroup": false },
+  { "instanceId": "SINTETICA-A", "status": "RECEIVED", "ids": ["SINTETICO-WHATSAPP-001"], "momment": 1791800001000, "phoneDevice": 0, "phone": "5561999990000", "type": "MessageStatusCallback", "isGroup": false },
+  { "instanceId": "SINTETICA-A", "status": "READ", "ids": ["SINTETICO-WHATSAPP-001"], "momment": 1791800002000, "phoneDevice": 0, "phone": "5561999990000", "type": "MessageStatusCallback", "isGroup": false }
+]

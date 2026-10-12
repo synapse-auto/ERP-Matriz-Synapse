@@ -1,0 +1,5 @@
+[
+  { "instanceId": "SINTETICA-A", "messageId": "SINTETICO-IMAGEM-001", "phone": "5561999990000", "fromMe": false, "momment": 1791800000000, "isGroup": false, "type": "ReceivedCallback", "image": { "imageUrl": "https://midia.invalid/sintetico.png", "mimeType": "image/png", "caption": "Legenda sintética", "downloadError": null } },
+  { "instanceId": "SINTETICA-A", "messageId": "SINTETICO-AUDIO-001", "phone": "5561999990000", "fromMe": false, "momment": 1791800001000, "isGroup": false, "type": "ReceivedCallback", "audio": { "audioUrl": "https://midia.invalid/sintetico.ogg", "mimeType": "audio/ogg; codecs=opus", "ptt": true, "seconds": 1 } },
+  { "instanceId": "SINTETICA-A", "messageId": "SINTETICO-VIDEO-001", "phone": "5561999990000", "fromMe": false, "momment": 1791800002000, "isGroup": false, "type": "ReceivedCallback", "video": { "videoUrl": "https://midia.invalid/sintetico.mp4", "mimeType": "video/mp4", "caption": "Legenda sintética", "seconds": 1 } }
+]
