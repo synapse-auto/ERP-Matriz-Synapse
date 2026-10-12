@@ -155,7 +155,8 @@ tema padrão (1,82:1 sobre o balão azul). O login continua com a identidade Syn
 
 - **Risco:** baixo para quem não aplicar (padrão intacto, provado pixel a pixel nas capturas). **Pronto quando:** o responsável
   escolher A ou B, fornecer nome, subtítulo e o PNG, e a aplicação for feita fora do horário de atendimento, com a reversão
-  testada antes na homologação.
+  testada antes **no primeiro stack da sequência** (não existe ambiente de homologação separado: `erp-matriz-hml` é a produção da
+  Estrutural; ver `docs/72` §3).
 
 ### Etapa D2 — Setores e papéis da Disbrel
 
@@ -231,7 +232,7 @@ A Disbrel (`disbrel-dbl`) **já está no ar**. O que resta desta etapa é só a 
 
 - Checklist de homologação com o cliente a cada etapa liberada. A janela de 100% com sábado (D4) só liga depois de o sábado
   ter sido homologado.
-- Aplicar a marca (D1) fora do horário de atendimento, com a reversão testada antes na homologação.
+- Aplicar a marca (D1) fora do horário de atendimento, com a reversão testada antes no primeiro stack da sequência (`docs/72` §3: não há homologação separada).
 - Mudança de infraestrutura com impacto em outros stacks segue a regra do runbook: janela de madrugada, um stack por vez, e
   conferência do Auto Deploy de cada app antes de mesclar (ver `docs/18`, E221).
 
@@ -286,7 +287,7 @@ D3 é a que não deve ser apressada.
 - O cálculo de contraste do `#6b0504` foi feito pela fórmula WCAG, sem ferramenta visual.
 - **D1, o que ficou sem prova:** o upload da logo contra um storage real (o MinIO não subiu no ambiente de desenvolvimento, e o
   `PUT /marca/logo` do backend devolveu 500; o caminho da logo só foi provado contra uma instância de mentira); a aplicação em
-  produção e na homologação; e a avaliação de olho humano do tema (as capturas existem, a escolha A ou B é do responsável).
+  qualquer stack de produção; e a avaliação de olho humano do tema (as capturas existem, a escolha A ou B é do responsável).
   Os 30 pares de contraste cobrem o que a interface usa nas telas capturadas, não toda combinação possível de componentes.
 
 ---
@@ -356,7 +357,7 @@ Decisões **provisórias e reversíveis** do responsável do projeto. As marcada
 | D-1 | Mecanismo de tema/marca | Usar o que já existe (`PUT /api/v1/config/marca/{tema,logo,identidade}`), sem variável nova | Feito na D1 (#294) |
 | D-2 | Sidebar do tema Disbrel | **Tema A provisório** (conteúdo branco, sidebar vinho); a escolha final é do responsável olhando as capturas **(cliente)** | A e B ficam no repositório até a escolha |
 | D-3 | Setores por usuário | Um setor por usuário; vínculo em tabela separada com `UNIQUE(usuario_id)` removível | #296: `V103` (`ux_usuario_setor_usuario`, `DROP INDEX` relaxa) |
-| D-4 | "Atendente vinculado" | O **último humano que assumiu ou recebeu** o atendimento do lead (não necessariamente quem finalizou). Vale só se o usuário está ativo, disponível e em setor que recebe da triagem; senão cai no rodízio do setor e o novo atendente vira o vinculado | #300 (divergências na PR e na §9) |
+| D-4 | "Atendente vinculado" | O **último humano que assumiu ou recebeu** o atendimento do lead (não necessariamente quem finalizou). Vale só se o usuário está ativo, disponível e em setor que recebe da triagem; senão cai no rodízio do setor e o novo atendente vira o vinculado | #300 — divergências da E230 resolvidas pelo E231 (§10) |
 | D-5 / D-6 | Fora do expediente (atribuir a atendente offline; setor sem ninguém) | **Não decidido** — depende do dono da Disbrel **(cliente)**. Nenhum código | Opções abaixo |
 | D-7 | "Sem Retorno" | Sem estado novo: filtro `semRetornoDias` existente | #297 não cria estado (`CampoFiltravel.java:64`) |
 | D-8 | Agenda para o OPERADOR | **Manter o OPERADOR fora por enquanto**. Se o cliente confirmar que o "Interno" precisa da Agenda: **ficha reduzida** | #298 fica só de caracterização; opção detalhada abaixo **(cliente)** |
@@ -393,4 +394,19 @@ Resultado completo, com `arquivo:linha`, no relatório da E230. Resumo do que mu
   que trocou o dono — **abrir contato pela Agenda e responder sem troca de dono não grava**; (c) com a chave desligada nada é gravado, então
   ligar depois só vincula dali em diante. Correções propostas na PR #300.
 - **Plano de mesclagem e deploy:** [`72-plano-de-mesclagem-e-deploy-disbrel.md`](./72-plano-de-mesclagem-e-deploy-disbrel.md).
+
+## 10. Decisões registradas em 12/10/2026 (E231): o atendente vinculado
+
+O responsável decidiu as três divergências da D-4 que a E230 deixou à vista. Implementação na #300; nada disto vale com as chaves desligadas.
+
+| # | Decisão | Efeito |
+|---|---|---|
+| (a) | **Aplicar.** Com `setores` ligado, o vinculado só recebe direto se pertencer a um **setor ativo que recebe da triagem**. Usuário **sem setor** não é elegível ao vínculo direto: o lead cai no rodízio do setor e quem recebe vira o vinculado. | Só o vínculo direto mudou (`disponivelPorId`). O **rodízio** continua tratando usuário sem setor como elegível (fora do escopo desta decisão). Com `setores` desligado nada muda. |
+| (b) | **Aplicar.** O vínculo também é gravado (1) quando o **dono** do atendimento envia mensagem sem ser participante e (2) quando um atendente **abre contato pela Agenda e fica como responsável** (`IniciarNovoContatoUseCase.executar` sem mensagem e `abrirParaLeadExistente`; com mensagem, quem grava é o envio). **Abrir a ficha sem assumir não grava**; colaborador (convidado ou entrada pela Agenda em lead alheio) não vira vinculado. | Origens gravadas: `TRANSFERENCIA`, `ENVIO_MANUAL`, `CONTATO_ABERTO`. A coluna `origem` não tem `CHECK`, então não houve mudança de migration (o `COMMENT` da V104 cita só duas origens: defasagem de documentação, sem efeito). |
+| (c) | **Não fazer.** Sem backfill: o vínculo vale **a partir da V104**. | Um backfill opt-in a partir de `atendimento.atendente_id` (o último dono de cada lead) é **possível** e só deve ser considerado **se o cliente pedir**; não existe script nem está planejado. |
+
+**Efeito colateral medido no E231 (corrigido junto):** o listener do vínculo recebia todo `EventoDeAtendimento` (inclusive mensagem recebida) com
+`@Transactional(REQUIRES_NEW)` no método, ou seja, abria uma transação para cada evento só para devolver sem fazer nada. A anotação saiu do
+listener e ficou só na gravação. As duas leituras novas do caminho de transferência (flag `setores` e chave do vínculo) agora vêm de memória
+(ver `docs/72` §7).
 

@@ -4,6 +4,16 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 12/10/2026 — Disbrel E231: vínculo ajustado (#300), caminho desligado sem consulta e plano de deploy corrigido
+
+Decisões (a)(b)(c) do responsável sobre o atendente vinculado, em [`docs/71`](./71-disbrel-requisitos-e-plano-de-implementacao.md) §10: o vínculo direto
+exige setor que recebe da triagem (usuário sem setor cai no rodízio); o vínculo também é gravado pelo dono que fala e por quem abre o contato pela
+Agenda e fica responsável; **sem backfill**. A auditoria achou duas leituras novas por transferência com tudo desligado, mais uma transação aberta por
+evento no listener; as três foram guardadas (flag `setores` e chave do vínculo agora vêm de memória, com atraso máximo de 2 s ao ligar/desligar).
+[`docs/72`](./72-plano-de-mesclagem-e-deploy-disbrel.md): não existe homologação separada (`erp-matriz-hml` é a produção da Estrutural), pré-checagem
+somente leitura da V102 para os três bancos (`docker/operacoes/e231-v102-prechecagem.sql`), compatibilidade da imagem anterior com V102–V104 (um risco
+real: linhas `AUTOMACAO` não são lidas pelo código antigo) e a regra do EXPLAIN. **Nada foi mesclado, aplicado ou ligado.**
+
 ### 11/10/2026 — Disbrel E230: decisões registradas e fechamento das PRs (#294, #296–#300)
 
 As decisões do responsável (D-1 a D-12) estão na §8 do [`docs/71`](./71-disbrel-requisitos-e-plano-de-implementacao.md): tema A provisório,

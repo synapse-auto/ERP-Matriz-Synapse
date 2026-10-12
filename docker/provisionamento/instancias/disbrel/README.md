@@ -92,7 +92,9 @@ Só a logo: `UPDATE marca_da_instancia SET logo_referencia_storage = NULL WHERE 
 storage de mídia (inofensivo; limpeza manual opcional). Validado em banco real: depois do SQL, `GET /api/v1/config/tema` e
 `/textos` voltam a servir o classpath, byte a byte.
 
-**Teste a reversão antes de produção**, na homologação (`erp-matriz-hml`): aplique, confira, reverta, rode o SQL, confira de novo.
+**Teste a reversão antes de aplicar no stack da Disbrel.** Não existe homologação separada: `erp-matriz-hml` é a produção da Estrutural. Use o
+primeiro stack da sequência, **fora do horário de atendimento**, com o comando de reversão já copiado: aplique, confira, reverta, rode o SQL, confira de novo
+(ver `docs/72` §3).
 
 ## Contraste calculado (WCAG 2.x)
 
