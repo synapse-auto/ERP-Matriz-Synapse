@@ -88,7 +88,18 @@ Esperado: `LIBERAR`; tabela 3 vazia (nenhuma transação aberta há mais de 30 s
 
 ## 7. O que a transferência da IA executa com tudo desligado (E231)
 
-`POST /internal/v1/atendimentos/{id}/transferir-proximo-humano` ocorre uma vez por entrega de lead (não por mensagem recebida). Antes do E231 a #300 somava
+`POST /internal/v1/atendimentos/{id}/transferir-proximo-humano` é chamado pela Automação, **uma vez por tentativa de entrega de lead a um humano** (**inferido** do
+contrato; o CRM não chama isto e **não** é o caminho da mensagem recebida). A frequência real **não foi medida**. Para medir, somente leitura, os pedidos que
+deram certo (a reserva da chave é gravada na mesma transação do efeito, então 409 sem destino não aparece; é um piso):
+
+```sql
+SELECT (criado_em AT TIME ZONE 'America/Sao_Paulo')::date AS dia, count(*)
+  FROM comando_automacao_idempotencia
+ WHERE operacao = 'TRANSFERIR_PROXIMO_HUMANO' AND criado_em > now() - interval '14 days'
+ GROUP BY 1 ORDER BY 1;
+```
+
+(`operacao` literal em `ComandosAutomacaoUseCase.java:120`; a tabela vem da V32. Se ela for podada na sua instância, o número é menor que o real.) Antes do E231 a #300 somava
 **duas consultas por chamada** com as chaves desligadas:
 
 | # | Consulta | Onde | O que fazia desligada |
