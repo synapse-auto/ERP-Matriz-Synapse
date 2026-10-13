@@ -18,7 +18,7 @@ export function ehAbaDeAtendimento(visao: VisaoAtendimento): boolean {
 export type StatusAtendimento = "EM_IA" | "EM_ATENDIMENTO" | "FINALIZADO";
 
 export type ResultadoVenda = "VENDEU" | "NAO_VENDEU";
-export type OrigemResultadoVenda = "MANUAL" | "FINALIZACAO";
+export type OrigemResultadoVenda = "MANUAL" | "FINALIZACAO" | "AUTOMACAO";
 
 /** Espelha StatusEntrega.java — o ciclo PENDENTE → ENVIADO → ENTREGUE → LIDO, ou PENDENTE → FALHOU. */
 export type StatusEntrega =

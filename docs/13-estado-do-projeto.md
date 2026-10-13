@@ -4,6 +4,62 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 12/10/2026 — Disbrel E231: vínculo ajustado (#300), caminho desligado sem consulta e plano de deploy corrigido
+
+Decisões (a)(b)(c) do responsável sobre o atendente vinculado, em [`docs/71`](./71-disbrel-requisitos-e-plano-de-implementacao.md) §10: o vínculo direto
+exige setor que recebe da triagem (usuário sem setor cai no rodízio); o vínculo também é gravado pelo dono que fala e por quem abre o contato pela
+Agenda e fica responsável; **sem backfill**. A auditoria achou duas leituras novas por transferência com tudo desligado, mais uma transação aberta por
+evento no listener; as três foram guardadas (flag `setores` e chave do vínculo agora vêm de memória, com atraso máximo de 2 s ao ligar/desligar).
+[`docs/72`](./72-plano-de-mesclagem-e-deploy-disbrel.md): não existe homologação separada (`erp-matriz-hml` é a produção da Estrutural), pré-checagem
+somente leitura da V102 para os três bancos (`docker/operacoes/e231-v102-prechecagem.sql`), compatibilidade da imagem anterior com V102–V104 (um risco
+real: linhas `AUTOMACAO` não são lidas pelo código antigo) e a regra do EXPLAIN. **Nada foi mesclado, aplicado ou ligado.**
+
+### 11/10/2026 — Disbrel E230: decisões registradas e fechamento das PRs (#294, #296–#300)
+
+As decisões do responsável (D-1 a D-12) estão na §8 do [`docs/71`](./71-disbrel-requisitos-e-plano-de-implementacao.md): tema A provisório,
+um setor por usuário, "vinculado" = último humano que assumiu/recebeu, Diretoria fora do rodízio mas destino de transferência manual,
+OPERADOR **fora** da Agenda por enquanto (ficha reduzida só se o cliente confirmar), rótulos de papel como estão. **Em aberto:** D-5/D-6
+(fora do expediente, opções A/B), escolha final A/B e o que a Disbrel precisa confirmar sobre a Agenda. A auditoria das PRs contra as decisões
+achou três divergências no vínculo (usuário sem setor, abertura pela Agenda sem troca de dono, chave ligada só vale daqui em diante), relatadas
+sem alteração de comportamento. Plano de mesclagem (V102 → V103 → V104), nenhuma ação no Dokploy e reversões:
+[`docs/72`](./72-plano-de-mesclagem-e-deploy-disbrel.md). **Nada foi mesclado, aplicado ou ligado.**
+
+### 11/10/2026 — Disbrel E229: setores, funil, horário por dia e distribuição (5 PRs em rascunho, nada em produção)
+
+Cinco PRs, uma por assunto, todas **desligadas por padrão** e sem variável de ambiente nova: **#296** setores (V103, feature flag
+`setores`); **#300** rodízio por setor, atendente vinculado e chaves de distribuição (V104, empilhada na #296); **#299** janela de
+aviso ao cliente por dia da semana (sem migration; o padrão é a janela de hoje); **#297** scripts do funil de cinco etapas
+(diagnóstico, simulação por padrão, backup e reversão; nunca renomeiam etapa); **#298** Agenda para o OPERADOR — **parada pelo gate**: a
+ficha da Agenda expõe `notas` e `resumoIa` de leads alheios, então só entrou o relatório e um teste de caracterização, sem mudar a RLS.
+Ordem de merge das migrations: #295 (V102) → #296 (V103) → #300 (V104). Premissas do `docs/71` desmentidas (rótulos de papel por
+instância não saem de `textos.json`; `equipe.editar` nasce negada ao SUBGESTOR; janela crítica só decide o aviso ao cliente) e
+decisões que seguem com o responsável estão na §7 do [`docs/71`](./71-disbrel-requisitos-e-plano-de-implementacao.md). **Sem prova de
+desempenho do rodízio até as saídas de `docker/operacoes/e229-explain-rodizio-*.sql` virem da VPS.**
+
+### 11/10/2026 — Disbrel D1: tema, logo e nome da instância (E228)
+
+A premissa do `docs/71` estava errada: o override de marca por instância **já existe** desde a E31b (`marca_da_instancia`,
+`GET /api/v1/config/{tema,textos,logo}` e `PUT /api/v1/config/marca/{tema,identidade,logo}`, vale na leitura seguinte, `NULL/NULL` =
+classpath). Não há variável nova, mudança no `dokploy-stack.yml` nem imagem por filho. A D1 entregou **dois temas candidatos da
+Disbrel** (`docker/provisionamento/instancias/disbrel/`, A com sidebar vinho e B com sidebar clara; 30/30 pares de contraste
+calculados em cada um), um **script de aplicar e reverter com segurança** (`docker/provisionamento/aplicar-marca-da-instancia.mjs`: token
+só por ambiente, validação local, backup, conferência por leitura, `--dry-run`) e a limpeza do que o frontend deixava fixo (sidebar
+só funcionava escura; falha de entrega sobre o balão), com dois tokens **opcionais** cujo padrão reproduz o comportamento antigo: o
+tema padrão ficou como estava (capturas comparadas pixel a pixel). A API não volta a `NULL`: o SQL de rollback está no README e foi
+validado em banco real. **Nada foi aplicado em produção.** A escolha entre A e B, o nome exibido, o subtítulo e o PNG da logo são do
+responsável. Detalhe em [`71-disbrel-requisitos-e-plano-de-implementacao.md`](./71-disbrel-requisitos-e-plano-de-implementacao.md) (etapa D1) e
+em [`instancias/disbrel/README.md`](../docker/provisionamento/instancias/disbrel/README.md).
+
+### 11/10/2026 — Disbrel: requisitos mapeados e plano de implementação em etapas (só documentação)
+
+Novo filho, Disbrel (tema branco + `#6b0504`, setores Vendas/Suporte/Diretoria, atendente vinculado, rodízio por setor, funil
+de 5 etapas, sábado na janela crítica). **Nada foi implementado:** o `docs/71` cruza cada requisito do PDF v1.2 com o que a
+base já tem e propõe as etapas D0–D6, **só do lado do CRM**. A **seção 2 (Canal) do PDF foi ignorada** por decisão do responsável. Achados que
+mudam o plano: o tema é lido do classpath e a imagem é uma só para os três stacks (falta override por instância); não
+existe setor no modelo; o rodízio é global e inclui `SUBGESTOR`; `horario_trabalho` e as rotinas de plantão nunca tiveram
+código; a Agenda colaborativa (V60) já existe, mas não inclui `OPERADOR`. Dez decisões em aberto estão listadas no doc.
+Detalhe em [`71-disbrel-requisitos-e-plano-de-implementacao.md`](./71-disbrel-requisitos-e-plano-de-implementacao.md).
+
 ### 08/10/2026 — Card com as informações do chatbot no histórico do atendimento (flag por instância)
 
 O n8n entrega ao CRM o que o chatbot coletou, **depois** de transferir o atendimento a um humano

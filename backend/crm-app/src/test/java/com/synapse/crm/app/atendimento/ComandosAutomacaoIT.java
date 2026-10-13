@@ -6,6 +6,9 @@ import static org.awaitility.Awaitility.await;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +27,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.canal.CanalFake;
+import com.synapse.crm.app.seguranca.ApoioAutenticacao;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
 
@@ -302,6 +306,54 @@ class ComandosAutomacaoIT extends PostgresIT {
     }
 
     @Test
+    void resultadoComercial_automacaoNaoInventaHumanoEReplaySobreviveFinalizacao() {
+        UUID atendimento = criarAtendimento("RESULTADO-AUTOMACAO", "EM_IA", null, false);
+        String endpoint = url(atendimento, "resultado-venda");
+        String chave = "resultado-automacao-" + atendimento;
+        chamar(HttpMethod.POST, url(atendimento, "negociacao"), TOKEN, "classificacao-" + atendimento,
+                Map.of("emNegociacao", true));
+        var primeira = chamar(HttpMethod.POST, endpoint, TOKEN, chave, Map.of("resultado", "VENDEU"));
+        assertThat(primeira.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(primeira.getBody()).contains("\"origem\":\"AUTOMACAO\"", "\"resultado\":\"VENDEU\"");
+        assertThat(jdbc.queryForObject("SELECT venda_registrada_por_id FROM atendimento WHERE id = ?",
+                UUID.class, atendimento)).isNull();
+        assertThat(chamar(HttpMethod.POST, endpoint, TOKEN, chave, Map.of("resultado", "NAO_VENDEU"))
+                .getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(chamar(HttpMethod.POST, endpoint, TOKEN, chave + "-conflito", Map.of("resultado", "NAO_VENDEU"))
+                .getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(chamar(HttpMethod.POST, url(atendimento, "finalizar"), TOKEN, "finalizar-" + atendimento, null)
+                .getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(chamar(HttpMethod.POST, endpoint, TOKEN, chave, Map.of("resultado", "VENDEU")).getBody())
+                .isEqualTo(primeira.getBody());
+        assertThat(chamar(HttpMethod.POST, endpoint, TOKEN, chave + "-obsoleto", Map.of("resultado", "VENDEU"))
+                .getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM evento_timeline WHERE atendimento_id = ? "
+                    + "AND tipo = 'RESULTADO_VENDA_ATUALIZADO' AND origem = 'AUTOMACAO' AND ator_id IS NULL",
+                    Integer.class, atendimento)).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_log WHERE entidade_id = ? "
+                    + "AND acao = 'RESULTADO_VENDA_VENDEU_AUTOMACAO' AND ator_tipo = 'AUTOMACAO' AND ator_id IS NULL",
+                    Integer.class, atendimento)).isEqualTo(1);
+        });
+    }
+
+    @Test
+    void resultadoComercial_validaTokenCorpoChaveECicloSemEscrita() {
+        UUID atendimento = criarAtendimento("RESULTADO-NEGATIVOS", "EM_IA", null, false);
+        String endpoint = url(atendimento, "resultado-venda");
+        assertThat(chamar(HttpMethod.POST, endpoint, "invalido", "resultado-auth", Map.of("resultado", "VENDEU"))
+                .getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(chamar(HttpMethod.POST, endpoint, TOKEN, null, Map.of("resultado", "VENDEU"))
+                .getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(chamar(HttpMethod.POST, endpoint, TOKEN, "resultado-invalido", Map.of("resultado", "OUTRO"))
+                .getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(chamar(HttpMethod.POST, url(UUID.randomUUID(), "resultado-venda"), TOKEN, "resultado-inexistente",
+                Map.of("resultado", "VENDEU")).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(jdbc.queryForObject("SELECT resultado_venda FROM atendimento WHERE id = ?", String.class, atendimento))
+                .isNull();
+    }
+
+    @Test
     void finalizarComoAutomacao_liberaResponsavelDoLeadEPreservaDonoDoAtendimento() {
         UUID atendente = criarAtendente("FINALIZAR-DONO-ATENDENTE");
         UUID atendimento = criarAtendimento("FINALIZAR-DONO", "EM_ATENDIMENTO", atendente, false);
@@ -404,6 +456,50 @@ class ComandosAutomacaoIT extends PostgresIT {
         assertThat(ausente.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(invalido.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(dono(atendimento)).isNull();
+    }
+
+    @Test
+    void resultadoVenda_concorrenciaManualAutomacaoEFinalizacaoNaoDuplica() throws Exception {
+        UUID ana = jdbc.queryForObject("SELECT id FROM usuario WHERE email=?", UUID.class,
+                ApoioAutenticacao.EMAIL_ANA);
+        UUID atendimento = criarAtendimento("RESULTADO-CONCORRENTE", "EM_ATENDIMENTO", ana, false);
+        jdbc.update("UPDATE atendimento SET em_negociacao=TRUE WHERE id=?", atendimento);
+        String jwt = ApoioAutenticacao.login(http, ApoioAutenticacao.EMAIL_ANA,
+                ApoioAutenticacao.SENHA_ATENDENTE).accessToken();
+        HttpHeaders humano = new HttpHeaders();
+        humano.setBearerAuth(jwt);
+        humano.setContentType(MediaType.APPLICATION_JSON);
+        CountDownLatch partida = new CountDownLatch(1);
+        try (var pool = Executors.newFixedThreadPool(3)) {
+            var manual = pool.submit(() -> {
+                partida.await();
+                return http.exchange("/api/v1/atendimentos/" + atendimento + "/resultado-venda",
+                        HttpMethod.PUT, new HttpEntity<>(Map.of("resultado", "VENDEU"), humano), String.class);
+            });
+            var automacao = pool.submit(() -> {
+                partida.await();
+                return chamar(HttpMethod.POST, url(atendimento, "resultado-venda"), TOKEN,
+                        "resultado-concorrente", Map.of("resultado", "NAO_VENDEU"));
+            });
+            var finalizacao = pool.submit(() -> {
+                partida.await();
+                return http.exchange("/api/v1/atendimentos/" + atendimento + "/finalizar",
+                        HttpMethod.POST, new HttpEntity<>(Map.of("resultadoVenda", "VENDEU"), humano), String.class);
+            });
+            partida.countDown();
+            assertThat(manual.get(30, TimeUnit.SECONDS).getStatusCode())
+                    .isIn(HttpStatus.OK, HttpStatus.CONFLICT);
+            assertThat(automacao.get(30, TimeUnit.SECONDS).getStatusCode())
+                    .isIn(HttpStatus.OK, HttpStatus.CONFLICT);
+            assertThat(finalizacao.get(30, TimeUnit.SECONDS).getStatusCode())
+                    .isIn(HttpStatus.OK, HttpStatus.CONFLICT);
+        }
+        assertThat(jdbc.queryForObject("SELECT resultado_venda FROM atendimento WHERE id=?",
+                String.class, atendimento)).isIn("VENDEU", "NAO_VENDEU");
+        assertThat(dono(atendimento)).isEqualTo(ana);
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM evento_timeline WHERE atendimento_id=? AND tipo='RESULTADO_VENDA_ATUALIZADO'",
+                Integer.class, atendimento)).isEqualTo(1));
     }
 
     private ResponseEntity<String> chamar(

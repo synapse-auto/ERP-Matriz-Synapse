@@ -43,7 +43,10 @@ public class SerializadorAuditavel {
             // Encaminhar do Chat Interno ao cliente (docs/61): so identificadores, tipo e efeito. Nunca o texto
             // da mensagem, o nome do cliente nem o telefone.
             "CHAT_INTERNO_ENCAMINHAMENTO_CLIENTE", Set.of("id", "usuarioId", "conversaId", "mensagemInternaId",
-                    "atendimentoId", "leadId", "mensagemExternaId", "tipo", "transferiuOLead", "conviteCriado"));
+                    "atendimentoId", "leadId", "mensagemExternaId", "tipo", "transferiuOLead", "conviteCriado"),
+            // Setores (D2 da Disbrel): estrutura da instancia e quem esta em qual. Sem dado de lead.
+            "SETOR", Set.of("id", "nome", "recebeDaTriagem", "ativo"),
+            "USUARIO_SETOR", Set.of("usuarioId", "setorId"));
 
     private final ObjectMapper mapper;
 

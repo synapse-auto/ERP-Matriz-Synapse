@@ -32,6 +32,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       finalizar: {
         vendeu: "Vendeu",
         naoVendeu: "Não vendeu",
+        semResultadoRegistrado: "Sem resultado registrado",
         vendaRegistradaPor: "Registrado por {nome}",
         vendaRegistradaEm: "Registrado em {data}",
       },
@@ -282,6 +283,17 @@ describe("CartaoConversa — RN-CRM-05", () => {
     rerender(<CartaoConversa cartao={{ ...interno, tipoConversa: "DIRETA" }} selecionado onAbrirAtendimento={vi.fn()} />);
     expect(container.querySelector(".lucide-users-round")).not.toBeInTheDocument();
     expect(screen.getByText("EC")).toBeInTheDocument();
+  });
+
+  it("distingue ausencia de resultado de uma escolha Nao vendeu", () => {
+    const { rerender } = render(<CartaoConversa cartao={{ ...cartao, resultadoVenda: null }}
+      selecionado={false} onAbrirAtendimento={vi.fn()} />);
+    expect(screen.getByText("Sem resultado registrado")).toBeInTheDocument();
+    expect(screen.queryByText("Não vendeu")).not.toBeInTheDocument();
+    rerender(<CartaoConversa cartao={{ ...cartao, resultadoVenda: "NAO_VENDEU" }}
+      selecionado onAbrirAtendimento={vi.fn()} />);
+    expect(screen.getByText("Não vendeu")).toBeInTheDocument();
+    expect(screen.queryByText("Sem resultado registrado")).not.toBeInTheDocument();
   });
 
   it("identifica o resultado da venda e disponibiliza responsável e data no rótulo acessível", () => {

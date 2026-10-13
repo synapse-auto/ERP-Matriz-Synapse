@@ -26,13 +26,13 @@ export function StatusEntregaIcone({ status, erroEntrega = null, onReenviar }: P
         : motivosConhecidos[String(erroEntrega.codigo)]
           ?? erroEntrega.titulo
           ?? textos.motivoFalhaNaoInformado;
-    // O balao de saida e sempre bg-primary (azul): text-destructive (calibrado para fundo claro,
-    // ver design/TOKENS.md) fica quase invisivel ali. text-sidebar-item-texto-perigo e o unico
-    // token do catalogo pensado para "erro sobre superficie escura" (mesmo uso na acao Sair do
-    // popup de presenca) e sobrevive bem ao azul do primary.
+    // O balao de saida e sempre bg-primary: text-destructive (calibrado para fundo claro, ver
+    // design/TOKENS.md) fica quase invisivel ali. text-mensagem-falha-texto e o token proprio de
+    // "erro sobre o balao de saida"; quando o tema nao o define, cai em sidebarItemTextoPerigo (o que
+    // este componente usava antes), entao temas existentes renderizam exatamente como antes.
     return (
       <span
-        className="inline-flex items-center gap-1 text-xs text-sidebar-item-texto-perigo"
+        className="inline-flex items-center gap-1 text-xs text-mensagem-falha-texto"
         title={erroEntrega?.codigo === null || erroEntrega?.codigo === undefined || erroEntrega?.codigo === -1
           ? undefined
           : String(erroEntrega.codigo)}
@@ -45,7 +45,7 @@ export function StatusEntregaIcone({ status, erroEntrega = null, onReenviar }: P
             type="button"
             variant="link"
             size="xs"
-            className="h-auto p-0 text-xs text-sidebar-item-texto-perigo"
+            className="h-auto p-0 text-xs text-mensagem-falha-texto"
             onClick={onReenviar}
           >
             {textos.reenviar}

@@ -151,9 +151,14 @@ public record Atendimento(
     public Atendimento comResultadoVenda(
             ResultadoVenda resultado, BigDecimal valor, UUID atorId, Instant quando, OrigemResultadoVenda origem) {
         Objects.requireNonNull(resultado, "resultado de venda e obrigatorio");
-        Objects.requireNonNull(atorId, "registro exige usuario");
         Objects.requireNonNull(quando, "data do resultado e obrigatoria");
         Objects.requireNonNull(origem, "origem do resultado e obrigatoria");
+        if (origem == OrigemResultadoVenda.AUTOMACAO && atorId != null) {
+            throw new IllegalArgumentException("automacao nao possui usuario humano");
+        }
+        if (origem != OrigemResultadoVenda.AUTOMACAO) {
+            Objects.requireNonNull(atorId, "registro humano exige usuario");
+        }
         return new Atendimento(id, leadId, canalId, canalCredencialId, atendenteId, status, iniciadoEm, finalizadoEm,
                 emNegociacao, resultado, valor, atorId, quando, origem);
     }

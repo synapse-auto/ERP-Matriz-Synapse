@@ -17,7 +17,7 @@ import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
-/** Mantem um resultado atual por atendimento; alteracoes substituem o valor e permanecem auditadas. */
+/** Mantem um resultado atual por atendimento; escolha conflitante nunca substitui o valor. */
 @Service
 public class RegistrarResultadoVendaUseCase {
 
@@ -42,6 +42,29 @@ public class RegistrarResultadoVendaUseCase {
     public Atendimento executar(UUID atendimentoId, UUID atorId, ResultadoVenda resultado) {
         var atual = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
         return registrar(atual, atorId, resultado, OrigemResultadoVenda.MANUAL, Instant.now(relogio), false);
+    }
+
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Atendimento executarPelaAutomacao(UUID atendimentoId, ResultadoVenda resultado) {
+        var atual = carregarAbertoPelaAutomacao(atendimentoId);
+        return registrar(atual, null, resultado, OrigemResultadoVenda.AUTOMACAO, Instant.now(relogio), false);
+    }
+
+    /** Valida o ciclo antes da reserva que possui FK; replay concluido ocorre antes desta verificacao. */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public void validarPelaAutomacao(UUID atendimentoId) {
+        carregarAbertoPelaAutomacao(atendimentoId);
+    }
+
+    private Atendimento carregarAbertoPelaAutomacao(UUID atendimentoId) {
+        var atual = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
+        if (!atual.estaAberto()) {
+            throw new com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException(
+                    atendimentoId, "resultado da automacao");
+        }
+        return atual;
     }
 
     /** Registra a opcao escolhida no dialogo e a finalizacao na mesma transacao. */
