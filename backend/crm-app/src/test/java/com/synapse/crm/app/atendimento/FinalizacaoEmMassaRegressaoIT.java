@@ -141,7 +141,7 @@ class FinalizacaoEmMassaRegressaoIT extends FinalizacaoEmMassaITBase {
         try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
             var worker = pool.submit(() -> { largada.await(); agendador.processarOperacao(); return true; });
             var individual = pool.submit(() -> { largada.await(); return chamar(token, HttpMethod.POST,
-                    "/api/v1/atendimentos/" + id + "/finalizar", Map.of(), null); });
+                    "/api/v1/atendimentos/" + id + "/finalizar", null, null); });
             largada.countDown();
             worker.get(20, TimeUnit.SECONDS);
             assertThat(individual.get(20, TimeUnit.SECONDS).getStatusCode()).isIn(HttpStatus.OK, HttpStatus.CONFLICT);

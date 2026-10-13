@@ -38,6 +38,12 @@ desatualizada. Conferir itens persistidos, IDs de ciclos e horários antes de re
 
 ## Verificação somente leitura pelo operador
 
+Sem IDs e sem data exata do sábado, começar por
+[localizar-finalizacao-em-massa.sql](../diagnosticos/localizar-finalizacao-em-massa.sql): nome apenas como entrada
+de busca (não retornado), escolher UUID do usuário, informar início/fim locais explicitamente, localizar operações,
+percorrer itens com cursor e verificar os novos ciclos em 1–3 IDs. Saída só técnica. Executar um bloco por vez
+no banco Estrutural `matriz_hml` confirmado pelo operador; não deduzir identidade em caso de múltiplos candidatos.
+
 Compartilhar IDs técnicos por canal privado. Escolher uma operação exata e 1–3 atendimentos exatos; não exportar
 nomes, telefone, conteúdo, payload, segredo ou URLs. Substituir UUIDs e janela UTC pelos da ocorrência.
 Rodar em DbGate/psql, sem alterar dados; timeout não autoriza aumentá-lo sem revisar o plano/recorte.
