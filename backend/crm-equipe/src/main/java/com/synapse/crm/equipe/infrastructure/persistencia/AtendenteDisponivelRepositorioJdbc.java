@@ -1,15 +1,18 @@
 package com.synapse.crm.equipe.infrastructure.persistencia;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.equipe.application.disponibilidade.AtendenteDisponivelRepositorio;
+import com.synapse.crm.equipe.application.disponibilidade.EscopoDoRodizio;
 import com.synapse.crm.equipe.domain.disponibilidade.AtendenteDisponivelParaIa;
 import com.synapse.crm.equipe.domain.disponibilidade.DiagnosticoDoRodizio;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -123,6 +126,36 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
               LEFT JOIN disponibilidade_atendente_ia d ON d.atendente_id = u.id
             """;
 
+    /**
+     * Filtros de setor (D3a), acrescentados aos SQLs acima somente quando o escopo nao e GLOBAL. Com a capacidade
+     * "setores" desligada o escopo e GLOBAL e as consultas executadas sao exatamente as constantes originais.
+     */
+    private static final String FILTRO_DO_SETOR =
+            " AND EXISTS (SELECT 1 FROM usuario_setor us WHERE us.usuario_id = u.id AND us.setor_id = ?)";
+
+    /** Vinculado direto (E231 (a)): com setores ligados, so quem esta num setor ativo que recebe da triagem. */
+    private static final String FILTRO_EM_SETOR_QUE_RECEBE =
+            """
+             AND EXISTS (SELECT 1 FROM usuario_setor us JOIN setor s ON s.id = us.setor_id
+                          WHERE us.usuario_id = u.id AND s.recebe_da_triagem = TRUE AND s.ativo = TRUE)""";
+
+    private static final String FILTRO_SETOR_QUE_NAO_RECEBE =
+            """
+             AND NOT EXISTS (SELECT 1 FROM usuario_setor us JOIN setor s ON s.id = us.setor_id
+                              WHERE us.usuario_id = u.id AND (s.recebe_da_triagem = FALSE OR s.ativo = FALSE))""";
+
+    /** Mesmos filtros de elegibilidade das consultas acima, para um usuario so (chave primaria). */
+    private static final String SQL_DISPONIVEL_POR_ID =
+            """
+            SELECT u.id, u.nome, u.email
+              FROM disponibilidade_atendente_ia d
+              JOIN usuario u ON u.id = d.atendente_id
+             WHERE u.id = ?
+               AND d.disponivel_para_ia = TRUE AND u.ativo = TRUE
+               -- Espelha PapelUsuario.recebeAtendimento()
+               AND u.papel IN ('ATENDENTE', 'SUBGESTOR') AND u.status_presenca = 'ONLINE'
+            """;
+
     private final JdbcTemplate jdbc;
     private final JdbcTemplate configuracaoJdbc;
 
@@ -134,26 +167,68 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
     }
 
     @Override
-    public List<AtendenteDisponivelParaIa> listarDisponiveisParaIa() {
-        String sql = distribuicaoSequencialAtiva() ? SQL_SEQUENCIAL : SQL_MENOR_CARGA;
-        return jdbc.query(sql, (linha, indice) -> new AtendenteDisponivelParaIa(
-                UUID.fromString(linha.getString("id")), linha.getString("nome"), linha.getString("email")));
+    public List<AtendenteDisponivelParaIa> listarDisponiveisParaIa(EscopoDoRodizio escopo) {
+        String base = distribuicaoSequencialAtiva() ? SQL_SEQUENCIAL : SQL_MENOR_CARGA;
+        // Antes do ORDER BY final: o filtro e mais uma condicao do WHERE, sem tocar nos CTEs nem na ordem.
+        String sql = comEscopo(base, base.lastIndexOf("ORDER BY"), escopo);
+        RowMapper<AtendenteDisponivelParaIa> mapeador = (linha, indice) -> new AtendenteDisponivelParaIa(
+                UUID.fromString(linha.getString("id")), linha.getString("nome"), linha.getString("email"));
+        // Escopo GLOBAL: a mesma chamada sem argumentos de sempre (nao troca o tipo de statement).
+        return escopo.setorId() == null ? jdbc.query(sql, mapeador) : jdbc.query(sql, mapeador, escopo.setorId());
     }
 
     @Override
-    public DiagnosticoDoRodizio diagnosticar() {
+    public DiagnosticoDoRodizio diagnosticar(EscopoDoRodizio escopo) {
         String estrategia = distribuicaoSequencialAtiva()
                 ? DiagnosticoDoRodizio.ESTRATEGIA_SEQUENCIAL
                 : DiagnosticoDoRodizio.ESTRATEGIA_MENOR_CARGA;
-        return jdbc.queryForObject(
-                SQL_FUNIL,
-                (linha, indice) -> new DiagnosticoDoRodizio(
-                        estrategia,
-                        linha.getLong("ativos"),
-                        linha.getLong("com_papel_permitido"),
-                        linha.getLong("disponiveis_para_ia"),
-                        linha.getLong("online"),
-                        linha.getLong("sem_registro")));
+        // O funil nao tem WHERE: o escopo entra como WHERE no fim, so quando houver filtro.
+        String sql = escopo.eGlobal() ? SQL_FUNIL : SQL_FUNIL + " WHERE TRUE" + condicoes(escopo);
+        RowMapper<DiagnosticoDoRodizio> mapeador = (linha, indice) -> new DiagnosticoDoRodizio(
+                estrategia,
+                linha.getLong("ativos"),
+                linha.getLong("com_papel_permitido"),
+                linha.getLong("disponiveis_para_ia"),
+                linha.getLong("online"),
+                linha.getLong("sem_registro"));
+        return escopo.setorId() == null
+                ? jdbc.queryForObject(sql, mapeador)
+                : jdbc.queryForObject(sql, mapeador, escopo.setorId());
+    }
+
+    @Override
+    public Optional<AtendenteDisponivelParaIa> disponivelPorId(UUID usuarioId, boolean comSetores) {
+        // Os dois filtros: pertencer a um setor que recebe E nao estar em nenhum que nao recebe (se um dia o
+        // UNIQUE(usuario_id) for removido, quem tem Diretoria junto com Vendas continua fora do vinculo direto).
+        String sql = comSetores
+                ? SQL_DISPONIVEL_POR_ID + FILTRO_EM_SETOR_QUE_RECEBE + FILTRO_SETOR_QUE_NAO_RECEBE
+                : SQL_DISPONIVEL_POR_ID;
+        return jdbc.query(
+                        sql,
+                        (linha, indice) -> new AtendenteDisponivelParaIa(
+                                UUID.fromString(linha.getString("id")), linha.getString("nome"), linha.getString("email")),
+                        usuarioId)
+                .stream()
+                .findFirst();
+    }
+
+    private static String comEscopo(String sql, int posicaoDoOrderBy, EscopoDoRodizio escopo) {
+        if (escopo.eGlobal()) {
+            return sql;
+        }
+        return sql.substring(0, posicaoDoOrderBy) + condicoes(escopo).strip() + "\n"
+                + sql.substring(posicaoDoOrderBy);
+    }
+
+    private static String condicoes(EscopoDoRodizio escopo) {
+        StringBuilder condicoes = new StringBuilder();
+        if (escopo.setorId() != null) {
+            condicoes.append(FILTRO_DO_SETOR);
+        }
+        if (escopo.excluirSetoresQueNaoRecebem()) {
+            condicoes.append(FILTRO_SETOR_QUE_NAO_RECEBE);
+        }
+        return condicoes.toString();
     }
 
     /**

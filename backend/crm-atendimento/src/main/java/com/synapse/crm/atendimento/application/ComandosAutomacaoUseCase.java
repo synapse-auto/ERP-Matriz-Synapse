@@ -110,13 +110,23 @@ public class ComandosAutomacaoUseCase {
     @PreAuthorize("hasRole('SERVICO')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public TransferenciaResposta transferirProximoHumano(UUID atendimentoId, String chave) {
+        return transferirProximoHumano(atendimentoId, chave, null);
+    }
+
+    /**
+     * Mesmo comando, com o setor opcional (D3a). O setor entra na impressao digital da requisicao: reutilizar a chave
+     * com outro setor e conflito, nao replay. Sem setor, a impressao digital e a de sempre (vazia).
+     */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public TransferenciaResposta transferirProximoHumano(UUID atendimentoId, String chave, UUID setorId) {
         return executar(
                 chave,
                 "TRANSFERIR_PROXIMO_HUMANO",
                 atendimentoId,
-                "",
+                setorId == null ? "" : "setor=" + setorId,
                 TransferenciaResposta.class,
-                () -> TransferenciaResposta.de(transferir.executar(atendimentoId)));
+                () -> TransferenciaResposta.de(transferir.executarNoSetor(atendimentoId, setorId)));
     }
 
     @PreAuthorize("hasRole('SERVICO')")
