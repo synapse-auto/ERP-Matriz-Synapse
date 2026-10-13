@@ -20,6 +20,7 @@ Cards de informações do chatbot no histórico são outro recurso e ficaram int
 | Qualquer resposta sem exceção contava como aceite | Apenas HTTP 200 (replay) e 202 (novo) são aceitos |
 | Exceção de rede podia imprimir URL | Log só de classe da falha, IDs, etapa e HTTP; sem mensagem/stack do cliente HTTP |
 | Clique após resposta perdida criava outra chave no navegador | Chave estável até estado terminal e reconsulta do ciclo canônico; trava síncrona contra duplo clique |
+| Estado local de erro podia sobreviver à troca de ciclo no mesmo painel | Identidade React da seção por lead + atendimento; teste troca de ciclo sem desmontar o painel pai |
 | Validação de status permitia escrita após troca de responsável | V104 captura responsável na criação; gravação/status recusam ciclo com dono diferente; lock do lead protege corrida com finalização/transferência |
 
 A reserva é de **uma unidade por rodada**: com entrega serial, reservar um lote antes
@@ -155,11 +156,12 @@ Homologação n8n/IA real e causa da solicitação real permanecem pendentes do 
 
 - `ResumoIaFluxoIT`: 11/11 na revisão final, incluindo ida/volta e replay de PROCESSANDO
   recusado após transferência. Releitura sob lock também conserva idempotência entre callbacks concorrentes.
-- Frontend final dirigido: 56/56 (painel, hook e compatibilidade do catálogo); typecheck aprovado;
+- Frontend final dirigido: 57/57 (painel, troca de ciclo, hook e compatibilidade do catálogo); typecheck aprovado;
   lint sem erros, quatro avisos anteriores. Build aprovado na execução local.
 - `clean verify` Java 21: BUILD SUCCESS em 28m44s e, após rebase/renumeração e proteção
-  de ida/volta, BUILD SUCCESS em 16m22s. A checagem da entrega final também foi iniciada;
-  resultado final será anexado à PR, distinguindo o último SHA de revisões anteriores.
+  de ida/volta, BUILD SUCCESS em 16m22s. Entrega final: BUILD SUCCESS em 14m50s, incluindo
+  replay obsoleto e todos os testes de arquitetura/contrato/integração. Backend sem alterações
+  depois dessa verificação; a última correção isolou estado local na seção React.
 - CI da revisão 3d53773: PR 38348175016, Backend/Frontend/Stack aprovados, imagem skipped.
   Não é confirmação do SHA posterior com a revisão final/evidências; conferir o último run na PR.
 - A tentativa de suíte frontend completa no Windows teve crash Node `3221226505` no teste

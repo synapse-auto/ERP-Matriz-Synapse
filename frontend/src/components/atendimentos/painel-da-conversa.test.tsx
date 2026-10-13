@@ -376,6 +376,31 @@ describe("painel da conversa", () => {
     expect(solicitarResumoState.mutate).toHaveBeenCalledOnce();
   });
 
+  it("não carrega erro local de um ciclo para outro atendimento do mesmo lead", () => {
+    solicitarResumoState.mutate.mockImplementationOnce((_pedido, callbacks: {
+      onError: (erro: Error) => void; onSettled: () => void;
+    }) => {
+      callbacks.onError(new Error("resposta perdida"));
+      callbacks.onSettled();
+    });
+    const cache = new QueryClient();
+    const envolver = (atendimentoId: string) => (
+      <QueryClientProvider client={cache}>
+        <PainelDaConversa leadId="lead-1" atendimentoId={atendimentoId} responsavelNome="Ana" onRetrair={vi.fn()} />
+      </QueryClientProvider>
+    );
+    const painel = render(envolver("atendimento-anterior"));
+    fireEvent.click(screen.getByRole("button", { name: "Regerar" }));
+    fireEvent.click(obterControleDaSecao("Resumo por IA"));
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível gerar o resumo.");
+
+    painel.rerender(envolver("atendimento-atual"));
+    fireEvent.click(obterControleDaSecao("Resumo por IA"));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Regerar" })).toBeEnabled();
+    cache.clear();
+  });
+
   it("mantém um card único, com a ação antes do chevron e sem botões aninhados", () => {
     renderizarPainel("lead-1", "Jardel Lima");
 

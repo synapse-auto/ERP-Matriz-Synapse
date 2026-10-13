@@ -273,6 +273,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
 
         {capacidades.pode("resumo_ia.ver") && (
           <ResumoPersistidoDoLead
+            key={`${lead.data.id}:${atendimentoId}`}
             lead={lead.data}
             atendimentoId={atendimentoId}
             titulo={textos.secoes.resumo}
