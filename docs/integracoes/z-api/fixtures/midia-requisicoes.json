@@ -1,0 +1,6 @@
+[
+  { "phone": "5561999990000", "image": "https://midia.invalid/sintetico.png", "caption": "Legenda sintética" },
+  { "phone": "5561999990000", "audio": "https://midia.invalid/sintetico.ogg" },
+  { "phone": "5561999990000", "video": "https://midia.invalid/sintetico.mp4", "caption": "Legenda sintética" },
+  { "phone": "5561999990000", "document": "https://midia.invalid/sintetico.pdf", "fileName": "sintetico.pdf", "caption": "Legenda sintética" }
+]

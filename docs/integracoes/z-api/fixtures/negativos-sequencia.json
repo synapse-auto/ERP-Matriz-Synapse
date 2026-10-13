@@ -1,0 +1,6 @@
+[
+  { "instanceId": "SINTETICA-A", "messageId": "SINTETICO-WHATSAPP-001", "phone": "5561999990000", "fromMe": true, "momment": 1791800000000, "type": "ReceivedCallback", "isGroup": false, "text": { "message": "Eco sintético" } },
+  { "instanceId": "SINTETICA-A", "messageId": "SINTETICO-GRUPO-001", "phone": "SINTETICO-GRUPO", "fromMe": false, "momment": 1791800000000, "type": "ReceivedCallback", "isGroup": true, "text": { "message": "Grupo sintético" } },
+  { "instanceId": "SINTETICA-B", "messageId": "SINTETICO-WHATSAPP-001", "phone": "5561999990000", "fromMe": false, "momment": 1791800000000, "type": "ReceivedCallback", "isGroup": false, "text": { "message": "Outra instância" } },
+  { "instanceId": "SINTETICA-A", "messageId": "SINTETICO-LID-001", "phone": "999000000000000@lid", "chatLid": "999000000000000@lid", "fromMe": false, "momment": 1791800000000, "type": "ReceivedCallback", "isGroup": false, "text": { "message": "Contato sem telefone exposto" } }
+]

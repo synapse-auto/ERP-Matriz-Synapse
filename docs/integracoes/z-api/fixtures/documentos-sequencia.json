@@ -1,0 +1,4 @@
+[
+  { "instanceId": "SINTETICA-A", "messageId": "SINTETICO-DOC-PNG", "phone": "5561999990000", "fromMe": false, "momment": 1791800000000, "isGroup": false, "type": "ReceivedCallback", "document": { "documentUrl": "https://midia.invalid/sintetico.png", "mimeType": "image/png", "title": "Imagem sintética", "fileName": "sintetico.png" } },
+  { "instanceId": "SINTETICA-A", "messageId": "SINTETICO-DOC-JPEG", "phone": "5561999990000", "fromMe": false, "momment": 1791800001000, "isGroup": false, "type": "ReceivedCallback", "document": { "documentUrl": "https://midia.invalid/sintetico.jpg", "mimeType": "image/jpeg", "title": "Imagem sintética", "fileName": "sintetico.jpg" } }
+]

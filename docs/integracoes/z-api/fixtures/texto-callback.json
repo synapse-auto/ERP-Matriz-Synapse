@@ -1,0 +1,17 @@
+{
+  "isStatusReply": false,
+  "waitingMessage": false,
+  "isEdit": false,
+  "isGroup": false,
+  "isNewsletter": false,
+  "instanceId": "SINTETICA-A",
+  "messageId": "SINTETICO-RECEBIDO-001",
+  "phone": "5561999990000",
+  "fromMe": false,
+  "momment": 1791800000000,
+  "status": "RECEIVED",
+  "chatName": "Contato sintético",
+  "senderName": "Contato sintético",
+  "type": "ReceivedCallback",
+  "text": { "message": "Teste sintético\nUnicode 🙂" }
+}
