@@ -19,6 +19,11 @@ flag `informacoes_chatbot_historico`, que a V101 cria desligada). Execute soment
 escolhida; detalhes e rollback em
 [`docs/69-informacoes-do-chatbot-no-historico.md`](../../docs/69-informacoes-do-chatbot-no-historico.md).
 
+`habilitar-setores.sql` tambem e uma **operacao pontual por instancia** (liga a feature flag `setores`, que a
+V103 cria desligada: cadastro de setores e atribuicao de integrantes na aba Equipe da Gestao). Setor nao muda
+papel, permissao nem visibilidade de lead. Execute somente no banco da instancia escolhida (hoje: Disbrel);
+rollback no cabecalho do script (`UPDATE feature_flag SET habilitado = FALSE WHERE chave = 'setores'`).
+
 O canal usa `WHATSAPP_NUMERO` (Phone Number ID numerico, nao o telefone exibido
 nem o WABA ID) e `WHATSAPP_PROVEDOR`, as mesmas variaveis do deploy. O executor
 e o SQL recusam valor ausente, vazio ou nao numerico. O token nao e copiado:

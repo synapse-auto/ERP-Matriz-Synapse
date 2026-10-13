@@ -19,6 +19,7 @@ import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { Switch } from "@/components/ui/switch";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import { recebeAtendimento, visivelNaEquipe } from "@/lib/equipe/papel";
 import type { PapelGerenciavel, StatusPresenca, UsuarioEquipe } from "@/lib/equipe/types";
 import {
@@ -29,12 +30,14 @@ import {
   useEquipe,
   useGerarSenhaProvisoria,
 } from "@/lib/equipe/use-equipe";
+import { FLAG_SETORES, useSetores } from "@/lib/gestao/setores";
 import type { MinhasPermissoes, Papel, Perfil } from "@/lib/gestao/types";
 import { CHAVE_GESTAO, usePerfis, usePermissoesDaEquipe } from "@/lib/gestao/use-gestao";
 import { cn } from "@/lib/utils";
 
 import { ICONE_DO_PAPEL, perfilFixoDoAtor, pode, preencher, type TextosGestao } from "./apoio";
 import { DialogoUsuario } from "./dialogo-usuario";
+import { PainelDeSetores, SetorDoIntegrante } from "./painel-de-setores";
 
 const COR_PRESENCA: Record<StatusPresenca, string> = {
   ONLINE: "var(--cor-sucesso)",
@@ -67,7 +70,11 @@ export function AbaEquipe({
   /** Ausente com Exceções "Em breve": o atalho da linha abre o perfil da função. */
   onAbrirExcecoes?: (usuarioId: string) => void;
 }) {
-  const textosEquipe = useTextos().equipe;
+  const { equipe: textosEquipe, setores: textosSetores } = useTextos();
+  const funcionalidades = useFuncionalidadesHabilitadas();
+  const setoresLigados = funcionalidades.data?.includes(FLAG_SETORES) === true;
+  const setores = useSetores(setoresLigados);
+  const setorPorUsuario = new Map((setores.data?.atribuicoes ?? []).map((a) => [a.usuarioId, a.setorId]));
   const cache = useQueryClient();
   const equipe = useEquipe();
   const perfis = usePerfis();
@@ -110,12 +117,21 @@ export function AbaEquipe({
         ))}
       </div>
 
+      {setoresLigados && setores.data && (
+        <PainelDeSetores
+          textos={textosSetores}
+          setores={setores.data.setores}
+          podeEditar={atorFixo && pode(minhas, "equipe.editar")}
+        />
+      )}
+
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <table className="w-full text-sm">
           <thead className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
             <tr className="border-b border-border">
               <th scope="col" className="px-5 py-3.5 text-left">{textos.equipe.colunas.usuario}</th>
               <th scope="col" className="hidden px-3 py-3.5 text-left md:table-cell">{textos.equipe.colunas.funcao}</th>
+              {setoresLigados && <th scope="col" className="hidden px-3 py-3.5 text-left lg:table-cell">{textosSetores.colunaSetor}</th>}
               <th scope="col" className="hidden px-3 py-3.5 text-left sm:table-cell">{textos.equipe.colunas.presenca}</th>
               <th scope="col" className="hidden px-3 py-3.5 text-left lg:table-cell">{textos.equipe.colunas.ia}</th>
               {atorFixo && <th scope="col" className="hidden px-3 py-3.5 text-left xl:table-cell">{textos.equipe.colunas.avaliacao}</th>}
@@ -126,7 +142,7 @@ export function AbaEquipe({
           <tbody>
             {usuarios.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-muted-foreground">{textos.equipe.vazio}</td>
+                <td colSpan={setoresLigados ? 8 : 7} className="px-5 py-10 text-center text-muted-foreground">{textos.equipe.vazio}</td>
               </tr>
             )}
             {usuarios.map((u) => {
@@ -168,6 +184,20 @@ export function AbaEquipe({
                   <td className="hidden px-3 py-3.5 md:table-cell">
                     <PillDeStatus tom={TOM_DO_PAPEL[u.papel]} icone={<Icone className="size-3.5" />}>{textos.papeis[u.papel]}</PillDeStatus>
                   </td>
+                  {setoresLigados && (
+                    <td className="hidden px-3 py-3.5 lg:table-cell">
+                      {setores.data && (
+                        <SetorDoIntegrante
+                          textos={textosSetores}
+                          setores={setores.data.setores}
+                          usuarioId={u.id}
+                          nome={u.nome}
+                          setorId={setorPorUsuario.get(u.id) ?? null}
+                          podeAtribuir={podeGerenciar && u.ativo && pode(minhas, "equipe.editar")}
+                        />
+                      )}
+                    </td>
+                  )}
                   <td className="hidden px-3 py-3.5 sm:table-cell">
                     <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground">
                       <span className="size-2 rounded-full" style={{ backgroundColor: COR_PRESENCA[u.statusPresenca] }} />

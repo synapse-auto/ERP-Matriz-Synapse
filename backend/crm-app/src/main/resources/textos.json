@@ -2243,6 +2243,32 @@
     ],
     "novoTag": "NOVO"
   },
+  "setores": {
+    "titulo": "Setores",
+    "descricao": "Agrupe a equipe por setor. O setor não muda o que cada pessoa vê nem o que pode fazer.",
+    "vazio": "Nenhum setor cadastrado ainda.",
+    "novo": "Novo setor",
+    "nome": "Nome do setor",
+    "criar": "Criar setor",
+    "salvar": "Salvar",
+    "cancelar": "Cancelar",
+    "renomear": "Renomear {nome}",
+    "integrantes": "{n} integrante(s)",
+    "recebeDaTriagem": "Recebe da triagem",
+    "naoRecebeDaTriagem": "Não recebe da triagem",
+    "ativo": "Ativo",
+    "inativo": "Inativo",
+    "alternarTriagem": "Receber da triagem: {nome}",
+    "alternarAtivo": "Setor ativo: {nome}",
+    "colunaSetor": "Setor",
+    "semSetor": "Sem setor",
+    "setorDe": "Setor de {nome}",
+    "somenteGestao": "Só gestor e administrador criam e editam setores.",
+    "erroCarregar": "Não foi possível carregar os setores.",
+    "erroSalvar": "Não foi possível salvar. Tente de novo.",
+    "nomeEmUso": "Já existe um setor com este nome.",
+    "setorInativo": "Este setor está inativo e não aceita novos integrantes."
+  },
   "gestao": {
     "titulo": "Gestão",
     "acesso": {

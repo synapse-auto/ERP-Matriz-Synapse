@@ -16,6 +16,9 @@ import com.synapse.crm.automacaoconfig.application.AtualizarConfiguracaoAutomaca
 import com.synapse.crm.core.application.tag.GerenciarTagsDaAutomacaoUseCase;
 import com.synapse.crm.core.application.tag.GestaoDeTagsUseCases;
 import com.synapse.crm.equipe.application.autenticacao.AlterarSenhaUseCase;
+import com.synapse.crm.equipe.application.setor.AtribuirSetorAoUsuarioUseCase;
+import com.synapse.crm.equipe.application.setor.AtualizarSetorUseCase;
+import com.synapse.crm.equipe.application.setor.CriarSetorUseCase;
 import com.synapse.crm.equipe.application.usuario.DefinirSenhaProvisoriaUseCase;
 import com.synapse.crm.sharedkernel.auditoria.Auditable;
 
@@ -94,7 +97,12 @@ class AuditoriaDeAcoesSensiveisTest {
                     EnvioDoEncaminhamentoDoChat.class,
                     "executar",
                     EnvioDoEncaminhamentoDoChat.Comando.class,
-                    ConteudoDeEnvio.class));
+                    ConteudoDeEnvio.class),
+            // Setores (D2 da Disbrel, docs/71).
+            AcaoSensivel.viaAuditable(CriarSetorUseCase.class, "executar", String.class, boolean.class),
+            AcaoSensivel.viaAuditable(
+                    AtualizarSetorUseCase.class, "executar", UUID.class, String.class, boolean.class, boolean.class),
+            AcaoSensivel.viaAuditable(AtribuirSetorAoUsuarioUseCase.class, "executar", UUID.class, UUID.class));
 
     @Test
     @DisplayName("toda acao sensivel marcada como AUDITABLE tem @Auditable no metodo")
