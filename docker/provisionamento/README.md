@@ -9,6 +9,11 @@ provisionamento padrao nem do Flyway. Para a Estrutural, siga a verificacao
 previa, aplicacao controlada e validacao em
 [`docs/48-habilitar-data-nascimento-estrutural.md`](../../docs/48-habilitar-data-nascimento-estrutural.md).
 
+`aplicar-marca-da-instancia.mjs` aplica e reverte a **marca** (tema, nome/subtitulo e logo) de uma instancia pela API que ja
+existe (`PUT /api/v1/config/marca/*`), com validacao local, backup, `--dry-run` e conferencia por leitura. Nao toca no banco
+nem no Swarm. Passo a passo da Disbrel, contraste calculado e SQL de rollback em
+[`instancias/disbrel/README.md`](instancias/disbrel/README.md).
+
 `habilitar-informacoes-do-chatbot.sql` tambem e uma **operacao pontual por instancia** (liga a feature
 flag `informacoes_chatbot_historico`, que a V101 cria desligada). Execute somente no banco da instancia
 escolhida; detalhes e rollback em
@@ -326,3 +331,32 @@ Edicao direta no banco nao passa pela auditoria do CRUD de configuracao: para te
 
 EXPLAIN do rodizio (antes/depois), para rodar na VPS e colar as saidas na PR:
 `docker/operacoes/e229-explain-rodizio-antes.sql` e `e229-explain-rodizio-depois.sql` (comando exato no cabecalho).
+
+## Janela de aviso ao cliente por dia da semana (`instancias/disbrel/horario-alerta-por-dia.sql`)
+
+Operacao pontual por instancia (hoje: Disbrel), nao migration. Cria `alerta.horario_cliente.sab = 08:00-12:00` e
+`alerta.horario_cliente.dom = fechado`. As chaves por dia sao `alerta.horario_cliente.<seg|ter|qua|qui|sex|sab|dom>`
+com `HH:mm-HH:mm` (inicio inclusivo, fim exclusivo) ou `fechado`; **dia sem chave usa a janela padrao**
+(`alerta.horario_cliente.inicio/fim`), isto e, instancia sem as chaves se comporta exatamente como antes. Valor ilegivel
+tambem cai na janela padrao. A Synapse continua recebendo todos os alertas; so o aviso ao grupo do cliente muda.
+Rollback no cabecalho do script. Auditoria dos jobs por horario:
+[`docs/evidencias/disbrel-d4/auditoria-de-jobs-e-horarios.md`](../../docs/evidencias/disbrel-d4/auditoria-de-jobs-e-horarios.md).
+
+## Funil da Disbrel (`instancias/disbrel/funil-disbrel*.sql`)
+
+Tres scripts para o funil de cinco etapas da Disbrel (Novo Contato, Aguardando Medidas, Negociação,
+Fechado = GANHO, Pós-venda; sem etapa de Orçamento). Sao operacao pontual por instancia, nao migration e
+nao parte do provisionamento padrao. Diferente de `funil-padrao.sql`, **nunca renomeiam** etapa e nao usam
+`ON CONFLICT (ordem) DO UPDATE`.
+
+| Script | O que faz |
+|---|---|
+| `funil-disbrel-diagnostico.sql` | Somente leitura: etapas de hoje com contagem de leads, o que falta, o que diverge, conflito de GANHO. |
+| `funil-disbrel.sql` | Simula por padrao (termina em ROLLBACK). Com `-v confirmar=APLICAR` grava, com backup do estado anterior. Idempotente. |
+| `funil-disbrel-reverter.sql` | Desfaz uma execucao pelo id que a aplicacao imprimiu (`-v execucao=<id> -v confirmar=REVERTER`). |
+
+Etapa com lead so deixa de existir por **remapeamento explicito** (`-v remapear='{"Venda fechada":"Fechado"}'`),
+que move os leads e apaga a origem na mesma transacao e exige o mesmo resultado dos dois lados. Etapas fora do
+desenho (inclusive Perdido) sao mantidas depois das cinco. "Sem Retorno" nao e etapa: use o filtro `semRetornoDias`.
+Os scripts exigem papel que enxergue todos os leads (a RLS de `lead` e FORCE) e `psql` 13+. Passo a passo e
+comandos exatos: cabecalho de cada script.

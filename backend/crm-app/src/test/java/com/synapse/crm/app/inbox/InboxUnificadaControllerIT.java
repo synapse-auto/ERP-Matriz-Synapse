@@ -164,6 +164,11 @@ class InboxUnificadaControllerIT extends PostgresIT {
     @Test
     @DisplayName("cliente mantém os campos exigidos pelo card da inbox")
     void clienteMantemContratoDoCartao() throws Exception {
+        jdbc.update("""
+                UPDATE atendimento SET em_negociacao = TRUE, resultado_venda = 'NAO_VENDEU',
+                    venda_registrada_em = CURRENT_TIMESTAMP, origem_resultado_venda = 'AUTOMACAO'
+                WHERE id = ?
+                """, atendimentoDoBruno);
         JsonNode corpo = json.readTree(listarComo(EMAIL_GESTOR, SENHA_GESTOR));
         JsonNode item = encontrar(corpo, atendimentoDoBruno.toString());
 
@@ -171,6 +176,12 @@ class InboxUnificadaControllerIT extends PostgresIT {
         assertThat(item.path("leadNome").asText()).isEqualTo(MARCADOR + "lead");
         assertThat(item.path("nome").asText()).isEqualTo(MARCADOR + "lead");
         assertThat(item.path("leadId").asText()).isEqualTo(leadDoBruno.toString());
+        assertThat(item.path("emNegociacao").asBoolean()).isTrue();
+        assertThat(item.path("resultadoVenda").asText()).isEqualTo("NAO_VENDEU");
+        assertThat(item.path("origemResultadoVenda").asText()).isEqualTo("AUTOMACAO");
+        assertThat(item.path("vendaRegistradaEm").asText()).isNotBlank();
+        assertThat(item.has("vendaRegistradaPorId")).isFalse();
+        assertThat(item.has("valorVenda")).isFalse();
     }
 
     @Test

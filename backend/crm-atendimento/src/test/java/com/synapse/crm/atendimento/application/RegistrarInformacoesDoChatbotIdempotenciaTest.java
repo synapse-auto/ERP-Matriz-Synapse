@@ -47,7 +47,7 @@ class RegistrarInformacoesDoChatbotIdempotenciaTest {
     @BeforeEach
     void preparar() {
         comandos = new ComandosAutomacaoUseCase(
-                null, null, null, null, null, null, informacoes, idempotencia, json);
+                null, null, null, null, null, null, null, informacoes, idempotencia, json);
         when(informacoes.normalizarParaIdempotencia(any()))
                 .thenAnswer(invocacao -> ConteudoDasInformacoes.normalizar(invocacao.getArgument(0)));
     }

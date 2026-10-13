@@ -92,6 +92,11 @@
 | RF-CRM-54 (Horários) | ❌ **rebaixado de ✅** (achado pela E15, mas esta é a primeira vez que `docs/05` reflete isso — a E15 corrigiu `docs/09` e o menu, não esta matriz) | `horario_trabalho` só como migration — zero código de aplicação; agora com registro em `docs/09` §1.1 e flag `horarios = false` | Nenhum |
 | RF-CRM-55/56 (Banco de Arquivos) | ❌ **rebaixado de ✅** | `arquivo_banco` só como migration — mesmo achado de RF-CRM-13 | Nenhum |
 | RF-CRM-57 a 64 | ✅ | `LembreteController`, `MensagemProgramadaController` | `LembretesIT`, `MensagensProgramadasIT` |
+| Disbrel D2 — setores e atribuição de integrante *(PR #296, não mergeada; desligado por padrão)* | 🟡 em PR | `SetorController`, V103, feature flag `setores` | `SetoresIT` (inclui o negativo: setor não dá acesso a lead) |
+| Disbrel D3a/b/c — rodízio por setor, atendente vinculado, chaves de distribuição *(PR #300, não mergeada)* | 🟡 em PR | `ListarAtendentesDisponiveisUseCase`, `AtendenteDisponivelRepositorioJdbc`, `VinculoDoLeadListener`, V104 | `DistribuicaoPorSetorEVinculadoIT` (+ ITs de rodízio/transferência sem edição) |
+| Disbrel D4 — janela de aviso ao cliente por dia da semana *(PR #299, não mergeada)* | 🟡 em PR | `HorarioComercialConfiguravel` (chaves `alerta.horario_cliente.<dia>`) | `HorarioComercialConfiguravelTest` |
+| Disbrel D5a — Agenda compartilhada com OPERADOR *(PR #298)* | ❌ **não feito (gate)**: a ficha da Agenda expõe `notas`/`resumoIa` | `app_e_agenda()` (V60) segue sem OPERADOR | `AgendaDoOperadorCaracterizacaoIT` (caracterização) |
+| Disbrel D5b — funil de cinco etapas *(PR #297, scripts)* | 🟡 em PR | `instancias/disbrel/funil-disbrel*.sql` | `FunilDisbrelScriptsIT` |
 
 ## Configurações globais e perfil
 

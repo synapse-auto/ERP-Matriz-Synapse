@@ -173,14 +173,14 @@ describe("StatusEntregaIcone", () => {
     expect(screen.getByTitle("Entregue")).not.toHaveClass("text-muted-foreground");
   });
 
-  it("FALHOU usa o token de erro calibrado para superfície escura, não text-destructive", () => {
+  it("FALHOU usa o token próprio de falha sobre o balão de saída, não text-destructive", () => {
     const onReenviar = vi.fn();
     renderComTextos(<StatusEntregaIcone status="FALHOU" onReenviar={onReenviar} />);
     const rotulo = screen.getByText("Falha ao enviar").closest("span");
-    expect(rotulo).toHaveClass("text-sidebar-item-texto-perigo");
+    expect(rotulo).toHaveClass("text-mensagem-falha-texto");
     expect(rotulo).not.toHaveClass("text-destructive");
     expect(screen.getByRole("button", { name: "Reenviar" })).toHaveClass(
-      "text-sidebar-item-texto-perigo",
+      "text-mensagem-falha-texto",
     );
   });
 });

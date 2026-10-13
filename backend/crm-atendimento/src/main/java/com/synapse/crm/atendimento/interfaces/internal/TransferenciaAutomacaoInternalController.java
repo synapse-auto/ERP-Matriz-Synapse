@@ -38,10 +38,12 @@ import com.synapse.crm.atendimento.application.MensagemAutomacaoInvalidaExceptio
 import com.synapse.crm.atendimento.application.NenhumAtendenteDisponivelException;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.RespostaAutomacaoInvalidaException;
+import com.synapse.crm.atendimento.application.ResultadoVendaJaRegistradoException;
 import com.synapse.crm.atendimento.application.ResultadoVendaObrigatorioException;
 import com.synapse.crm.atendimento.application.TransferenciaDaAutomacaoInvalidaException;
 import com.synapse.crm.atendimento.application.origem.OrigemDaMensagem;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
+import com.synapse.crm.atendimento.domain.atendimento.ResultadoVenda;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
 import com.synapse.crm.equipe.application.disponibilidade.SetorDeDistribuicaoInvalidoException;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
@@ -217,6 +219,25 @@ class TransferenciaAutomacaoInternalController {
         return problema(HttpStatus.BAD_REQUEST, "Requisicao invalida", erro.getMessage());
     }
 
+    @Operation(summary = "Registrar resultado comercial pela Automação",
+            description = "Registra VENDEU ou NAO_VENDEU no ciclo aberto sem finalizar, transferir ou atribuir usuário humano. Uma escolha conflitante não sobrescreve o resultado. Replay concluído devolve a resposta original mesmo após encerrar o ciclo.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Resultado registrado ou replay idempotente."),
+                @ApiResponse(responseCode = "400", description = "Resultado ou Idempotency-Key inválidos."),
+                @ApiResponse(responseCode = "401", description = "Token interno ausente ou inválido."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente."),
+                @ApiResponse(responseCode = "409", description = "Ciclo encerrado, escolha conflitante ou chave reutilizada.")
+            })
+    @PostMapping("/{id}/resultado-venda")
+    ComandosAutomacaoUseCase.ResultadoComercialResposta registrarResultadoVenda(
+            @PathVariable UUID id,
+            @Parameter(description = "Chave estável do evento de resultado.", required = true)
+                    @RequestHeader("Idempotency-Key") String chave,
+            @Valid @RequestBody ResultadoVendaRequisicao requisicao) {
+        return ContextoDeServico.buscarComo("registrar-resultado-venda-automacao",
+                () -> comandos.registrarResultadoVenda(id, chave, requisicao.resultado()));
+    }
+
     @ExceptionHandler(ConstraintViolationException.class)
     ProblemDetail aoReceberParametroInvalido(ConstraintViolationException erro) {
         return problema(HttpStatus.BAD_REQUEST, "Requisicao invalida", erro.getMessage());
@@ -231,7 +252,8 @@ class TransferenciaAutomacaoInternalController {
         ChaveIdempotenciaReutilizadaException.class,
         TransferenciaDaAutomacaoInvalidaException.class,
         RespostaAutomacaoInvalidaException.class,
-        AtendimentoJaFinalizadoException.class
+        AtendimentoJaFinalizadoException.class,
+        ResultadoVendaJaRegistradoException.class
     })
     ProblemDetail aoConflitar(RuntimeException erro) {
         return problema(HttpStatus.CONFLICT, "Operacao nao pode ser aplicada", erro.getMessage());
@@ -305,4 +327,8 @@ class TransferenciaAutomacaoInternalController {
             @Schema(description = "Classificação da IA para este atendimento.",
                     requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotNull Boolean emNegociacao) {}
+
+    record ResultadoVendaRequisicao(
+            @Schema(description = "Resultado explícito, não classificação de negociação.", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull ResultadoVenda resultado) {}
 }

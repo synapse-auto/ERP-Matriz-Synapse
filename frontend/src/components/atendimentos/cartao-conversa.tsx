@@ -192,7 +192,7 @@ export function CartaoConversa({
               {textos.cartao.atendidoPelaIa}
             </span>
           )}
-          {cartao.resultadoVenda && (
+          {(
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-[0.65rem] font-semibold",
@@ -205,7 +205,9 @@ export function CartaoConversa({
             >
               {cartao.resultadoVenda === "VENDEU"
                 ? textos.finalizar.vendeu
-                : textos.finalizar.naoVendeu}
+                : cartao.resultadoVenda === "NAO_VENDEU"
+                  ? textos.finalizar.naoVendeu
+                  : textos.finalizar.semResultadoRegistrado}
             </span>
           )}
           {cartao.atendenteNome && (
@@ -226,9 +228,11 @@ function descricaoResultadoVenda(
     vendaRegistradaEm: string;
     vendeu: string;
     naoVendeu: string;
+    semResultadoRegistrado: string;
   },
 ): string {
-  const resultado = cartao.resultadoVenda === "VENDEU" ? textos.vendeu : textos.naoVendeu;
+  const resultado = cartao.resultadoVenda === "VENDEU" ? textos.vendeu
+    : cartao.resultadoVenda === "NAO_VENDEU" ? textos.naoVendeu : textos.semResultadoRegistrado;
   const responsavel = cartao.vendaRegistradaPorNome
     ? textos.vendaRegistradaPor.replace("{nome}", cartao.vendaRegistradaPorNome)
     : null;
