@@ -55,13 +55,17 @@ public class AtualizarStatusResumoIaUseCase {
         validarErro(status, erroCodigo, erroMensagem);
         // Repetição do mesmo estado é o replay idempotente do webhook; não depende de o
         // atendimento ainda estar aberto, pois a conclusão pode ter sido seguida de finalização.
-        if (solicitacao.status() == status) return solicitacao;
+        if (solicitacao.status() == status && estadoTerminal(status)) return solicitacao;
         // /resumo grava o texto e conclui a solicitação na mesma transação. Um callback
         // CONCLUIDO isolado não prova que o texto foi persistido (por exemplo, após 4xx na escrita).
         if (status == SolicitacaoResumoIaRepositorio.Status.CONCLUIDO) {
             throw new ResumoIaCicloObsoletoException(solicitacaoId);
         }
         if (!leads.bloquearParaAtendimento(leadId)) throw new ResumoIaCicloObsoletoException(solicitacaoId);
+        // Outro callback pode ter commitado enquanto esperávamos o lock do lead.
+        solicitacao = solicitacoes.porId(solicitacaoId)
+                .orElseThrow(() -> new ResumoIaSolicitacaoNaoEncontradaException(solicitacaoId));
+        if (solicitacao.status() == status && estadoTerminal(status)) return solicitacao;
         // Recuperação operacional explícita: cancelar um ciclo comprovadamente obsoleto não executa IA.
         boolean cancelarObsoleto = status == SolicitacaoResumoIaRepositorio.Status.FALHOU
                 && "CICLO_OBSOLETO".equals(normalizarCodigo(erroCodigo))
@@ -71,6 +75,8 @@ public class AtualizarStatusResumoIaUseCase {
                         && (cancelarObsoleto || item.status() == StatusAtendimento.EM_ATENDIMENTO
                             && solicitacoes.cicloVigente(solicitacaoId)))
                 .orElseThrow(() -> new ResumoIaCicloObsoletoException(solicitacaoId));
+        // PROCESSANDO repetido é idempotente, mas só enquanto o ciclo continua vigente.
+        if (solicitacao.status() == status) return solicitacao;
         if (!transicaoPermitida(solicitacao.status(), status)) {
             throw new ResumoIaCicloObsoletoException(solicitacaoId);
         }
@@ -94,6 +100,11 @@ public class AtualizarStatusResumoIaUseCase {
                                 || novo == SolicitacaoResumoIaRepositorio.Status.FALHOU))
                 || (anterior == SolicitacaoResumoIaRepositorio.Status.PROCESSANDO
                         && novo == SolicitacaoResumoIaRepositorio.Status.FALHOU);
+    }
+
+    private static boolean estadoTerminal(SolicitacaoResumoIaRepositorio.Status status) {
+        return status == SolicitacaoResumoIaRepositorio.Status.CONCLUIDO
+                || status == SolicitacaoResumoIaRepositorio.Status.FALHOU;
     }
 
     private static void validarErro(

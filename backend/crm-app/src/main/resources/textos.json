@@ -778,7 +778,7 @@
         "erro": "Não foi possível gerar o resumo. O resumo anterior foi preservado.",
         "indisponivel": "A geração de resumo não está configurada nesta instância.",
         "aguardandoConferencia": "Entrega sem confirmação. A equipe de automação precisa conferir esta solicitação antes de uma nova tentativa.",
-        "aguardandoConferenciaLabel": "Aguardando conferência",
+        "aguardandoConferenciaLabel": "Conferência",
         "autenticacaoRecusada": "A automação recusou a autenticação. Avise a equipe responsável; o resumo anterior foi preservado.",
         "cicloObsoleto": "O atendimento mudou durante a geração. A equipe de automação precisa encerrar a solicitação anterior antes de uma nova tentativa."
       },

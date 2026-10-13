@@ -43,7 +43,8 @@ Sequência operacional:
 4. Após a escrita confirmada, chame `/resumo-status` com `CONCLUIDO` apenas como confirmação
    idempotente do estado já concluído; confirme também o 2xx desse replay. Em falha definitiva,
    chame `FALHOU` com
-   `erroCodigo` allowlisted e mensagem sem token, telefone, URL, payload ou conteúdo.
+   `erroCodigo` técnico no formato aceito pelo contrato (A–Z, dígitos e `_`, até 80 caracteres)
+   e mensagem sem token, telefone, URL, payload ou conteúdo. Não usar resposta bruta da IA como código.
 5. Retry somente rede/HTTP 5xx, com limite e backoff do workflow. Não repita 400, 401, 403, 404,
    409 ou 422 automaticamente.
 

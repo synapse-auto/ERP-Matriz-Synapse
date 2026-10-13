@@ -61,7 +61,7 @@ class AtualizarStatusResumoIaUseCaseTest {
         when(atendimentos.porId(ATENDIMENTO)).thenReturn(Optional.of(atendimento));
         var pendente = solicitacao(SolicitacaoResumoIaRepositorio.Status.PENDENTE);
         var processando = solicitacao(SolicitacaoResumoIaRepositorio.Status.PROCESSANDO);
-        when(solicitacoes.porId(SOLICITACAO)).thenReturn(Optional.of(pendente), Optional.of(processando));
+        when(solicitacoes.porId(SOLICITACAO)).thenReturn(Optional.of(pendente), Optional.of(pendente), Optional.of(processando));
         when(solicitacoes.atualizarStatus(
                         SOLICITACAO,
                         LEAD,

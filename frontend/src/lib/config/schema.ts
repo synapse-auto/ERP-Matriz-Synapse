@@ -941,7 +941,7 @@ export const TextosSchema = z.object({
         erro: z.string(),
         indisponivel: z.string(),
         aguardandoConferencia: z.string().default("Entrega sem confirmação. A equipe de automação precisa conferir esta solicitação antes de uma nova tentativa."),
-        aguardandoConferenciaLabel: z.string().default("Aguardando conferência"),
+        aguardandoConferenciaLabel: z.string().default("Conferência"),
         autenticacaoRecusada: z.string().default("A automação recusou a autenticação. Avise a equipe responsável; o resumo anterior foi preservado."),
         cicloObsoleto: z.string().default("O atendimento mudou durante a geração. A equipe de automação precisa encerrar a solicitação anterior antes de uma nova tentativa."),
       }),

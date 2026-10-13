@@ -102,7 +102,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
           erro: "Não foi possível gerar o resumo.",
           indisponivel: "Resumo indisponível",
           aguardandoConferencia: "Entrega sem confirmação. Confira a solicitação antes de tentar novamente.",
-          aguardandoConferenciaLabel: "Aguardando conferência",
+          aguardandoConferenciaLabel: "Conferência",
           autenticacaoRecusada: "A automação recusou a autenticação.",
           cicloObsoleto: "O atendimento mudou durante a geração.",
         },
@@ -352,7 +352,7 @@ describe("painel da conversa", () => {
     (diagnosticoCodigo) => {
       estadoResumoState.data = { status: "PENDENTE", diagnosticoCodigo };
       renderizarPainel("lead-1", "Jardel Lima");
-      expect(screen.getByRole("button", { name: "Aguardando conferência" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Conferência" })).toBeDisabled();
       fireEvent.click(obterControleDaSecao("Resumo por IA"));
       expect(screen.getByRole("alert")).toHaveTextContent(diagnosticoCodigo === "CONFIGURACAO_AUSENTE"
         ? "Resumo indisponível" : diagnosticoCodigo === "CICLO_OBSOLETO" ? "O atendimento mudou" : "Entrega sem confirmação");

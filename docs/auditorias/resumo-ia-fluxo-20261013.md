@@ -153,17 +153,21 @@ Homologação n8n/IA real e causa da solicitação real permanecem pendentes do 
 
 ## Evidências de validação
 
-- `ResumoIaFluxoIT`: 10/10 na primeira verificação completa; teste de ida/volta adicionado na revisão final.
+- `ResumoIaFluxoIT`: 11/11 na revisão final, incluindo ida/volta e replay de PROCESSANDO
+  recusado após transferência. Releitura sob lock também conserva idempotência entre callbacks concorrentes.
 - Frontend final dirigido: 56/56 (painel, hook e compatibilidade do catálogo); typecheck aprovado;
   lint sem erros, quatro avisos anteriores. Build aprovado na execução local.
-- Primeiro `clean verify` Java 21: BUILD SUCCESS, 28m44s. Após rebase/renumeração e proteção
-  de ida/volta, uma segunda execução completa foi iniciada; resultado final será anexado à PR.
+- `clean verify` Java 21: BUILD SUCCESS em 28m44s e, após rebase/renumeração e proteção
+  de ida/volta, BUILD SUCCESS em 16m22s. A checagem da entrega final também foi iniciada;
+  resultado final será anexado à PR, distinguindo o último SHA de revisões anteriores.
 - CI da revisão 3d53773: PR 38348175016, Backend/Frontend/Stack aprovados, imagem skipped.
   Não é confirmação do SHA posterior com a revisão final/evidências; conferir o último run na PR.
 - A tentativa de suíte frontend completa no Windows teve crash Node `3221226505` no teste
   de provisionamento de marca (sem alteração nessa área); tentativas seguintes foram interrompidas
   após falta de progresso. Não alegar suíte local completa verde. A suíte completa passou no CI Linux
   da revisão acima. Testes dirigidos foram rerodados após o rebase, sem exclusões nesse grupo.
+- Coletor operacional: 3/3 testes Python, incluindo tentativa de vazamento de token/URL/conteúdo,
+  erro bruto do Docker e argumentos inválidos que não executam comando. Apenas chamadas read-only.
 
 Playwright CLI headed, aplicação real Next/Spring/PostgreSQL, dados sintéticos: Inter computada,
 `document.fonts.status=loaded`, zoom 1; desktop 1920×1080, 1280×900 e 800×900.
@@ -175,5 +179,9 @@ Não houve reprodução HTML simplificada, fonte substituída ou mock de API no 
 
 Capturas em `frontend/output/playwright/resumo-*.png`; inicial, pendente, processando, concluído,
 falha e entrega incerta. Em 800×900, overflow global medido como false.
+Na comparação visual, o rótulo longo de conferência quebrava o título; foi encurtado no catálogo
+para “Conferência”, mantendo orientação completa no conteúdo. Capturas de entrega incerta refeitas
+em banco sintético novo com schema V104 e backend real atualizado. PROCESSANDO capturado somente
+depois da condição canônica aparecer na tela, não imediatamente após enviar o callback.
 Avisos de HMR e indisponibilidade de templates (sem canal/credencial real no ambiente local)
 não foram usados como prova de homologação de envio/recebimento.

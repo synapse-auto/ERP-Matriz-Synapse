@@ -226,6 +226,8 @@ class ResumoIaFluxoIT extends PostgresIT {
     void transferenciaInvalidaSnapshotEExigeEncerramentoExplicitoSemAlterarResumo() throws Exception {
         var ids = conversa();
         UUID pedido = pedir(ids.atendimento());
+        assertThat(status(ids, pedido, "PROCESSANDO", null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(status(ids, pedido, "PROCESSANDO", null).getStatusCode()).isEqualTo(HttpStatus.OK);
         UUID bruno = usuario(ApoioAutenticacao.EMAIL_BRUNO);
         assertThat(chamar(gestor, HttpMethod.POST, "/api/v1/atendimentos/" + ids.atendimento() + "/transferir", null,
                 Map.of("paraAtendenteId", bruno)).getStatusCode()).isEqualTo(HttpStatus.OK);
