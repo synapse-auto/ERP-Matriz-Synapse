@@ -320,6 +320,16 @@ Tudo roda numa transacao so, com as linhas travadas: o `UPDATE` repete as condic
 algum elegivel continuar com responsavel. `atendimento.atendente_id` nao e tocado — historico,
 avaliacao e comissao do ciclo encerrado continuam com quem atendeu.
 
+## Janela de aviso ao cliente por dia da semana (`instancias/disbrel/horario-alerta-por-dia.sql`)
+
+Operacao pontual por instancia (hoje: Disbrel), nao migration. Cria `alerta.horario_cliente.sab = 08:00-12:00` e
+`alerta.horario_cliente.dom = fechado`. As chaves por dia sao `alerta.horario_cliente.<seg|ter|qua|qui|sex|sab|dom>`
+com `HH:mm-HH:mm` (inicio inclusivo, fim exclusivo) ou `fechado`; **dia sem chave usa a janela padrao**
+(`alerta.horario_cliente.inicio/fim`), isto e, instancia sem as chaves se comporta exatamente como antes. Valor ilegivel
+tambem cai na janela padrao. A Synapse continua recebendo todos os alertas; so o aviso ao grupo do cliente muda.
+Rollback no cabecalho do script. Auditoria dos jobs por horario:
+[`docs/evidencias/disbrel-d4/auditoria-de-jobs-e-horarios.md`](../../docs/evidencias/disbrel-d4/auditoria-de-jobs-e-horarios.md).
+
 ## Funil da Disbrel (`instancias/disbrel/funil-disbrel*.sql`)
 
 Tres scripts para o funil de cinco etapas da Disbrel (Novo Contato, Aguardando Medidas, Negociação,
