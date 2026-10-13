@@ -39,3 +39,19 @@ Procedimento separado, com autorização operacional:
 ## Operação
 
 Nenhuma variável nova, alteração de DNS/proxy, migration ou ação obrigatória no Dokploy. Não houve deploy. O fallback estático requer implantação e testes próprios, não está habilitado nesta entrega.
+
+## Evidências desta entrega — 13/10/2026
+
+- `clean verify -Dmaven.compiler.release=21`: BUILD SUCCESS, execução inicial 21m19s e execução final 18m05s (17:38:39, Brasília), após concluir o catálogo. Inclui Spotless, ArchUnit e Testcontainers.
+- Frontend: 15 arquivos/104 testes direcionados aprovados, incluindo sessão 401/403/5xx, offline, não reenvio ao reconectar, rascunho/arquivo após remontagem do **Composer real**, isolamento por identidade, logout, catálogo antigo, fallback e retorno. Typecheck e build aprovados; lint sem erro, quatro avisos preexistentes.
+- A suíte completa local Windows foi tentada: `aplicar-marca.test.ts` apresentou 10 falhas preexistentes e a execução deixou de progredir; somente a árvore Vitest desta task foi encerrada. A aprovação da suíte completa é condicionada ao CI Linux, não à bateria direcionada. Número/resultado do último SHA no relatório da PR.
+- Playwright CLI headed, sem `@playwright/test` nem reprodução HTML: build de produção do frontend com backend Spring real compatível, PostgreSQL/Redis locais e dados exclusivamente sintéticos. O backend de validação não contém credenciais de canal; falha real 503 de templates não substituiu a conversa inteira. O catálogo anterior sem `erros` também foi exercitado visualmente pelos defaults.
+- HTTP 404 confirmado por navegador e cliente HTTP. Entrada direta (history.length=2, mas sem página anterior conhecida) foi ao início/Atendimentos via teclado; histórico do CRM voltou ao login. Não presumimos que history.length=2 signifique uma página útil anterior.
+- Offline real do contexto Chromium: texto do composer preservado antes/depois, zero POSTs de envio durante a recuperação, sem F5. Viewports 1440×1000 e 390×844.
+- Backend local parado: tela de indisponibilidade, readiness 503; após iniciar somente esse processo e clicar em Tentar novamente, login voltou/readiness 200. Erro SSR provocado por URL **local** de configuração incorreta: HTTP 500, boundary global com diagnóstico sanitizado; restaurar a URL local e clicar no retry nativo recuperou o login sem reload automático. Nenhuma configuração de produção mudou.
+- Fontes `loaded`, família computada `Inter, "Inter Fallback", Inter, sans-serif`, sem overflow horizontal nas telas de erro. Comparação visual levou ao ajuste dos raios: na ausência de tema, usam `--radius` local (11px), sem criar cor/fonte nova ou modificar tokens globais.
+- Contraste medido no fallback local: título/superfície **9,58:1**, descrição/superfície **5,49:1**, texto/ação primária **4,53:1** (RGB computados no Chromium). Atendem AA nesses pares; não é garantia para toda personalização arbitrária de tema.
+
+Capturas em `frontend/output/playwright`: `404-desktop.png`, `404-celular.png`, `backend-indisponivel-desktop.png`, `backend-indisponivel-celular.png`, `erro-renderizacao-desktop.png`, `erro-renderizacao-celular.png`, `conversa-antes-offline.png`, `offline-desktop.png`, `offline-celular.png`, `conversa-recuperada-celular.png`. Somente evidências finais, sem conversas reais de clientes.
+
+Skills clean-code/architecture-patterns citadas no AGENTS.md não estavam disponíveis; foram seguidas as regras de camadas, segurança e simplicidade do projeto. Skill Playwright e referências oficiais da versão instalada do Next foram lidas antes da implementação.
