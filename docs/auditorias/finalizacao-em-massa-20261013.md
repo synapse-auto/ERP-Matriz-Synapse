@@ -99,9 +99,32 @@ Resultados finais e CI do último SHA são anexados à PR. Testes anteriores ao 
 (16 existentes passaram) e 1 erro backend (8 existentes passaram). Após patch, testes dirigidos devem ser
 rerodados; não chamar compilação ou teste com portas mockadas de integração HTTP/PostgreSQL.
 
-Docker local respondeu “Docker Desktop is unable to start”; `docker desktop start` informou já aberto.
-Nenhum restart foi executado para não interromper outros trabalhos. Isso bloqueia Testcontainers e homologação
-visual com backend/banco real até recuperação do engine. CI Linux não substitui screenshots nem a ocorrência real.
+Inicialmente Docker local respondeu “Docker Desktop is unable to start”; `docker desktop start` informou já aberto.
+Nenhum restart foi executado por esta task. O operador recuperou o engine e as validações PostgreSQL foram retomadas.
+Na primeira execução real passaram 46/47 ITs; o novo teste de finalização individual enviava `{}` onde o contrato
+normal usa corpo ausente, recebendo 400. Fixture corrigida para `null`, sem relaxar validação ou autorização.
+
+Playwright CLI headed, Next/Spring/PostgreSQL/Redis reais, fixture descartável: 54 pedidos, 53 finalizados,
+1 IGNORADO/RESULTADO_VENDA_PENDENTE, 0 falhas, confirmado por banco e UI. Contador TODOS caiu de 54 para 1 sem F5.
+Página 2 dos detalhes mostrou os três últimos finalizados, acionada por teclado. Desktop 1920×1080,
+800×900 e 390×844; Inter computada, fontes loaded, DPR 1, sem overflow global medido em desktop e celular.
+Screenshots em `frontend/output/playwright/massa-*.png`, somente dados sintéticos; sem mocks de API/browser.
+Na comparação visual, o título legado “Finalizando atendimentos” continuava mesmo no resultado terminal.
+Agora usa o título neutro do catálogo e o conteúdo mostra o estado canônico, sem nova consulta/polling.
+Calendários permanecem abertos após escolher data (comportamento compartilhado existente): fechar pelo próprio
+gatilho. Capturas durante preparação/CORS/boot incompleto não foram consideradas evidência de aprovação.
+
+Testes dirigidos frontend 60/60, typecheck/lint/build aprovados (4 avisos anteriores); suíte completa local
+interrompida após falhas no script de marca sob Node/Windows. Suíte Linux aprovada no CI da revisão 4343d2d,
+run PR 38435955152. Backend dessa revisão também aprovado no CI, sem dispensar o clean verify local repetido.
+Resultado definitivo local e CI do último SHA serão anexados à PR; revisão anterior verde não confirma SHA posterior.
+
+`clean verify` Java 21 completo após recuperação do Docker: **BUILD SUCCESS, 20m45s**. FinalizacaoEmMassaApiIT
+19/19, WorkerIT 11/11, RegressaoIT 6/6 e RecebimentoIT 2/2 (38 testes específicos); FinalizadosEReaberturaIT 9/9,
+OpenApiIT 8/8. Sem alterações backend após essa execução. A segunda rodada visual repetiu 54/53/1/0 para outro
+atendente sintético, preservando o atendimento ignorado do primeiro. Todas as sete capturas foram refeitas após
+o ajuste do título. SQL de descoberta executado somente no banco descartável para validar sintaxe/colunas,
+com UUIDs/janela sintéticos e nenhuma saída de dados pessoais.
 
 Nenhuma migration, variável nova, índice ou deploy. Ação necessária no Dokploy: **nenhuma configuração nova**.
 Skills clean-code/architecture-patterns/api-design-principles/supabaseboaspraticas não disponíveis; Playwright CLI

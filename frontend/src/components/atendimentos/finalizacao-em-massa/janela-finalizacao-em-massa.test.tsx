@@ -355,6 +355,7 @@ describe("JanelaFinalizacaoEmMassa — acompanhamento e resultado", () => {
     });
 
     expect(await screen.findByText(textos.resultado.tituloParcial)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: textos.titulo })).toBeInTheDocument();
     expect(screen.getByText("8 finalizado(s)")).toBeInTheDocument();
     expect(screen.getByText("2 ignorado(s)")).toBeInTheDocument();
     expect(screen.queryByText(/com falha/)).not.toBeInTheDocument();
