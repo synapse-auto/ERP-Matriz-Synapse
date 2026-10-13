@@ -164,6 +164,10 @@ public class FinalizarAtendimentoUseCase {
         if (!periodo.contem(ultimaAtividade)) {
             return Desfecho.ignoradoPor(MotivoDoItemDeFinalizacao.ATIVIDADE_POSTERIOR);
         }
+        // Bloqueio comercial esperado, não falha técnica. O lote não escolhe resultado pelo usuário.
+        if (aberto.emNegociacao() && aberto.resultadoVenda() == null) {
+            return Desfecho.ignoradoPor(MotivoDoItemDeFinalizacao.RESULTADO_VENDA_PENDENTE);
+        }
         finalizar(aberto, executorId, Origem.LOTE);
         return Desfecho.FINALIZADO;
     }

@@ -8,7 +8,7 @@ import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { Skeleton } from "@/components/ui/skeleton";
 import { interpolarCatalogo } from "@/lib/atendimento/variaveis-do-template";
 import { useTextos } from "@/lib/config/textos-provider";
-import { useItensDaFinalizacao, useOperacaoDeFinalizacao } from "@/lib/finalizacao-em-massa/hooks";
+import { ITENS_POR_PAGINA, useItensDaFinalizacao, useOperacaoDeFinalizacao } from "@/lib/finalizacao-em-massa/hooks";
 import type { StatusDoItemDeFinalizacao } from "@/lib/finalizacao-em-massa/types";
 
 type AbaDeItens = Exclude<StatusDoItemDeFinalizacao, "PENDENTE">;
@@ -27,7 +27,8 @@ export function AcompanhamentoDaFinalizacao({ operacaoId, onFechar, onNova }: Pr
   const operacao = consulta.data;
   const concluida = operacao?.status === "CONCLUIDA";
   const [aba, setAba] = useState<AbaDeItens>("FINALIZADO");
-  const itens = useItensDaFinalizacao(operacaoId, aba, concluida);
+  const [pagina, setPagina] = useState(0);
+  const itens = useItensDaFinalizacao(operacaoId, aba, concluida, pagina);
 
   if (consulta.isError && !operacao) {
     return <ErroDeCarregamento mensagem={textos.andamento.erro} onTentarNovamente={() => consulta.refetch()} />;
@@ -67,6 +68,8 @@ export function AcompanhamentoDaFinalizacao({ operacaoId, onFechar, onNova }: Pr
   }
 
   const parcial = operacao.ignorados > 0 || operacao.falhas > 0;
+  const totalDaAba =
+    aba === "FINALIZADO" ? operacao.finalizados : aba === "IGNORADO" ? operacao.ignorados : operacao.falhas;
   return (
     <div className="grid gap-3">
       <p role="status" className="text-sm font-medium text-foreground">
@@ -101,7 +104,10 @@ export function AcompanhamentoDaFinalizacao({ operacaoId, onFechar, onNova }: Pr
             className={`px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               aba === valor ? "border-b-2 border-primary font-medium text-foreground" : "text-muted-foreground"
             }`}
-            onClick={() => setAba(valor)}
+            onClick={() => {
+              setPagina(0);
+              setAba(valor);
+            }}
           >
             {textos.resultado.abas[valor]}
           </button>
@@ -128,6 +134,27 @@ export function AcompanhamentoDaFinalizacao({ operacaoId, onFechar, onNova }: Pr
           <p className="text-sm text-muted-foreground">{textos.resultado.semItens}</p>
         )}
       </div>
+
+      {totalDaAba > ITENS_POR_PAGINA && (
+        <nav aria-label={textos.resultado.detalhes} className="flex flex-wrap items-center justify-between gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pagina === 0 || itens.isFetching}
+            onClick={() => setPagina((atual) => atual - 1)}
+          >
+            {textos.resultado.paginaAnterior}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={(pagina + 1) * ITENS_POR_PAGINA >= totalDaAba || itens.isFetching}
+            onClick={() => setPagina((atual) => atual + 1)}
+          >
+            {textos.resultado.proximaPagina}
+          </Button>
+        </nav>
+      )}
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onNova}>

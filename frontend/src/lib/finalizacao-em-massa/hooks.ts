@@ -64,16 +64,20 @@ export function useOperacaoDeFinalizacao(id: string | null) {
     },
   });
 
-  const ultimoProcessado = useRef<number | null>(null);
+  const ultimoAvanco = useRef<string | null>(null);
   const operacao = consulta.data;
   useEffect(() => {
     if (!operacao) return;
-    const mudou = ultimoProcessado.current !== operacao.processados;
-    ultimoProcessado.current = operacao.processados;
+    // A conclusão pode ocorrer numa leitura posterior ao último item, sem mudar a contagem.
+    // O ID também importa quando o usuário abre outra operação com o mesmo número de itens.
+    const avanco = `${operacao.id}:${operacao.processados}:${operacao.status}`;
+    const mudou = ultimoAvanco.current !== avanco;
+    ultimoAvanco.current = avanco;
     if (!mudou) return;
     void queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
     if (operacao.status === "CONCLUIDA") {
       void queryClient.invalidateQueries({ queryKey: [...CHAVE, "recentes"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     }
   }, [operacao, queryClient]);
 
@@ -84,10 +88,11 @@ export function useItensDaFinalizacao(
   id: string | null,
   status: StatusDoItemDeFinalizacao | null,
   habilitado: boolean,
+  pagina = 0,
 ) {
   return useQuery({
-    queryKey: [...CHAVE, "itens", id, status],
-    queryFn: () => listarItensDaFinalizacao(id as string, status, 0, ITENS_POR_PAGINA),
+    queryKey: [...CHAVE, "itens", id, status, pagina],
+    queryFn: () => listarItensDaFinalizacao(id as string, status, pagina, ITENS_POR_PAGINA),
     enabled: habilitado && id !== null,
   });
 }

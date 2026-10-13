@@ -72,6 +72,7 @@ O mundo muda entre a confirmação e a execução. Cada item é reavaliado e **i
 | `TRANSFERIDO` | mudou de atendente. |
 | `ATIVIDADE_POSTERIOR` | recebeu mensagem que o tira da janela do período. |
 | `INDISPONIVEL` | ficou inacessível. |
+| `RESULTADO_VENDA_PENDENTE` | negociação ainda sem resultado explícito: permanece aberta, deve ser finalizada individualmente com a escolha comercial. Não é falha técnica e o lote nunca inventa “Não vendeu”. Negociação com resultado já registrado pode finalizar normalmente. |
 | `ERRO_INESPERADO` | exceção ao finalizar (status `FALHA`, ver §6). |
 
 ## 5. Notificações
@@ -117,9 +118,9 @@ de finalização. A operação, os itens (com motivo) e os avisos ficam nas tabe
 
 * **Operação parada em `EM_ANDAMENTO`:** conferir `lease_ate`; vencida, a próxima rodada assume. Se o agendador estiver
   desligado (`synapse.agendamento.habilitado=false`) nada processa.
-* **Aviso `ESGOTADO`:** o Redis ficou fora por mais de 5 tentativas; o resultado continua consultável na janela. Para
-  reenviar, voltar o aviso a `PENDENTE` (`UPDATE finalizacao_em_massa_aviso SET estado='PENDENTE', tentativas=0,
-  tentar_apos=now() WHERE operacao_id = ...`).
+* **Aviso `ESGOTADO`:** o Redis ficou fora por mais de 5 tentativas; o resultado continua consultável na janela.
+  Conferir diagnóstico antes de uma recuperação operacional autorizada. Não executar SQL de reparação ou replay
+  como parte da investigação; ausência de toast não comprova ausência de finalização.
 * Log de alarme: `[ALERTA_FINALIZACAO_EM_MASSA]` (rodada de processamento ou de avisos que falhou).
 
 ## 10. Compatibilidade e limites conhecidos
@@ -130,3 +131,22 @@ de finalização. A operação, os itens (com motivo) e os avisos ficam nas tabe
 * Não há estimativa de tempo na prévia: o servidor processa em lotes de ritmo configurável e a UI mostra progresso real.
 * Uma operação ativa por instância; recusar a segunda é intencional (evita concorrência de lotes sobre os mesmos
   atendimentos).
+
+## 11. Auditoria e correções de 13/10/2026
+
+* O processamento já congela o recorte no servidor, independentemente das páginas da inbox. A interface dos
+  **detalhes do resultado** só mostrava os primeiros 50 itens; agora permite percorrer as páginas em cada categoria.
+* A conclusão revalida lista, contadores e operações recentes mesmo quando todos os itens já estavam processados
+  na leitura anterior; o dashboard é invalidado ao concluir ou receber o aviso pessoal, sem novo polling.
+* Sob READ COMMITTED o recorte pode crescer/esvaziar entre contagem e congelamento. Congela-se no máximo limite+1
+  (sentinela, não aumento do limite). Excesso → 422 LIMITE_EXCEDIDO; zero → 422 SEM_ATENDIMENTOS. Toda a criação
+  é desfeita nessas situações: nenhum lote truncado ou sucesso vazio é aceito. A prévia é estimativa, o resultado
+  congelado é o recorte autorizado efetivo. Não há locks de todos os leads, histórico completo ou nova varredura.
+* Negociação sem resultado anteriormente caía como ERRO_INESPERADO/FALHA. Agora é IGNORADO com
+  RESULTADO_VENDA_PENDENTE. Contrato aditivo de motivo; mesmos endpoints, payloads, estados e autorização.
+* Propriedade: o caminho existente finaliza o lead e limpa **lead.atendente_responsavel_id**, preservando o
+  responsável histórico **atendimento.atendente_id**. Ver esse responsável no atendimento encerrado não significa
+  ciclo aberto. Uma mensagem/reativação posterior pode abrir **outro UUID de atendimento** sem desfazer o anterior.
+
+Diagnóstico somente leitura, limitações da ocorrência relatada e evidências:
+[auditoria de finalização em massa](auditorias/finalizacao-em-massa-20261013.md).

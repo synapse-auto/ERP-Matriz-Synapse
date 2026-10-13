@@ -24,12 +24,41 @@ import com.synapse.crm.atendimento.domain.atendimento.OrigemResultadoVenda;
 import com.synapse.crm.atendimento.domain.atendimento.ResultadoVenda;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
+import com.synapse.crm.atendimento.domain.finalizacaomassa.PeriodoDeFinalizacao;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 
 class FinalizarAtendimentoUseCaseTest {
 
     private static final Instant AGORA = Instant.parse("2026-09-02T16:00:00Z");
     private static final Clock RELOGIO = Clock.fixed(AGORA, ZoneOffset.UTC);
+
+    @Test
+    void massa_negociacaoSemResultadoEIgnoradaSemInventarVenda() {
+        UUID id = UUID.randomUUID();
+        UUID dono = UUID.randomUUID();
+        var aberto = Atendimento.abrirComIa(id, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), AGORA)
+                .transferirPara(dono).comNegociacao(true);
+        var atendimentos = mock(AtendimentoRepositorio.class);
+        var leads = mock(LeadNoCaminhoDeMensagem.class);
+        var eventos = mock(ApplicationEventPublisher.class);
+        when(atendimentos.porId(id)).thenReturn(Optional.of(aberto));
+        when(atendimentos.porIdParaAlteracao(id)).thenReturn(Optional.of(aberto));
+        when(leads.bloquearParaAtendimento(aberto.leadId())).thenReturn(true);
+        when(atendimentos.ultimaMensagemEm(id)).thenReturn(Optional.empty());
+        var periodo = new PeriodoDeFinalizacao(java.time.LocalDate.of(2026, 9, 2),
+                java.time.LocalDate.of(2026, 9, 2), null, null, ZoneOffset.UTC,
+                AGORA.minusSeconds(3600), AGORA.plusSeconds(3600));
+        var caso = new FinalizarAtendimentoUseCase(atendimentos, leads, eventos, RELOGIO,
+                mock(SolicitacaoDeAvaliacao.class), mock(RegistrarResultadoVendaUseCase.class));
+
+        var desfecho = caso.executarPelaFinalizacaoEmMassa(id, dono, dono, periodo);
+
+        assertThat(desfecho.finalizado()).isFalse();
+        assertThat(desfecho.ignoradoPor().name()).isEqualTo("RESULTADO_VENDA_PENDENTE");
+        verify(atendimentos, never()).salvar(any());
+        verify(leads, never()).finalizarSemResponsavel(any());
+        verify(eventos, never()).publishEvent(any(Object.class));
+    }
 
     @Test
     void negociacao_exigeEscolhaExplicitaEnaoFinalizaQuandoCanceladaOuAusente() {

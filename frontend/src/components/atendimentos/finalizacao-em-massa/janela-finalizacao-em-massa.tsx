@@ -118,7 +118,12 @@ export function JanelaFinalizacaoEmMassa({ aberta, onFechar }: Props) {
         </DialogHeader>
 
         {operacaoAcompanhada ? (
-          <AcompanhamentoDaFinalizacao operacaoId={operacaoAcompanhada} onFechar={fechar} onNova={novaFinalizacao} />
+          <AcompanhamentoDaFinalizacao
+            key={operacaoAcompanhada}
+            operacaoId={operacaoAcompanhada}
+            onFechar={fechar}
+            onNova={novaFinalizacao}
+          />
         ) : etapa === "confirmar" ? (
           <div className="grid gap-3">
             <p

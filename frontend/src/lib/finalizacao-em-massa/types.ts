@@ -12,6 +12,7 @@ export type MotivoDoItemDeFinalizacao =
   | "TRANSFERIDO"
   | "ATIVIDADE_POSTERIOR"
   | "INDISPONIVEL"
+  | "RESULTADO_VENDA_PENDENTE"
   | "ERRO_INESPERADO";
 
 /** Datas `yyyy-MM-dd` (inclusivas) e horas `HH:mm` opcionais, sempre no fuso da instancia. */
