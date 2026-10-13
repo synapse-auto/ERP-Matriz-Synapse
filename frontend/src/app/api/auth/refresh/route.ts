@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/constants";
 import { opcoesCookieRefresh } from "@/lib/auth/cookie-refresh";
 import { obterUrlApiServidor } from "@/lib/api/server-api-url";
+import { TEXTOS_DE_ERRO } from "@/lib/config/schema-erros";
 
 /**
  * O backend rotaciona o refresh token a cada uso (RenovarSessaoUseCase): o token apresentado
@@ -32,7 +33,9 @@ export async function POST() {
     body: JSON.stringify({ refreshToken }),
   }); } catch {
     // Falha de transporte não revoga credenciais. Não registra token nem a URL interna.
-    return NextResponse.json({ status: 503 }, { status: 503 });
+    return NextResponse.json({ type: "about:blank", title: TEXTOS_DE_ERRO.indisponivel, status: 503 }, {
+      status: 503, headers: { "Content-Type": "application/problem+json" },
+    });
   }
 
   if (!respostaBackend.ok) {

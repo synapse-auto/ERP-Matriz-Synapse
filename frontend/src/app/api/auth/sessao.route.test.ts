@@ -62,7 +62,8 @@ describe("Route Handlers de sessão", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("URL privada / token")));
     const resposta = await refresh();
     expect(resposta.status).toBe(503);
-    expect(await resposta.json()).toEqual({ status: 503 });
+    expect(await resposta.json()).toEqual({ type: "about:blank", title: "Sistema temporariamente indisponível", status: 503 });
+    expect(resposta.headers.get("Content-Type")).toBe("application/problem+json");
     expect(deleteCookie).not.toHaveBeenCalled();
   });
 
