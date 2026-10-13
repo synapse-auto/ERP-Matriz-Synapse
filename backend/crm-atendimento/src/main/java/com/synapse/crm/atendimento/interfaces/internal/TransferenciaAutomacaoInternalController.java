@@ -43,6 +43,7 @@ import com.synapse.crm.atendimento.application.TransferenciaDaAutomacaoInvalidaE
 import com.synapse.crm.atendimento.application.origem.OrigemDaMensagem;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
+import com.synapse.crm.equipe.application.disponibilidade.SetorDeDistribuicaoInvalidoException;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 /** Comandos síncronos do n8n; todos os efeitos permanecem no caso de uso e na outbox. */
@@ -149,21 +150,24 @@ class TransferenciaAutomacaoInternalController {
 
     @Operation(
             summary = "Transferir para o próximo humano",
-            description = "Seleciona no servidor o primeiro atendente disponível por menor carga, maior tempo desde o último recebimento e id; não aceita destinatário no corpo.",
+            description = "Seleciona no servidor o primeiro atendente disponível por menor carga, maior tempo desde o último recebimento e id; não aceita destinatário no corpo. O corpo é opcional e aceita apenas `setorId`: restringe o rodízio aos disponíveis daquele setor (setor desligado, inexistente, inativo ou que não recebe da triagem é recusado com 422 e `motivo`); sem corpo ou sem `setorId` o comportamento é o de sempre. Com a chave de atendente vinculado ligada, o vinculado elegível recebe antes do rodízio.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Atendimento transferido."),
                 @ApiResponse(responseCode = "400", description = "Idempotency-Key ausente ou inválido."),
                 @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente."),
-                @ApiResponse(responseCode = "409", description = "Nenhum atendente elegível, atendimento inválido ou chave reutilizada. Quando não há atendente, o corpo traz o campo aditivo `motivo` (SEM_ATENDENTE_ELEGIVEL, SEM_ATENDENTE_DISPONIVEL_PARA_IA, SEM_ATENDENTE_ONLINE ou NAO_DETERMINADO); status e mensagem não mudam.")
+                @ApiResponse(responseCode = "409", description = "Nenhum atendente elegível, atendimento inválido ou chave reutilizada. Quando não há atendente, o corpo traz o campo aditivo `motivo` (SEM_ATENDENTE_ELEGIVEL, SEM_ATENDENTE_DISPONIVEL_PARA_IA, SEM_ATENDENTE_ONLINE ou NAO_DETERMINADO); status e mensagem não mudam."),
+                @ApiResponse(responseCode = "422", description = "`setorId` informado não pode ser usado; o corpo traz `motivo` (SETORES_DESLIGADOS, SETOR_INEXISTENTE, SETOR_INATIVO ou SETOR_NAO_RECEBE_DA_TRIAGEM).")
             })
     @PostMapping("/{id}/transferir-proximo-humano")
     ComandosAutomacaoUseCase.TransferenciaResposta transferirProximoHumano(
             @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
             @Parameter(description = "Chave única da operação; repetições devolvem a mesma resposta.", required = true)
-                    @RequestHeader("Idempotency-Key") String chave) {
+                    @RequestHeader("Idempotency-Key") String chave,
+            @RequestBody(required = false) TransferirProximoHumanoRequisicao requisicao) {
+        UUID setorId = requisicao == null ? null : requisicao.setorId();
         return ContextoDeServico.buscarComo(
-                "transferir-proximo-humano", () -> comandos.transferirProximoHumano(id, chave));
+                "transferir-proximo-humano", () -> comandos.transferirProximoHumano(id, chave, setorId));
     }
 
     @Operation(
@@ -246,6 +250,14 @@ class TransferenciaAutomacaoInternalController {
         return problema(HttpStatus.UNPROCESSABLE_ENTITY, "Resultado comercial obrigatório", erro.getMessage());
     }
 
+    /** 422 com `motivo` aditivo: o pedido de setor não pôde ser atendido; nenhum atendimento foi alterado. */
+    @ExceptionHandler(SetorDeDistribuicaoInvalidoException.class)
+    ProblemDetail aoRecusarSetor(SetorDeDistribuicaoInvalidoException erro) {
+        ProblemDetail problema = problema(HttpStatus.UNPROCESSABLE_ENTITY, "Setor invalido para a distribuicao", erro.getMessage());
+        problema.setProperty("motivo", erro.motivo().name());
+        return problema;
+    }
+
     @ExceptionHandler(AtendenteDestinoInvalidoException.class)
     ProblemDetail aoRecusarDestino(AtendenteDestinoInvalidoException erro) {
         return problema(HttpStatus.UNPROCESSABLE_ENTITY, "Destino invalido", erro.getMessage());
@@ -282,6 +294,12 @@ class TransferenciaAutomacaoInternalController {
                     @NotNull UUID atendenteId) {}
 
     record ModoIaRequisicao() {}
+
+    /** Corpo opcional: o chamador diz QUAL setor; quem recebe continua sendo decisão do servidor. */
+    record TransferirProximoHumanoRequisicao(
+            @Schema(description = "Setor cujos atendentes disponíveis participam do rodízio. Ausente = rodízio de sempre.",
+                    requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    UUID setorId) {}
 
     record ClassificarNegociacaoRequisicao(
             @Schema(description = "Classificação da IA para este atendimento.",

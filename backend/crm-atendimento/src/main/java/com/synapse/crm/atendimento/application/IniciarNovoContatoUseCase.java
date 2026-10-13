@@ -19,6 +19,7 @@ import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
 import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
+import com.synapse.crm.atendimento.domain.evento.ResponsavelDoContatoDefinido;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.domain.lead.TelefoneCanonico;
@@ -189,6 +190,7 @@ public class IniciarNovoContatoUseCase {
             abertura = new Abertura(abertura.atendimento(), tipoEventoAntesDoEnvio);
         }
         publicarAberturaSeMudou(abertura, leadId, agora);
+        publicarResponsavelSeFoiQuemAbriu(abertura.atendimento(), quemPediu, agora);
         // Sem mensagem do cliente e sem envio: nao toca ultima_interacao_em. Registrar agora
         // fingiria janela de 24h aberta — a Meta so abre essa janela quando o usuario fala.
         return new Resultado(leadId, abertura.atendimento(), null, existente.isEmpty());
@@ -219,6 +221,7 @@ public class IniciarNovoContatoUseCase {
                 agora,
                 canalAtivo);
         publicarAberturaSeMudou(abertura, leadId, agora);
+        publicarResponsavelSeFoiQuemAbriu(abertura.atendimento(), quemPediu, agora);
         return new Resultado(leadId, abertura.atendimento(), null, false);
     }
 
@@ -271,6 +274,18 @@ public class IniciarNovoContatoUseCase {
                 abertura.atendimento().id(),
                 leadId,
                 agora);
+    }
+
+    /**
+     * Quem abriu o contato e ficou como responsavel do atendimento e o atendente vinculado do lead (D3b). Colaborador
+     * em lead de outro nao fica responsavel e nao publica. O envio de primeira mensagem nao passa por aqui: ele
+     * ja publica a mensagem enviada, em que o remetente e o dono.
+     */
+    private void publicarResponsavelSeFoiQuemAbriu(Atendimento atendimento, UUID quemPediu, Instant agora) {
+        if (atendimento.pertenceA(quemPediu)) {
+            eventos.publishEvent(new ResponsavelDoContatoDefinido(
+                    atendimento.leadId(), atendimento.id(), quemPediu, agora));
+        }
     }
 
     private static boolean preenchido(String valor) {

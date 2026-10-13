@@ -111,6 +111,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     "filtro_modular",
                     "horario_trabalho",
                     "lead",
+                    // V104 (D3b): vinculo explicito lead -> ultimo atendente humano; so orienta o rodizio da IA.
+                    "lead_atendente_vinculado",
                     "lead_tag",
                     "lembrete",
                     "marca_da_instancia",
