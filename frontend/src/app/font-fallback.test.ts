@@ -12,7 +12,7 @@ describe("tipografia global", () => {
   });
 
   it("carrega Inter via next/font/google (arquivos self-hosted no build) e compartilha a família com títulos", () => {
-    const layout = readFileSync(resolve(process.cwd(), "src/app/layout.tsx"), "utf8");
+    const layout = readFileSync(resolve(process.cwd(), "src/app/fontes.ts"), "utf8");
 
     expect(layout).toContain('from "next/font/google"');
     expect(layout).toContain("const inter = Inter(");

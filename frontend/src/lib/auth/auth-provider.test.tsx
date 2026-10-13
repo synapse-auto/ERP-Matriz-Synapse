@@ -20,6 +20,7 @@ describe("AuthProvider", () => {
   beforeEach(() => {
     caminho = "/login";
     substituir.mockReset();
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
     vi.unstubAllGlobals();
     useAuthStore.setState({
       accessToken: null,
@@ -28,6 +29,36 @@ describe("AuthProvider", () => {
       papel: null,
       status: "carregando",
     });
+  });
+
+  it("503 na hidratação não apaga sessão nem redireciona para login; recuperação é explícita", async () => {
+    caminho = "/agenda";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AuthProvider><span>Agenda protegida</span></AuthProvider>);
+    await screen.findByRole("heading", { name: "Sistema temporariamente indisponível" });
+    expect(screen.queryByText("Agenda protegida")).not.toBeInTheDocument();
+    expect(substituir).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("offline preserva a árvore autenticada, inclusive o rascunho", async () => {
+    caminho = "/agenda";
+    useAuthStore.setState({ status: "autenticado" });
+    const { fireEvent } = await import("@testing-library/react");
+    function Conteudo() { return <input aria-label="Rascunho" defaultValue="" />; }
+    render(<AuthProvider><Conteudo /></AuthProvider>);
+    const input = screen.getByRole("textbox", { name: "Rascunho" });
+    fireEvent.change(input, { target: { value: "Não enviar automaticamente" } });
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    fireEvent(window, new Event("offline"));
+    await screen.findByText("Você está sem conexão");
+    expect(screen.getByRole("textbox")).toBe(input);
+    expect(input).toHaveValue("Não enviar automaticamente");
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    fireEvent(window, new Event("online"));
+    await waitFor(() => expect(screen.queryByText("Você está sem conexão")).not.toBeInTheDocument());
+    expect(input).toHaveValue("Não enviar automaticamente");
   });
 
   it("nao chama refresh na tela de login sem sessao", async () => {

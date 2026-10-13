@@ -2,6 +2,11 @@ import { Tema, TemaSchema, Textos, TextosSchema } from "./schema";
 import { obterUrlApiServidor } from "@/lib/api/server-api-url";
 import { z } from "zod";
 
+/** Orçamento da leitura inicial alinhado ao timeout de readiness do Traefik (3s). */
+const LIMITE_LEITURA_CONFIG_MS = 3_000;
+
+export class ConfigIndisponivel extends Error {}
+
 /**
  * `/api/v1/config/tema` e `/api/v1/config/textos` são públicos (SecurityConfig, E10). O catálogo
  * atende também o login antes da sessão; o tema é buscado somente pelo shell, pois a identidade da
@@ -9,8 +14,19 @@ import { z } from "zod";
  * verdadeiro para o CRM, sem rebuild nem invalidação manual de cache.
  */
 async function buscarConfig(caminho: string): Promise<unknown> {
-  const resposta = await fetch(`${obterUrlApiServidor()}${caminho}`, { cache: "no-store" });
+  const url = `${obterUrlApiServidor()}${caminho}`;
+  let resposta: Response;
+  try {
+    resposta = await fetch(url, {
+      cache: "no-store", signal: AbortSignal.timeout(LIMITE_LEITURA_CONFIG_MS),
+    });
+  } catch {
+    console.error("[config] Leitura indisponível", { caminho, status: null });
+    throw new ConfigIndisponivel();
+  }
   if (!resposta.ok) {
+    console.error("[config] Leitura indisponível", { caminho, status: resposta.status });
+    if ([502, 503, 504].includes(resposta.status)) throw new ConfigIndisponivel();
     throw new Error(`Falha ao buscar ${caminho}: HTTP ${resposta.status}`);
   }
   return (await resposta.json()) as unknown;

@@ -6,6 +6,11 @@ import type { Textos } from "./schema";
 
 const TextosContext = createContext<Textos | null>(null);
 
+/** Só fallbacks de erro podem funcionar sem o catálogo/provider da aplicação. */
+export function useTextosOpcionais(): Textos | null {
+  return useContext(TextosContext);
+}
+
 /**
  * O Server Component raiz (app/layout.tsx) busca textos.json e passa como prop serializável —
  * isto só empacota isso num Context para Client Components não precisarem receber `textos` como

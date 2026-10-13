@@ -25,15 +25,21 @@ export async function POST() {
     return NextResponse.json({ detail: "Sem sessão para renovar" }, { status: 401 });
   }
 
-  const respostaBackend = await fetch(`${obterUrlApiServidor()}/api/v1/auth/refresh`, {
+  let respostaBackend: Response;
+  try { respostaBackend = await fetch(`${obterUrlApiServidor()}/api/v1/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken }),
-  });
+  }); } catch {
+    // Falha de transporte não revoga credenciais. Não registra token nem a URL interna.
+    return NextResponse.json({ status: 503 }, { status: 503 });
+  }
 
   if (!respostaBackend.ok) {
-    cookieStore.delete(NOME_COOKIE_REFRESH);
-    cookieStore.delete(NOME_COOKIE_PERSISTENCIA_SESSAO);
+    if ([401, 403].includes(respostaBackend.status)) {
+      cookieStore.delete(NOME_COOKIE_REFRESH);
+      cookieStore.delete(NOME_COOKIE_PERSISTENCIA_SESSAO);
+    }
     const problema = await respostaBackend.json().catch(() => null);
     return NextResponse.json(problema ?? { detail: "Sessão expirada" }, {
       status: respostaBackend.status,

@@ -50,6 +50,29 @@ describe("Route Handlers de sessão", () => {
     });
   });
 
+  it.each([502, 503, 504])("refresh HTTP %s preserva cookies; não é sessão recusada", async (status) => {
+    cookiesMock.mockResolvedValue({ get: () => ({ value: "token-sintetico" }), set, delete: deleteCookie });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status })));
+    expect((await refresh()).status).toBe(status);
+    expect(deleteCookie).not.toHaveBeenCalled();
+  });
+
+  it("falha de transporte retorna 503 sanitizado e preserva cookies", async () => {
+    cookiesMock.mockResolvedValue({ get: () => ({ value: "token-sintetico" }), set, delete: deleteCookie });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("URL privada / token")));
+    const resposta = await refresh();
+    expect(resposta.status).toBe(503);
+    expect(await resposta.json()).toEqual({ status: 503 });
+    expect(deleteCookie).not.toHaveBeenCalled();
+  });
+
+  it.each([401, 403])("refresh HTTP %s mantém recusa e remove a sessão", async (status) => {
+    cookiesMock.mockResolvedValue({ get: () => ({ value: "token-sintetico" }), set, delete: deleteCookie });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status })));
+    expect((await refresh()).status).toBe(status);
+    expect(deleteCookie).toHaveBeenCalledTimes(2);
+  });
+
   it("grava refresh persistente somente quando a caixa foi marcada", async () => {
     const resposta = await login(requisicaoLogin(true) as never);
 

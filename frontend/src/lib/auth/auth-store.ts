@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { limparEstadosRecuperaveis } from "@/lib/erros/estado-recuperavel";
 
 interface SessaoIniciada {
   accessToken: string;
@@ -65,7 +66,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   iniciarAberturaDoPainel: () => set({ aberturaDoPainel: "em-andamento" }),
   concluirAberturaDoPainel: () => set({ aberturaDoPainel: "ociosa" }),
   falharAberturaDoPainel: () => set({ aberturaDoPainel: "erro" }),
-  limparSessao: () =>
+  limparSessao: () => {
+    limparEstadosRecuperaveis();
     set({
       accessToken: null,
       expiraEm: null,
@@ -75,5 +77,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       precisaTrocarSenha: false,
       status: "nao-autenticado",
       aberturaDoPainel: "ociosa",
-    }),
+    });
+  },
 }));
