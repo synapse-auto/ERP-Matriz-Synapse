@@ -23,7 +23,8 @@ public record VisaoGeralDashboard(
         RankingDeVendas rankingDeVendas,
         RankingDeAvaliacoes rankingDeAvaliacoes,
         List<AtendenteDesempenho> equipeDesempenho,
-        List<PontoMensal> seriesMensais) {
+        List<PontoMensal> seriesMensais,
+        ResultadosComerciais resultadosComerciais) {
 
     public VisaoGeralDashboard {
         funil = List.copyOf(funil);
@@ -49,7 +50,8 @@ public record VisaoGeralDashboard(
                 rankingDeVendas,
                 rankingDeAvaliacoes,
                 equipeDesempenho,
-                seriesMensais);
+                seriesMensais,
+                resultadosComerciais);
     }
 
     public record Periodo(int ano, List<Integer> meses, LocalDate inicio, LocalDate fim) {
@@ -97,6 +99,9 @@ public record VisaoGeralDashboard(
             Comparativo comparativo) {}
 
     public record VendasFechadas(long noPeriodo, long acumulado, Comparativo comparativo) {}
+
+    /** ADR-010: ciclos com escolha no periodo do registro. Nao soma nem substitui vendas da ADR-008. */
+    public record ResultadosComerciais(long vendeu, long naoVendeu) {}
 
     public record TaxaConversao(
             BigDecimal percentual, long vendas, long leadsRecebidos, Comparativo comparativo) {}

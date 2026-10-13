@@ -1,5 +1,6 @@
 package com.synapse.crm.app.inbox;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -7,6 +8,8 @@ import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import com.synapse.crm.atendimento.application.painel.CartaoAtendimento;
+import com.synapse.crm.atendimento.domain.atendimento.OrigemResultadoVenda;
+import com.synapse.crm.atendimento.domain.atendimento.ResultadoVenda;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 
 /** Contrato discriminado da lista de Atendimentos. Nunca mistura os modelos de domínio. */
@@ -39,7 +42,14 @@ public record InboxUnificada(List<Item> itens, String proximoCursor) {
             UUID atendimentoAtivoId,
             String participantes,
             String tipoConversa,
-            Boolean convitePendente) {
+            Boolean convitePendente,
+            Boolean emNegociacao,
+            ResultadoVenda resultadoVenda,
+            BigDecimal valorVenda,
+            UUID vendaRegistradaPorId,
+            String vendaRegistradaPorNome,
+            Instant vendaRegistradaEm,
+            OrigemResultadoVenda origemResultadoVenda) {
 
         /** Conversas internas e leads operacionais vêm antes dos leads sem atendimento aberto. */
         int grupoDeOrdenacao() {
@@ -74,7 +84,14 @@ public record InboxUnificada(List<Item> itens, String proximoCursor) {
                     cartao.atendimentoAtivoId(),
                     null,
                     null,
-                    cartao.convitePendente());
+                    cartao.convitePendente(),
+                    cartao.emNegociacao(),
+                    cartao.resultadoVenda(),
+                    cartao.valorVenda(),
+                    cartao.vendaRegistradaPorId(),
+                    cartao.vendaRegistradaPorNome(),
+                    cartao.vendaRegistradaEm(),
+                    cartao.origemResultadoVenda());
         }
 
         public static Item equipe(
@@ -112,6 +129,13 @@ public record InboxUnificada(List<Item> itens, String proximoCursor) {
                     null,
                     participantes,
                     tipoConversa,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
                     null);
         }
     }

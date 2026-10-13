@@ -142,7 +142,27 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                         leadsMensais.porMes(),
                         avaliacoesMensais.porMes(),
                         resolucoesMensais.porMes(),
-                        vendasComSerie.porMes()));
+                        vendasComSerie.porMes()),
+                resultadosComerciais(filtro));
+    }
+
+    private VisaoGeralDashboard.ResultadosComerciais resultadosComerciais(FiltroTemporalDashboard filtro) {
+        FiltroSql temporal = periodos("a.venda_registrada_em", filtro.periodoAtual());
+        List<Object> parametros = new ArrayList<>(temporal.parametros());
+        String clausula = temporal.clausula();
+        if (filtro.periodoDeOriginacao() != null) {
+            FiltroSql coorte = intervalo("l.criado_em", filtro.periodoDeOriginacao());
+            clausula += " AND " + coorte.clausula();
+            parametros.addAll(coorte.parametros());
+        }
+        return jdbc.queryForObject("""
+                SELECT count(*) FILTER (WHERE a.resultado_venda = 'VENDEU') AS vendeu,
+                       count(*) FILTER (WHERE a.resultado_venda = 'NAO_VENDEU') AS nao_vendeu
+                  FROM atendimento a JOIN lead l ON l.id = a.lead_id
+                 WHERE %s
+                """.formatted(clausula),
+                (linha, indice) -> new VisaoGeralDashboard.ResultadosComerciais(
+                        linha.getLong("vendeu"), linha.getLong("nao_vendeu")), parametros.toArray());
     }
 
     private AgregadoAtendimento atendimentos(List<IntervaloTemporal> periodos) {

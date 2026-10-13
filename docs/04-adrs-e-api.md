@@ -64,6 +64,12 @@
 
 ### ADR-010 — Resultado comercial pertence ao ciclo do atendimento
 
+**Complemento da auditoria:** a Automação também pode registrar o resultado explicitamente,
+com origem `AUTOMACAO` e ator humano nulo, pelo contrato interno idempotente. Isso não classifica
+negociação nem finaliza o ciclo. O dashboard entrega `resultadosComerciais.vendeu/naoVendeu`
+separadamente, por instante do registro, sem alterar nem somar a métrica GANHO da ADR-008.
+Contrato e limites: [auditoria de negociação](auditoria-negociacao-resultado-comercial.md).
+
 **Contexto:** a IA identifica uma negociação fora do CRM e o operador escolhe se ela converteu ao concluir o atendimento. A etapa configurável do lead não identifica necessariamente o ciclo de atendimento corrente e não é prova suficiente de uma venda.
 
 **Decisão:** persistir `em_negociacao` e o resultado (`VENDEU` ou `NAO_VENDEU`) no atendimento, sem valor presumido. Somente o serviço interno da Automação pode classificar o ciclo; o CRM não analisa mensagens nem anexos. Se a classificação estiver ativa, a finalização humana exige um resultado explícito na mesma transação que encerra o atendimento. O registro manual usa a mesma capacidade `atendimentos.finalizar`, mantém um resultado atual por atendimento e é idempotente quando repete a mesma escolha; uma escolha conflitante retorna `409`, em vez de criar uma segunda venda. Classificação, escolha, ator, origem e instante ficam auditados e são publicados como eventos após commit.

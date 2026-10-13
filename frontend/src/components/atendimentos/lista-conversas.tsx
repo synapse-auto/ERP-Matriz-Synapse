@@ -283,6 +283,8 @@ export function ListaConversas({
                 <MoreHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {/* Ponto futuro de Registrar venda: este menu e o ciclo explicitamente selecionado.
+                    Mantido sem item/atalho enquanto a acao manual estiver globalmente oculta. */}
                 <DropdownMenuItem onClick={() => escolherVisao("FINALIZADOS")}>
                   {textos.lista.finalizados}
                 </DropdownMenuItem>

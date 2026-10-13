@@ -440,6 +440,42 @@ class DashboardVisaoGeralIT extends PostgresIT {
         assertThat(soDia10.at("/atendimentos/noPeriodo").asLong()).isEqualTo(1);
     }
 
+    @Test
+    void resultadosComerciais_saoSeparadosDeGanhoEUsamDataDoRegistroECohort() throws Exception {
+        UUID ana = idDoUsuario(EMAIL_ANA);
+        UUID etapa = jdbc.queryForObject(
+                "SELECT id FROM etapa_atendimento WHERE resultado='EM_ANDAMENTO' ORDER BY ordem LIMIT 1", UUID.class);
+        Instant julho = Instant.parse("2040-07-15T12:00:00Z");
+        Instant agosto = Instant.parse("2040-08-15T12:00:00Z");
+        UUID[] leads = criarLeads(3, "resultado-comercial", julho, etapa, ana);
+        UUID vendeu = criarAtendimento(leads[0], ana, julho, 10);
+        UUID naoVendeu = criarAtendimento(leads[1], ana, julho, 10);
+        UUID foraDoMes = criarAtendimento(leads[2], ana, julho, 10);
+        jdbc.update("UPDATE atendimento SET resultado_venda='VENDEU', origem_resultado_venda='AUTOMACAO', venda_registrada_em=? WHERE id=?", timestamp(agosto), vendeu);
+        jdbc.update("UPDATE atendimento SET resultado_venda='NAO_VENDEU', origem_resultado_venda='MANUAL', venda_registrada_por_id=?, venda_registrada_em=? WHERE id=?", ana, timestamp(agosto), naoVendeu);
+        jdbc.update("UPDATE atendimento SET resultado_venda='VENDEU', origem_resultado_venda='AUTOMACAO', venda_registrada_em=? WHERE id=?", timestamp(julho), foraDoMes);
+        registrarGanho(leads[0], ana, ana, agosto);
+
+        JsonNode resposta = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, URL);
+        assertThat(resposta.path("resultadosComerciais").path("vendeu").asLong()).isEqualTo(1);
+        assertThat(resposta.path("resultadosComerciais").path("naoVendeu").asLong()).isEqualTo(1);
+        assertThat(resposta.at("/vendasFechadas/noPeriodo").asLong()).isEqualTo(1);
+        String plano = String.join("\n", jdbc.queryForList("""
+                EXPLAIN (ANALYZE, BUFFERS)
+                SELECT count(*) FILTER (WHERE a.resultado_venda='VENDEU'),
+                       count(*) FILTER (WHERE a.resultado_venda='NAO_VENDEU')
+                FROM atendimento a JOIN lead l ON l.id=a.lead_id
+                WHERE a.venda_registrada_em >= '2040-08-01T03:00:00Z'::timestamptz
+                  AND a.venda_registrada_em < '2040-09-01T03:00:00Z'::timestamptz
+                """, String.class));
+        assertThat(plano).contains("Aggregate", "Execution Time", "Buffers");
+        System.out.println("RESULTADOS_COMERCIAIS_PLANO_FIXTURE\n" + plano);
+        JsonNode semCohort = chamarComo(EMAIL_GESTOR, SENHA_GESTOR,
+                URL + "&origemInicio=2040-08-01&origemFim=2040-08-31");
+        assertThat(semCohort.path("resultadosComerciais").path("vendeu").asLong()).isZero();
+        assertThat(semCohort.path("resultadosComerciais").path("naoVendeu").asLong()).isZero();
+    }
+
     private UUID[] criarLeads(
             int quantidade, String grupo, Instant criadoEm, UUID etapaId, UUID responsavelId) {
         UUID[] ids = new UUID[quantidade];

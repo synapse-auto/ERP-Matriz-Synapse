@@ -509,6 +509,33 @@
         }
       }
     },
+    "/internal/v1/atendimentos/{id}/resultado-venda" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : { "format" : "uuid", "type" : "string" }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : { "type" : "string" }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : { "schema" : { "$ref" : "#/components/schemas/ResultadoVendaRequisicao" } }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : { "*/*" : { "schema" : { "$ref" : "#/components/schemas/ResultadoComercialResposta" } } }
+          },
+          "400" : { }, "401" : { }, "403" : { }, "404" : { }, "409" : { }
+        }
+      }
+    },
     "/internal/v1/atendimentos/{id}/resumo" : {
       "post" : {
         "parameters" : [ {
@@ -2684,6 +2711,22 @@
           "type" : "string"
         }
       },
+      "type" : "object"
+    },
+    "ResultadoComercialResposta" : {
+      "properties" : {
+        "atendimentoId" : { "format" : "uuid", "type" : "string" },
+        "origem" : { "enum" : [ "MANUAL", "FINALIZACAO", "AUTOMACAO" ], "type" : "string" },
+        "registradoEm" : { "format" : "date-time", "type" : "string" },
+        "resultado" : { "enum" : [ "VENDEU", "NAO_VENDEU" ], "type" : "string" }
+      },
+      "type" : "object"
+    },
+    "ResultadoVendaRequisicao" : {
+      "properties" : {
+        "resultado" : { "enum" : [ "VENDEU", "NAO_VENDEU" ], "type" : "string" }
+      },
+      "required" : [ "resultado" ],
       "type" : "object"
     },
     "TransferenciaResposta" : {

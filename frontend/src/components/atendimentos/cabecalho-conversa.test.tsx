@@ -345,6 +345,38 @@ describe("CabecalhoConversa", () => {
     expect(finalizar).not.toHaveBeenCalled();
   });
 
+  it("ancora a pergunta, bloqueia duas escolhas e permite tentar novamente apos erro", () => {
+    render(<CabecalhoConversa conversa={{ ...conversa, emNegociacao: true }} estado={estado()}
+      buscaAberta={false} onAlternarBusca={vi.fn()} painelDetalhesAberto onAlternarPainelDetalhes={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
+    expect(screen.getByRole("dialog", { name: "Vendeu?" })).toHaveAttribute("data-slot", "popover-content");
+    fireEvent.click(screen.getByRole("button", { name: "Não vendeu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Vendeu" }));
+    expect(finalizar).toHaveBeenCalledTimes(1);
+    expect(finalizar.mock.calls[0]?.[0]).toEqual({ atendimentoId: "atendimento-1", resultadoVenda: "NAO_VENDEU" });
+    act(() => finalizar.mock.calls[0]?.[1]?.onError());
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Não vendeu" }));
+    expect(finalizar).toHaveBeenCalledTimes(2);
+  });
+
+  it("Escape fecha a pergunta sem registrar nem finalizar", async () => {
+    render(<CabecalhoConversa conversa={{ ...conversa, emNegociacao: true }} estado={estado()}
+      buscaAberta={false} onAlternarBusca={vi.fn()} painelDetalhesAberto onAlternarPainelDetalhes={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(finalizar).not.toHaveBeenCalled();
+  });
+
+  it("nao pede escolha nova quando o ciclo em negociacao ja possui resultado", () => {
+    render(<CabecalhoConversa conversa={{ ...conversa, emNegociacao: true, resultadoVenda: "VENDEU" }} estado={estado()}
+      buscaAberta={false} onAlternarBusca={vi.fn()} painelDetalhesAberto onAlternarPainelDetalhes={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
+    expect(finalizar).toHaveBeenCalledWith("atendimento-1");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("mantém a ação individual e não oferece o menu global de finalização", () => {
     render(
       <CabecalhoConversa

@@ -300,6 +300,19 @@ class OpenApiIT extends PostgresIT {
         return nomes;
     }
 
+    @Test
+    void resultadoComercialDaAutomacao_temContratoAditivoProtegido() throws Exception {
+        JsonNode documento = JSON.readTree(http.getForObject("/v3/api-docs", String.class));
+        JsonNode post = operacao(documento, "/internal/v1/atendimentos/{id}/resultado-venda", "post");
+        assertThat(post.isMissingNode()).isFalse();
+        assertThat(post.path("security").toString()).contains("synapseToken");
+        assertThat(parametro(post, "Idempotency-Key").path("required").asBoolean()).isTrue();
+        assertThat(post.path("responses").has("200")).isTrue();
+        assertThat(post.path("responses").has("409")).isTrue();
+        assertThat(documento.path("components").path("schemas").path("ResultadosComerciais")
+                .path("properties").has("vendeu")).isTrue();
+    }
+
     private static JsonNode operacao(JsonNode openApi, String caminho, String verbo) {
         return openApi.path("paths").path(caminho).path(verbo);
     }

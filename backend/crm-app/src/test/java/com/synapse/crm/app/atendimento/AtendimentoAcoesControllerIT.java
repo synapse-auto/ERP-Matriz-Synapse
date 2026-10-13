@@ -610,6 +610,29 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("falha ao finalizar reverte o resultado registrado na mesma transacao")
+    void finalizarNegociacao_falhaDePersistenciaNaoDeixaResultadoParcial() {
+        UUID lead = criarLead("lead venda rollback " + sufixo(), idAna, Instant.now());
+        UUID atendimento = criarAtendimentoViaEnvio(lead);
+        jdbc.update("UPDATE atendimento SET em_negociacao=TRUE WHERE id=?", atendimento);
+        jdbc.execute("CREATE FUNCTION teste_resultado_rollback() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.id='"
+                + atendimento + "'::uuid AND NEW.status='FINALIZADO' THEN RAISE EXCEPTION 'falha controlada de teste'; END IF; RETURN NEW; END $$");
+        jdbc.execute("CREATE TRIGGER teste_resultado_rollback BEFORE UPDATE ON atendimento FOR EACH ROW EXECUTE FUNCTION teste_resultado_rollback()");
+        try {
+            var resposta = chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.POST,
+                    "/api/v1/atendimentos/" + atendimento + "/finalizar", Map.of("resultadoVenda", "VENDEU"));
+            assertThat(resposta.getStatusCode().is5xxServerError()).isTrue();
+            assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id=?", String.class, atendimento))
+                    .isEqualTo("EM_ATENDIMENTO");
+            assertThat(jdbc.queryForObject("SELECT resultado_venda FROM atendimento WHERE id=?", String.class, atendimento)).isNull();
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM evento_timeline WHERE atendimento_id=? AND tipo='RESULTADO_VENDA_ATUALIZADO'", Integer.class, atendimento)).isZero();
+        } finally {
+            jdbc.execute("DROP TRIGGER teste_resultado_rollback ON atendimento");
+            jdbc.execute("DROP FUNCTION teste_resultado_rollback()");
+        }
+    }
+
+    @Test
     @DisplayName("finalizar: encerra o atendimento")
     void finalizar_sucesso_encerraAtendimento() {
         UUID lead = criarLead("lead finalizar " + sufixo(), idAna, Instant.now());

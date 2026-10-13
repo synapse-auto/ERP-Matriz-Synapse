@@ -21,7 +21,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { ErroDeApi } from "@/lib/api/errors";
-import { useFinalizarAtendimento, useRegistrarResultadoVenda } from "@/lib/atendimento/use-transferir-finalizar";
+import { useFinalizarAtendimento } from "@/lib/atendimento/use-transferir-finalizar";
 import type {
   AtendimentoResumo,
   CartaoAtendimento,
@@ -132,12 +132,11 @@ export function CabecalhoConversa({
   const [transferirAberto, setTransferirAberto] = useState(false);
   const [convidarAberto, setConvidarAberto] = useState(false);
   const [tagsAberto, setTagsAberto] = useState(false);
-  const [dialogoResultado, setDialogoResultado] = useState<"finalizacao" | "manual" | null>(null);
+  const [dialogoResultado, setDialogoResultado] = useState<"finalizacao" | null>(null);
   const [erroResultadoVenda, setErroResultadoVenda] = useState<string | null>(null);
-  const [sucessoResultadoVenda, setSucessoResultadoVenda] = useState<string | null>(null);
+  const enviandoResultado = useRef(false);
   const cabecalhoRef = useRef<HTMLDivElement>(null);
   const finalizar = useFinalizarAtendimento(onAtendimentoFinalizado);
-  const registrarResultadoVenda = useRegistrarResultadoVenda();
   const capacidades = useCapacidades();
   const podeColaborar = capacidades.pode("atendimentos.colaborar");
   const podeTransferirOuDevolver = capacidades.pode("atendimentos.transferir") || capacidades.pode("atendimentos.devolver_ia");
@@ -325,6 +324,32 @@ export function CabecalhoConversa({
       id: "finalizar",
       fixo: true,
       inline: (
+        <DialogoResultadoVenda
+          aberto={dialogoResultado === "finalizacao" && podeFinalizar}
+          modo="finalizacao"
+          processando={finalizar.isPending}
+          erro={erroResultadoVenda}
+          onFechar={() => {
+            if (enviandoResultado.current) return;
+            setDialogoResultado(null);
+            setErroResultadoVenda(null);
+          }}
+          onSelecionar={(resultadoVenda) => {
+            if (enviandoResultado.current) return;
+            enviandoResultado.current = true;
+            setErroResultadoVenda(null);
+            finalizar.mutate({ atendimentoId: conversa.atendimentoId, resultadoVenda }, {
+              onError: () => {
+                enviandoResultado.current = false;
+                setErroResultadoVenda(catalogo.atendimentos.finalizar.erro);
+              },
+              onSuccess: () => {
+                enviandoResultado.current = false;
+                setDialogoResultado(null);
+              },
+            });
+          }}
+          gatilho={
         <Button
           type="button"
           variant="outline"
@@ -333,7 +358,6 @@ export function CabecalhoConversa({
           onClick={() => {
             if (conversa.emNegociacao && !conversa.resultadoVenda) {
               setErroResultadoVenda(null);
-              setSucessoResultadoVenda(null);
               setDialogoResultado("finalizacao");
             } else {
               finalizar.mutate(conversa.atendimentoId);
@@ -344,6 +368,8 @@ export function CabecalhoConversa({
           <CheckCheck className={iconeDeAcao} aria-hidden />
           {textos.finalizar}
         </Button>
+          }
+        />
       ),
     });
   }
@@ -539,39 +565,6 @@ export function CabecalhoConversa({
         leadId={conversa.leadId}
         aberto={tagsAberto}
         onFechar={() => setTagsAberto(false)}
-      />
-      <DialogoResultadoVenda
-        aberto={dialogoResultado !== null}
-        modo={dialogoResultado ?? "finalizacao"}
-        processando={dialogoResultado === "finalizacao" ? finalizar.isPending : registrarResultadoVenda.isPending}
-        erro={erroResultadoVenda}
-        sucesso={sucessoResultadoVenda}
-        onFechar={() => {
-          if (finalizar.isPending || registrarResultadoVenda.isPending) return;
-          setDialogoResultado(null);
-          setErroResultadoVenda(null);
-          setSucessoResultadoVenda(null);
-        }}
-        onSelecionar={(resultadoVenda) => {
-          setErroResultadoVenda(null);
-          if (dialogoResultado === "finalizacao") {
-            finalizar.mutate(
-              { atendimentoId: conversa.atendimentoId, resultadoVenda },
-              {
-                onError: () => setErroResultadoVenda(catalogo.atendimentos.finalizar.erro),
-                onSuccess: () => setDialogoResultado(null),
-              },
-            );
-            return;
-          }
-          registrarResultadoVenda.mutate(
-            { atendimentoId: conversa.atendimentoId, resultado: resultadoVenda },
-            {
-              onError: () => setErroResultadoVenda(catalogo.atendimentos.finalizar.resultadoVendaErro),
-              onSuccess: () => setSucessoResultadoVenda(catalogo.atendimentos.finalizar.registrarVendaSucesso),
-            },
-          );
-        }}
       />
     </div>
   );

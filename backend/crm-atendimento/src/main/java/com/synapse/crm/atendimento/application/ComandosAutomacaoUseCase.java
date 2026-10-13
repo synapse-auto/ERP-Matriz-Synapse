@@ -17,6 +17,8 @@ import com.synapse.crm.atendimento.application.informacoeschatbot.RegistrarInfor
 import com.synapse.crm.atendimento.application.internal.CriarLembreteDaAutomacaoUseCase;
 import com.synapse.crm.atendimento.application.origem.OrigemDaMensagem;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.atendimento.domain.atendimento.OrigemResultadoVenda;
+import com.synapse.crm.atendimento.domain.atendimento.ResultadoVenda;
 import com.synapse.crm.core.domain.lembrete.Lembrete;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -30,6 +32,7 @@ public class ComandosAutomacaoUseCase {
     private final FinalizarAtendimentoUseCase finalizarAtendimento;
     private final CriarLembreteDaAutomacaoUseCase criarLembrete;
     private final ClassificarNegociacaoDoAtendimentoUseCase classificarNegociacao;
+    private final RegistrarResultadoVendaUseCase resultadosVenda;
     private final RegistrarInformacoesDoChatbotUseCase informacoesDoChatbot;
     private final IdempotenciaDeComandoAutomacao idempotencia;
     private final ObjectMapper json;
@@ -41,6 +44,7 @@ public class ComandosAutomacaoUseCase {
             FinalizarAtendimentoUseCase finalizarAtendimento,
             CriarLembreteDaAutomacaoUseCase criarLembrete,
             ClassificarNegociacaoDoAtendimentoUseCase classificarNegociacao,
+            RegistrarResultadoVendaUseCase resultadosVenda,
             RegistrarInformacoesDoChatbotUseCase informacoesDoChatbot,
             IdempotenciaDeComandoAutomacao idempotencia,
             ObjectMapper json) {
@@ -50,6 +54,7 @@ public class ComandosAutomacaoUseCase {
         this.finalizarAtendimento = finalizarAtendimento;
         this.criarLembrete = criarLembrete;
         this.classificarNegociacao = classificarNegociacao;
+        this.resultadosVenda = resultadosVenda;
         this.informacoesDoChatbot = informacoesDoChatbot;
         this.idempotencia = idempotencia;
         this.json = json;
@@ -153,6 +158,23 @@ public class ComandosAutomacaoUseCase {
                 LembreteResposta.class,
                 () -> LembreteResposta.de(
                         atendimentoId, criarLembrete.executar(atendimentoId, texto, dataHora)));
+    }
+
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public ResultadoComercialResposta registrarResultadoVenda(UUID atendimentoId, String chave, ResultadoVenda resultado) {
+        return executar(chave, "REGISTRAR_RESULTADO_VENDA", atendimentoId, resultado.name(),
+                ResultadoComercialResposta.class,
+                () -> resultadosVenda.validarPelaAutomacao(atendimentoId),
+                () -> ResultadoComercialResposta.de(resultadosVenda.executarPelaAutomacao(atendimentoId, resultado)));
+    }
+
+    public record ResultadoComercialResposta(
+            UUID atendimentoId, ResultadoVenda resultado, Instant registradoEm, OrigemResultadoVenda origem) {
+        static ResultadoComercialResposta de(Atendimento atendimento) {
+            return new ResultadoComercialResposta(atendimento.id(), atendimento.resultadoVenda(),
+                    atendimento.vendaRegistradaEm(), atendimento.origemResultadoVenda());
+        }
     }
 
     /**

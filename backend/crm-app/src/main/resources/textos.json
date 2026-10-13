@@ -414,6 +414,7 @@
       "naoVendeu": "Não vendeu",
       "cancelarResultado": "Cancelar",
       "registrarVenda": "Registrar venda",
+      "semResultadoRegistrado": "Sem resultado registrado",
       "registrarVendaTitulo": "Registrar venda",
         "registrarVendaDescricao": "Confirme que este atendimento resultou em uma venda.",
         "registrarVendaConfirmar": "Confirmar venda",
