@@ -52,6 +52,7 @@ class Ev05LeadUseCaseTest {
 
     @Mock
     private ApplicationEventPublisher eventos;
+    @Mock private com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem locks;
 
     private Ev05LeadUseCase caso;
 
@@ -65,7 +66,9 @@ class Ev05LeadUseCaseTest {
                 Clock.fixed(AGORA, ZoneOffset.UTC),
                 8000,
                 solicitacoes,
-                eventos);
+                eventos, locks);
+        org.mockito.Mockito.lenient().when(locks.bloquearParaAtendimento(LEAD)).thenReturn(true);
+        org.mockito.Mockito.lenient().when(solicitacoes.cicloVigente(SOLICITACAO)).thenReturn(true);
     }
 
     @Test

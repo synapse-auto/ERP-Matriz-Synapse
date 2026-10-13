@@ -45,6 +45,7 @@ export interface SolicitacaoResumoIa {
   atualizadoEm: string;
   erroCodigo: string | null;
   erroMensagem: string | null;
+  diagnosticoCodigo?: string | null;
 }
 
 export interface TagDoLead {

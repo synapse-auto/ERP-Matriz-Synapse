@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
@@ -316,6 +316,8 @@ function ResumoPersistidoDoLead({
   const solicitar = useSolicitarResumoIa(atendimentoId);
   const podeSolicitar = useCapacidades().pode("resumo_ia.solicitar");
   const [erroLocal, setErroLocal] = useState(false);
+  const chave = useRef<{ atendimentoId: string; id: string } | null>(null);
+  const enviando = useRef(false);
   const resumo = lead.resumoIa?.trim() || textos.atendimentos.painel.resumoIa.vazio;
   const atualizadoEm = lead.resumoIaAtualizadoEm
     ? new Intl.DateTimeFormat("pt-BR", {
@@ -332,13 +334,28 @@ function ResumoPersistidoDoLead({
     || estado.data?.status === "PENDENTE"
     || estado.data?.status === "PROCESSANDO";
   const temResumo = Boolean(lead.resumoIa?.trim());
+  const aguardandoConferencia = estado.data?.diagnosticoCodigo === "WEBHOOK_RESULTADO_INCERTO";
+  const cicloObsoleto = estado.data?.diagnosticoCodigo === "CICLO_OBSOLETO";
+  const textoErro = estado.data?.erroCodigo === "WEBHOOK_AUTENTICACAO_RECUSADA"
+    ? textos.atendimentos.painel.resumoIa.autenticacaoRecusada
+    : solicitar.error instanceof Error && "status" in solicitar.error && solicitar.error.status === 503
+      ? textos.atendimentos.painel.resumoIa.indisponivel
+      : textos.atendimentos.painel.resumoIa.erro;
   const erro = estado.data?.status === "FALHOU"
     || (erroLocal && estado.data?.status !== "CONCLUIDO");
 
   function gerar() {
-    if (processando) return;
+    if (processando || enviando.current) return;
     setErroLocal(false);
-    solicitar.mutate({ solicitacaoId: crypto.randomUUID() }, { onError: () => setErroLocal(true) });
+    enviando.current = true;
+    if (!chave.current || chave.current.atendimentoId !== atendimentoId
+      || estado.data?.solicitacaoId === chave.current.id && (estado.data.status === "CONCLUIDO" || estado.data.status === "FALHOU")) {
+      chave.current = { atendimentoId, id: crypto.randomUUID() };
+    }
+    solicitar.mutate({ solicitacaoId: chave.current.id }, {
+      onError: () => setErroLocal(true),
+      onSettled: () => { enviando.current = false; },
+    });
   }
 
   return (
@@ -354,7 +371,9 @@ function ResumoPersistidoDoLead({
             onClick={gerar}
             disabled={processando}
           >
-            {processando
+            {aguardandoConferencia || cicloObsoleto
+              ? textos.atendimentos.painel.resumoIa.aguardandoConferenciaLabel
+              : processando
               ? textos.atendimentos.painel.resumoIa.processando
               : temResumo
                 ? textos.atendimentos.painel.resumoIa.regerar
@@ -364,16 +383,20 @@ function ResumoPersistidoDoLead({
       }
     >
       <div className="space-y-2">
-        <p role={erro ? "alert" : "status"} className="text-xs text-muted-foreground">
-          {processando
+        <p role={erro || aguardandoConferencia || cicloObsoleto ? "alert" : "status"} className="text-xs text-muted-foreground">
+          {cicloObsoleto
+            ? textos.atendimentos.painel.resumoIa.cicloObsoleto
+            : aguardandoConferencia
+            ? textos.atendimentos.painel.resumoIa.aguardandoConferencia
+            : processando
             ? estado.data?.status === "PENDENTE"
               ? textos.atendimentos.painel.resumoIa.pendente
               : textos.atendimentos.painel.resumoIa.processando
             : erro
-              ? textos.atendimentos.painel.resumoIa.erro
+              ? textoErro
               : ""}
         </p>
-        {processando ? (
+        {processando && !aguardandoConferencia && !cicloObsoleto ? (
           <div
             className="space-y-2 rounded-lg border border-border bg-muted/40 p-3"
             aria-label={textos.atendimentos.painel.resumoIa.processando}

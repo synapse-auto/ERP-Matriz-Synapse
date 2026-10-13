@@ -20,6 +20,8 @@ import com.sun.net.httpserver.HttpServer;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.web.client.RestClient;
 
 class ResumoIaAutomacaoHttpAdapterTest {
@@ -60,6 +62,35 @@ class ResumoIaAutomacaoHttpAdapterTest {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(ints = {401, 403})
+    void autenticacaoRecusadaTemDiagnosticoDistintoSemRetry(int status) throws Exception {
+        try (ServidorFake servidor = servidor(status, new AtomicReference<>(), new AtomicReference<>())) {
+            assertThat(adapter(servidor.url(), "credencial-invalida")
+                    .enviar(SOLICITACAO, LEAD, ATENDIMENTO, SOLICITADO_EM))
+                    .isEqualTo(com.synapse.crm.atendimento.application.ResumoIaAutomacaoGateway.Resultado.AUTENTICACAO_RECUSADA);
+        }
+    }
+
+    @Test
+    void replay200EAceitoMas204NaoEContratoDeAceite() throws Exception {
+        try (ServidorFake servidor = servidor(200, new AtomicReference<>(), new AtomicReference<>())) {
+            assertThat(adapter(servidor.url(), "token-de-teste").enviar(SOLICITACAO, LEAD, ATENDIMENTO, SOLICITADO_EM))
+                    .isEqualTo(com.synapse.crm.atendimento.application.ResumoIaAutomacaoGateway.Resultado.ACEITO);
+        }
+        try (ServidorFake servidor = servidor(204, new AtomicReference<>(), new AtomicReference<>())) {
+            assertThat(adapter(servidor.url(), "token-de-teste").enviar(SOLICITACAO, LEAD, ATENDIMENTO, SOLICITADO_EM))
+                    .isEqualTo(com.synapse.crm.atendimento.application.ResumoIaAutomacaoGateway.Resultado.RECUSADO);
+        }
+    }
+
+    @Test
+    void configuracaoAusenteNaoEnviaHttp() {
+        assertThat(adapter("", "").configurado()).isFalse();
+        assertThat(adapter("", "").enviar(SOLICITACAO, LEAD, ATENDIMENTO, SOLICITADO_EM))
+                .isEqualTo(com.synapse.crm.atendimento.application.ResumoIaAutomacaoGateway.Resultado.RECUSADO);
+    }
+
     @Test
     void cincoCentosSaoTentaveisNovamente() throws Exception {
         try (ServidorFake servidor = servidor(500, new AtomicReference<>(), new AtomicReference<>())) {
@@ -70,14 +101,14 @@ class ResumoIaAutomacaoHttpAdapterTest {
     }
 
     @Test
-    void timeoutERepetivel() throws Exception {
+    void timeoutTemResultadoIncertoENaoProvaFalhaDaGeracao() throws Exception {
         CountDownLatch recebeu = new CountDownLatch(1);
         CountDownLatch liberar = new CountDownLatch(1);
         try (ServidorFake servidor = servidor(202, new AtomicReference<>(), new AtomicReference<>(), recebeu, liberar)) {
             var adapter = adapter(servidor.url(), "token-de-teste", Duration.ofMillis(25), CircuitBreakerRegistry.ofDefaults());
 
             assertThat(adapter.enviar(SOLICITACAO, LEAD, ATENDIMENTO, SOLICITADO_EM))
-                    .isEqualTo(com.synapse.crm.atendimento.application.ResumoIaAutomacaoGateway.Resultado.TENTAR_NOVAMENTE);
+                    .isEqualTo(com.synapse.crm.atendimento.application.ResumoIaAutomacaoGateway.Resultado.RESULTADO_INCERTO);
             assertThat(recebeu.await(1, TimeUnit.SECONDS)).isTrue();
             liberar.countDown();
         }

@@ -335,8 +335,12 @@ Na escrita, `Idempotency-Key` é exatamente `solicitacaoId` e `contextoGeradoEm`
 `contextoAte` retornado. O status recebe `PROCESSANDO`, `CONCLUIDO` ou `FALHOU`; falhas de rede/5xx
 são retentadas com backoff limitado, enquanto 4xx (inclusive `409` de ciclo obsoleto) não entram em
 retry automático. O CRM publica `RESUMO_IA_STATUS` depois do commit e nunca apaga o resumo anterior
-quando uma nova geração falha. O endpoint de status recusa atendimento finalizado, transferido ou
-substituído e não aceita mensagem de erro com token, telefone, URL ou payload.
+quando uma nova geração falha. O endpoint de status recusa evolução de atendimento finalizado,
+transferido ou substituído e não aceita mensagem de erro com token, telefone, URL ou payload.
+Exceção explícita de recuperação: `FALHOU` com `erroCodigo: CICLO_OBSOLETO` encerra uma
+solicitação comprovadamente obsoleta sem gravar texto nem executar nova geração. `diagnosticoCodigo`
+opcional/null informa entrega incerta ou ciclo obsoleto no GET público; o estado não muda por demora.
+Veja a [auditoria de 13/10](auditorias/resumo-ia-fluxo-20261013.md).
 
 O arquivo `docs/n8n/resumo-ia-sob-demanda.json` é o template versionado sem credenciais. Após importar,
 configure a Header Auth `SYNAPSE_TOKEN_INTERNO` para o CRM e a validação do webhook com

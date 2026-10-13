@@ -80,6 +80,21 @@ Se o webhook respondeu `202`, mas **não houve callback**, o CRM conserva `PENDE
 no n8n; não clique repetidamente nem altere `solicitacao_resumo_ia` por SQL. Após confirmar que
 nenhuma escrita de resumo ocorreu e que a execução não pode mais prosseguir, o operador da
 Automação pode comunicar `FALHOU` pelo callback autenticado, com a mesma `solicitacaoId` e o
-`atendimentoId` original, usando apenas código/mensagem sanitizados. O CRM rejeita ciclo obsoleto.
+`atendimentoId` original, usando apenas código/mensagem sanitizados. O CRM rejeita escrita de ciclo obsoleto;
+o callback explícito `FALHOU` com `erroCodigo: CICLO_OBSOLETO` pode encerrar um ciclo comprovadamente
+finalizado ou com responsável diferente do snapshot, sem gravar texto ou gerar novamente.
 Só depois do estado terminal, o usuário autorizado pode iniciar uma **nova** solicitação. Se o
 callback `FALHOU` também falhar, preserve a evidência e escale; não fabrique estado terminal na UI.
+
+### Auditoria de 13/10 e entrega sem confirmação
+
+HTTP 401/403 agora termina a entrega com `WEBHOOK_AUTENTICACAO_RECUSADA`; demais recusas com
+`WEBHOOK_RECUSADO`. Rede/timeout suspende reenvios com `WEBHOOK_RESULTADO_INCERTO` na outbox,
+**sem** marcar o ciclo FALHOU: uma execução ainda pode concluir pelo callback. O GET público
+traz `diagnosticoCodigo` opcional para orientação na ficha. Não limpar a outbox para tentar novamente.
+A reserva e o registro da entrega são transações curtas; a chamada HTTP usa timer exclusivo.
+
+V104 captura o responsável no momento do pedido para recusar resultado após transferência.
+Solicitações legadas sem snapshot preservam compatibilidade, mas não comprovam transferência
+anterior. Detalhes, comandos somente leitura e passagem ao Dylan:
+[auditoria do fluxo](auditorias/resumo-ia-fluxo-20261013.md).

@@ -74,6 +74,8 @@ export function useSolicitarResumoIa(atendimentoId: string) {
       cache.setQueryData(["resumo-ia", atendimentoId], estado);
       void cache.invalidateQueries({ queryKey: ["lead", estado.leadId] });
     },
+    // Uma resposta perdida não prova que o POST falhou; recupere o ciclo canônico.
+    onError: () => cache.invalidateQueries({ queryKey: ["resumo-ia", atendimentoId] }),
   });
 }
 

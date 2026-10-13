@@ -15,7 +15,7 @@ public class PublicadorDeSolicitacaoResumoIa {
         this.operacoes = operacoes;
     }
 
-    @Scheduled(fixedDelayString = "${synapse.automacao.resumo-ia.intervalo-ms:1000}")
+    @Scheduled(fixedDelayString = "${synapse.automacao.resumo-ia.intervalo-ms:1000}", scheduler = "agendamentoResumoIa")
     public void publicarPendentes() {
         ContextoDeServico.executarComo("repasse-resumo-ia-automacao", operacoes::rodada);
     }

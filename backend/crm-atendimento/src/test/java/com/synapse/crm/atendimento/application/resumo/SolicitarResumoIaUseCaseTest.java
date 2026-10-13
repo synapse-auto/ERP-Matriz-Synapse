@@ -38,6 +38,7 @@ class SolicitarResumoIaUseCaseTest {
     @Mock private ResumoIaAutomacaoGateway automacao;
     @Mock private Outbox outbox;
     @Mock private ApplicationEventPublisher eventos;
+    @Mock private com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem leads;
 
     private SolicitarResumoIaUseCase caso;
     private Atendimento atendimento;
@@ -59,9 +60,11 @@ class SolicitarResumoIaUseCaseTest {
                 automacao,
                 outbox,
                 eventos,
-                Clock.fixed(AGORA, ZoneOffset.UTC));
+                Clock.fixed(AGORA, ZoneOffset.UTC), leads);
         when(automacao.configurado()).thenReturn(true);
         when(atendimentos.porId(ATENDIMENTO)).thenReturn(Optional.of(atendimento));
+        when(leads.bloquearParaAtendimento(LEAD)).thenReturn(true);
+        when(atendimentos.porIdParaAlteracao(ATENDIMENTO)).thenReturn(Optional.of(atendimento));
     }
 
     @Test

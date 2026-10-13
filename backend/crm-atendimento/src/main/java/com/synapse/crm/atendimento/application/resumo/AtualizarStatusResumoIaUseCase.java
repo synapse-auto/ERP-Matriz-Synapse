@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.evento.ResumoIaParaTempoReal;
+import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /** Recebe do n8n somente a evolução do ciclo; o texto continua no endpoint de escrita EV-05. */
@@ -23,16 +24,18 @@ public class AtualizarStatusResumoIaUseCase {
     private final SolicitacaoResumoIaRepositorio solicitacoes;
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
+    private final LeadNoCaminhoDeMensagem leads;
 
     public AtualizarStatusResumoIaUseCase(
             AtendimentoRepositorio atendimentos,
             SolicitacaoResumoIaRepositorio solicitacoes,
             ApplicationEventPublisher eventos,
-            Clock relogio) {
+            Clock relogio, LeadNoCaminhoDeMensagem leads) {
         this.atendimentos = atendimentos;
         this.solicitacoes = solicitacoes;
         this.eventos = eventos;
         this.relogio = relogio;
+        this.leads = leads;
     }
 
     @PreAuthorize("hasRole('SERVICO')")
@@ -58,8 +61,15 @@ public class AtualizarStatusResumoIaUseCase {
         if (status == SolicitacaoResumoIaRepositorio.Status.CONCLUIDO) {
             throw new ResumoIaCicloObsoletoException(solicitacaoId);
         }
+        if (!leads.bloquearParaAtendimento(leadId)) throw new ResumoIaCicloObsoletoException(solicitacaoId);
+        // Recuperação operacional explícita: cancelar um ciclo comprovadamente obsoleto não executa IA.
+        boolean cancelarObsoleto = status == SolicitacaoResumoIaRepositorio.Status.FALHOU
+                && "CICLO_OBSOLETO".equals(normalizarCodigo(erroCodigo))
+                && !solicitacoes.cicloVigente(solicitacaoId);
         var atendimento = atendimentos.porId(atendimentoId)
-                .filter(item -> item.leadId().equals(leadId) && item.status() == StatusAtendimento.EM_ATENDIMENTO)
+                .filter(item -> item.leadId().equals(leadId)
+                        && (cancelarObsoleto || item.status() == StatusAtendimento.EM_ATENDIMENTO
+                            && solicitacoes.cicloVigente(solicitacaoId)))
                 .orElseThrow(() -> new ResumoIaCicloObsoletoException(solicitacaoId));
         if (!transicaoPermitida(solicitacao.status(), status)) {
             throw new ResumoIaCicloObsoletoException(solicitacaoId);

@@ -66,7 +66,7 @@ const solicitarResumoState = vi.hoisted(() => ({
   isPending: false,
 }));
 const estadoResumoState = vi.hoisted(() => ({
-  data: null as null | { status: "PENDENTE" | "PROCESSANDO" | "CONCLUIDO" | "FALHOU" },
+  data: null as null | { status: "PENDENTE" | "PROCESSANDO" | "CONCLUIDO" | "FALHOU"; diagnosticoCodigo?: string; erroCodigo?: string },
 }));
 const authState = vi.hoisted(() => ({ papel: "ADMINISTRADOR" as string | null }));
 const midiasState = vi.hoisted(() => ({ pages: [[]] as MidiaDoLead[][], hasNextPage: false }));
@@ -101,6 +101,10 @@ vi.mock("@/lib/config/textos-provider", () => ({
           pendente: "Resumo aguardando processamento.",
           erro: "Não foi possível gerar o resumo.",
           indisponivel: "Resumo indisponível",
+          aguardandoConferencia: "Entrega sem confirmação. Confira a solicitação antes de tentar novamente.",
+          aguardandoConferenciaLabel: "Aguardando conferência",
+          autenticacaoRecusada: "A automação recusou a autenticação.",
+          cicloObsoleto: "O atendimento mudou durante a geração.",
         },
         adicionar: "Adicionar",
         editar: "Editar",
@@ -341,6 +345,35 @@ describe("painel da conversa", () => {
     fireEvent.click(obterControleDaSecao("Resumo por IA"));
     expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível gerar o resumo.");
     expect(screen.getByText("Cliente pediu orçamento de box.")).toBeInTheDocument();
+  });
+
+  it.each(["WEBHOOK_RESULTADO_INCERTO", "CICLO_OBSOLETO"])(
+    "mostra diagnóstico %s sem inventar falha, sem skeleton eterno e preservando o resumo anterior",
+    (diagnosticoCodigo) => {
+      estadoResumoState.data = { status: "PENDENTE", diagnosticoCodigo };
+      renderizarPainel("lead-1", "Jardel Lima");
+      expect(screen.getByRole("button", { name: "Aguardando conferência" })).toBeDisabled();
+      fireEvent.click(obterControleDaSecao("Resumo por IA"));
+      expect(screen.getByRole("alert")).toHaveTextContent(diagnosticoCodigo === "CICLO_OBSOLETO"
+        ? "O atendimento mudou" : "Entrega sem confirmação");
+      expect(screen.getByText("Cliente pediu orçamento de box.")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Gerando resumo...")).not.toBeInTheDocument();
+    },
+  );
+
+  it("diferencia recusa de autenticação sem expor resposta bruta", () => {
+    estadoResumoState.data = { status: "FALHOU", erroCodigo: "WEBHOOK_AUTENTICACAO_RECUSADA" };
+    renderizarPainel("lead-1", "Jardel Lima");
+    fireEvent.click(obterControleDaSecao("Resumo por IA"));
+    expect(screen.getByRole("alert")).toHaveTextContent("A automação recusou a autenticação.");
+  });
+
+  it("duplo clique não cria duas solicitações antes do próximo render", () => {
+    renderizarPainel("lead-1", "Jardel Lima");
+    const gerar = screen.getByRole("button", { name: "Regerar" });
+    fireEvent.click(gerar);
+    fireEvent.click(gerar);
+    expect(solicitarResumoState.mutate).toHaveBeenCalledOnce();
   });
 
   it("mantém um card único, com a ação antes do chevron e sem botões aninhados", () => {

@@ -142,7 +142,9 @@ class Ev05AutomacaoInternalController {
     @Operation(
             summary = "Atualizar estado da solicitação de resumo",
             description = "Recebe PROCESSANDO ou FALHOU. A rota /resumo grava o texto e marca CONCLUIDO "
-                    + "na mesma transação; CONCLUIDO aqui é aceito somente como replay após a escrita confirmada.",
+                    + "na mesma transação; CONCLUIDO aqui é aceito somente como replay após a escrita confirmada. "
+                    + "FALHOU com erroCodigo CICLO_OBSOLETO permite encerrar explicitamente um ciclo cujo "
+                    + "atendimento foi finalizado ou mudou de responsável, sem executar nova geração.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Estado aplicado ou repetição idempotente."),
                 @ApiResponse(responseCode = "400", description = "Payload inválido."),
