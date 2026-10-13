@@ -347,15 +347,15 @@ describe("painel da conversa", () => {
     expect(screen.getByText("Cliente pediu orçamento de box.")).toBeInTheDocument();
   });
 
-  it.each(["WEBHOOK_RESULTADO_INCERTO", "CICLO_OBSOLETO"])(
+  it.each(["WEBHOOK_RESULTADO_INCERTO", "CICLO_OBSOLETO", "CONFIGURACAO_AUSENTE"])(
     "mostra diagnóstico %s sem inventar falha, sem skeleton eterno e preservando o resumo anterior",
     (diagnosticoCodigo) => {
       estadoResumoState.data = { status: "PENDENTE", diagnosticoCodigo };
       renderizarPainel("lead-1", "Jardel Lima");
       expect(screen.getByRole("button", { name: "Aguardando conferência" })).toBeDisabled();
       fireEvent.click(obterControleDaSecao("Resumo por IA"));
-      expect(screen.getByRole("alert")).toHaveTextContent(diagnosticoCodigo === "CICLO_OBSOLETO"
-        ? "O atendimento mudou" : "Entrega sem confirmação");
+      expect(screen.getByRole("alert")).toHaveTextContent(diagnosticoCodigo === "CONFIGURACAO_AUSENTE"
+        ? "Resumo indisponível" : diagnosticoCodigo === "CICLO_OBSOLETO" ? "O atendimento mudou" : "Entrega sem confirmação");
       expect(screen.getByText("Cliente pediu orçamento de box.")).toBeInTheDocument();
       expect(screen.queryByLabelText("Gerando resumo...")).not.toBeInTheDocument();
     },

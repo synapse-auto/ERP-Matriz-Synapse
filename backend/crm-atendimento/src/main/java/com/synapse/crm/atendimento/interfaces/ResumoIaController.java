@@ -52,7 +52,8 @@ class ResumoIaController {
     @Operation(
             summary = "Consultar ciclo atual do resumo por IA",
             description = "Consulta o estado persistido sem acionar a Automação. diagnosticoCodigo opcional informa "
-                    + "WEBHOOK_RESULTADO_INCERTO (conferir execução antes de tentar novamente) ou CICLO_OBSOLETO. "
+                    + "WEBHOOK_RESULTADO_INCERTO (conferir execução antes de tentar novamente), CICLO_OBSOLETO "
+                    + "ou CONFIGURACAO_AUSENTE (conferir configuração da automação). "
                     + "PENDENTE/PROCESSANDO não significam conclusão, nem falham somente por demora.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Estado persistido; 200 com null quando ainda não houve solicitação."),

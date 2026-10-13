@@ -91,6 +91,12 @@ class ResumoIaAutomacaoHttpAdapterTest {
                 .isEqualTo(com.synapse.crm.atendimento.application.ResumoIaAutomacaoGateway.Resultado.RECUSADO);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"nao-e-url", "file:///tmp/resumo", "https://usuario:senha@localhost/resumo"})
+    void configuracaoDeUrlInvalidaNaoCriaGeracaoNemExpõeCredenciais(String url) {
+        assertThat(adapter(url, "token-de-teste").configurado()).isFalse();
+    }
+
     @Test
     void cincoCentosSaoTentaveisNovamente() throws Exception {
         try (ServidorFake servidor = servidor(500, new AtomicReference<>(), new AtomicReference<>())) {

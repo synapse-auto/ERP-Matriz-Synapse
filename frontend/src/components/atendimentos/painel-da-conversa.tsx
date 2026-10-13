@@ -336,6 +336,7 @@ function ResumoPersistidoDoLead({
   const temResumo = Boolean(lead.resumoIa?.trim());
   const aguardandoConferencia = estado.data?.diagnosticoCodigo === "WEBHOOK_RESULTADO_INCERTO";
   const cicloObsoleto = estado.data?.diagnosticoCodigo === "CICLO_OBSOLETO";
+  const configuracaoAusente = estado.data?.diagnosticoCodigo === "CONFIGURACAO_AUSENTE";
   const textoErro = estado.data?.erroCodigo === "WEBHOOK_AUTENTICACAO_RECUSADA"
     ? textos.atendimentos.painel.resumoIa.autenticacaoRecusada
     : solicitar.error instanceof Error && "status" in solicitar.error && solicitar.error.status === 503
@@ -371,7 +372,7 @@ function ResumoPersistidoDoLead({
             onClick={gerar}
             disabled={processando}
           >
-            {aguardandoConferencia || cicloObsoleto
+            {aguardandoConferencia || cicloObsoleto || configuracaoAusente
               ? textos.atendimentos.painel.resumoIa.aguardandoConferenciaLabel
               : processando
               ? textos.atendimentos.painel.resumoIa.processando
@@ -383,8 +384,10 @@ function ResumoPersistidoDoLead({
       }
     >
       <div className="space-y-2">
-        <p role={erro || aguardandoConferencia || cicloObsoleto ? "alert" : "status"} className="text-xs text-muted-foreground">
-          {cicloObsoleto
+        <p role={erro || aguardandoConferencia || cicloObsoleto || configuracaoAusente ? "alert" : "status"} className="text-xs text-muted-foreground">
+          {configuracaoAusente
+            ? textos.atendimentos.painel.resumoIa.indisponivel
+            : cicloObsoleto
             ? textos.atendimentos.painel.resumoIa.cicloObsoleto
             : aguardandoConferencia
             ? textos.atendimentos.painel.resumoIa.aguardandoConferencia
@@ -396,7 +399,7 @@ function ResumoPersistidoDoLead({
               ? textoErro
               : ""}
         </p>
-        {processando && !aguardandoConferencia && !cicloObsoleto ? (
+        {processando && !aguardandoConferencia && !cicloObsoleto && !configuracaoAusente ? (
           <div
             className="space-y-2 rounded-lg border border-border bg-muted/40 p-3"
             aria-label={textos.atendimentos.painel.resumoIa.processando}

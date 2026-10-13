@@ -237,6 +237,22 @@ class ResumoIaFluxoIT extends PostgresIT {
     }
 
     @Test
+    void transferenciaDeIdaEVoltaNaoReviveOCicloAntigo() throws Exception {
+        var ids = conversa();
+        UUID pedido = pedir(ids.atendimento());
+        for (UUID destino : java.util.List.of(usuario(ApoioAutenticacao.EMAIL_BRUNO), ana)) {
+            assertThat(chamar(gestor, HttpMethod.POST,
+                    "/api/v1/atendimentos/" + ids.atendimento() + "/transferir", null,
+                    Map.of("paraAtendenteId", destino)).getStatusCode()).isEqualTo(HttpStatus.OK);
+        }
+        assertThat(gravar(ids, pedido, "Não aplicar ciclo antigo").getStatusCode())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(estado(ids.atendimento()).path("diagnosticoCodigo").asText()).isEqualTo("CICLO_OBSOLETO");
+        assertThat(jdbc.queryForObject("SELECT resumo_ia FROM lead WHERE id = ?", String.class, ids.lead()))
+                .isEqualTo("Resumo anterior");
+    }
+
+    @Test
     void finalizacaoImpedeCallbackTardioEIsolamentoBloqueiaColega() throws Exception {
         var ids = conversa();
         String bruno = ApoioAutenticacao.login(http, ApoioAutenticacao.EMAIL_BRUNO, ApoioAutenticacao.SENHA_ATENDENTE).accessToken();

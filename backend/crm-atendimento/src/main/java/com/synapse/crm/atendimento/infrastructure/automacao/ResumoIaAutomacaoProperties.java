@@ -1,5 +1,6 @@
 package com.synapse.crm.atendimento.infrastructure.automacao;
 
+import java.net.URI;
 import java.time.Duration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -32,7 +33,15 @@ public record ResumoIaAutomacaoProperties(
     }
 
     public boolean configurado() {
-        return !url.isBlank() && !token.isBlank() && !authHeader.isBlank();
+        if (url.isBlank() || token.isBlank() || token.contains("\r") || token.contains("\n")
+                || !authHeader.matches("[!#$%&'*+.^_`|~0-9A-Za-z-]+")) return false;
+        try {
+            URI destino = URI.create(url);
+            return ("http".equalsIgnoreCase(destino.getScheme()) || "https".equalsIgnoreCase(destino.getScheme()))
+                    && destino.getHost() != null && destino.getUserInfo() == null && destino.getFragment() == null;
+        } catch (IllegalArgumentException erro) {
+            return false;
+        }
     }
 
     public Duration esperaApos(int tentativas) {

@@ -2,7 +2,9 @@
 
 ## Evidência e limites
 
-Base inspecionada: `origin/main` e6b23b6. Este documento não é diagnóstico de uma
+Base inicial inspecionada: `origin/main` e6b23b6; branch rebaseada em f53959e após nova
+entrega na main. V103 foi ocupada por setores; nossa migration inédita passou para V104.
+Este documento não é diagnóstico de uma
 execução de produção: não houve acesso a VPS, Dokploy ou n8n publicado. O template
 `docs/n8n/resumo-ia-sob-demanda.json` está inativo; não foi publicado/alterado.
 Cards de informações do chatbot no histórico são outro recurso e ficaram intactos.
@@ -33,7 +35,9 @@ Endpoints permanecem os mesmos. `Solicitacao` ganha `diagnosticoCodigo` opcional
 esse campo. Estados continuam PENDENTE, PROCESSANDO, CONCLUIDO e FALHOU.
 
 - `WEBHOOK_RESULTADO_INCERTO`: entrega sem confirmação; conferir execução antes de nova tentativa.
-- `CICLO_OBSOLETO`: atendimento encerrado ou responsável diferente do snapshot.
+- `CICLO_OBSOLETO`: atendimento encerrado ou responsabilidade diferente do snapshot.
+- `CONFIGURACAO_AUSENTE`: configuração retirada/inválida em ciclo ativo; conserva estado,
+  apresenta orientação e continua aceitando resultado válido, sem criar novo pedido.
 - O diagnóstico não substitui estado nem significa FALHOU. UI conserva o resumo anterior,
   apresenta orientação, bloqueia geração concorrente e continua consulta canônica de 30 s.
 - 503 no POST indica ausência de configuração. Não cria ciclo/outbox.
@@ -41,9 +45,12 @@ esse campo. Estados continuam PENDENTE, PROCESSANDO, CONCLUIDO e FALHOU.
 - Callback explícito FALHOU com `erroCodigo: CICLO_OBSOLETO` pode encerrar o ciclo
   comprovadamente obsoleto, inclusive após finalizar. Não grava texto nem inicia IA.
 - Nova tentativa só após estado terminal. Callback tardio de ciclo encerrado continua recusado.
+- V104 captura dono e versão de responsabilidade. Um trigger técnico avança a versão no
+  UPDATE existente de dono/estado, sem consulta extra nem mudança de autorização/regra comercial.
+  Detecta inclusive A → B → A; geração não revive só porque o dono voltou a ser o mesmo.
 - V104 não preenche snapshots antigos com o dono atual: isso inventaria histórico.
   Legados com snapshot NULL mantêm compatibilidade; **transferência passada não pode ser
-  comprovada por essa coluna**. Também não detecta uma ida e volta ao mesmo responsável.
+  comprovada por essa coluna**.
   Nesses casos, conferir a execução/timeline com o operador; não declarar cobertura absoluta.
 
 Textos novos têm fallback no schema para catálogos antigos. Nenhuma família tipográfica,
@@ -143,3 +150,30 @@ Nenhuma variável nova no Dokploy. A futura implantação requer a migration nov
 o boot normal a aplica quando a V73 não está pendente. O runner one-shot existente é
 específico da V73, não da V104. **Não houve deploy nem alteração de dados de produção**.
 Homologação n8n/IA real e causa da solicitação real permanecem pendentes do Dylan.
+
+## Evidências de validação
+
+- `ResumoIaFluxoIT`: 10/10 na primeira verificação completa; teste de ida/volta adicionado na revisão final.
+- Frontend final dirigido: 56/56 (painel, hook e compatibilidade do catálogo); typecheck aprovado;
+  lint sem erros, quatro avisos anteriores. Build aprovado na execução local.
+- Primeiro `clean verify` Java 21: BUILD SUCCESS, 28m44s. Após rebase/renumeração e proteção
+  de ida/volta, uma segunda execução completa foi iniciada; resultado final será anexado à PR.
+- CI da revisão 3d53773: PR 38348175016, Backend/Frontend/Stack aprovados, imagem skipped.
+  Não é confirmação do SHA posterior com a revisão final/evidências; conferir o último run na PR.
+- A tentativa de suíte frontend completa no Windows teve crash Node `3221226505` no teste
+  de provisionamento de marca (sem alteração nessa área); tentativas seguintes foram interrompidas
+  após falta de progresso. Não alegar suíte local completa verde. A suíte completa passou no CI Linux
+  da revisão acima. Testes dirigidos foram rerodados após o rebase, sem exclusões nesse grupo.
+
+Playwright CLI headed, aplicação real Next/Spring/PostgreSQL, dados sintéticos: Inter computada,
+`document.fonts.status=loaded`, zoom 1; desktop 1920×1080, 1280×900 e 800×900.
+Validado clique, PENDENTE/PROCESSANDO, resumo confirmado por callback HTTP, falha com preservação
+e recuperação pela consulta de status **sem F5**. Não houve chamada ao provedor/n8n real.
+O cenário de entrega incerta na captura usa fixture persistida na outbox do banco sintético;
+o timeout HTTP real é exercitado separadamente pelo teste de integração.
+Não houve reprodução HTML simplificada, fonte substituída ou mock de API no navegador.
+
+Capturas em `frontend/output/playwright/resumo-*.png`; inicial, pendente, processando, concluído,
+falha e entrega incerta. Em 800×900, overflow global medido como false.
+Avisos de HMR e indisponibilidade de templates (sem canal/credencial real no ambiente local)
+não foram usados como prova de homologação de envio/recebimento.

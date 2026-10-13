@@ -92,7 +92,8 @@ public class SolicitarResumoIaUseCase {
         if (ciclo == null) return null;
         boolean ativo = ciclo.status() == SolicitacaoResumoIaRepositorio.Status.PENDENTE
                 || ciclo.status() == SolicitacaoResumoIaRepositorio.Status.PROCESSANDO;
-        String diagnostico = ativo && !solicitacoes.cicloVigente(ciclo.solicitacaoId()) ? "CICLO_OBSOLETO"
+        String diagnostico = ativo && !automacao.configurado() ? "CONFIGURACAO_AUSENTE"
+                : ativo && !solicitacoes.cicloVigente(ciclo.solicitacaoId()) ? "CICLO_OBSOLETO"
                 : ciclo.status() == SolicitacaoResumoIaRepositorio.Status.PENDENTE
                     ? solicitacoes.diagnosticoDeEntrega(ciclo.solicitacaoId()) : null;
         if (diagnostico == null) return ciclo;

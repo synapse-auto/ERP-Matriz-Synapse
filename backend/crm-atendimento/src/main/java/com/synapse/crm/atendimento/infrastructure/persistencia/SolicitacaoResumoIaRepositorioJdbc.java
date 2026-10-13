@@ -31,8 +31,8 @@ class SolicitacaoResumoIaRepositorioJdbc implements SolicitacaoResumoIaRepositor
     public void criar(UUID solicitacaoId, UUID leadId, UUID atendimentoId, Instant solicitadoEm) {
         TransacaoObrigatoria.exigir("criar solicitacao de resumo por IA");
         chat.update(
-                "INSERT INTO solicitacao_resumo_ia (solicitacao_id, lead_id, atendimento_id, status, solicitado_em, atualizado_em, atendente_id_no_pedido) "
-                        + "VALUES (?, ?, ?, 'PENDENTE', ?, ?, (SELECT atendente_id FROM atendimento WHERE id = ?))",
+                "INSERT INTO solicitacao_resumo_ia (solicitacao_id, lead_id, atendimento_id, status, solicitado_em, atualizado_em, atendente_id_no_pedido, versao_responsabilidade_no_pedido) "
+                        + "SELECT ?, ?, ?, 'PENDENTE', ?, ?, atendente_id, versao_responsabilidade FROM atendimento WHERE id = ?",
                 solicitacaoId,
                 leadId,
                 atendimentoId,
@@ -69,7 +69,9 @@ class SolicitacaoResumoIaRepositorioJdbc implements SolicitacaoResumoIaRepositor
         return Boolean.TRUE.equals(chat.queryForObject("SELECT EXISTS (SELECT 1 FROM solicitacao_resumo_ia s "
                         + "JOIN atendimento a ON a.id = s.atendimento_id AND a.lead_id = s.lead_id "
                         + "WHERE s.solicitacao_id = ? AND a.status = 'EM_ATENDIMENTO' "
-                        + "AND (s.atendente_id_no_pedido IS NULL OR s.atendente_id_no_pedido = a.atendente_id))",
+                        + "AND (s.versao_responsabilidade_no_pedido IS NULL OR "
+                        + "(s.versao_responsabilidade_no_pedido = a.versao_responsabilidade "
+                        + "AND s.atendente_id_no_pedido IS NOT DISTINCT FROM a.atendente_id)))",
                 Boolean.class, solicitacaoId));
     }
 
