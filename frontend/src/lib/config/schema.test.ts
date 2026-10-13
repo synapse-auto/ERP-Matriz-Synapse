@@ -66,10 +66,16 @@ describe("TextosSchema", () => {
 });
 
 describe("TemaSchema", () => {
-  it("preserva sem alteração o tema completo servido pelo backend", () => {
+  it("preserva o tema completo servido pelo backend e só acrescenta os dois tokens derivados da D1 da Disbrel", () => {
     const tema = carregarJson("../backend/crm-app/src/main/resources/tema.json");
 
-    expect(TemaSchema.parse(tema)).toEqual(tema);
+    // O tema padrão não traz sidebarTextoForte nem mensagemFalhaTexto; o frontend os deriva reproduzindo o
+    // comportamento anterior (texto branco na sidebar; mesma cor de perigo da sidebar sobre o balão).
+    expect(TemaSchema.parse(tema)).toEqual({
+      ...tema,
+      sidebarTextoForte: "#FFFFFF",
+      mensagemFalhaTexto: tema.sidebarItemTextoPerigo,
+    });
   });
 
   it("deriva tokens adicionados depois da primeira versão quando o backend ainda não os fornece", () => {

@@ -95,3 +95,8 @@ coverage/
 
 # Artefatos temporários de inspeção e extração local
 .tmp-*
+
+# ==========================================================
+# Backups da marca da instancia (aplicar-marca-da-instancia.mjs)
+# ==========================================================
+backup-marca-*/

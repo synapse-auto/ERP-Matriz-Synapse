@@ -248,7 +248,7 @@ export function Sidebar({
         )}
         <div className="min-w-0 flex-1 overflow-hidden">
           <p
-            className="truncate text-[15px] leading-tight font-bold tracking-tight text-white"
+            className="truncate text-[15px] leading-tight font-bold tracking-tight text-sidebar-texto-forte"
             style={estiloDoRotuloDaSidebar(retraida)}
             aria-hidden={retraida}
             data-slot="rotulo-sidebar"
@@ -294,7 +294,7 @@ export function Sidebar({
           <ErroDeCarregamento
             mensagem={textos.estados.erroGenerico}
             onTentarNovamente={() => refetch()}
-            className="mx-2 border-white/15 bg-white/5 text-cor-erro-suave"
+            className="mx-2 border-[color-mix(in_srgb,var(--sidebar-texto-forte)_15%,transparent)] bg-[color-mix(in_srgb,var(--sidebar-texto-forte)_5%,transparent)] text-cor-erro-suave"
           />
         )}
         <MenuGrupo
@@ -319,10 +319,10 @@ export function Sidebar({
         />
       </nav>
 
-      <div className={retraida ? "relative border-t border-white/8 px-2 py-3" : "relative border-t border-white/8 px-3 py-3.5"}>
+      <div className={retraida ? "relative border-t border-[color-mix(in_srgb,var(--sidebar-texto-forte)_8%,transparent)] px-2 py-3" : "relative border-t border-[color-mix(in_srgb,var(--sidebar-texto-forte)_8%,transparent)] px-3 py-3.5"}>
         {popupAberto && (
           <div
-            className="absolute inset-x-3 bottom-[74px] z-40 rounded-xl border border-white/12 bg-fundo-sidebar-bloco p-1.5 shadow-lg"
+            className="absolute inset-x-3 bottom-[74px] z-40 rounded-xl border border-[color-mix(in_srgb,var(--sidebar-texto-forte)_12%,transparent)] bg-fundo-sidebar-bloco p-1.5 shadow-lg"
           >
             <p className="px-2.5 pt-2 pb-1.5 text-[10px] font-bold tracking-[.12em] text-texto-sidebar-sub">
               {textos.rodape.presenca.rotulo}
@@ -336,7 +336,7 @@ export function Sidebar({
                   onClick={() => mudarPresenca.mutate(status)}
                   className={
                     selecionado
-                      ? "flex w-full items-center gap-2.5 rounded-lg bg-sidebar-item-overlay-ativo px-2.5 py-2 text-left text-[13.5px] font-bold text-white"
+                      ? "flex w-full items-center gap-2.5 rounded-lg bg-sidebar-item-overlay-ativo px-2.5 py-2 text-left text-[13.5px] font-bold text-sidebar-texto-forte"
                       : "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13.5px] font-semibold text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
                   }
                 >
@@ -349,7 +349,7 @@ export function Sidebar({
                 </button>
               );
             })}
-            <div className="my-1.5 h-px bg-white/10" />
+            <div className="my-1.5 h-px bg-[color-mix(in_srgb,var(--sidebar-texto-forte)_10%,transparent)]" />
             <Link
               href="/trocar-senha"
               onClick={() => setPopupAberto(false)}
@@ -395,7 +395,7 @@ export function Sidebar({
             data-slot="rotulo-sidebar"
           >
             {meuUsuario.data && (
-              <span className="block truncate text-[13.5px] font-bold text-white">
+              <span className="block truncate text-[13.5px] font-bold text-sidebar-texto-forte">
                 {meuUsuario.data.nome}
               </span>
             )}
@@ -496,7 +496,7 @@ function MenuGrupo({
                 title={rotulo}
                 className={
                   ativo
-                    ? "relative flex items-center gap-3 rounded-[10px] bg-sidebar-item-overlay-ativo px-3 py-2.5 text-[16px] font-medium text-white shadow-[inset_3px_0_0_var(--sidebar-item-acento-ativo)] hover:bg-sidebar-item-overlay-ativo-hover"
+                    ? "relative flex items-center gap-3 rounded-[10px] bg-sidebar-item-overlay-ativo px-3 py-2.5 text-[16px] font-medium text-sidebar-texto-forte shadow-[inset_3px_0_0_var(--sidebar-item-acento-ativo)] hover:bg-sidebar-item-overlay-ativo-hover"
                     : "relative flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[16px] font-medium text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
                 }
               >
