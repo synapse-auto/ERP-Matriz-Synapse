@@ -47,10 +47,11 @@ public sealed interface VisibilidadeLead {
     }
 
     /**
-     * Mesma regra da consulta, aplicavel a um lead ja carregado.
+     * Regra base de carteira, aplicavel a um lead ja carregado.
      *
-     * <p>Existe para que a regra possa ser testada sem banco. A fonte da verdade continua sendo uma
-     * so: as alternativas deste tipo.
+     * <p>Existe para que a carteira possa ser testada sem banco. A excecao contextual de participacao
+     * (docs/51) exige estado persistido: e composta na Specification e protegida pela RLS.
+     * Este metodo, sozinho, nao e um verificador de autorizacao de participantes.
      */
     default boolean permite(Lead lead) {
         Objects.requireNonNull(lead, "lead e obrigatorio");

@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -25,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -39,6 +42,7 @@ import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 
@@ -210,6 +214,8 @@ class ConviteColaborativoIT extends PostgresIT {
         String rota = "/api/v1/atendimentos/" + atendimento + "/cartao";
         assertThat(chamar(EMAIL_BRUNO, HttpMethod.GET, rota, null).getBody())
                 .contains("\"convitePendente\":true");
+        assertThat(chamar(EMAIL_BRUNO,HttpMethod.GET,"/api/v1/atendimentos/"+atendimento+"/estado",null).getBody())
+                .contains("\"podeEnviar\":false");
         assertThat(chamar(EMAIL_BRUNO, HttpMethod.GET, "/api/v1/atendimentos/inbox?visao=PENDENTES", null).getBody())
                 .contains("\"convitePendente\":true").contains(atendimento.toString());
         assertThat(chamar(EMAIL_ANA, HttpMethod.GET, rota, null).getBody())
@@ -221,6 +227,8 @@ class ConviteColaborativoIT extends PostgresIT {
                 .getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(chamar(EMAIL_BRUNO, HttpMethod.GET, rota, null).getBody())
                 .contains("\"convitePendente\":false");
+        assertThat(chamar(EMAIL_BRUNO,HttpMethod.GET,"/api/v1/atendimentos/"+atendimento+"/estado",null).getBody())
+                .contains("\"podeEnviar\":true");
     }
 
     @Test
@@ -317,6 +325,111 @@ class ConviteColaborativoIT extends PostgresIT {
     }
 
     // --- apoio ------------------------------------------------------------------
+
+    @Test
+    void participanteAceito_abreFichaETags_semLiberarTerceiro() {
+        aceitarConviteDoBruno();
+        for (String sufixo : List.of("", "/tags")) {
+            String rota = "/api/v1/leads/" + lead + sufixo;
+            assertThat(chamar(EMAIL_BRUNO, HttpMethod.GET, rota, null).getStatusCode())
+                    .as("ficha do participante: %s", rota).isEqualTo(HttpStatus.OK);
+            assertThat(chamar(emailCaio, HttpMethod.GET, rota, null).getStatusCode())
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+        }
+        chamar(EMAIL_BRUNO, HttpMethod.POST, "/api/v1/atendimentos/" + atendimento + "/sair", null);
+        assertThat(chamar(EMAIL_BRUNO, HttpMethod.GET, "/api/v1/leads/" + lead, null).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        assertResponsavelAna();
+    }
+
+    @Test
+    void terceiroNaoPodeSeAdicionar_eAceiteRepetidoNaoDuplicaParticipacao() {
+        assertThat(chamar(emailCaio, HttpMethod.POST, "/api/v1/atendimentos/" + atendimento + "/entrar", null)
+                .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        UUID pedido = convidarBruno();
+        String rota = "/api/v1/atendimentos/pedidos-entrada/" + pedido + "/aprovar";
+        assertThat(chamar(EMAIL_BRUNO, HttpMethod.POST, rota, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(chamar(EMAIL_BRUNO, HttpMethod.POST, rota, null).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM atendimento_participante WHERE atendimento_id=?"
+                + " AND usuario_id=? AND saiu_em IS NULL", Integer.class, atendimento, idBruno)).isEqualTo(1);
+        assertResponsavelAna();
+    }
+
+    @Test
+    void pendenteNaoEnviaTemplateMidiaNemProgramaMensagem() {
+        convidarBruno();
+        int antes = jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id=?", Integer.class, atendimento);
+        assertThat(chamar(EMAIL_BRUNO, HttpMethod.POST, "/api/v1/atendimentos/mensagens/template",
+                Map.of("leadId",lead.toString(),"atendimentoId",atendimento.toString(),"nome","teste_sintetico",
+                        "idioma","pt_BR","parametros",List.of())).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(chamar(EMAIL_BRUNO, HttpMethod.POST, "/api/v1/mensagens-programadas",
+                Map.of("leadId",lead.toString(),"conteudo","agendamento indevido",
+                        "dataEnvio",java.time.Instant.now().plusSeconds(3600).toString())).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        var partes = new LinkedMultiValueMap<String,Object>();
+        partes.add("arquivo",new ByteArrayResource(new byte[]{(byte)0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a}) {
+            @Override public String getFilename() { return "sintetica.png"; }
+        });
+        var headers = new HttpHeaders();
+        headers.setBearerAuth(token(EMAIL_BRUNO));
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        var resposta = http.postForEntity("/api/v1/atendimentos/"+atendimento+"/mensagens/midia",
+                new HttpEntity<>(partes,headers),String.class);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id=?",Integer.class,atendimento)).isEqualTo(antes);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem_programada WHERE lead_id=?",Integer.class,lead)).isZero();
+        assertResponsavelAna();
+    }
+
+    @Test
+    void envioDoConvidadoConcorrenteComFinalizacao_naoReabreCiclo() throws Exception {
+        aceitarConviteDoBruno();
+        var respostas = disputar(() -> enviar(EMAIL_BRUNO,"envio concorrente ao fim"),
+                () -> chamar(EMAIL_ANA,HttpMethod.POST,"/api/v1/atendimentos/"+atendimento+"/finalizar",null));
+        assertThat(respostas.get(0).getStatusCode()).isIn(HttpStatus.OK,HttpStatus.CONFLICT);
+        assertThat(respostas.get(1).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id=?",String.class,atendimento)).isEqualTo("FINALIZADO");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM atendimento WHERE lead_id=? AND status <> 'FINALIZADO'",Integer.class,lead)).isZero();
+        // Finalização explícita libera o lead para o próximo ciclo; mantém o dono comercial deste.
+        assertThat(responsavelDoLead()).isNull();
+        assertThat(responsavelDoAtendimento()).isEqualTo(idAna);
+    }
+
+    @Test
+    void envioDoConvidadoConcorrenteComTransferencia_preservaDestinoExplicito() throws Exception {
+        aceitarConviteDoBruno();
+        var respostas = disputar(() -> enviar(EMAIL_BRUNO,"envio concorrente a transferencia"),
+                () -> chamar(EMAIL_ANA,HttpMethod.POST,"/api/v1/atendimentos/"+atendimento+"/transferir",
+                        Map.of("paraAtendenteId",idCaio.toString())));
+        assertThat(respostas.get(0).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respostas.get(1).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(responsavelDoLead()).isEqualTo(idCaio);
+        assertThat(responsavelDoAtendimento()).isEqualTo(idCaio);
+        assertThat(origemDaParticipacao(idBruno)).isEqualTo("CONVITE");
+    }
+
+    private List<ResponseEntity<String>> disputar(java.util.concurrent.Callable<ResponseEntity<String>> primeira,
+            java.util.concurrent.Callable<ResponseEntity<String>> segunda) throws Exception {
+        var largada = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var a = executor.submit(() -> { largada.await(); return primeira.call(); });
+            var b = executor.submit(() -> { largada.await(); return segunda.call(); });
+            largada.countDown();
+            return List.of(a.get(15,TimeUnit.SECONDS),b.get(15,TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    void participanteAceito_continuaNosAtivos_eSaiAoEncerrarParticipacao() {
+        aceitarConviteDoBruno();
+        String rota = "/api/v1/atendimentos/inbox?visao=ATIVOS";
+        assertThat(chamar(EMAIL_BRUNO, HttpMethod.GET, rota, null).getBody()).contains(atendimento.toString());
+        assertThat(chamar(EMAIL_ANA, HttpMethod.GET, rota, null).getBody()).contains(atendimento.toString());
+        assertThat(chamar(emailCaio, HttpMethod.GET, rota, null).getBody()).doesNotContain(atendimento.toString());
+        chamar(EMAIL_BRUNO, HttpMethod.POST, "/api/v1/atendimentos/" + atendimento + "/sair", null);
+        assertThat(chamar(EMAIL_BRUNO, HttpMethod.GET, rota, null).getBody()).doesNotContain(atendimento.toString());
+        assertResponsavelAna();
+    }
 
     private UUID convidarBruno() {
         ResponseEntity<String> resposta = chamar(EMAIL_ANA, HttpMethod.POST,

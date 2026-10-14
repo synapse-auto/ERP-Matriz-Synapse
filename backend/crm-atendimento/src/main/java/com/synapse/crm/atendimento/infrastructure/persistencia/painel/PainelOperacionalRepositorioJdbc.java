@@ -46,13 +46,23 @@ class PainelOperacionalRepositorioJdbc implements PainelOperacionalRepositorio, 
         -- Materializar o alcance ANTES de ler lead: evita avaliar políticas de participação
         -- em leads alheios que o recorte estrutural já descartou. OFFSET 0 preserva a barreira
         -- de planejamento; as duas tabelas continuam sob RLS, sem SECURITY DEFINER/BYPASSRLS.
-        WITH ciclos AS MATERIALIZED (
+        WITH convites_pessoais AS MATERIALIZED (
+          SELECT convite.atendimento_id FROM pedido_entrada_atendimento convite
+           WHERE convite.solicitante_id = :usuario AND convite.tipo = 'CONVITE' AND convite.status = 'PENDENTE'
+             AND convite.solicitado_em > CAST(:agora AS timestamptz) - app_validade_pedido_entrada()
+        ), compartilhados AS MATERIALIZED (
+          SELECT p.atendimento_id FROM atendimento_participante p
+           WHERE p.usuario_id = :usuario AND p.saiu_em IS NULL
+          UNION
+          SELECT atendimento_id FROM convites_pessoais
+        ), ciclos AS MATERIALIZED (
           SELECT a.id, a.lead_id, a.atendente_id, a.status, a.iniciado_em, a.finalizado_em
             FROM atendimento a
            WHERE (a.status <> 'FINALIZADO' OR (a.finalizado_em >= :inicio AND a.finalizado_em < :fim
                  AND NOT EXISTS (SELECT 1 FROM atendimento aberto
                                   WHERE aberto.lead_id = a.lead_id AND aberto.status <> 'FINALIZADO')))
-             AND (:amplo OR a.atendente_id = :usuario OR a.atendente_id IS NULL)
+             AND (:amplo OR a.atendente_id = :usuario OR a.atendente_id IS NULL
+                  OR a.id IN (SELECT atendimento_id FROM compartilhados))
         ), escolhidos AS MATERIALIZED (
           SELECT DISTINCT ON (a.lead_id) a.id, a.lead_id, a.atendente_id, a.status,
                  a.iniciado_em, a.finalizado_em, l.nome, l.empresa, l.foto_referencia, l.foto_url,
@@ -60,7 +70,8 @@ class PainelOperacionalRepositorioJdbc implements PainelOperacionalRepositorio, 
             FROM ciclos a JOIN LATERAL (
               SELECT l.nome, l.empresa, l.foto_referencia, l.foto_url, l.etapa_atendimento_id
                 FROM lead l WHERE l.id = a.lead_id
-                  AND (:amplo OR l.atendente_responsavel_id = :usuario OR l.status_basico IN ('IA','FINALIZADO'))
+                  AND (:amplo OR l.atendente_responsavel_id = :usuario OR l.status_basico IN ('IA','FINALIZADO')
+                       OR a.id IN (SELECT atendimento_id FROM compartilhados))
                OFFSET 0
             ) l ON true
            ORDER BY a.lead_id, (a.status = 'FINALIZADO'), a.iniciado_em DESC, a.id DESC
@@ -100,12 +111,10 @@ class PainelOperacionalRepositorioJdbc implements PainelOperacionalRepositorio, 
                  COALESCE(ultima.enviado_em, b.finalizado_em, b.iniciado_em) AS atividade_em,
                  CASE WHEN b.status <> 'FINALIZADO' THEN espera.enviado_em END AS espera_desde,
                  resposta.id IS NOT NULL AND espera.enviado_em IS NULL AS respondido,
+                 b.id IN (SELECT atendimento_id FROM convites_pessoais) AS convite_pendente,
                  b.status = 'EM_ATENDIMENTO' AND (
                    ultimo_dialogo.remetente_tipo = 'LEAD' OR EXISTS (
-                     SELECT 1 FROM pedido_entrada_atendimento convite
-                      WHERE convite.atendimento_id = b.id AND convite.solicitante_id = :usuario
-                        AND convite.tipo = 'CONVITE' AND convite.status = 'PENDENTE'
-                        AND convite.solicitado_em > CAST(:agora AS timestamptz) - app_validade_pedido_entrada()
+                     SELECT 1 FROM convites_pessoais convite WHERE convite.atendimento_id = b.id
                    )) AS pendente
             FROM escolhidos b LEFT JOIN nao_lidas n ON n.lead_id = b.lead_id
             LEFT JOIN atividades ultima ON ultima.atendimento_id = b.id
@@ -136,7 +145,7 @@ class PainelOperacionalRepositorioJdbc implements PainelOperacionalRepositorio, 
                  u.papel::text AS papel, u.status_presenca::text AS presenca, u.ativo AS elegivel
             FROM usuario u WHERE u.papel IN ('ATENDENTE','OPERADOR','SUBGESTOR','GESTOR','ADMINISTRADOR')
               AND (u.ativo OR EXISTS (SELECT 1 FROM contagens c WHERE c.atendente_id = u.id))
-              AND (:amplo OR u.id = :usuario)
+              AND (:amplo OR u.id = :usuario OR EXISTS (SELECT 1 FROM contagens c WHERE c.atendente_id = u.id))
           UNION ALL SELECT NULL::uuid, NULL::text, NULL::text, NULL::text, NULL::text, false
         )
         SELECT e.id, e.nome, e.foto, e.papel, e.presenca, e.elegivel,
@@ -197,7 +206,7 @@ class PainelOperacionalRepositorioJdbc implements PainelOperacionalRepositorio, 
             , pagina AS MATERIALIZED (
               SELECT b.id, b.lead_id, b.nome, b.empresa, b.foto_referencia, b.foto_url,
                      b.status, b.atendente_id, b.nao_lidas, b.atividade_em, b.espera_desde,
-                     b.etapa_atendimento_id, b.pendente, b.respondido
+                     b.etapa_atendimento_id, b.pendente, b.respondido, b.convite_pendente
                 FROM filtrada b WHERE
             """ + criterio
                 + " AND (:depois::timestamptz IS NULL OR (b.atividade_em, b.id) < (:depois, :depoisId::uuid))"
@@ -210,7 +219,7 @@ class PainelOperacionalRepositorioJdbc implements PainelOperacionalRepositorio, 
                    b.nao_lidas, b.atividade_em, b.espera_desde, e.nome AS etapa_nome, e.cor_visual AS etapa_cor,
                    CASE WHEN b.pendente THEN 'PENDENTE' ELSE b.status::text END AS situacao,
                    ultima.previa, ultima.tipo::text AS ultima_tipo, ultima.enviado_em AS ultima_em, b.respondido,
-                   canal.tipo::text AS canal_tipo
+                   canal.tipo::text AS canal_tipo, b.convite_pendente
               FROM pagina b LEFT JOIN usuario u ON u.id = b.atendente_id
               LEFT JOIN atendimento ciclo ON ciclo.id = b.id
               LEFT JOIN canal ON canal.id = ciclo.canal_id
@@ -229,7 +238,7 @@ class PainelOperacionalRepositorioJdbc implements PainelOperacionalRepositorio, 
                 r.getLong("nao_lidas"), instante(r, "atividade_em"), instante(r, "espera_desde"),
                 r.getString("etapa_nome"), r.getString("etapa_cor"), r.getString("situacao"),
                 CitacaoDeMensagem.sanitizar(r.getString("previa")), r.getString("ultima_tipo"),
-                instante(r, "ultima_em"), r.getBoolean("respondido"), r.getString("canal_tipo")));
+                instante(r, "ultima_em"), r.getBoolean("respondido"), r.getString("canal_tipo"), r.getBoolean("convite_pendente")));
     }
 
     private static String baseFiltrada(FiltroOperacional filtro) {
@@ -239,7 +248,7 @@ class PainelOperacionalRepositorioJdbc implements PainelOperacionalRepositorio, 
             case SEM_RESPOSTA -> "b.status <> 'FINALIZADO' AND b.espera_desde <= :corte";
         };
         return BASE + ", filtrada AS (SELECT b.id, b.lead_id, b.atendente_id, b.status, b.nome, b.empresa,"
-                + " b.foto_referencia, b.foto_url, b.etapa_atendimento_id, b.nao_lidas, b.atividade_em, b.espera_desde, b.pendente, b.respondido"
+                + " b.foto_referencia, b.foto_url, b.etapa_atendimento_id, b.nao_lidas, b.atividade_em, b.espera_desde, b.pendente, b.respondido, b.convite_pendente"
                 + " FROM base b WHERE " + sinal
                 + (filtro.entrada() ? " AND b.atendente_id IS NULL" : " AND (:dono::uuid IS NULL OR b.atendente_id = :dono)")
                 + " AND (:etapa::uuid IS NULL OR b.etapa_atendimento_id = :etapa)"

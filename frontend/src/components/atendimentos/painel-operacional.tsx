@@ -194,7 +194,11 @@ function previaDaFila(item: ConversaOperacional, catalogo: ReturnType<typeof use
 }
 
 function EtapaDaFila({item}: {item:ConversaOperacional}) {
-  return item.etapaNome ? <span className="inline-block max-w-full truncate rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground" style={item.etapaCor ? { color:item.etapaCor,backgroundColor:`color-mix(in srgb, ${item.etapaCor} 12%, transparent)` } : undefined}>{item.etapaNome}</span> : <span className="text-muted-foreground">—</span>;
+  const textos = useTextos().atendimentos.cartao;
+  return <span className="inline-flex min-w-0 max-w-full flex-wrap gap-1">
+    {item.convitePendente && <span className="inline-block max-w-full truncate rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">{textos.convidado}</span>}
+    {item.etapaNome ? <span className="inline-block max-w-full truncate rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground" style={item.etapaCor ? { color:item.etapaCor,backgroundColor:`color-mix(in srgb, ${item.etapaCor} 12%, transparent)` } : undefined}>{item.etapaNome}</span> : !item.convitePendente && <span className="text-muted-foreground">—</span>}
+  </span>;
 }
 
 function SituacaoDaFila({item}: {item:ConversaOperacional}) {

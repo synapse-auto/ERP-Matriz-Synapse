@@ -167,6 +167,8 @@ export function CabecalhoConversa({
   const minhaOrigem = participantes.find((participante) => participante.usuarioId === usuarioId)?.origem;
   const colaboraSemAssumir = estaDentro && !ehResponsavel
     && (minhaOrigem === "CONVITE" || minhaOrigem === "PEDIDO_APROVADO");
+  const aguardandoAceite = !estaDentro && Boolean(convite?.pendente || conversa.convitePendente
+    || (meuPedido?.tipo === "CONVITE" && meuPedido.status === "PENDENTE"));
   const estadoPersistido = estaDentro
     ? "DENTRO"
     : meuPedido?.status === "PENDENTE"
@@ -180,7 +182,7 @@ export function CabecalhoConversa({
     {
       id: "convidar",
       texto: textos.convidar,
-      visivel: podeColaborar && !finalizado && (ehResponsavel || estaDentro || capacidades.alcancaTodos),
+      visivel: podeColaborar && !finalizado && !aguardandoAceite && (ehResponsavel || estaDentro || capacidades.alcancaTodos),
       abrir: () => setConvidarAberto(true),
     },
   ];
@@ -309,7 +311,7 @@ export function CabecalhoConversa({
         aoSelecionar: acao.abrir,
       }));
     }
-    if (podeTransferirOuDevolver) {
+    if (podeTransferirOuDevolver && !aguardandoAceite) {
       acoes.push(acaoDeBotao({
         id: "transferir",
         prioridade: PRIORIDADE_TRANSFERIR,
@@ -319,7 +321,7 @@ export function CabecalhoConversa({
       }));
     }
   }
-  if (!finalizado && podeFinalizar) {
+  if (!finalizado && podeFinalizar && !aguardandoAceite) {
     acoes.push({
       id: "finalizar",
       fixo: true,

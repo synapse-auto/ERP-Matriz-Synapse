@@ -189,7 +189,9 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
      */
     static final String WHERE_ATIVOS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
             + " WHERE visivel.lead_id = a.lead_id AND visivel.status = 'EM_ATENDIMENTO'"
-            + " AND visivel.atendente_id = ?)";
+            + " AND (visivel.atendente_id = ? OR EXISTS (SELECT 1 FROM atendimento_participante colaborador"
+            + " WHERE colaborador.atendimento_id = visivel.id AND colaborador.usuario_id = app_usuario_id()"
+            + " AND colaborador.saiu_em IS NULL)))";
 
     static final String WHERE_PENDENTES_PROPRIOS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
             + " LEFT JOIN LATERAL (SELECT remetente_tipo FROM mensagem m_visivel"
@@ -197,7 +199,9 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             + " AND m_visivel.remetente_tipo IN ('LEAD','ATENDENTE')"
             + " ORDER BY m_visivel.enviado_em DESC LIMIT 1) ultima_visivel"
             + " ON true WHERE visivel.lead_id = a.lead_id AND visivel.status = 'EM_ATENDIMENTO'"
-            + " AND ((visivel.atendente_id = ? AND ultima_visivel.remetente_tipo = 'LEAD')"
+            + " AND (((visivel.atendente_id = ? OR EXISTS (SELECT 1 FROM atendimento_participante colaborador"
+            + " WHERE colaborador.atendimento_id = visivel.id AND colaborador.usuario_id = app_usuario_id()"
+            + " AND colaborador.saiu_em IS NULL)) AND ultima_visivel.remetente_tipo = 'LEAD')"
             + " OR EXISTS (SELECT 1 FROM pedido_entrada_atendimento convite"
             + " WHERE convite.atendimento_id = visivel.id"
             + " AND convite.solicitante_id = ? AND convite.tipo = 'CONVITE'"
@@ -289,13 +293,17 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
      * <p>A listagem continua com os {@code WHERE_*} por lead, que sao a fonte da fase 1; o teste de equivalencia e o que
      * impede lista e contagem de se afastarem.
      */
-    static final String SQL_CONTAR_ATIVOS = contar(" WHERE a.status = 'EM_ATENDIMENTO' AND a.atendente_id = ?");
+    static final String SQL_CONTAR_ATIVOS = contar(" WHERE a.status = 'EM_ATENDIMENTO' AND (a.atendente_id = ?"
+            + " OR EXISTS (SELECT 1 FROM atendimento_participante colaborador WHERE colaborador.atendimento_id = a.id"
+            + " AND colaborador.usuario_id = app_usuario_id() AND colaborador.saiu_em IS NULL))");
 
     static final String SQL_CONTAR_PENDENTES_PROPRIOS = contar(" LEFT JOIN LATERAL (SELECT remetente_tipo FROM mensagem"
             + " m_visivel WHERE m_visivel.atendimento_id = a.id AND m_visivel.remetente_tipo IN ('LEAD','ATENDENTE')"
             + " ORDER BY m_visivel.enviado_em DESC LIMIT 1) ultima_visivel ON true"
             + " WHERE a.status = 'EM_ATENDIMENTO'"
-            + " AND ((a.atendente_id = ? AND ultima_visivel.remetente_tipo = 'LEAD')"
+            + " AND (((a.atendente_id = ? OR EXISTS (SELECT 1 FROM atendimento_participante colaborador"
+            + " WHERE colaborador.atendimento_id = a.id AND colaborador.usuario_id = app_usuario_id()"
+            + " AND colaborador.saiu_em IS NULL)) AND ultima_visivel.remetente_tipo = 'LEAD')"
             + " OR EXISTS (SELECT 1 FROM pedido_entrada_atendimento convite"
             + " WHERE convite.atendimento_id = a.id"
             + " AND convite.solicitante_id = ? AND convite.tipo = 'CONVITE'"

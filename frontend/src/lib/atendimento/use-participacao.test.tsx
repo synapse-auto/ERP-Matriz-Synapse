@@ -1,4 +1,4 @@
-import { act, render } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
@@ -16,13 +16,14 @@ vi.mock("./api", () => ({
 }));
 
 import { invalidarParticipacao, useMeuPedido, usePedidosPendentes } from "./use-participacao";
+import { useAuthStore } from "@/lib/auth/auth-store";
 
 const ATENDIMENTO = "c0c00000-0000-4000-8000-0000000000a1";
 
 function Sonda({ pendentesHabilitados }: { pendentesHabilitados: boolean }) {
-  useMeuPedido(ATENDIMENTO);
+  const pedido = useMeuPedido(ATENDIMENTO);
   usePedidosPendentes(ATENDIMENTO, pendentesHabilitados);
-  return null;
+  return <output>{pedido?.status ?? "SEM_PEDIDO"}</output>;
 }
 
 async function esvaziarFila() {
@@ -35,6 +36,7 @@ async function esvaziarFila() {
 
 describe("use-participacao", () => {
   beforeEach(() => {
+    useAuthStore.setState({ usuarioId: "usuario-a", papel: "ATENDENTE", status: "autenticado" });
     invalidarParticipacao(ATENDIMENTO);
     // Como no navegador: cada resposta é um objeto novo, o que provoca nova renderização.
     api.obterMeuPedido.mockReset().mockImplementation(async () => ({ id: "p-1", status: "PENDENTE" }));
@@ -74,6 +76,37 @@ describe("use-participacao", () => {
     render(<Sonda pendentesHabilitados />);
     await esvaziarFila();
 
+    expect(api.listarPedidosPendentes).toHaveBeenCalledTimes(1);
+  });
+
+  it("resposta antiga não sobrescreve o aceite depois da invalidação", async () => {
+    let responderAntiga!: (valor: { status: string }) => void;
+    api.obterMeuPedido.mockImplementationOnce(() => new Promise(resolve => { responderAntiga = resolve; }))
+      .mockResolvedValue({ status: "APROVADO" });
+    render(<Sonda pendentesHabilitados={false} />);
+    await act(async () => invalidarParticipacao(ATENDIMENTO));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("APROVADO"));
+    await act(async () => responderAntiga({ status: "PENDENTE" }));
+    expect(screen.getByRole("status")).toHaveTextContent("APROVADO");
+  });
+
+  it("troca de sessão não revela pedido do usuário anterior nem aceita sua resposta atrasada", async () => {
+    let responderAntiga!: (valor: { status: string }) => void;
+    api.obterMeuPedido.mockImplementationOnce(() => new Promise(resolve => { responderAntiga = resolve; }))
+      .mockResolvedValue(null);
+    render(<Sonda pendentesHabilitados={false} />);
+    await act(async () => useAuthStore.setState({ usuarioId: "usuario-b" }));
+    await waitFor(() => expect(api.obterMeuPedido).toHaveBeenCalledTimes(2));
+    await act(async () => responderAntiga({ status: "PENDENTE" }));
+    expect(screen.getByRole("status")).toHaveTextContent("SEM_PEDIDO");
+  });
+
+  it("deixa de consultar pendentes quando perde a condição de responsável", async () => {
+    const tela = render(<Sonda pendentesHabilitados />);
+    await waitFor(() => expect(api.listarPedidosPendentes).toHaveBeenCalledTimes(1));
+    tela.rerender(<Sonda pendentesHabilitados={false} />);
+    await act(async () => invalidarParticipacao(ATENDIMENTO));
+    await esvaziarFila();
     expect(api.listarPedidosPendentes).toHaveBeenCalledTimes(1);
   });
 });

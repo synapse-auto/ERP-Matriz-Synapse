@@ -36,6 +36,8 @@ export interface ConversaOperacional {
   ultimaMensagemPreview?: string; ultimaMensagemTipo?: string | null;
   ultimaMensagemEm?: string | null; respondido?: boolean;
   canalTipo?: string | null;
+  /** Campo aditivo; ausente em respostas antigas equivale a não mostrar a marca. */
+  convitePendente?: boolean;
 }
 interface PaginaOperacional { itens: ConversaOperacional[]; proximoCursor: string | null }
 /** Estado mínimo consumido pela lista; não inventa variantes do resultado discriminado do Query. */
