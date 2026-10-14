@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { renovarAccessToken } from "@/lib/api/http-client";
+import { TelaDeErro } from "@/components/erros/tela-de-erro";
+import { useOnline } from "@/lib/erros/conexao";
 
 import { useAuthStore } from "./auth-store";
 
@@ -24,6 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [indisponivel, setIndisponivel] = useState(false);
+  const online = useOnline();
 
   // E29: à prova de digitar a rota. O bloqueio de verdade é no backend (SenhaProvisoriaFilter);
   // isto só evita que o usuário veja uma tela protegida por um instante antes do redirect.
@@ -46,10 +50,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelado = false;
     renovarAccessToken().then((renovou) => {
       if (cancelado) return;
+      setIndisponivel(false);
       if (!renovou) {
         irParaLogin();
       }
-    });
+    }).catch(() => { if (!cancelado) setIndisponivel(true); });
     return () => {
       cancelado = true;
     };
@@ -71,10 +76,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const atraso = Math.max(expiraEm - Date.now() - MARGEM_REFRESH_MS, 0);
     timerRef.current = setTimeout(async () => {
-      const renovou = await renovarAccessToken();
-      if (!renovou) {
-        irParaLogin();
-      }
+      try {
+        const renovou = await renovarAccessToken();
+        setIndisponivel(false);
+        if (!renovou) irParaLogin();
+      } catch { setIndisponivel(true); }
     }, atraso);
 
     return () => {
@@ -82,6 +88,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expiraEm]);
+
+  async function tentarRenovar() {
+    try {
+      const renovou = await renovarAccessToken();
+      if (!renovou) irParaLogin();
+      setIndisponivel(false);
+    } catch { setIndisponivel(true); }
+  }
+
+  if (pathname !== "/login" && status !== "autenticado" && (indisponivel || !online)) {
+    return <TelaDeErro tipo={online ? "backend" : "offline"} onTentarNovamente={tentarRenovar} />;
+  }
 
   // O access token só existe em memória. Num reload, nenhum consumidor protegido pode montar antes
   // de o cookie httpOnly restaurá-lo: isso evita 401 transitório, queries em estado de erro e uma
@@ -91,5 +109,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  return children;
+  return (
+    <>
+      {(!online || indisponivel) && <TelaDeErro tipo={online ? "backend" : "offline"} compacta onTentarNovamente={indisponivel ? tentarRenovar : undefined} />}
+      {children}
+    </>
+  );
 }

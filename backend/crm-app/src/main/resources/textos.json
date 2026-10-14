@@ -1,4 +1,20 @@
 {
+  "erros": {
+    "marcaFallback": "CRM",
+    "codigo404": "404",
+    "naoEncontrada": "Página não encontrada",
+    "descricao404": "Não encontramos esta página. Você pode voltar e continuar seu atendimento.",
+    "inicio": "Voltar à tela inicial",
+    "voltar": "Voltar à página anterior",
+    "indisponivel": "Sistema temporariamente indisponível",
+    "descricaoIndisponivel": "Não foi possível conectar ao sistema. Tente novamente em instantes.",
+    "erroRenderizacao": "Não foi possível exibir esta tela",
+    "descricaoRenderizacao": "Ocorreu um erro inesperado. Tente abrir esta tela novamente.",
+    "offline": "Você está sem conexão",
+    "descricaoOffline": "Verifique sua conexão com a internet e tente novamente. O conteúdo aberto foi mantido.",
+    "tentarNovamente": "Tentar novamente",
+    "tentando": "Tentando novamente…"
+  },
   "app": {
     "nome": "Synapse CRM",
     "marca": "Estrutural Vidros",

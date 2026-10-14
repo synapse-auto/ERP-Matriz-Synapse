@@ -7,6 +7,7 @@ import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
 import type { CartaoAtendimento, MensagemResposta } from "@/lib/atendimento/types";
 import { ErroDeApi } from "@/lib/api/errors";
+import { useAuthStore } from "@/lib/auth/auth-store";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const mutateMidia = vi.fn();
@@ -319,6 +320,20 @@ describe("Composer — anexo", () => {
       configurable: true,
       value: vi.fn(),
     });
+  });
+
+  it("recupera texto e arquivo após remontagem da mesma conversa sem reenviar", () => {
+    useAuthStore.setState({ usuarioId: "usuario-sintetico-recuperacao" });
+    const primeira = renderizar();
+    fireEvent.change(screen.getByPlaceholderText("Digite uma mensagem..."), { target: { value: "Rascunho antes da falha" } });
+    fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [arquivoFake("rascunho.pdf", "application/pdf")] } });
+    primeira.unmount();
+    renderizar();
+    expect(screen.getByPlaceholderText("Adicionar legenda (opcional)")).toHaveValue("Rascunho antes da falha");
+    expect(screen.getByText("rascunho.pdf")).toBeInTheDocument();
+    expect(mutateTexto).not.toHaveBeenCalled();
+    expect(mutateMidia).not.toHaveBeenCalled();
+    useAuthStore.getState().limparSessao();
   });
 
   it("abre o formulário de mensagem programada sem desmontar o composer", async () => {

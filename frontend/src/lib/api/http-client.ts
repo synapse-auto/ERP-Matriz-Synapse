@@ -22,12 +22,11 @@ export async function renovarAccessToken(): Promise<boolean> {
     renovacaoEmCurso = (async () => {
       try {
         const resposta = await fetch("/api/auth/refresh", { method: "POST" });
-        if (!resposta.ok) return false;
+        if ([401, 403].includes(resposta.status)) return false;
+        if (!resposta.ok) throw new ErroDeApi(resposta.status, null, "");
         const sessao = (await resposta.json()) as SessaoResposta;
         useAuthStore.getState().definirSessao(sessao);
         return true;
-      } catch {
-        return false;
       } finally {
         renovacaoEmCurso = null;
       }

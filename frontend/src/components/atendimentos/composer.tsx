@@ -30,6 +30,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ErroDeApi } from "@/lib/api/errors";
+import { useAuthStore } from "@/lib/auth/auth-store";
+import { useEstadoRecuperavel } from "@/lib/erros/estado-recuperavel";
 import { estadoDaJanelaTextoLivre } from "@/lib/atendimento/janela-24h";
 import { listarTemplatesWhatsApp, obterCapacidadeDoCanal } from "@/lib/atendimento/api";
 import { arquivosDaAreaDeTransferencia, filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO } from "@/lib/atendimento/arquivos-do-composer";
@@ -142,8 +144,10 @@ export function Composer({
   const textos = textosAtendimentos.composer;
   const convitePendenteRef = useRef(false);
   useEffect(() => { convitePendenteRef.current = Boolean(convite?.pendente); }, [convite?.pendente]);
-  const [texto, setTexto] = useState("");
-  const [arquivos, setArquivos] = useState<File[]>([]);
+  const usuario = useAuthStore.getState().usuarioId;
+  const chaveRascunho = usuario ? `${usuario}:cliente:${conversa.atendimentoId}` : null;
+  const [texto, setTexto] = useEstadoRecuperavel(chaveRascunho && `${chaveRascunho}:texto`, "");
+  const [arquivos, setArquivos] = useEstadoRecuperavel<File[]>(chaveRascunho && `${chaveRascunho}:arquivos`, []);
   const [avisoTipo, setAvisoTipo] = useState(false);
   const [progresso, setProgresso] = useState<number | null>(null);
   const [indiceEnvio, setIndiceEnvio] = useState<number | null>(null);
@@ -216,7 +220,7 @@ export function Composer({
     enviar.reset?.();
     enviarMidia.reset?.();
     onCancelarResposta?.();
-  }, [conversa.atendimentoId, enviar, enviarMidia, gravador, onCancelarResposta]);
+  }, [conversa.atendimentoId, enviar, enviarMidia, gravador, onCancelarResposta, setTexto, setArquivos]);
 
   function fecharMenuAnexo() {
     setMenuAnexoAberto(false);
