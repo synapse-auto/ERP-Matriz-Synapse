@@ -1,0 +1,4518 @@
+{
+  "ambiente": "PostgreSQL15 local, fixture em transação com ROLLBACK",
+  "volume": {
+    "leads": 4000,
+    "abertos": 3000,
+    "historicosEncerrados": 1000,
+    "mensagens": 128000
+  },
+  "rls": "SET LOCAL ROLE synapse_app + app.papel + app.usuario_id; não executado como dono",
+  "jitDesligado": true,
+  "erro": null,
+  "observacao": "Primeira passagem não é cache frio de disco: inserção/ANALYZE aqueceram buffers. Sem extrapolação para produção.",
+  "planos": [
+    {
+      "alcance": "gestao",
+      "operacao": "snapshot",
+      "rodada": 1,
+      "planejamentoMs": 123.157,
+      "execucaoMs": 1212.452,
+      "sharedHit": 128264,
+      "sharedRead": 0,
+      "tempRead": 3602,
+      "tempWritten": 2246,
+      "scans": [
+        {
+          "no": "Seq Scan",
+          "relacao": "atendimento",
+          "linhas": 3016,
+          "loops": 1,
+          "removidas": 1000
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 2,
+          "removidas": 1,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "lead",
+          "linhas": 1,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "lead_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 128018,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3014,
+          "loops": 1,
+          "removidas": 2
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 18002,
+          "loops": 1,
+          "removidas": 78014
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 96016,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3014,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 96016,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3012,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 78014,
+          "loops": 1,
+          "removidas": 18002
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3002,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3002,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento_leitura",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "atendimento_leitura_pkey"
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 26,
+          "loops": 3016,
+          "removidas": 6
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 3016,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "usuario",
+          "linhas": 5,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 0,
+          "loops": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3,
+          "loops": 6
+        }
+      ]
+    },
+    {
+      "alcance": "gestao",
+      "operacao": "fila",
+      "rodada": 1,
+      "planejamentoMs": 44.544,
+      "execucaoMs": 1269.735,
+      "sharedHit": 129072,
+      "sharedRead": 0,
+      "tempRead": 3602,
+      "tempWritten": 2246,
+      "scans": [
+        {
+          "no": "Seq Scan",
+          "relacao": "atendimento",
+          "linhas": 3016,
+          "loops": 1,
+          "removidas": 1000
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 2,
+          "removidas": 1,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "lead",
+          "linhas": 1,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "lead_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 128018,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3014,
+          "loops": 1,
+          "removidas": 2
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 18002,
+          "loops": 1,
+          "removidas": 78014
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 96016,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3014,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 96016,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3012,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 78014,
+          "loops": 1,
+          "removidas": 18002
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3002,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3002,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento_leitura",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "atendimento_leitura_pkey"
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 26,
+          "loops": 3016,
+          "removidas": 6
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 3016,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3014,
+          "loops": 1,
+          "removidas": 2
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "etapa_atendimento",
+          "linhas": 7,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 51,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "usuario",
+          "linhas": 5,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 51,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "canal",
+          "linhas": 1,
+          "loops": 1,
+          "indice": "canal_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 2,
+          "loops": 51,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2026_11_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2026_12_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2027_01_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_default_atendimento_id_enviado_em_idx"
+        }
+      ]
+    },
+    {
+      "alcance": "gestao",
+      "operacao": "snapshot",
+      "rodada": 2,
+      "planejamentoMs": 37.575,
+      "execucaoMs": 1574.025,
+      "sharedHit": 128249,
+      "sharedRead": 0,
+      "tempRead": 3602,
+      "tempWritten": 2246,
+      "scans": [
+        {
+          "no": "Seq Scan",
+          "relacao": "atendimento",
+          "linhas": 3016,
+          "loops": 1,
+          "removidas": 1000
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 2,
+          "removidas": 1,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "lead",
+          "linhas": 1,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "lead_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 128018,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3014,
+          "loops": 1,
+          "removidas": 2
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 18002,
+          "loops": 1,
+          "removidas": 78014
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 96016,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3014,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 96016,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3012,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 78014,
+          "loops": 1,
+          "removidas": 18002
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3002,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3002,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento_leitura",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "atendimento_leitura_pkey"
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 26,
+          "loops": 3016,
+          "removidas": 6
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 3016,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "usuario",
+          "linhas": 5,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 0,
+          "loops": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3,
+          "loops": 6
+        }
+      ]
+    },
+    {
+      "alcance": "gestao",
+      "operacao": "fila",
+      "rodada": 2,
+      "planejamentoMs": 37.875,
+      "execucaoMs": 1215.12,
+      "sharedHit": 129068,
+      "sharedRead": 0,
+      "tempRead": 3602,
+      "tempWritten": 2246,
+      "scans": [
+        {
+          "no": "Seq Scan",
+          "relacao": "atendimento",
+          "linhas": 3016,
+          "loops": 1,
+          "removidas": 1000
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 2,
+          "removidas": 1,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "lead",
+          "linhas": 1,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "lead_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 128018,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3014,
+          "loops": 1,
+          "removidas": 2
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 18002,
+          "loops": 1,
+          "removidas": 78014
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 96016,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3014,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 96016,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3012,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 78014,
+          "loops": 1,
+          "removidas": 18002
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3002,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3002,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento_leitura",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "atendimento_leitura_pkey"
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 26,
+          "loops": 3016,
+          "removidas": 6
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 3016,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3014,
+          "loops": 1,
+          "removidas": 2
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "etapa_atendimento",
+          "linhas": 7,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 51,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "usuario",
+          "linhas": 5,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 51,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "canal",
+          "linhas": 1,
+          "loops": 1,
+          "indice": "canal_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 2,
+          "loops": 51,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2026_11_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2026_12_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2027_01_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_default_atendimento_id_enviado_em_idx"
+        }
+      ]
+    },
+    {
+      "alcance": "gestao",
+      "operacao": "snapshot",
+      "rodada": 3,
+      "planejamentoMs": 17.577,
+      "execucaoMs": 745.917,
+      "sharedHit": 128249,
+      "sharedRead": 0,
+      "tempRead": 3602,
+      "tempWritten": 2246,
+      "scans": [
+        {
+          "no": "Seq Scan",
+          "relacao": "atendimento",
+          "linhas": 3016,
+          "loops": 1,
+          "removidas": 1000
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 2,
+          "removidas": 1,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "lead",
+          "linhas": 1,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "lead_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 128018,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3014,
+          "loops": 1,
+          "removidas": 2
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 18002,
+          "loops": 1,
+          "removidas": 78014
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 96016,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3014,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 96016,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3012,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 78014,
+          "loops": 1,
+          "removidas": 18002
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3002,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3002,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento_leitura",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "atendimento_leitura_pkey"
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 26,
+          "loops": 3016,
+          "removidas": 6
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 3016,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "usuario",
+          "linhas": 5,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 0,
+          "loops": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3,
+          "loops": 6
+        }
+      ]
+    },
+    {
+      "alcance": "gestao",
+      "operacao": "fila",
+      "rodada": 3,
+      "planejamentoMs": 34.013,
+      "execucaoMs": 1166.039,
+      "sharedHit": 129068,
+      "sharedRead": 0,
+      "tempRead": 3602,
+      "tempWritten": 2246,
+      "scans": [
+        {
+          "no": "Seq Scan",
+          "relacao": "atendimento",
+          "linhas": 3016,
+          "loops": 1,
+          "removidas": 1000
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 2,
+          "removidas": 1,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "lead",
+          "linhas": 1,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "lead_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 128018,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3014,
+          "loops": 1,
+          "removidas": 2
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 18002,
+          "loops": 1,
+          "removidas": 78014
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 96016,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3014,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 96016,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3012,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 78014,
+          "loops": 1,
+          "removidas": 18002
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3002,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3002,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3016,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento_leitura",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0,
+          "indice": "atendimento_leitura_pkey"
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 26,
+          "loops": 3016,
+          "removidas": 6
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 3016,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 3016,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 3014,
+          "loops": 1,
+          "removidas": 2
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "etapa_atendimento",
+          "linhas": 7,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 51,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "usuario",
+          "linhas": 5,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 51,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "canal",
+          "linhas": 1,
+          "loops": 1,
+          "indice": "canal_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 2,
+          "loops": 51,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2026_11_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2026_12_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2027_01_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_default_atendimento_id_enviado_em_idx"
+        }
+      ]
+    },
+    {
+      "alcance": "pessoal",
+      "operacao": "snapshot",
+      "rodada": 1,
+      "planejamentoMs": 13.834,
+      "execucaoMs": 595.509,
+      "sharedHit": 115757,
+      "sharedRead": 0,
+      "tempRead": 1361,
+      "tempWritten": 682,
+      "scans": [
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "atendimento",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 500
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 1341,
+          "loops": 1,
+          "indice": "idx_atendimento_atendente_status"
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 669,
+          "loops": 1,
+          "indice": "idx_atendimento_atendente_status"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "lead",
+          "linhas": 1,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "lead_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 32,
+          "loops": 1510
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 1510,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 9002,
+          "loops": 1,
+          "removidas": 39010
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 48012,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 48012,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1508,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 39010,
+          "loops": 1,
+          "removidas": 9002
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1502,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1502,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento_leitura",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "atendimento_leitura_pkey"
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 26,
+          "loops": 1510,
+          "removidas": 6
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 1510,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "usuario",
+          "linhas": 1,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "usuario_pkey"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 0,
+          "loops": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 2,
+          "loops": 2
+        }
+      ]
+    },
+    {
+      "alcance": "pessoal",
+      "operacao": "fila",
+      "rodada": 1,
+      "planejamentoMs": 43.556,
+      "execucaoMs": 487.743,
+      "sharedHit": 116576,
+      "sharedRead": 0,
+      "tempRead": 1361,
+      "tempWritten": 682,
+      "scans": [
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "atendimento",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 500
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 1341,
+          "loops": 1,
+          "indice": "idx_atendimento_atendente_status"
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 669,
+          "loops": 1,
+          "indice": "idx_atendimento_atendente_status"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "lead",
+          "linhas": 1,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "lead_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 32,
+          "loops": 1510
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 1510,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 9002,
+          "loops": 1,
+          "removidas": 39010
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 48012,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 48012,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1508,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 39010,
+          "loops": 1,
+          "removidas": 9002
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1502,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1502,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento_leitura",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "atendimento_leitura_pkey"
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 26,
+          "loops": 1510,
+          "removidas": 6
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 1510,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "etapa_atendimento",
+          "linhas": 7,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 51,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "usuario",
+          "linhas": 5,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 51,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "canal",
+          "linhas": 1,
+          "loops": 1,
+          "indice": "canal_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 2,
+          "loops": 51,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2026_11_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2026_12_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2027_01_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_default_atendimento_id_enviado_em_idx"
+        }
+      ]
+    },
+    {
+      "alcance": "pessoal",
+      "operacao": "snapshot",
+      "rodada": 2,
+      "planejamentoMs": 227.357,
+      "execucaoMs": 1417.068,
+      "sharedHit": 115757,
+      "sharedRead": 0,
+      "tempRead": 1361,
+      "tempWritten": 682,
+      "scans": [
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "atendimento",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 500
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 1341,
+          "loops": 1,
+          "indice": "idx_atendimento_atendente_status"
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 669,
+          "loops": 1,
+          "indice": "idx_atendimento_atendente_status"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "lead",
+          "linhas": 1,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "lead_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 32,
+          "loops": 1510
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 1510,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 9002,
+          "loops": 1,
+          "removidas": 39010
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 48012,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 48012,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1508,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 39010,
+          "loops": 1,
+          "removidas": 9002
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1502,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1502,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento_leitura",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "atendimento_leitura_pkey"
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 26,
+          "loops": 1510,
+          "removidas": 6
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 1510,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "usuario",
+          "linhas": 1,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "usuario_pkey"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 0,
+          "loops": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 2,
+          "loops": 2
+        }
+      ]
+    },
+    {
+      "alcance": "pessoal",
+      "operacao": "fila",
+      "rodada": 2,
+      "planejamentoMs": 27.861,
+      "execucaoMs": 494.797,
+      "sharedHit": 116576,
+      "sharedRead": 0,
+      "tempRead": 1361,
+      "tempWritten": 682,
+      "scans": [
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "atendimento",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 500
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 1341,
+          "loops": 1,
+          "indice": "idx_atendimento_atendente_status"
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 669,
+          "loops": 1,
+          "indice": "idx_atendimento_atendente_status"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "lead",
+          "linhas": 1,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "lead_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 32,
+          "loops": 1510
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 1510,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 9002,
+          "loops": 1,
+          "removidas": 39010
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 48012,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 48012,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1508,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 39010,
+          "loops": 1,
+          "removidas": 9002
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1502,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1502,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento_leitura",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "atendimento_leitura_pkey"
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 26,
+          "loops": 1510,
+          "removidas": 6
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 1510,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "etapa_atendimento",
+          "linhas": 7,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 51,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "usuario",
+          "linhas": 5,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 51,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "canal",
+          "linhas": 1,
+          "loops": 1,
+          "indice": "canal_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 2,
+          "loops": 51,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2026_11_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2026_12_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2027_01_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_default_atendimento_id_enviado_em_idx"
+        }
+      ]
+    },
+    {
+      "alcance": "pessoal",
+      "operacao": "snapshot",
+      "rodada": 3,
+      "planejamentoMs": 20.45,
+      "execucaoMs": 434.179,
+      "sharedHit": 115757,
+      "sharedRead": 0,
+      "tempRead": 1361,
+      "tempWritten": 682,
+      "scans": [
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "atendimento",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 500
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 1341,
+          "loops": 1,
+          "indice": "idx_atendimento_atendente_status"
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 669,
+          "loops": 1,
+          "indice": "idx_atendimento_atendente_status"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "lead",
+          "linhas": 1,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "lead_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 32,
+          "loops": 1510
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 1510,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 9002,
+          "loops": 1,
+          "removidas": 39010
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 48012,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 48012,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1508,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 39010,
+          "loops": 1,
+          "removidas": 9002
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1502,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1502,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento_leitura",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "atendimento_leitura_pkey"
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 26,
+          "loops": 1510,
+          "removidas": 6
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 1510,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "usuario",
+          "linhas": 1,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "usuario_pkey"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 0,
+          "loops": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 2,
+          "loops": 2
+        }
+      ]
+    },
+    {
+      "alcance": "pessoal",
+      "operacao": "fila",
+      "rodada": 3,
+      "planejamentoMs": 24.284,
+      "execucaoMs": 545.681,
+      "sharedHit": 116576,
+      "sharedRead": 0,
+      "tempRead": 1361,
+      "tempWritten": 682,
+      "scans": [
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "atendimento",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 500
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 1341,
+          "loops": 1,
+          "indice": "idx_atendimento_atendente_status"
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 669,
+          "loops": 1,
+          "indice": "idx_atendimento_atendente_status"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "lead",
+          "linhas": 1,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "lead_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 0,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 32,
+          "loops": 1510
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 1510,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 9002,
+          "loops": 1,
+          "removidas": 39010
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 48012,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 48012,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1508,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 39010,
+          "loops": 1,
+          "removidas": 9002
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1502,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1502,
+          "loops": 1
+        },
+        {
+          "no": "Subquery Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "idx_atendimento_lead"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento_leitura",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0,
+          "indice": "atendimento_leitura_pkey"
+        },
+        {
+          "no": "Bitmap Heap Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 26,
+          "loops": 1510,
+          "removidas": 6
+        },
+        {
+          "no": "Bitmap Index Scan",
+          "linhas": 32,
+          "loops": 1510,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 1510,
+          "removidas": 0
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 1510,
+          "loops": 1,
+          "removidas": 0
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "etapa_atendimento",
+          "linhas": 7,
+          "loops": 1
+        },
+        {
+          "no": "CTE Scan",
+          "linhas": 51,
+          "loops": 1
+        },
+        {
+          "no": "Seq Scan",
+          "relacao": "usuario",
+          "linhas": 5,
+          "loops": 1
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "atendimento",
+          "linhas": 1,
+          "loops": 51,
+          "removidas": 0,
+          "indice": "atendimento_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "pedido_entrada_atendimento",
+          "linhas": 0,
+          "loops": 1,
+          "removidas": 0,
+          "indice": "ux_pedido_convite_pendente"
+        },
+        {
+          "no": "Index Only Scan",
+          "relacao": "atendimento_participante",
+          "linhas": 0,
+          "loops": 0,
+          "indice": "uq_atendimento_participante_ativo"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "canal",
+          "linhas": 1,
+          "loops": 1,
+          "indice": "canal_pkey"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_10",
+          "linhas": 2,
+          "loops": 51,
+          "indice": "mensagem_2026_10_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_11",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2026_11_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2026_12",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2026_12_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_2027_01",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_2027_01_atendimento_id_enviado_em_idx"
+        },
+        {
+          "no": "Index Scan",
+          "relacao": "mensagem_default",
+          "linhas": 0,
+          "loops": 51,
+          "indice": "mensagem_default_atendimento_id_enviado_em_idx"
+        }
+      ]
+    }
+  ]
+}

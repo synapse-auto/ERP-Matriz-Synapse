@@ -1,7 +1,13 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { MoreHorizontal, Search, SlidersHorizontal, UserPlus, UsersRound } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { listarConversasChat } from "@/lib/chat-interno/api";
+import { previewUltimaMensagem } from "@/lib/chat-interno/mensagem-sistema";
+import { useEtapas } from "@/lib/lead/use-painel-lead";
+import { MoreHorizontal, Search, SlidersHorizontal, UserPlus, UsersRound, X } from "lucide-react";
+import { ListaFilaOperacional } from "./painel-operacional";
+import { totalizarOperacional, useFilaOperacional, useSnapshotOperacional, type FiltroOperacional, type ConsultaFilaOperacional } from "@/lib/atendimento/painel-operacional";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,6 +47,7 @@ import { DialogoCriarGrupo } from "@/components/chat-interno/dialogo-criar-grupo
 
 const SELECAO_TODOS = "todos";
 const INTERVALO_ATUALIZACAO_ATRASO_MS = 30_000;
+const JANELA_AGRUPAMENTO_BUSCA_MS = 300;
 
 type Props = {
   selecionadoId: string | null;
@@ -60,6 +67,12 @@ type Props = {
   onCriarGrupoInterno?: (nome: string, participantes: string[]) => Promise<unknown>;
   onNovoContato?: () => void;
   className?: string;
+  painelOperacionalPermitido?: boolean;
+  filtroOperacional?: FiltroOperacional | null;
+  nomeFiltroOperacional?: string;
+  onFiltroOperacionalAlterado?: (filtro: FiltroOperacional | null, nome?: string) => void;
+  onVoltarPainel?: () => void;
+  onAbrirFilaOperacional?: (id: string) => void;
 };
 
 type VisaoDeAba = Exclude<VisaoAtendimento, "FINALIZADOS">;
@@ -78,7 +91,65 @@ const ROTULO_VISAO: Record<
  * A lista de visões acompanha o papel da mesma sessão que a Agenda e a Sidebar usam. O servidor
  * continua sendo a autoridade final: esta lista só evita oferecer uma visão que a API recusaria.
  */
-export function ListaConversas({
+type EstadoOperacionalDaLista = {
+  fila: ConsultaFilaOperacional;
+  snapshot: ReturnType<typeof useSnapshotOperacional>;
+  busca: string;
+  setBusca: (busca: string) => void;
+  etapa: string | null;
+  setEtapa: (etapa: string | null) => void;
+  etapas: [string, string][];
+  internos: ItemInbox[];
+  internosErro: boolean;
+  recarregarInternos: () => void;
+};
+
+export function ListaConversas(props: Props) {
+  return props.painelOperacionalPermitido
+    ? <ListaConversasComPainel {...props} />
+    : <ListaConversasBase {...props} />;
+}
+
+/** Os hooks novos só existem quando o recurso foi efetivamente autorizado. */
+function ListaConversasComPainel(props: Props) {
+  const catalogo = useTextos();
+  const papel = useAuthStore(s => s.papel);
+  const usuarioId = useAuthStore(s => s.usuarioId);
+  const [busca, setBusca] = useState("");
+  const [buscaAplicada, setBuscaAplicada] = useState("");
+  // Agrupamento técnico de digitação; não altera prazo/regra de atendimento.
+  useEffect(() => {
+    const agrupamento = window.setTimeout(() => setBuscaAplicada(busca), JANELA_AGRUPAMENTO_BUSCA_MS);
+    return () => window.clearTimeout(agrupamento);
+  }, [busca]);
+  const [etapa, setEtapa] = useState<string | null>(null);
+  const visao = props.visaoAtual ?? props.visaoInicial ?? (papel === "ATENDENTE" || papel === "OPERADOR" ? "ATIVOS" : "TODOS");
+  const filtro = useMemo(() => ({ recorte: visao === "TODOS" ? "EM_ABERTO" as const : visao,
+    ...props.filtroOperacional, busca: buscaAplicada, etapaId: etapa ?? undefined }),
+    [props.filtroOperacional, buscaAplicada, etapa, visao]);
+  const fila = useFilaOperacional(filtro, true);
+  const snapshot = useSnapshotOperacional(true, filtro);
+  const etapas = useEtapas();
+  // Mantém grupos/individuais pelo contrato próprio, sem baixar outra inbox de clientes.
+  const internos = useQuery({ queryKey: ["atendimentos", "internos-painel", usuarioId],
+    queryFn: listarConversasChat, enabled: props.chatInternoHabilitado && visao === "TODOS" && !props.filtroOperacional });
+  const cartoesInternos = useMemo<ItemInbox[]>(() => (internos.data ?? [])
+    .filter(c => (c.participantes ?? "").toLocaleLowerCase().includes(busca.toLocaleLowerCase()))
+    .map(c => ({ tipo: "EQUIPE_INTERNA", atendimentoId: null, conversaId: c.id,
+      nome: c.participantes || catalogo.chatInterno.titulo, avatarUrl: c.fotoUrl ?? null,
+      identificadorVisual: c.id, ultimaMensagemPreview: previewUltimaMensagem(c.ultimaMensagem,catalogo.chatInterno.sistema),
+      ultimaMensagemEm: c.ultimaMensagemEm, naoLidas: c.naoLidas, participantes: c.participantes, tipoConversa: c.tipo })),
+    [internos.data,busca,catalogo.chatInterno]);
+  const digitando = busca !== buscaAplicada;
+  return <ListaConversasBase {...props} operacional={{
+    fila: digitando ? { ...fila, data: undefined, isLoading: true } : fila,
+    snapshot: digitando ? { ...snapshot, data: undefined } : snapshot,
+    busca, setBusca, etapa, setEtapa,
+    etapas: (etapas.data ?? []).map(e => [e.id,e.nome]), internos: visao === "TODOS" && !props.filtroOperacional ? cartoesInternos : [], internosErro: internos.isError && visao === "TODOS" && !props.filtroOperacional,
+    recarregarInternos: () => { void internos.refetch(); } }} />;
+}
+
+function ListaConversasBase({
   selecionadoId,
   leadInicialId,
   leadInicialGatilho = 0,
@@ -96,7 +167,14 @@ export function ListaConversas({
   onCriarGrupoInterno,
   onNovoContato,
   className,
-}: Props) {
+  painelOperacionalPermitido = false,
+  filtroOperacional,
+  nomeFiltroOperacional,
+  onFiltroOperacionalAlterado,
+  onVoltarPainel,
+  onAbrirFilaOperacional,
+  operacional,
+}: Props & { operacional?: EstadoOperacionalDaLista }) {
   const catalogo = useTextos();
   const textos = catalogo.atendimentos;
   const papel = useAuthStore((estado) => estado.papel);
@@ -119,9 +197,13 @@ export function ListaConversas({
       ? visaoEscolhida
       : abas[0];
   const abaAtiva = ehAbaDeAtendimento(visao) ? visao : "";
-  const [busca, setBusca] = useState("");
+  const [buscaLegada, setBuscaLegada] = useState("");
+  const busca = operacional?.busca ?? buscaLegada;
+  const setBusca = operacional?.setBusca ?? setBuscaLegada;
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
-  const [filtroEtapa, setFiltroEtapa] = useState<string | null>(null);
+  const [etapaLegada, setEtapaLegada] = useState<string | null>(null);
+  const filtroEtapa = operacional?.etapa ?? etapaLegada;
+  const setFiltroEtapa = operacional?.setEtapa ?? setEtapaLegada;
   const [filtroAtendente, setFiltroAtendente] = useState<string | null>(null);
   const [agora, setAgora] = useState(() => new Date());
 
@@ -146,9 +228,16 @@ export function ListaConversas({
     isFetchingNextPage,
     fetchNextPage,
     atendentesConhecidos = [],
-  } = useAtendimentos(visao, filtroAtendenteDaConsulta);
+  } = useAtendimentos(visao, filtroAtendenteDaConsulta, !painelOperacionalPermitido || Boolean(leadInicialId));
+  const snapshotOperacional = operacional?.snapshot;
+  const totaisOperacionais = totalizarOperacional(snapshotOperacional?.data?.equipe ?? []);
+  const contagensOperacionais: Record<VisaoAtendimento, number> = {
+    TODOS: totaisOperacionais.emAberto, ATIVOS: totaisOperacionais.ativos,
+    PENDENTES: totaisOperacionais.pendentes, POTENCIAIS: totaisOperacionais.potenciais,
+    FINALIZADOS: totaisOperacionais.finalizados,
+  };
   const cartoes = useMemo(() => (data ?? []).filter((item): item is ItemInbox => item != null), [data]);
-  const { data: contagens } = useContagemDeAtendimentos();
+  const { data: contagens } = useContagemDeAtendimentos(!painelOperacionalPermitido);
   const abriuLeadInicial = useRef(false);
   const [novaInternaAberta, setNovaInternaAberta] = useState(false);
   const [novoGrupoAberto, setNovoGrupoAberto] = useState(false);
@@ -158,13 +247,14 @@ export function ListaConversas({
 
   const fimDaLista = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (painelOperacionalPermitido) return;
     const relogio = window.setInterval(() => setAgora(new Date()), INTERVALO_ATUALIZACAO_ATRASO_MS);
     return () => window.clearInterval(relogio);
-  }, []);
+  }, [painelOperacionalPermitido]);
 
   useEffect(() => {
     const alvo = fimDaLista.current;
-    if (!alvo || !hasNextPage) return;
+    if (operacional || !alvo || !hasNextPage) return;
     const observador = new IntersectionObserver(
       (entradas) => {
         if (entradas[0]?.isIntersecting && !isFetchingNextPage) void fetchNextPage();
@@ -173,7 +263,7 @@ export function ListaConversas({
     );
     observador.observe(alvo);
     return () => observador.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, operacional]);
 
   useEffect(() => {
     onVisaoAlterada?.(visao);
@@ -197,11 +287,16 @@ export function ListaConversas({
   }, [cartoes, leadInicialGatilho, leadInicialId, onAbrirAtendimento]);
 
   function escolherVisao(proxima: VisaoAtendimento) {
+    if (painelOperacionalPermitido) {
+      onFiltroOperacionalAlterado?.({ ...filtroOperacional, recorte: proxima === "TODOS" ? "EM_ABERTO" : proxima,
+        ...(proxima === "FINALIZADOS" ? { sinal: "TODOS" as const } : {}) });
+    }
     setVisaoEscolhida(proxima);
     onVisaoAlterada?.(proxima);
   }
 
   const etapas = useMemo(() => {
+    if (operacional) return operacional.etapas;
     const mapa = new Map<string, string>();
     for (const cartao of cartoes) {
       if (cartao.tipo !== "EQUIPE_INTERNA" && cartao.etapaId && cartao.etapaNome) {
@@ -209,9 +304,11 @@ export function ListaConversas({
       }
     }
     return Array.from(mapa.entries());
-  }, [cartoes]);
+  }, [cartoes, operacional]);
 
   const atendentes = useMemo(() => {
+    if (operacional) return operacional.snapshot.data?.equipe
+      .filter(l => l.atendenteId && l.nome).map(l => [l.atendenteId!,l.nome!] as [string,string]) ?? [];
     const mapa = new Map(atendentesConhecidos);
     for (const cartao of cartoes) {
       if (cartao.tipo !== "EQUIPE_INTERNA" && cartao.atendenteId && cartao.atendenteNome) {
@@ -219,7 +316,7 @@ export function ListaConversas({
       }
     }
     return Array.from(mapa.entries());
-  }, [atendentesConhecidos, cartoes]);
+  }, [atendentesConhecidos, cartoes, operacional]);
 
   const opcoesDeAtendente = useMemo(() => {
     if (visao !== "FINALIZADOS" || papelAmplo) return atendentes;
@@ -268,12 +365,12 @@ export function ListaConversas({
     : -1;
 
   return (
-    <div className={cn("flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background", className)}>
+    <div className={cn("flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background", painelOperacionalPermitido && "bg-card", className)}>
       <div className="px-4 pt-4">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-lg font-bold tracking-tight text-foreground">
-            {catalogo.menu.itens.atendimentos}
-          </h1>
+          <h1 className={cn("text-lg font-bold tracking-tight text-foreground", painelOperacionalPermitido && "text-sm text-primary")}>{onVoltarPainel
+            ? <button type="button" onClick={onVoltarPainel} className="rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={catalogo.painelOperacional.voltar}>{catalogo.menu.itens.atendimentos}</button>
+            : catalogo.menu.itens.atendimentos}</h1>
           <div className="flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -356,10 +453,16 @@ export function ListaConversas({
             className="h-10 rounded-xl bg-muted/60 pl-9"
           />
         </div>
+        {filtroOperacional && <div className="mt-3 flex flex-wrap items-center gap-1 text-xs">
+          {filtroOperacional.recorte && filtroOperacional.recorte !== "EM_ABERTO" && <button type="button" className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary" aria-label={catalogo.painelOperacional.remover.replace("{filtro}", ({ NOVAS: catalogo.painelOperacional.novas, ATIVOS: catalogo.painelOperacional.ativos, PENDENTES: catalogo.painelOperacional.pendentes, POTENCIAIS: catalogo.painelOperacional.potenciais, SEM_RESPOSTA: catalogo.painelOperacional.comAtraso, FINALIZADOS: catalogo.painelOperacional.finalizados })[filtroOperacional.recorte])} onClick={() => onFiltroOperacionalAlterado?.({ ...filtroOperacional, recorte: "EM_ABERTO" })}>{({ NOVAS: catalogo.painelOperacional.novas, ATIVOS: catalogo.painelOperacional.ativos, PENDENTES: catalogo.painelOperacional.pendentes, POTENCIAIS: catalogo.painelOperacional.potenciais, SEM_RESPOSTA: catalogo.painelOperacional.comAtraso, FINALIZADOS: catalogo.painelOperacional.finalizados })[filtroOperacional.recorte]}<X className="size-3" aria-hidden /></button>}
+          {(filtroOperacional.atendenteId || filtroOperacional.entrada) && <button type="button" className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary" aria-label={catalogo.painelOperacional.remover.replace("{filtro}", nomeFiltroOperacional ?? catalogo.painelOperacional.entrada)} onClick={() => onFiltroOperacionalAlterado?.({ ...filtroOperacional, atendenteId: undefined, entrada: undefined })}>{nomeFiltroOperacional ?? catalogo.painelOperacional.entrada}<X className="size-3" aria-hidden /></button>}
+          {filtroOperacional.sinal && filtroOperacional.sinal !== "TODOS" && <button type="button" className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-primary" onClick={() => onFiltroOperacionalAlterado?.({ ...filtroOperacional, sinal: "TODOS" })} aria-label={catalogo.painelOperacional.remover.replace("{filtro}", filtroOperacional.sinal === "NOVAS" ? catalogo.painelOperacional.novas : catalogo.painelOperacional.comAtraso)}>{filtroOperacional.sinal === "NOVAS" ? catalogo.painelOperacional.novas : catalogo.painelOperacional.comAtraso}<X className="size-3" aria-hidden /></button>}
+          <button type="button" className="px-2 py-1 underline underline-offset-2" onClick={() => onFiltroOperacionalAlterado?.(null)}>{catalogo.painelOperacional.limpar}</button>
+        </div>}
       </div>
 
       <Tabs
-        value={abaAtiva}
+        value={filtroOperacional ? filtroOperacional.recorte === "EM_ABERTO" ? "TODOS" : filtroOperacional.recorte : abaAtiva}
         onValueChange={(valor) => {
           escolherVisao(valor as VisaoAtendimento);
         }}
@@ -368,22 +471,22 @@ export function ListaConversas({
           variant="line"
           className={cn(
             "mx-4 mt-3 flex h-auto w-[calc(100%-2rem)] justify-start gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden p-0 md:grid md:gap-1 md:overflow-x-hidden",
-            papelAmplo ? "md:grid-cols-4" : "md:grid-cols-3",
+            painelOperacionalPermitido ? "grid-cols-5 gap-0 overflow-x-hidden group-data-horizontal/tabs:h-auto" : papelAmplo ? "md:grid-cols-4" : "md:grid-cols-3",
           )}
         >
-          {abas.map((item) => (
+          {(painelOperacionalPermitido ? [...ABAS_GESTAO, "FINALIZADOS" as const] : abas).map((item) => (
             <TabsTrigger
               key={item}
               value={item}
-              className="min-w-0 shrink-0 gap-1 rounded-full border border-border px-3 py-1.5 text-[0.75rem] shadow-none after:hidden data-active:border-primary data-active:bg-primary data-active:text-primary-foreground md:rounded-none md:border-0 md:px-0.5 md:pt-1 md:pb-2.5 md:text-[0.6875rem] md:data-active:bg-transparent md:data-active:text-foreground md:data-active:after:bg-primary md:after:opacity-0 md:data-active:after:opacity-100"
+              className={cn("min-w-0 shrink-0 gap-1 rounded-full border border-border px-3 py-1.5 text-[0.75rem] shadow-none after:hidden data-active:border-primary data-active:bg-primary data-active:text-primary-foreground md:rounded-none md:border-0 md:px-0.5 md:pt-1 md:pb-2.5 md:text-[0.6875rem] md:data-active:bg-transparent md:data-active:text-foreground md:data-active:after:bg-primary md:after:opacity-0 md:data-active:after:opacity-100", painelOperacionalPermitido && "h-auto min-h-14 flex-col-reverse rounded-none border-0 px-0 text-[0.625rem] data-active:bg-transparent data-active:text-primary after:block group-data-horizontal/tabs:after:bottom-0 after:bg-primary")}
             >
-              {textos.visoes[ROTULO_VISAO[item]]}
-              {contagens && (
+              {item === "FINALIZADOS" ? catalogo.painelOperacional.finalizadosAba : textos.visoes[ROTULO_VISAO[item as VisaoDeAba]]}
+              {(painelOperacionalPermitido || contagens) && (
                 <Badge
                   variant={item === visao ? "default" : "secondary"}
-                  className="shrink-0 px-1 text-[0.625rem] data-active:bg-primary-foreground/20"
+                  className={cn("shrink-0 px-1 text-[0.625rem] data-active:bg-primary-foreground/20", painelOperacionalPermitido && "bg-transparent px-0 text-sm font-bold", painelOperacionalPermitido && (item === (filtroOperacional ? filtroOperacional.recorte === "EM_ABERTO" ? "TODOS" : filtroOperacional.recorte : abaAtiva) ? "text-primary" : "text-muted-foreground"))}
                 >
-                  {contagens[item]}
+                  {painelOperacionalPermitido ? snapshotOperacional?.data ? contagensOperacionais[item] : "—" : contagens?.[item]}
                 </Badge>
               )}
             </TabsTrigger>
@@ -406,7 +509,7 @@ export function ListaConversas({
           {temFiltroDeAtendente && (
             <Seletor
               className="min-w-28"
-              valor={filtroAtendenteVisivel}
+              valor={operacional ? filtroOperacional?.atendenteId ?? (papelAmplo ? SELECAO_TODOS : usuarioId ?? "") : filtroAtendenteVisivel}
               placeholder={textos.filtros.atendente}
               ariaLabel={textos.filtros.atendente}
               opcoes={(papelAmplo
@@ -415,7 +518,13 @@ export function ListaConversas({
                 valor: id,
                 rotulo: nome,
               }))}
-              onChange={(valor) => setFiltroAtendente(valor || null)}
+              onChange={(valor) => {
+                setFiltroAtendente(valor || null);
+                if (operacional) onFiltroOperacionalAlterado?.({ ...filtroOperacional,
+                  recorte: filtroOperacional?.recorte ?? (visao === "TODOS" ? "EM_ABERTO" : visao),
+                  atendenteId: valor === SELECAO_TODOS ? undefined : valor || undefined, entrada: false },
+                  atendentes.find(([id]) => id === valor)?.[1]);
+              }}
             />
           )}
         </div>
@@ -423,7 +532,10 @@ export function ListaConversas({
 
       <ScrollArea className="min-h-0 flex-1 overflow-hidden" data-slot="lista-conversas-scroll">
         <div className="pt-4" data-slot="lista-conversas-itens">
-          {isLoading ? (
+          {operacional ? <>
+            <ListaFilaOperacional consulta={operacional.fila} referencia={operacional.snapshot.data} selecionadoId={selecionadoId} onAbrir={onAbrirFilaOperacional ?? (() => undefined)} internos={operacional.internos} onAbrirInterno={onAbrirAtendimento} />
+            {operacional.internosErro && <div role="alert" className="p-3 text-xs"><p>{catalogo.painelOperacional.erroInternos}</p><Button variant="ghost" onClick={operacional.recarregarInternos}>{catalogo.painelOperacional.tentar}</Button></div>}
+          </> : isLoading ? (
             <div className="space-y-2 p-3">
               {Array.from({ length: 5 }).map((_, indice) => (
                 <Skeleton key={indice} className="h-14 w-full" />
@@ -457,7 +569,7 @@ export function ListaConversas({
               </Fragment>
             ))
           )}
-          {hasNextPage && (
+          {!operacional && hasNextPage && (
             <div ref={fimDaLista} className="p-3 text-center text-xs text-muted-foreground" aria-live="polite">
               {isFetchingNextPage ? textos.lista.carregandoMais : textos.lista.carregarMais}
             </div>

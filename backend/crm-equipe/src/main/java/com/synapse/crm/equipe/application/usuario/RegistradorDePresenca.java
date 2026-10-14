@@ -6,12 +6,14 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.equipe.domain.usuario.MudancaDePresenca;
 import com.synapse.crm.equipe.domain.usuario.OrigemDaPresenca;
+import com.synapse.crm.equipe.domain.usuario.PresencaDoUsuarioAlterada;
 import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
 
 /**
@@ -30,9 +32,11 @@ public class RegistradorDePresenca {
     private static final Logger log = LoggerFactory.getLogger(RegistradorDePresenca.class);
 
     private final EquipeRepositorio equipe;
+    private final ApplicationEventPublisher eventos;
 
-    RegistradorDePresenca(EquipeRepositorio equipe) {
+    RegistradorDePresenca(EquipeRepositorio equipe, ApplicationEventPublisher eventos) {
         this.equipe = equipe;
+        this.eventos = eventos;
     }
 
     /** @return vazio se o usuario nao existe ou esta inativo; senao a mudanca (que pode nao ter mudado nada). */
@@ -61,6 +65,8 @@ public class RegistradorDePresenca {
                         m.novo(),
                         origem,
                         motivo == null ? "-" : motivo));
+        mudanca.filter(MudancaDePresenca::mudou)
+                .ifPresent(m -> eventos.publishEvent(new PresencaDoUsuarioAlterada(usuarioId)));
         return mudanca;
     }
 }

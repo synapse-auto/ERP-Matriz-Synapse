@@ -1,4 +1,5 @@
 "use client";
+import { ehAvisoPainelOperacional } from "./aviso-painel-operacional";
 
 import { useEffect, useState } from "react";
 
@@ -418,6 +419,7 @@ export class ConexaoTempoReal {
           notificacao.tipo === "CHAT_INTERNO_REACAO" ||
           ehAvisoDeAcessoAlterado(notificacao) ||
           ehAvisoDeFinalizacaoEmMassa(notificacao) ||
+          ehAvisoPainelOperacional(notificacao) ||
           ehAvisoDePresencaAlterada(notificacao)
         ) {
           this.opcoes.onNotificacao?.(notificacao);

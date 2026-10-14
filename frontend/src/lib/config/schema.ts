@@ -4,6 +4,7 @@ import { CampanhasTextosSchema } from "./schema-campanhas";
 import { SetoresTextosSchema } from "./schema-setores";
 import { GestaoTextosSchema } from "./schema-gestao";
 import { ErrosTextosSchema } from "./schema-erros";
+import { PainelOperacionalTextosSchema } from "./schema-painel-operacional";
 
 /**
  * Espelha tema.json (backend/crm-app/src/main/resources/tema.json), gerado a partir de
@@ -117,6 +118,7 @@ export type Tema = z.infer<typeof TemaSchema>;
  * de frontend e backend; a estrutura fundacional continua obrigatória.
  */
 export const TextosSchema = z.object({
+  painelOperacional: PainelOperacionalTextosSchema,
   erros: ErrosTextosSchema,
   novidades: z.object({
     titulo: z.string().optional(),

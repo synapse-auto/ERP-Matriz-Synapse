@@ -7,7 +7,7 @@ import { contarAtendimentosPorVisao, listarAtendimentos, listarInboxUnificada } 
 import type { PaginaInbox } from "./api";
 import type { ItemInbox, VisaoAtendimento } from "./types";
 
-export function useAtendimentos(visao: VisaoAtendimento, atendenteId?: string | null) {
+export function useAtendimentos(visao: VisaoAtendimento, atendenteId?: string | null, habilitado = true) {
   const queryClient = useQueryClient();
   const inboxSemFiltro = queryClient.getQueryData<InfiniteData<PaginaInbox>>([
     "atendimentos",
@@ -35,6 +35,7 @@ export function useAtendimentos(visao: VisaoAtendimento, atendenteId?: string | 
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) => listarInboxUnificada(visao, pageParam, 50, atendenteId ?? null),
     getNextPageParam: (ultima) => ultima.proximoCursor ?? undefined,
+    enabled: habilitado,
   });
   const paginas = inbox.data?.pages;
   const itensInbox = useMemo(
@@ -56,10 +57,11 @@ function itemPresente(item: ItemInbox | null | undefined): item is ItemInbox {
 }
 
 /** Os badges das abas (E17b §Bloco 6) — uma contagem por visão, independente de qual aba está ativa. */
-export function useContagemDeAtendimentos() {
+export function useContagemDeAtendimentos(habilitado = true) {
   return useQuery({
     queryKey: ["atendimentos", "contagem"],
     queryFn: () => contarAtendimentosPorVisao(),
+    enabled: habilitado,
   });
 }
 

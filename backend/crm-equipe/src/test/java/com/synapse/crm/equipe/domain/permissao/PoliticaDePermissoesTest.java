@@ -25,6 +25,23 @@ class PoliticaDePermissoesTest {
         return new ConfiguracaoDePermissoes(Map.of(), acoes);
     }
 
+    @Test
+    void painelOperacionalNaoConcedeAlcanceOuOutrasAcoes() {
+        var capacidade = Capacidade.ATENDIMENTOS_PAINEL_OPERACIONAL;
+        for (var papel : Set.of(PapelUsuario.GESTOR, PapelUsuario.SUBGESTOR, PapelUsuario.ADMINISTRADOR)) {
+            assertThat(PoliticaDePermissoes.calcular(papel, VAZIA, VAZIA, FLAGS).permite(capacidade)).isTrue();
+        }
+        for (var papel : Set.of(PapelUsuario.ATENDENTE, PapelUsuario.OPERADOR)) {
+            assertThat(PoliticaDePermissoes.calcular(papel, VAZIA, VAZIA, FLAGS).permite(capacidade)).isFalse();
+            var concessao = acoes(Map.of(capacidade, true));
+            PoliticaDePermissoes.validarExcecoes(papel, VAZIA, concessao, FLAGS);
+            var efetivas = PoliticaDePermissoes.calcular(papel, VAZIA, concessao, FLAGS);
+            assertThat(efetivas.permite(capacidade)).isTrue();
+            assertThat(Capacidade.ATENDIMENTOS_VER.alcancePara(papel)).isEqualTo(Capacidade.Alcance.MEUS);
+            assertThat(efetivas.permite(Capacidade.EQUIPE_VER)).isFalse();
+        }
+    }
+
     @ParameterizedTest
     @EnumSource(PapelUsuario.class)
     @DisplayName("sem nada salvo, o efetivo reproduz exatamente o hasAnyRole de antes (menos as delegacoes novas)")
@@ -247,6 +264,8 @@ class PoliticaDePermissoesTest {
         long configuraveis = java.util.Arrays.stream(Capacidade.values())
                 .filter(c -> !c.estrutural() && c.noTetoDe(PapelUsuario.ATENDENTE)).count();
         assertThat(atendente.totalConfiguravel()).isEqualTo(configuraveis);
-        assertThat(atendente.totalPermitido()).isEqualTo(configuraveis);
+        long permitidas = java.util.Arrays.stream(Capacidade.values())
+                .filter(c -> !c.estrutural() && c.permitidaPorPadraoPara(PapelUsuario.ATENDENTE)).count();
+        assertThat(atendente.totalPermitido()).isEqualTo(permitidas);
     }
 }

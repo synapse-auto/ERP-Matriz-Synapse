@@ -10,6 +10,7 @@ import {
   pedidoDaNotificacao,
 } from "@/lib/atendimento/atualizacao-do-painel";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
+import { ehAvisoPainelOperacional } from "@/lib/atendimento/aviso-painel-operacional";
 import {
   chaveTecnicaDaNotificacao,
   obterConversaAtiva,
@@ -60,6 +61,10 @@ export function NotificacoesTempoReal() {
 
   const aoReceber = useCallback((notificacao: NotificacaoTempoReal) => {
     const bruto: unknown = notificacao;
+    if (ehAvisoPainelOperacional(bruto)) {
+      atualizarPainelDeAtendimentos(cache, { chave: bruto.eventoId });
+      return; // Sem toast, som ou alteração da própria presença.
+    }
     if (ehAvisoDeFinalizacaoEmMassa(bruto)) {
       // O servidor reenvia o aviso se a primeira entrega falhar (at-least-once); o `eventoId` e o mesmo, entao um
       // reenvio nunca vira segundo cartao. Os atendimentos saem da fila sem F5.

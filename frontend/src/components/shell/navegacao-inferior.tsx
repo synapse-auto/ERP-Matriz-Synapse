@@ -53,6 +53,7 @@ import {
 } from "@/lib/navegacao/itens-do-menu";
 import { itemDeMenuVisivel } from "@/lib/navegacao/visibilidade-do-menu";
 import { cn } from "@/lib/utils";
+import { voltarAoPainelOperacional } from "@/lib/atendimento/navegacao-painel";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { NovidadesDialog } from "./novidades-dialog";
 import { SeloBeta } from "./selo-beta";
@@ -161,6 +162,13 @@ export function NavegacaoInferior() {
               <li key={item.chave} className="min-w-0 flex-1">
                 <Link
                   href={item.rota}
+                  onClick={(evento) => {
+                    if (ativo && item.chave === "atendimentos" && !minhasPermissoes.isError
+                      && minhasPermissoes.data?.capacidades["atendimentos.painel_operacional"]?.permitido) {
+                      evento.preventDefault();
+                      voltarAoPainelOperacional();
+                    }
+                  }}
                   aria-current={ativo ? "page" : undefined}
                   className={cn(
                     "flex flex-col items-center gap-0.5 px-1 py-2 text-[11px] font-medium",
