@@ -95,7 +95,7 @@ HTTP 401/403 agora termina a entrega com `WEBHOOK_AUTENTICACAO_RECUSADA`; demais
 traz `diagnosticoCodigo` opcional para orientação na ficha. Não limpar a outbox para tentar novamente.
 A reserva e o registro da entrega são transações curtas; a chamada HTTP usa timer exclusivo.
 
-V104 captura responsável e versão da responsabilidade no momento do pedido para recusar resultado
+V105 captura responsável e versão da responsabilidade no momento do pedido para recusar resultado
 após transferência, inclusive ida e volta. Configuração ausente/inválida durante um ciclo ativo
 é indicada no GET por `CONFIGURACAO_AUSENTE`, sem inventar falha ou reenvio.
 Solicitações legadas sem snapshot preservam compatibilidade, mas não comprovam transferência
