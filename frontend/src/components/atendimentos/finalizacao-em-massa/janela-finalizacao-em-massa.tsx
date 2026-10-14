@@ -102,11 +102,8 @@ export function JanelaFinalizacaoEmMassa({ aberta, onFechar }: Props) {
     reiniciar();
   }
 
-  const titulo = operacaoAcompanhada
-    ? textos.andamento.titulo
-    : etapa === "confirmar"
-      ? textos.confirmacao.titulo
-      : textos.titulo;
+  // O título neutro continua correto depois de concluir; o estado real está no acompanhamento.
+  const titulo = !operacaoAcompanhada && etapa === "confirmar" ? textos.confirmacao.titulo : textos.titulo;
   const nomesEscolhidos = atendentes.filter((item) => filtro.atendenteIds.includes(item.id)).map((item) => item.nome);
 
   return (
@@ -118,7 +115,12 @@ export function JanelaFinalizacaoEmMassa({ aberta, onFechar }: Props) {
         </DialogHeader>
 
         {operacaoAcompanhada ? (
-          <AcompanhamentoDaFinalizacao operacaoId={operacaoAcompanhada} onFechar={fechar} onNova={novaFinalizacao} />
+          <AcompanhamentoDaFinalizacao
+            key={operacaoAcompanhada}
+            operacaoId={operacaoAcompanhada}
+            onFechar={fechar}
+            onNova={novaFinalizacao}
+          />
         ) : etapa === "confirmar" ? (
           <div className="grid gap-3">
             <p

@@ -637,6 +637,8 @@ export const TextosSchema = z.object({
         erroItens: z.string(),
         nova: z.string(),
         leadSemNome: z.string(),
+        paginaAnterior: z.string().default("Página anterior"),
+        proximaPagina: z.string().default("Próxima página"),
         abas: z.object({
           FINALIZADO: z.string(),
           IGNORADO: z.string(),
@@ -649,6 +651,7 @@ export const TextosSchema = z.object({
         ATIVIDADE_POSTERIOR: z.string(),
         INDISPONIVEL: z.string(),
         ERRO_INESPERADO: z.string(),
+        RESULTADO_VENDA_PENDENTE: z.string().default("Negociação sem resultado de venda; finalize individualmente escolhendo o resultado."),
       }),
       recentes: z.object({
         titulo: z.string(),

@@ -285,6 +285,45 @@ describe("JanelaFinalizacaoEmMassa — confirmação", () => {
 });
 
 describe("JanelaFinalizacaoEmMassa — acompanhamento e resultado", () => {
+  it("permite consultar todos os itens de um resultado maior que 50", async () => {
+    const concluida = operacao({ status: "CONCLUIDA", encontrados: 51, processados: 51,
+      finalizados: 51, pendentes: 0, percentual: 100 });
+    api.listarOperacoesDeFinalizacao.mockResolvedValue([concluida]);
+    api.obterOperacaoDeFinalizacao.mockResolvedValue(concluida);
+    api.listarItensDaFinalizacao.mockImplementation((_id: string, _status: string, pagina: number) =>
+      Promise.resolve({ itens: Array.from({ length: pagina === 0 ? 50 : 1 }, (_, i) => ({
+        atendimentoId: `a-${pagina * 50 + i}`, atendenteId: "u-clayton", atendenteNome: "Clayton",
+        leadNome: `Lead ${pagina * 50 + i}`, status: "FINALIZADO", motivo: null,
+        processadoEm: "2026-09-03T12:00:30Z",
+      })), pagina, tamanho: 50 }));
+    renderizar();
+    fireEvent.click(await screen.findByRole("button", { name: textos.recentes.abrir }));
+    await screen.findByText("Lead 0");
+    fireEvent.click(screen.getByRole("button", { name: "Próxima página" }));
+    expect(await screen.findByText("Lead 50")).toBeInTheDocument();
+    expect(screen.queryByText("Lead 0")).not.toBeInTheDocument();
+    expect(api.listarItensDaFinalizacao).toHaveBeenLastCalledWith("op-1", "FINALIZADO", 1, 50);
+    fireEvent.click(screen.getByRole("button", { name: "Página anterior" }));
+    expect(await screen.findByText("Lead 0")).toBeInTheDocument();
+  });
+
+  it("revalida o resultado ao concluir mesmo sem novo item processado", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api.listarOperacoesDeFinalizacao.mockResolvedValue([operacao({ status: "EM_ANDAMENTO", processados: 10,
+      finalizados: 10, pendentes: 0, percentual: 100 })]);
+    api.obterOperacaoDeFinalizacao.mockResolvedValueOnce(operacao({ status: "EM_ANDAMENTO", processados: 10,
+      finalizados: 10, pendentes: 0, percentual: 100 })).mockResolvedValue(operacao({ status: "CONCLUIDA",
+      processados: 10, finalizados: 10, pendentes: 0, percentual: 100 }));
+    const { invalidar } = renderizar();
+    await screen.findByText("10 de 10 processados");
+    invalidar.mockClear();
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    await screen.findByText(textos.resultado.titulo);
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["finalizacao-em-massa", "recentes"] });
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["atendimentos"] });
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
+  });
+
   it("mostra o progresso, atualiza a lista de atendimentos e chega ao resultado final", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     api.iniciarFinalizacao.mockResolvedValue(operacao());
@@ -316,6 +355,7 @@ describe("JanelaFinalizacaoEmMassa — acompanhamento e resultado", () => {
     });
 
     expect(await screen.findByText(textos.resultado.tituloParcial)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: textos.titulo })).toBeInTheDocument();
     expect(screen.getByText("8 finalizado(s)")).toBeInTheDocument();
     expect(screen.getByText("2 ignorado(s)")).toBeInTheDocument();
     expect(screen.queryByText(/com falha/)).not.toBeInTheDocument();

@@ -13,6 +13,17 @@ function carregarJson(caminho: string): Record<string, unknown> {
 }
 
 describe("TextosSchema", () => {
+  it("preserva catálogos anteriores aos motivos e paginação da finalização em massa", () => {
+    const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
+    const massa = (catalogo.atendimentos as Record<string, unknown>).finalizacaoEmMassa as Record<string, Record<string, unknown>>;
+    delete massa.resultado.paginaAnterior;
+    delete massa.resultado.proximaPagina;
+    delete massa.motivos.RESULTADO_VENDA_PENDENTE;
+    const textos = TextosSchema.parse(catalogo).atendimentos.finalizacaoEmMassa;
+    expect(textos.resultado.paginaAnterior).toBeTruthy();
+    expect(textos.resultado.proximaPagina).toBeTruthy();
+    expect(textos.motivos.RESULTADO_VENDA_PENDENTE).toContain("Negociação");
+  });
   it("aceita o catálogo servido pelo backend e mantém os textos da automação no grupo correto", () => {
     const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
 

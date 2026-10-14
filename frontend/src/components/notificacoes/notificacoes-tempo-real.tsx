@@ -67,6 +67,7 @@ export function NotificacoesTempoReal() {
       finalizacoesJaAvisadas.current.add(bruto.eventoId);
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
       void cache.invalidateQueries({ queryKey: ["finalizacao-em-massa"] });
+      void cache.invalidateQueries({ queryKey: ["dashboard"] });
       setAvisosDeFinalizacao((atuais) => [bruto, ...atuais].slice(0, MAXIMO_DE_AVISOS_VISUAIS));
       return;
     }

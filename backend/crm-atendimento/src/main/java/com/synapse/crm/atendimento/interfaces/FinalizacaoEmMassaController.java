@@ -31,7 +31,7 @@ import com.synapse.crm.atendimento.interfaces.FinalizacaoEmMassaDtos.PedidoRequi
 import com.synapse.crm.atendimento.interfaces.FinalizacaoEmMassaDtos.PreviaResposta;
 
 /**
- * Finalizacao em massa de atendimentos por atendentes e periodo (docs/55). A permissao
+ * Finalizacao em massa de atendimentos por atendentes e periodo (docs/59). A permissao
  * {@code atendimentos.finalizar_lote} e exigida em cada caso de uso, nao so aqui.
  */
 @RestController
@@ -94,7 +94,8 @@ class FinalizacaoEmMassaController {
     @Operation(
             summary = "Resultado detalhado, atendimento por atendimento",
             description = "Itens paginados, com filtro opcional por status (PENDENTE, FINALIZADO, IGNORADO, FALHA) "
-                    + "e o motivo de cada ignorado ou falha.")
+                    + "e o motivo de cada ignorado ou falha. RESULTADO_VENDA_PENDENTE indica negociação sem "
+                    + "resultado explícito: permanece aberta, sem inventar Não vendeu. Percorra todas as páginas dos detalhes.")
     @GetMapping("/{id}/itens")
     PaginaDeItensResposta itens(
             @PathVariable UUID id,

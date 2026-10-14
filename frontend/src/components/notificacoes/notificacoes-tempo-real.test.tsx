@@ -328,6 +328,7 @@ describe("aviso de finalização em massa", () => {
 
     expect(screen.getAllByRole("status")).toHaveLength(1);
     expect(invalidar.mock.calls.filter(([filtro]) => filtro?.queryKey?.[0] === "atendimentos")).toHaveLength(1);
+    expect(invalidar.mock.calls.filter(([filtro]) => filtro?.queryKey?.[0] === "dashboard")).toHaveLength(1);
   });
 
   it("operações diferentes geram cartões diferentes", () => {

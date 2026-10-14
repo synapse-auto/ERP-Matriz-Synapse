@@ -489,6 +489,8 @@
         "erroItens": "Não foi possível carregar os detalhes.",
         "nova": "Nova finalização",
         "leadSemNome": "Sem nome",
+        "paginaAnterior": "Página anterior",
+        "proximaPagina": "Próxima página",
         "abas": {
           "FINALIZADO": "Finalizados",
           "IGNORADO": "Ignorados",
@@ -500,6 +502,7 @@
         "TRANSFERIDO": "Foi transferido para outro atendente",
         "ATIVIDADE_POSTERIOR": "Teve atividade depois do período",
         "INDISPONIVEL": "Ficou indisponível",
+        "RESULTADO_VENDA_PENDENTE": "Negociação sem resultado de venda; finalize individualmente escolhendo o resultado.",
         "ERRO_INESPERADO": "Erro inesperado ao finalizar"
       },
       "recentes": {

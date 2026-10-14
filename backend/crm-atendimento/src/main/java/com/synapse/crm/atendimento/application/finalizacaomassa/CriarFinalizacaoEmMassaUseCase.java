@@ -60,8 +60,19 @@ public class CriarFinalizacaoEmMassaUseCase {
                     "OPERACAO_EM_ANDAMENTO", "ja existe uma finalizacao em massa em andamento: " + ativa);
         });
         try {
-            return repositorio.criarCongelandoElegiveis(
-                    usuarioContext.atual().id(), chaveDeIdempotencia, filtro, limite);
+            // READ COMMITTED: o recorte pode crescer entre contar e congelar. Uma sentinela
+            // detecta excesso sem varrer/carregar tudo; a exceção desfaz operação e itens.
+            var operacao = repositorio.criarCongelandoElegiveis(
+                    usuarioContext.atual().id(), chaveDeIdempotencia, filtro, Math.addExact(limite, 1));
+            if (operacao.encontrados() > limite) {
+                throw FinalizacaoEmMassaException.invalida(
+                        "LIMITE_EXCEDIDO", "o recorte mudou e excede o maximo por operacao: " + limite);
+            }
+            if (operacao.encontrados() == 0) {
+                throw FinalizacaoEmMassaException.invalida(
+                        "SEM_ATENDIMENTOS", "nenhum atendimento permanece nos filtros informados");
+            }
+            return operacao;
         } catch (OperacaoAtivaJaExisteException corrida) {
             throw FinalizacaoEmMassaException.conflito(
                     "OPERACAO_EM_ANDAMENTO", "ja existe uma finalizacao em massa em andamento");

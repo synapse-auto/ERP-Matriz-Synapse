@@ -10,6 +10,8 @@ public enum MotivoDoItemDeFinalizacao {
     ATIVIDADE_POSTERIOR,
     /** O atendimento deixou de existir ou de ser acessivel. */
     INDISPONIVEL,
+    /** Negociação ainda sem escolha comercial explícita; o lote não inventa resultado. */
+    RESULTADO_VENDA_PENDENTE,
     /** Erro inesperado (so em FALHA). */
     ERRO_INESPERADO
 }
