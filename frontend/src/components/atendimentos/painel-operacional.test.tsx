@@ -44,6 +44,27 @@ beforeEach(() => {
 });
 
 describe("painel operacional com componentes reais", () => {
+  it("transição temporal revalida contagem e fila sem duplicar a leitura de dois observadores", async () => {
+    vi.useFakeTimers();
+    api.mockImplementation((url: string) => {
+      const corpo = snapshot();
+      corpo.proximaTransicaoEm = new Date(Date.now() + 1_000).toISOString();
+      return Promise.resolve(url.includes("/fila?") ? { itens: [], proximoCursor: null } : corpo);
+    });
+    function Sonda() { useSnapshotOperacional(true); useFilaOperacional({ recorte: "SEM_RESPOSTA" }, true); return null; }
+    const tela = renderizar(<><Sonda /><Sonda /></>);
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+      expect(api.mock.calls.filter(([url]) => !url.includes("/fila?"))).toHaveLength(1);
+      expect(api.mock.calls.filter(([url]) => url.includes("/fila?"))).toHaveLength(1);
+      await act(async () => { await vi.advanceTimersByTimeAsync(1_010); });
+      expect(api.mock.calls.filter(([url]) => !url.includes("/fila?"))).toHaveLength(2);
+      expect(api.mock.calls.filter(([url]) => url.includes("/fila?"))).toHaveLength(2);
+    } finally {
+      tela.unmount();
+      vi.useRealTimers();
+    }
+  });
   it("resposta atrasada de outro filtro não substitui a fila atual e revogação esconde dados", async () => {
     let concluirAna!: (pagina: unknown) => void;
     api.mockImplementation((url: string) => url.includes("ana")

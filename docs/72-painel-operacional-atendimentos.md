@@ -9,7 +9,7 @@ Nenhum acesso a VPS/Dokploy, SQL de produção, envio externo ou deploy está au
 |---|---|---|
 | 1. Auditoria | Concluída; limite interativo registrado | Template JSON lido sem executar scripts. Regras de espera/período/admin aprovadas. As três screenshots posteriores do usuário permitem comparação estática; não houve navegação no original. |
 | 2. Backend | Implementado e validado; última revisão em execução | 7 IT HTTP/Postgres/Redis, 2 do listener transacional, 3 dos casos de uso e 21 de política passaram. `clean verify` completo intermediário passou em 20m44; o seguinte passou em 28m11. Último ciclo inclui também canal na projeção paginada. |
-| 3. Interface | Implementada e refinada com as screenshots | Seis cards, barras preenchidas, uma expansão por vez com tabela de lead/etapa/situação/prévia/espera/hora, abas com badges, título clicável, chips e sidebar paginada. 8 testes novos do painel/lateral passaram; 85 de regressão dirigida passaram. Inter confirmada. |
+| 3. Interface | Implementada e refinada com as screenshots | Seis cards, barras preenchidas, uma expansão por vez com tabela de lead/etapa/situação/prévia/espera/hora, abas com badges, título clicável, chips e sidebar paginada. 10 testes do painel/lateral passaram; rodada dirigida de cinco arquivos passou 133/133 antes do último teste temporal. Inter confirmada. |
 | 4. Validação | Em andamento; não considerar aprovação visual/CI | Prints reais, navegação/rascunho/back e comparação após ajustes. Frontend completo intermediário: 1280/1290, 10 falhas de processos Windows em aplicar-marca. Última suíte, clean verify e CI ainda pendentes neste registro. |
 
 ## Limitações atuais
@@ -182,6 +182,42 @@ Não é fila de comandos nem garantia durável; não acrescenta polling, outbox 
   arquivo preexistente fora da task. Não silenciar/excluir do CI; conferir execução Linux da PR.
 - Testes específicos de empate/limites/filtros concorrentes ainda precisam completar a matriz.
 - Não declarar aprovação/fidelidade visual do original sem a comparação autorizada disponível.
+
+## Matriz de fechamento e evidências compartilháveis
+
+Todos os arquivos de imagem abaixo são da aplicação real, com contas/dados sintéticos.
+Não são uma reprodução HTML e não contêm conversas de clientes.
+
+| Requisito | Evidência / limite |
+|---|---|
+| Seis indicadores, filtros de equipe, fila de entrada e uma expansão | Testes de componentes e screenshots após refinamento; números reais da fixture. |
+| Busca/etapa/dono/recorte no servidor, cursor | `PainelOperacionalIT`: 65 cartões, páginas de 20, sem duplicidade, contagens completas; incompatíveis retornam 400. |
+| Gestão, autorização direta, delegação sem visão global | IT chama Gestão para conceder/revogar com o mesmo JWT; API recusa sem capacidade e retorna vazio ao forçar colega. Política cobre teto/padrão dos papéis. |
+| Retornar pelo título sem perder rascunho | Playwright: abriu UUID terminado em 003, preencheu rascunho, clicou no título; URL voltou a `/atendimentos`; back recuperou conversa e rascunho. Nenhum envio. |
+| Header/tabela expandida conforme terceira referência | Comparação estática e segunda rodada de ajustes; metadados ausentes não inventados. Aprovação visual final ainda é do usuário. |
+| Desktop/menor/celular | 1920×1080, 1280×900 e 390×844; Inter carregada, zoom 1. No celular `scrollWidth=innerWidth=390`; tabela tem rolagem própria, não a página inteira. |
+| Respostas fora de ordem / revogação / busca rápida | Teste mantém fila Bruno após resposta antiga Ana; revogação esconde dados; digitação intermediária não faz request e esconde resultados antigos. |
+| Atraso e filas atualizam com o tempo | Relógio falso testa dois observadores, uma nova leitura do snapshot e uma da fila no prazo; corrigido refetch duplicado após resposta instantânea e invalidação da fila. Não há timer por atendente. |
+| Eventos e presença | STOMP/serviço de notificações e IT da API de presença; listener transacional só publica após commit, sem dados de colegas; rollback não publica. |
+| Sem N+1, isolamento do chat | Um agregado e um parâmetro por leitura, pool geral, plano com RLS; enriquecimento depois de LIMIT; nenhuma chamada a provedores ou mutations no painel. |
+| Matriz avançada de concorrência | Ainda não há teste específico de toda combinação transferência/finalização/reabertura simultânea com mudança de filtro. Não declarar essa cobertura como concluída. |
+| Performance de produção | Não medida. Planos locais versionados, sem promessa de latência/CPU na VPS ou autorização de ativação em horário comercial. |
+
+### Capturas
+
+- [Primeira rodada, antes do refinamento](evidencias/painel-operacional/painel-desktop-primeira-rodada-1920.png).
+- [Depois, painel 1920](evidencias/painel-operacional/painel-entrega-1920.png).
+- [Depois, expansão 1920](evidencias/painel-operacional/painel-entrega-expandido-1920.png).
+- [Depois, expansão 1280](evidencias/painel-operacional/painel-entrega-expandido-1280.png).
+- [Depois, celular 390](evidencias/painel-operacional/painel-entrega-mobile-390.png).
+- [Planos locais sanitizados e reproduzíveis](evidencias/painel-operacional/planos-local.json).
+
+Contraste medido nas barras da identidade local (texto branco): novas 4,74:1; ativos 4,53:1;
+pendentes 4,53:1; sem resposta 5,44:1. Não certifica automaticamente todos os temas configuráveis.
+
+Ação necessária no Dokploy: nenhuma variável nova. V106 segue o fluxo normal de migrations;
+nenhum deploy ou alteração de produção foi feito. Manter a PR em draft enquanto houver itens
+de validação explicitamente pendentes; resultados finais de CI/testes ficam também na PR.
 
 ## Refinamento solicitado nas três screenshots
 

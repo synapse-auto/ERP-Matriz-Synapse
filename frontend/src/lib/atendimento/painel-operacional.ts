@@ -78,7 +78,7 @@ export function useSnapshotOperacional(habilitado: boolean, filtro: FiltroOperac
     // Não reutilizar snapshot de outro usuário, período ou filtros.
     placeholderData: undefined,
   });
-  const { data, dataUpdatedAt, isError, refetch } = consulta;
+  const { data, dataUpdatedAt, isError } = consulta;
   useEffect(() => {
     if (!acesso.permitido) {
       void cache.cancelQueries({ queryKey: ["atendimentos", "contagem", "operacional"] });
@@ -91,11 +91,20 @@ export function useSnapshotOperacional(habilitado: boolean, filtro: FiltroOperac
       - new Date(data.atualizadoEm).getTime() - (Date.now() - dataUpdatedAt);
     // Um disparo por próxima transição, não um relógio/polling por card ou por linha.
     const timer = window.setTimeout(() => {
-      if (document.visibilityState !== "hidden") void refetch();
-      else void cache.invalidateQueries({ queryKey: chave, exact: true, refetchType: "none" });
+      // Outro observador já pode ter concluído a mesma transição entre dois callbacks.
+      if (cache.getQueryState(chave)?.dataUpdatedAt !== dataUpdatedAt) return;
+      const filas = ["atendimentos", "operacional-fila", acesso.usuarioId, acesso.revisao];
+      if (document.visibilityState === "hidden") {
+        void cache.invalidateQueries({ queryKey: chave, exact: true, refetchType: "none" });
+        void cache.invalidateQueries({ queryKey: filas, refetchType: "none" });
+      } else if (cache.getQueryState(chave)?.fetchStatus !== "fetching") {
+        // Lista e painel podem observar o mesmo snapshot: não cancelar/reiniciar a mesma leitura.
+        void cache.refetchQueries({ queryKey: chave, exact: true }, { cancelRefetch: false });
+        void cache.invalidateQueries({ queryKey: filas }, { cancelRefetch: false });
+      }
     }, Math.max(100, Math.min(intervalo, 2_147_483_647)));
     return () => window.clearTimeout(timer);
-  }, [habilitado, acesso.permitido, data, dataUpdatedAt, isError, refetch, cache, chave]);
+  }, [habilitado, acesso.permitido, acesso.usuarioId, acesso.revisao, data, dataUpdatedAt, isError, cache, chave]);
   return { ...consulta, data: acesso.permitido ? consulta.data : undefined };
 }
 
