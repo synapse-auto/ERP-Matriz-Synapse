@@ -1,6 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/atendimento/painel-operacional", async (original) => ({
+  ...(await original<typeof import("@/lib/atendimento/painel-operacional")>()),
+  useFilaOperacional: () => ({}),
+  useSnapshotOperacional: () => ({}),
+}));
+
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
 import type { CartaoAtendimento, ItemInbox } from "@/lib/atendimento/types";

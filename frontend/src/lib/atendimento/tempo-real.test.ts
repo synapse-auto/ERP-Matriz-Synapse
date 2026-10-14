@@ -492,6 +492,23 @@ describe("ConexaoTempoReal", () => {
     expect(onNotificacao).toHaveBeenCalledWith(expect.objectContaining({ tipo: "PRESENCA_ALTERADA" }));
   });
 
+  it("encaminha invalidação operacional sem expor presença de terceiros", () => {
+    const { cliente } = clienteStompFalso();
+    const onNotificacao = vi.fn();
+    const ouvinte = vi.fn();
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test", obterAccessToken: () => "token", onNotificacao,
+      criarCliente: () => cliente,
+    });
+    conexao.adicionarOuvinteDeNotificacao(ouvinte);
+    conexao.conectar();
+    const callback = (cliente.subscribe as ReturnType<typeof vi.fn>).mock.calls[1]?.[1];
+    const aviso = { tipo: "PAINEL_OPERACIONAL_ALTERADO", eventoId: "presenca-1", dados: {} };
+    callback({ body: JSON.stringify(aviso) });
+    expect(onNotificacao).toHaveBeenCalledWith(aviso);
+    expect(ouvinte).toHaveBeenCalledWith(aviso);
+  });
+
   it("encaminha leitura do responsavel como evento canonico pela fila pessoal", () => {
     const { cliente } = clienteStompFalso();
     const onNotificacao = vi.fn();

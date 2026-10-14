@@ -3,6 +3,11 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { useCallback, useEffect, useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/atendimento/painel-operacional", async (original) => ({
+  ...(await original<typeof import("@/lib/atendimento/painel-operacional")>()),
+  useAcessoPainelOperacional: () => ({ permitido: false }),
+}));
+
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
 import type {

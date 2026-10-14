@@ -368,6 +368,17 @@ describe("aviso de finalização em massa", () => {
 });
 
 describe("presença alterada pelo sistema (E223)", () => {
+  it("invalidação do painel é coalescida e não muda a própria presença nem gera toast", () => {
+    const cliente = new QueryClient();
+    cliente.setQueryData(["me"], { id: "u-1", presenca: "OFFLINE" });
+    const invalidar = vi.spyOn(cliente, "invalidateQueries");
+    renderizarComCliente(cliente);
+    const aviso = { tipo: "PAINEL_OPERACIONAL_ALTERADO", eventoId: "painel-1", dados: {} } as unknown as NotificacaoTempoReal;
+    act(() => { mocks.callback?.(aviso); mocks.callback?.(aviso); });
+    expect(cliente.getQueryData<{ presenca: string }>(["me"])?.presenca).toBe("OFFLINE");
+    expect(invalidar.mock.calls.filter(([pedido]) => pedido?.queryKey?.[1] === "contagem")).toHaveLength(1);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
   function renderizarComCliente(cliente: QueryClient) {
     return render(
       <QueryClientProvider client={cliente}>

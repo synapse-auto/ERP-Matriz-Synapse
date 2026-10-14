@@ -60,6 +60,7 @@ const MODULOS_PADRAO: Record<string, { rotulo: string; descricao: string }> = {
 
 const CAPACIDADES_PADRAO: Record<string, string> = {
   "atendimentos.ver": "Ver conversas",
+  "atendimentos.painel_operacional": "Visualizar painel operacional de Atendimentos",
   "atendimentos.responder": "Responder mensagens",
   "atendimentos.iniciar_conversa": "Iniciar nova conversa",
   "atendimentos.abrir_para_contato": "Abrir atendimento para contato existente",

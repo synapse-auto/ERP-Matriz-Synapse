@@ -11,11 +11,15 @@ import { Composer, type ComposerHandle } from "@/components/atendimentos/compose
 import { DialogoEncaminhar } from "@/components/atendimentos/dialogo-encaminhar";
 import { DialogoNovoContato } from "@/components/atendimentos/dialogo-novo-contato";
 import { ListaConversas } from "@/components/atendimentos/lista-conversas";
+import { PainelOperacional } from "@/components/atendimentos/painel-operacional";
+import { useAcessoPainelOperacional, type FiltroOperacional } from "@/lib/atendimento/painel-operacional";
+import { EVENTO_VOLTAR_PAINEL, voltarAoPainelOperacional } from "@/lib/atendimento/navegacao-painel";
 import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
 import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
 import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquivos";
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
+import { ehAvisoPainelOperacional } from "@/lib/atendimento/aviso-painel-operacional";
 import {
   ProvedorDeAberturaDeConversa,
   type AberturaDeConversaDoContato,
@@ -114,6 +118,9 @@ export function PaginaAtendimentosCliente({
   const textosGerais = useTextos();
   const textos = textosGerais.atendimentos;
   const cache = useQueryClient();
+  const acessoPainel = useAcessoPainelOperacional();
+  const [filtroOperacional, setFiltroOperacional] = useState<FiltroOperacional | null>(null);
+  const [nomeFiltroOperacional, setNomeFiltroOperacional] = useState<string>();
   const [atendimentoSelecionadoId, setAtendimentoSelecionadoId] = useState<string | null>(null);
   const [atendimentoParaAbrirId, setAtendimentoParaAbrirId] = useState(atendimentoInicialId);
   const [erroDeAbertura, setErroDeAbertura] = useState<string | null>(null);
@@ -253,6 +260,9 @@ export function PaginaAtendimentosCliente({
         return;
       }
       const idParaAbrir = cartao.atendimentoAtivoId ?? cartao.atendimentoId;
+      if (origem === "lista" && acessoPainel.permitido) {
+        window.history.pushState(null, "", `/atendimentos?atendimentoId=${encodeURIComponent(idParaAbrir)}`);
+      }
       setAvisoRevogacao(false);
       setAvisoTransferencia(null);
       setConversaInternaId(null);
@@ -272,8 +282,48 @@ export function PaginaAtendimentosCliente({
         cartaoSelecionadoId: idParaAbrir,
       });
     },
-    [marcarLeituraDaConversa, sessao.papel, sessao.usuarioId, visaoAtendimento],
+    [marcarLeituraDaConversa, sessao.papel, sessao.usuarioId, visaoAtendimento, acessoPainel.permitido],
   );
+
+  useEffect(() => {
+    if (!acessoPainel.permitido) return;
+    const voltar = () => {
+      setAtendimentoSelecionadoId(null);
+      setAtendimentoParaAbrirId(null);
+      setConversaInternaId(null);
+      setSincronizacaoLiberada(null);
+      setBuscaAberta(false);
+      aberturaProcessada.current = null;
+    };
+    const historico = () => {
+      const id = new URLSearchParams(window.location.search).get("atendimentoId");
+      voltar();
+      if (id) setAtendimentoParaAbrirId(id);
+    };
+    const retornarAoPainel = () => {
+      voltar();
+      setFiltroOperacional(null);
+    };
+    window.addEventListener(EVENTO_VOLTAR_PAINEL, retornarAoPainel);
+    window.addEventListener("popstate", historico);
+    return () => {
+      window.removeEventListener(EVENTO_VOLTAR_PAINEL, retornarAoPainel);
+      window.removeEventListener("popstate", historico);
+    };
+  }, [acessoPainel.permitido]);
+
+  function abrirFilaOperacional(id: string) {
+    window.history.pushState(null, "", `/atendimentos?atendimentoId=${encodeURIComponent(id)}`);
+    aberturaProcessada.current = null;
+    setAtendimentoParaAbrirId(id);
+  }
+
+  function filtrarOperacional(filtro: FiltroOperacional | null, nome?: string) {
+    voltarAoPainelOperacional();
+    setFiltroOperacional(filtro);
+    if (filtro === null) setVisaoAtendimento(sessao.papel === "ATENDENTE" || sessao.papel === "OPERADOR" ? "ATIVOS" : "TODOS");
+    if (nome) setNomeFiltroOperacional(nome);
+  }
 
   /**
    * Depois de iniciar/reativar: o lead cai em Ativos. Sem trocar a visão, a lista atual
@@ -499,6 +549,10 @@ export function PaginaAtendimentosCliente({
       atualizarPainelDeAtendimentos(cache, { atendimentoId: atendimentoRevogado, urgente: true });
     },
     (evento) => {
+      if (ehAvisoPainelOperacional(evento as unknown)) {
+        atualizarPainelDeAtendimentos(cache, { chave: evento.eventoId });
+        return;
+      }
       registrarDiagnosticoDeAbertura({
         origem: "rota",
         etapa: "evento_websocket",
@@ -920,6 +974,12 @@ export function PaginaAtendimentosCliente({
         </div>
       )}
       <ListaConversas
+        painelOperacionalPermitido={acessoPainel.permitido}
+        filtroOperacional={acessoPainel.permitido ? filtroOperacional : null}
+        nomeFiltroOperacional={nomeFiltroOperacional}
+        onFiltroOperacionalAlterado={filtrarOperacional}
+        onVoltarPainel={acessoPainel.permitido ? () => { voltarAoPainelOperacional(); if (conversaEmColunaUnica) setFiltroOperacional(null); } : undefined}
+        onAbrirFilaOperacional={abrirFilaOperacional}
         selecionadoId={conversa?.leadId ?? conversaInternaId}
         leadInicialId={leadParaAbrir}
         leadInicialGatilho={leadParaAbrirGatilho}
@@ -942,10 +1002,10 @@ export function PaginaAtendimentosCliente({
               setNovoContatoAberto(true);
             }
           : undefined}
-        className={cn(listaOculta && "hidden")}
+        className={cn((listaOculta || (acessoPainel.permitido && conversaEmColunaUnica && !conversaAberta && !filtroOperacional)) && "hidden")}
       />
 
-      <div className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden", conversaEmColunaUnica && !conversaAberta && "hidden")}>
+      <div className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden", conversaEmColunaUnica && !conversaAberta && (!acessoPainel.permitido || filtroOperacional) && "hidden")}>
         {estado === "reconectando" && (
           <div className="bg-cor-atencao/10 px-3 py-1 text-center text-xs text-cor-atencao">
             {textos.tempoReal.reconectando}
@@ -1075,6 +1135,8 @@ export function PaginaAtendimentosCliente({
               )}
             </ZonaSoltarArquivos>
           </>
+        ) : acessoPainel.permitido ? (
+          <PainelOperacional onFiltrar={filtrarOperacional} onAbrir={abrirFilaOperacional} conectado={estado === "conectado"} usuarioAtualId={sessao.usuarioId ?? undefined} />
         ) : (
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
             {textosGerais.estados.vazio}

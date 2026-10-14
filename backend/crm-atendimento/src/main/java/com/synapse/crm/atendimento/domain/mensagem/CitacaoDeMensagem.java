@@ -16,7 +16,8 @@ public record CitacaoDeMensagem(
         previa = previa == null ? "" : previa;
     }
 
-    static final int LIMITE_PREVIA = 120;
+    /** Limite técnico comum das projeções curtas, não tamanho permitido de uma mensagem. */
+    public static final int LIMITE_PREVIA = 120;
 
     public static String autorDe(RemetenteTipo tipo, String nomeLead, String nomeUsuario) {
         return switch (tipo) {

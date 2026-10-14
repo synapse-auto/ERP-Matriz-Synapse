@@ -242,7 +242,10 @@ class GestaoPermissoesIT extends PostgresIT {
         assertThat(porPapel.get("GESTOR").path("editavel").asBoolean()).isFalse();
         assertThat(porPapel.get("ATENDENTE").path("editavel").asBoolean()).isTrue();
         assertThat(porPapel.get("ATENDENTE").path("permitidas").asInt())
-                .isEqualTo(porPapel.get("ATENDENTE").path("total").asInt());
+                .isEqualTo(porPapel.get("ATENDENTE").path("total").asInt() - 1);
+        // A única capacidade operacional nova começa OFF, sem ampliar o perfil legado.
+        JsonNode minhas = ler(chamar(token(EMAIL_ANA, SENHA_ATENDENTE), HttpMethod.GET, BASE + "/minhas", null));
+        assertThat(minhas.path("capacidades").path("atendimentos.painel_operacional").path("permitido").asBoolean()).isFalse();
 
         JsonNode doSub = ler(chamar(token(EMAIL_SUBGESTOR, SENHA_SUBGESTOR), HttpMethod.GET, BASE + "/perfis", null));
         doSub.forEach(p -> assertThat(p.path("editavel").asBoolean()).isFalse());

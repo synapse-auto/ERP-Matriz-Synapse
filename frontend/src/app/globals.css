@@ -38,6 +38,9 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-chat-texto-forte: var(--chat-texto-forte);
+  --color-operacional-pendente: var(--operacional-pendente);
+  --color-operacional-finalizado: var(--operacional-finalizado);
+  --color-operacional-alerta: var(--operacional-alerta);
 
   /* E10: tokens Synapse (design/TOKENS.md), consumidos direto por classes Tailwind
      arbitrárias (ex.: bg-[--color-cor-erro-suave]) em componentes fora do shadcn. */
@@ -121,6 +124,13 @@
  * assim. O fallback (valor atual de tema.json) só entra em jogo se o <style> nunca chegar a
  * existir — build estático sem backend no ar, por exemplo (já mordeu esse caminho antes).
  */
+.painel-operacional {
+  /* Apenas contagens deste read model: tons derivados da identidade, não cores de cliente. */
+  --operacional-pendente: oklch(from var(--cor-atencao) calc(l * .75) c h);
+  --operacional-finalizado: color-mix(in srgb, var(--cor-sucesso) 70%, var(--primary));
+  --operacional-alerta: color-mix(in srgb, var(--destructive) 5%, var(--card));
+}
+
 :root {
   /* Somente identidade e corpo de mensagens do chat; não altera foreground global. */
   --chat-texto-forte: var(--texto-forte, var(--foreground));

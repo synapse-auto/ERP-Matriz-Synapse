@@ -37,6 +37,8 @@ public enum Capacidade {
     /** Recorte de conversas. Estrutural: vem de RN-CRM-01/Specification/RLS, nunca do catalogo. */
     ATENDIMENTOS_VER("atendimentos.ver", Modulo.ATENDIMENTOS, NivelDeAcesso.VER, Tipo.ALCANCE_ESTRUTURAL,
             false, todos(), nenhum(), false),
+    ATENDIMENTOS_PAINEL_OPERACIONAL("atendimentos.painel_operacional", Modulo.ATENDIMENTOS,
+            NivelDeAcesso.VER, Tipo.ACAO, false, todos(), EnumSet.of(ATENDENTE, OPERADOR), true),
     ATENDIMENTOS_RESPONDER("atendimentos.responder", Modulo.ATENDIMENTOS, NivelDeAcesso.EDITAR, Tipo.ACAO,
             false, todos(), nenhum(), true),
     ATENDIMENTOS_INICIAR_CONVERSA("atendimentos.iniciar_conversa", Modulo.ATENDIMENTOS, NivelDeAcesso.EDITAR,

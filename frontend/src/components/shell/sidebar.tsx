@@ -50,6 +50,7 @@ import {
 } from "@/lib/navegacao/itens-do-menu";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { cn } from "@/lib/utils";
+import { voltarAoPainelOperacional } from "@/lib/atendimento/navegacao-painel";
 import {
   EXPANSAO_DA_SIDEBAR,
   estiloDaLarguraDaSidebar,
@@ -460,6 +461,7 @@ function MenuGrupo({
   retraida,
   rotuloContagemPendentes,
 }: MenuGrupoProps) {
+  const acessoPainel = useMinhasPermissoes();
   const itensVisiveis = itens.filter(visivel);
   if (itensVisiveis.length === 0) return null;
 
@@ -492,6 +494,13 @@ function MenuGrupo({
             <li key={item.chave}>
               <Link
                 href={item.rota}
+                onClick={(evento) => {
+                  if (!evento.ctrlKey && !evento.metaKey && !evento.shiftKey && !evento.altKey && ativo && item.chave === "atendimentos" && !acessoPainel.isError
+                    && acessoPainel.data?.capacidades["atendimentos.painel_operacional"]?.permitido) {
+                    evento.preventDefault();
+                    voltarAoPainelOperacional();
+                  }
+                }}
                 aria-label={retraida ? rotuloAcessivel : undefined}
                 title={rotulo}
                 className={
