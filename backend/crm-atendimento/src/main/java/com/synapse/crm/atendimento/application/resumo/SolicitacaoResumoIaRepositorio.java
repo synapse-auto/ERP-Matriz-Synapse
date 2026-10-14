@@ -13,6 +13,15 @@ public interface SolicitacaoResumoIaRepositorio {
 
     Optional<Solicitacao> ultimaDoAtendimento(UUID atendimentoId);
 
+    /** Diagnóstico técnico de entrega, sem URL/payload; consulta feita só após autorizar o recurso. */
+    String diagnosticoDeEntrega(UUID solicitacaoId);
+
+    /** Ainda é o atendimento humano original, com o responsável capturado no pedido. */
+    boolean cicloVigente(UUID solicitacaoId);
+
+    /** A entrega só pode falhar um ciclo que ainda não recebeu PROCESSANDO/CONCLUIDO. */
+    boolean falharEntregaSePendente(UUID solicitacaoId, String codigo, Instant quando);
+
     /** Atualiza o estado somente se a transição ainda for válida para o ciclo informado. */
     boolean atualizarStatus(
             UUID solicitacaoId,
@@ -31,7 +40,13 @@ public interface SolicitacaoResumoIaRepositorio {
             Instant solicitadoEm,
             Instant atualizadoEm,
             String erroCodigo,
-            String erroMensagem) {}
+            String erroMensagem,
+            String diagnosticoCodigo) {
+        public Solicitacao(UUID solicitacaoId, UUID leadId, UUID atendimentoId, Status status,
+                Instant solicitadoEm, Instant atualizadoEm, String erroCodigo, String erroMensagem) {
+            this(solicitacaoId, leadId, atendimentoId, status, solicitadoEm, atualizadoEm, erroCodigo, erroMensagem, null);
+        }
+    }
 
     enum Status {
         PENDENTE,

@@ -9,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.atendimento.application.AtendimentoParaAlteracao;
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
 import com.synapse.crm.atendimento.application.IdempotencyKeyInvalidaException;
 import com.synapse.crm.atendimento.application.Outbox;
@@ -16,6 +17,7 @@ import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelE
 import com.synapse.crm.atendimento.application.ResumoIaAutomacaoGateway;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.evento.ResumoIaParaTempoReal;
+import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /** Cria um ciclo de resumo e o entrega à Automação somente pela outbox. */
@@ -28,6 +30,7 @@ public class SolicitarResumoIaUseCase {
     private final Outbox outbox;
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
+    private final LeadNoCaminhoDeMensagem leads;
 
     public SolicitarResumoIaUseCase(
             AtendimentoRepositorio atendimentos,
@@ -35,13 +38,15 @@ public class SolicitarResumoIaUseCase {
             ResumoIaAutomacaoGateway automacao,
             Outbox outbox,
             ApplicationEventPublisher eventos,
-            Clock relogio) {
+            Clock relogio,
+            LeadNoCaminhoDeMensagem leads) {
         this.atendimentos = atendimentos;
         this.solicitacoes = solicitacoes;
         this.automacao = automacao;
         this.outbox = outbox;
         this.eventos = eventos;
         this.relogio = relogio;
+        this.leads = leads;
     }
 
     @PreAuthorize("isAuthenticated() and @capacidades.permite('resumo_ia.solicitar')")
@@ -49,10 +54,11 @@ public class SolicitarResumoIaUseCase {
     public SolicitacaoResumoIaRepositorio.Solicitacao executar(UUID atendimentoId, UUID solicitacaoId) {
         if (!automacao.configurado()) throw new ResumoIaAutomacaoDesabilitadoException();
         if (solicitacaoId == null) throw new IdempotencyKeyInvalidaException();
-        var atendimento = atendimentos
-                .porId(atendimentoId)
-                .filter(item -> item.status() == StatusAtendimento.EM_ATENDIMENTO)
-                .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId));
+        // Mesma ordem de locks da transferência/finalização; dois POSTs não criam dois ciclos.
+        var atendimento = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
+        if (atendimento.status() != StatusAtendimento.EM_ATENDIMENTO) {
+            throw new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId);
+        }
         var mesmaSolicitacao = solicitacoes.porId(solicitacaoId);
         if (mesmaSolicitacao.isPresent()) {
             var existente = mesmaSolicitacao.get();
@@ -82,7 +88,18 @@ public class SolicitarResumoIaUseCase {
     public SolicitacaoResumoIaRepositorio.Solicitacao estado(UUID atendimentoId) {
         atendimentos.porId(atendimentoId)
                 .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId));
-        return solicitacoes.ultimaDoAtendimento(atendimentoId).orElse(null);
+        var ciclo = solicitacoes.ultimaDoAtendimento(atendimentoId).orElse(null);
+        if (ciclo == null) return null;
+        boolean ativo = ciclo.status() == SolicitacaoResumoIaRepositorio.Status.PENDENTE
+                || ciclo.status() == SolicitacaoResumoIaRepositorio.Status.PROCESSANDO;
+        String diagnostico = ativo && !automacao.configurado() ? "CONFIGURACAO_AUSENTE"
+                : ativo && !solicitacoes.cicloVigente(ciclo.solicitacaoId()) ? "CICLO_OBSOLETO"
+                : ciclo.status() == SolicitacaoResumoIaRepositorio.Status.PENDENTE
+                    ? solicitacoes.diagnosticoDeEntrega(ciclo.solicitacaoId()) : null;
+        if (diagnostico == null) return ciclo;
+        return new SolicitacaoResumoIaRepositorio.Solicitacao(ciclo.solicitacaoId(), ciclo.leadId(),
+                ciclo.atendimentoId(), ciclo.status(), ciclo.solicitadoEm(), ciclo.atualizadoEm(),
+                ciclo.erroCodigo(), ciclo.erroMensagem(), diagnostico);
     }
 
     public static class ResumoIaAutomacaoDesabilitadoException extends RuntimeException {

@@ -38,6 +38,7 @@ class SolicitarResumoIaUseCaseTest {
     @Mock private ResumoIaAutomacaoGateway automacao;
     @Mock private Outbox outbox;
     @Mock private ApplicationEventPublisher eventos;
+    @Mock private com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem leads;
 
     private SolicitarResumoIaUseCase caso;
     private Atendimento atendimento;
@@ -59,9 +60,11 @@ class SolicitarResumoIaUseCaseTest {
                 automacao,
                 outbox,
                 eventos,
-                Clock.fixed(AGORA, ZoneOffset.UTC));
+                Clock.fixed(AGORA, ZoneOffset.UTC), leads);
         when(automacao.configurado()).thenReturn(true);
-        when(atendimentos.porId(ATENDIMENTO)).thenReturn(Optional.of(atendimento));
+        org.mockito.Mockito.lenient().when(atendimentos.porId(ATENDIMENTO)).thenReturn(Optional.of(atendimento));
+        org.mockito.Mockito.lenient().when(leads.bloquearParaAtendimento(LEAD)).thenReturn(true);
+        org.mockito.Mockito.lenient().when(atendimentos.porIdParaAlteracao(ATENDIMENTO)).thenReturn(Optional.of(atendimento));
     }
 
     @Test
@@ -103,6 +106,18 @@ class SolicitarResumoIaUseCaseTest {
 
         assertThatThrownBy(() -> caso.executar(ATENDIMENTO, SOLICITACAO))
                 .isInstanceOf(SolicitarResumoIaUseCase.ResumoIaIdempotenciaIncompativelException.class);
+    }
+
+    @Test
+    void configuracaoRetiradaExplicaCicloAtivoSemInventarFalhaOuReenvio() {
+        when(automacao.configurado()).thenReturn(false);
+        when(solicitacoes.ultimaDoAtendimento(ATENDIMENTO))
+                .thenReturn(Optional.of(solicitacao(SolicitacaoResumoIaRepositorio.Status.PENDENTE)));
+        var resultado = caso.estado(ATENDIMENTO);
+        assertThat(resultado.status()).isEqualTo(SolicitacaoResumoIaRepositorio.Status.PENDENTE);
+        assertThat(resultado.diagnosticoCodigo()).isEqualTo("CONFIGURACAO_AUSENTE");
+        verify(solicitacoes, never()).atualizarStatus(any(), any(), any(), any(), any(), any(), any());
+        verify(automacao, never()).enviar(any(), any(), any(), any());
     }
 
     private static SolicitacaoResumoIaRepositorio.Solicitacao solicitacao(

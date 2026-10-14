@@ -13,6 +13,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import com.synapse.crm.atendimento.application.ResumoIaAutomacaoGateway;
@@ -49,7 +50,7 @@ class ResumoIaAutomacaoHttpAdapter implements ResumoIaAutomacaoGateway {
     public Resultado enviar(UUID solicitacaoId, UUID leadId, UUID atendimentoId, Instant solicitadoEm) {
         if (!configurado()) return Resultado.RECUSADO;
         try {
-            breaker.executeRunnable(() -> http.post()
+            var resposta = breaker.executeSupplier(() -> http.post()
                     .uri(propriedades.url())
                     .contentType(MediaType.APPLICATION_JSON)
                     .header(propriedades.authHeader(), propriedades.token())
@@ -57,19 +58,32 @@ class ResumoIaAutomacaoHttpAdapter implements ResumoIaAutomacaoGateway {
                     .body(new Pedido(atendimentoId, leadId))
                     .retrieve()
                     .toBodilessEntity());
-            return Resultado.ACEITO;
+            int status = resposta.getStatusCode().value();
+            log.info("[RESUMO_IA_HTTP] solicitacaoId={} atendimentoId={} leadId={} etapa=webhook http={}",
+                    solicitacaoId, atendimentoId, leadId, status);
+            // O contrato é 202 (nova) ou 200 (replay); redirect/204 não comprovam aceite.
+            return status == 200 || status == 202 ? Resultado.ACEITO : Resultado.RECUSADO;
         } catch (CallNotPermittedException erro) {
             log.warn("Circuit breaker do resumo por IA está aberto.");
             return Resultado.TENTAR_NOVAMENTE;
         } catch (HttpClientErrorException erro) {
-            log.warn("Webhook de resumo por IA recusou a solicitação com HTTP {}.", erro.getStatusCode().value());
-            return Resultado.RECUSADO;
+            int status = erro.getStatusCode().value();
+            log.warn("[RESUMO_IA_HTTP] solicitacaoId={} atendimentoId={} leadId={} etapa=webhook http={}",
+                    solicitacaoId, atendimentoId, leadId, status);
+            return status == 401 || status == 403 ? Resultado.AUTENTICACAO_RECUSADA : Resultado.RECUSADO;
         } catch (HttpServerErrorException erro) {
-            log.warn("Webhook de resumo por IA indisponível com HTTP {}; a outbox tentará novamente.",
-                    erro.getStatusCode().value());
+            log.warn("[RESUMO_IA_HTTP] solicitacaoId={} atendimentoId={} leadId={} etapa=webhook http={}",
+                    solicitacaoId, atendimentoId, leadId, erro.getStatusCode().value());
             return Resultado.TENTAR_NOVAMENTE;
+        } catch (ResourceAccessException erro) {
+            log.warn("[RESUMO_IA_HTTP] solicitacaoId={} atendimentoId={} leadId={} etapa=webhook resultado=INCERTO falha={}",
+                    solicitacaoId, atendimentoId, leadId, erro.getClass().getSimpleName());
+            // Timeout/desconexão não prova que o n8n deixou de aceitar o pedido.
+            return Resultado.RESULTADO_INCERTO;
         } catch (RuntimeException erro) {
-            log.warn("Webhook de resumo por IA indisponível; a outbox tentará novamente: {}", erro.toString());
+            // Mensagens de exceção podem carregar URL, query string e resposta do provedor.
+            log.warn("[RESUMO_IA_HTTP] solicitacaoId={} atendimentoId={} leadId={} etapa=webhook falha={}",
+                    solicitacaoId, atendimentoId, leadId, erro.getClass().getSimpleName());
             return Resultado.TENTAR_NOVAMENTE;
         }
     }

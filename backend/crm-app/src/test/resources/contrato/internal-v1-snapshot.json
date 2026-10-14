@@ -2624,6 +2624,9 @@
           "format" : "date-time",
           "type" : "string"
         },
+        "diagnosticoCodigo" : {
+          "type" : "string"
+        },
         "erroCodigo" : {
           "type" : "string"
         },

@@ -34,6 +34,7 @@ class AtualizarStatusResumoIaUseCaseTest {
     @Mock private AtendimentoRepositorio atendimentos;
     @Mock private SolicitacaoResumoIaRepositorio solicitacoes;
     @Mock private ApplicationEventPublisher eventos;
+    @Mock private com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem leads;
 
     private AtualizarStatusResumoIaUseCase caso;
     private Atendimento atendimento;
@@ -50,7 +51,9 @@ class AtualizarStatusResumoIaUseCaseTest {
                 AGORA.minusSeconds(60),
                 null);
         caso = new AtualizarStatusResumoIaUseCase(
-                atendimentos, solicitacoes, eventos, Clock.fixed(AGORA, ZoneOffset.UTC));
+                atendimentos, solicitacoes, eventos, Clock.fixed(AGORA, ZoneOffset.UTC), leads);
+        org.mockito.Mockito.lenient().when(leads.bloquearParaAtendimento(LEAD)).thenReturn(true);
+        org.mockito.Mockito.lenient().when(solicitacoes.cicloVigente(SOLICITACAO)).thenReturn(true);
     }
 
     @Test
@@ -58,7 +61,7 @@ class AtualizarStatusResumoIaUseCaseTest {
         when(atendimentos.porId(ATENDIMENTO)).thenReturn(Optional.of(atendimento));
         var pendente = solicitacao(SolicitacaoResumoIaRepositorio.Status.PENDENTE);
         var processando = solicitacao(SolicitacaoResumoIaRepositorio.Status.PROCESSANDO);
-        when(solicitacoes.porId(SOLICITACAO)).thenReturn(Optional.of(pendente), Optional.of(processando));
+        when(solicitacoes.porId(SOLICITACAO)).thenReturn(Optional.of(pendente), Optional.of(pendente), Optional.of(processando));
         when(solicitacoes.atualizarStatus(
                         SOLICITACAO,
                         LEAD,

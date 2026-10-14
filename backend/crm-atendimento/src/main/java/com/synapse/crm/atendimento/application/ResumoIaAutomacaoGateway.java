@@ -13,6 +13,8 @@ public interface ResumoIaAutomacaoGateway {
     enum Resultado {
         ACEITO,
         TENTAR_NOVAMENTE,
+        RESULTADO_INCERTO,
+        AUTENTICACAO_RECUSADA,
         RECUSADO
     }
 }

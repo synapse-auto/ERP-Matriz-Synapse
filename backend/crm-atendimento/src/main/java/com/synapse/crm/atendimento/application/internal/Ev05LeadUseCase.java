@@ -25,6 +25,7 @@ import com.synapse.crm.atendimento.application.resumo.SolicitacaoResumoIaReposit
 import com.synapse.crm.atendimento.domain.evento.ResumoIaParaTempoReal;
 import com.synapse.crm.core.application.lead.AutomacaoEv05LeadRepositorio;
 import com.synapse.crm.core.application.lead.EscritaEv05ObsoletaException;
+import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /** Casos de uso do EV-05; o n8n conhece apenas este contrato e nunca o banco. */
@@ -41,6 +42,7 @@ public class Ev05LeadUseCase {
     private final int resumoMaximo;
     private final SolicitacaoResumoIaRepositorio solicitacoes;
     private final ApplicationEventPublisher eventos;
+    private final LeadNoCaminhoDeMensagem locks;
 
     public Ev05LeadUseCase(
             AutomacaoEv05LeadRepositorio leads,
@@ -50,7 +52,7 @@ public class Ev05LeadUseCase {
             Clock relogio,
             @Value("${synapse.automacao.resumo-ia-tamanho-maximo}") int resumoMaximo,
             SolicitacaoResumoIaRepositorio solicitacoes,
-            ApplicationEventPublisher eventos) {
+            ApplicationEventPublisher eventos, LeadNoCaminhoDeMensagem locks) {
         this.leads = leads;
         this.atendimentos = atendimentos;
         this.idempotencia = idempotencia;
@@ -59,6 +61,7 @@ public class Ev05LeadUseCase {
         this.resumoMaximo = resumoMaximo;
         this.solicitacoes = solicitacoes;
         this.eventos = eventos;
+        this.locks = locks;
     }
 
     @PreAuthorize("hasRole('SERVICO')")
@@ -91,6 +94,7 @@ public class Ev05LeadUseCase {
             UUID leadId, String resumo, Instant contextoGeradoEm, String chave) {
         exigirChave(chave);
         String normalizado = normalizarResumo(resumo);
+        if (!locks.bloquearParaAtendimento(leadId)) throw new Ev05LeadSemAtendimentoException(leadId);
         String hash = hash(OPERACAO_RESUMO + "\n" + leadId + "\n" + normalizado + "\n" + contextoGeradoEm);
         var existente = idempotencia.buscar(chave);
         if (existente.isPresent()) {
@@ -282,6 +286,7 @@ public class Ev05LeadUseCase {
                 || contextoGeradoEm == null
                 || (atendimento.ultimaMensagemEm() != null
                         && !atendimento.ultimaMensagemEm().equals(contextoGeradoEm))
+                || !solicitacoes.cicloVigente(ciclo.solicitacaoId())
                 || ciclo.status() == SolicitacaoResumoIaRepositorio.Status.FALHOU
                 || ciclo.status() == SolicitacaoResumoIaRepositorio.Status.CONCLUIDO) {
             throw new EscritaEv05ObsoletaException(leadId);
