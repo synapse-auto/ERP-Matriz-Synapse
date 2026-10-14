@@ -232,6 +232,8 @@ no contrato e componente próprios, intercalado por atividade, sem entrar nas co
 Busca textual no servidor agrupa digitação por 300ms (cadência técnica de interface, não prazo de
 negócio); consultas usam AbortSignal e chave por critério/usuário/revisão. Durante a digitação,
 esconde resultados/contagens do critério anterior. Não adiciona polling.
+Ao filtrar a lateral a partir de Novas/Sem resposta da expansão, o critério equivalente é
+`EM_ABERTO + sinal`: mantém a aba Todos selecionada e o chip correto, sem tab inexistente.
 
 Não copiar departamentos, empresas ou nomes fictícios do mockup: sem departamento no contrato,
 a linha informa o papel real. A navegação global e trilho do Chat Interno não foram redesenhados,

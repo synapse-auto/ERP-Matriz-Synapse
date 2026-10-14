@@ -145,6 +145,9 @@ describe("painel operacional com componentes reais", () => {
     fireEvent.click(within(secao).getByRole("button", { name: /^Pendentes \(/ }));
     fireEvent.click(within(secao).getByRole("button", { name: "Filtrar na lista" }));
     expect(filtrar).toHaveBeenLastCalledWith({ atendenteId: "ana-sintetica", recorte: "PENDENTES" }, "Ana Sintética");
+    fireEvent.click(within(secao).getByRole("button", { name: /^Novas mensagens \(/ }));
+    fireEvent.click(within(secao).getByRole("button", { name: "Filtrar na lista" }));
+    expect(filtrar).toHaveBeenLastCalledWith({ atendenteId: "ana-sintetica", recorte: "EM_ABERTO", sinal: "NOVAS" }, "Ana Sintética");
   });
 
   it("busca é de atendente e presença ausente não é online", async () => {

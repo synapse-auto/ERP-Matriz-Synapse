@@ -133,8 +133,10 @@ export function PainelOperacional({ onFiltrar, onAbrir, conectado = false, usuar
 function FilaExpandida({ linha, rotulos, referencia, onFiltrar, onAbrir }: Props & { linha: LinhaOperacional; rotulos: Record<FilaOperacional, string>; referencia: SnapshotOperacional }) {
   const t = useTextos().painelOperacional;
   const [fila, setFila] = useState<FilaOperacional>("EM_ABERTO");
-  const filtro: FiltroOperacional = { recorte: fila, ...(linha.entrada ? { entrada: true } : { atendenteId: linha.atendenteId! }) };
-  const consulta = useFilaOperacional(filtro, true);
+  const filtroConsulta: FiltroOperacional = { recorte: fila, ...(linha.entrada ? { entrada: true } : { atendenteId: linha.atendenteId! }) };
+  const filtro: FiltroOperacional = fila === "NOVAS" || fila === "SEM_RESPOSTA"
+    ? { ...filtroConsulta, recorte: "EM_ABERTO", sinal: fila } : filtroConsulta;
+  const consulta = useFilaOperacional(filtroConsulta, true);
   const contagens: Record<FilaOperacional, number> = { EM_ABERTO: linha.contagens.emAberto, NOVAS: linha.contagens.novasConversas, ATIVOS: linha.contagens.ativos, PENDENTES: linha.contagens.pendentes, SEM_RESPOSTA: linha.contagens.semResposta, FINALIZADOS: linha.contagens.finalizados, POTENCIAIS: linha.contagens.potenciais };
   return <section className="border-b border-border bg-muted/15 px-6 py-4 lg:px-10" aria-label={linha.nome ?? t.entrada}>
     <div className="mb-3 flex flex-wrap items-center gap-1.5">{(["EM_ABERTO", "NOVAS", "ATIVOS", "PENDENTES", "SEM_RESPOSTA", "FINALIZADOS"] as FilaOperacional[]).filter(f => !linha.entrada || !["ATIVOS", "PENDENTES", "FINALIZADOS"].includes(f)).map(f => <Button key={f} size="sm" variant="outline" className={cn("h-8 gap-1.5 rounded-md px-3 text-[11px]", fila === f && "border-secondary-foreground bg-secondary-foreground text-background hover:bg-secondary-foreground hover:text-background")} aria-pressed={fila === f} aria-label={`${rotulos[f]} (${contagens[f]})`} onClick={() => setFila(f)}>{f === "FINALIZADOS" ? t.finalizadosAba : rotulos[f]}<span aria-hidden className={cn("rounded-full bg-muted px-1.5 text-[10px] tabular-nums text-muted-foreground", fila === f && "bg-background/20 text-background")}>{contagens[f]}</span></Button>)}<Button size="sm" variant="ghost" className="ml-auto gap-1 text-xs text-primary" onClick={() => onFiltrar(filtro, linha.nome ?? t.entrada)}>{t.filtrarLista}<ArrowLeft className="size-3" aria-hidden /></Button></div>
