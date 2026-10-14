@@ -77,9 +77,24 @@ jobs:
         working-directory: frontend
         run: npm test
 
+      # O build de producao nao tipa os testes (tsconfig.build.json); sem este passo nada os tiparia.
+      - name: Checagem de tipos (inclui testes)
+        working-directory: frontend
+        run: npm run typecheck
+
       - name: Build
         working-directory: frontend
         run: npm run build
+
+      # A imagem so e construida no push para a main e o contexto dela e so `frontend/`: um arquivo do build que
+      # dependa do resto do repositorio (docker/, backend/) passa aqui e quebra a imagem. Tipa o build do jeito dela.
+      - name: Tipos do build no contexto da imagem (so frontend/)
+        run: |
+          contexto="$RUNNER_TEMP/contexto-da-imagem"
+          rm -rf "$contexto" && mkdir -p "$contexto"
+          tar -C frontend --exclude=node_modules --exclude=.next --exclude=tsconfig.tsbuildinfo -cf - . | tar -C "$contexto" -xf -
+          ln -s "$GITHUB_WORKSPACE/frontend/node_modules" "$contexto/node_modules"
+          cd "$contexto" && npx tsc -p tsconfig.build.json --noEmit
 
   infra:
     name: Stack de producao
