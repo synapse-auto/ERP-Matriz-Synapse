@@ -29,6 +29,16 @@ jobs:
           java-version: "21"
           cache: maven
 
+      # Duas PRs que pegaram o mesmo numero de migration passam na CI cada uma, mas juntas na main o Flyway recusa subir
+      # ("Found more than one migration with version N") e derruba todos os ITs ~10 min depois. Aqui falha em segundos.
+      - name: Migrations sem versao repetida
+        run: |
+          repetidas=$(ls backend/crm-app/src/main/resources/db/migration | grep -E '^V[0-9]+__' | sed -E 's/^(V[0-9]+)__.*/\1/' | sort | uniq -d)
+          if [ -n "$repetidas" ]; then
+            echo "::error::Versao de migration repetida: $repetidas. Renumere a migration da PR mais nova (a numeracao segue a ordem de merge)."
+            exit 1
+          fi
+
       # `verify` cobre o ciclo inteiro: enforcer, compilacao, surefire (ArchUnit),
       # failsafe (Testcontainers) e spotless:check. O Docker ja vem no runner
       # ubuntu-latest, entao o Testcontainers nao precisa de setup extra.
