@@ -698,9 +698,17 @@ export function PaginaAtendimentosCliente({
     marcarLeituraDaConversa(atendimentoParaLeitura, conversa.leadId, conversa.atendenteId, conversa.naoLidas);
   }, [atendimentoParaLeitura, conversa, marcarLeituraDaConversa]);
   const leadDosArquivos = conversa?.leadId;
+  const cicloDosArquivos = useRef<number | null>(null);
   useEffect(() => {
     if (estado === "conectado" && leadDosArquivos) {
-      void invalidarArquivosDoLead(cache, leadDosArquivos);
+      const reconectou = cicloDosArquivos.current !== null && cicloDosArquivos.current !== ciclo;
+      cicloDosArquivos.current = ciclo;
+      if (reconectou) {
+        void invalidarArquivosDoLead(cache, leadDosArquivos);
+      } else {
+        // Na abertura, a leitura que acabou de montar já atende à atualização.
+        void cache.invalidateQueries({queryKey: ["lead", leadDosArquivos, "midias"]}, {cancelRefetch: false});
+      }
     }
   }, [cache, ciclo, estado, leadDosArquivos]);
 

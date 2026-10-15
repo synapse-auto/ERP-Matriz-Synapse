@@ -45,6 +45,9 @@ recebido durante a primeira leitura não pode deixar seu total antigo prevalecer
 duplicados nessa janela compartilham a mesma promessa; evento durante a leitura nova
 agenda uma única rodada posterior. Sem timer, cancelamentos repetidos ou polling.
 Seções fechadas não buscam páginas. O negativo com contagem atrasada falhou antes da correção.
+Na abertura/troca da conversa, a invalidação normal compartilha a leitura recém-montada;
+não agenda uma segunda contagem apenas por abrir a ficha. A fila é usada para eventos
+de mídia e reconexões efetivas, que podem ter ocorrido depois do início da leitura.
 
 Troca de lead troca as chaves e remonta as seções: não reutiliza itens, contadores ou
 preview anteriores. O visualizador identifica o arquivo por mensagemId, não por índice:
