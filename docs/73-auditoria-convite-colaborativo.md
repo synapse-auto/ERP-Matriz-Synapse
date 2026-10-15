@@ -78,6 +78,11 @@ HTTP 404 e ambos os responsáveis intactos.
 - Convite pendente mantém só a leitura do histórico prevista, não foi estendido à ficha.
   Participante aceito/ativo recebe ficha/tags que a RLS já permitia. Saída retira essa exceção;
   acesso independente de gestor/próprio/IA/finalizado segue a regra existente.
+- A exceção da Specification é aplicada à leitura pontual do recurso, não à listagem,
+  contagem ou filtros da Agenda. `RecorteDaAbaTodosIT` detectou essa ampliação indevida
+  na primeira bateria completa; o recorte anterior da Agenda foi preservado. O teste
+  antigo que excluía participação de Ativos foi atualizado para a regra solicitada,
+  verificando também que o dono do cartão continua sendo o responsável original.
 - `/api/v1/atendimentos/painel-operacional/fila` acrescenta `convitePendente` booleano pessoal,
   derivado de pedidos válidos. Compatível com clientes antigos; ausência é falso no frontend.
   OpenAPI é gerado do record `PainelOperacional.Conversa`.

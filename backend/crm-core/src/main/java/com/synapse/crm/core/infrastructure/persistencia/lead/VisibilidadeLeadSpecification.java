@@ -9,8 +9,8 @@ import com.synapse.crm.core.domain.lead.VisibilidadeLead;
  * Traduz {@link VisibilidadeLead} (regra de negocio, Java puro) para SQL.
  *
  * <p>O dominio define o recorte da carteira. A excecao contextual de participacao ativa (docs/51)
- * exige estado persistido que um Lead isolado nao possui: o EXISTS abaixo a compoe com a carteira,
- * ainda sob RLS, sem carregar ids de participacoes para a memoria nem conceder visao ampla.
+ * exige estado persistido que um Lead isolado nao possui: {@link #comParticipacao} compoe esse
+ * recorte na leitura pontual, ainda sob RLS. A listagem da Agenda preserva a carteira base.
  *
  * <p>O {@code switch} e exaustivo sobre um tipo selado: acrescentar um modo de visibilidade novo
  * quebra a compilacao aqui ate que alguem escreva o predicado correspondente. Nao existe caminho em
@@ -28,23 +28,28 @@ final class VisibilidadeLeadSpecification {
             case VisibilidadeLead.Ampla ignorado -> (raiz, consulta, cb) -> cb.conjunction();
 
             // O atendente ve o que e dele MAIS Potenciais (IA) MAIS finalizados (E145:
-            // balcao — paridade com rls_lead), mais participacao ativa contextual. Sem as pernas de
+            // balcao — paridade com rls_lead). Sem as pernas de
             // balcao, ninguem pegaria lead novo nem reativaria o de colega; sem a primeira,
             // todos veriam conversas em andamento.
-            case VisibilidadeLead.DoAtendente visao -> (raiz, consulta, cb) -> {
-                // Participação é contextual e persistida: complementa a carteira própria,
-                // não transforma DoAtendente em Ampla nem inclui convites ainda pendentes.
+            case VisibilidadeLead.DoAtendente visao -> (raiz, consulta, cb) -> cb.or(
+                    cb.equal(raiz.get(LeadEntity.Campos.ATENDENTE_RESPONSAVEL_ID), visao.atendenteId()),
+                    cb.equal(raiz.get(LeadEntity.Campos.STATUS_BASICO), StatusBasicoLead.IA),
+                    cb.equal(raiz.get(LeadEntity.Campos.STATUS_BASICO), StatusBasicoLead.FINALIZADO));
+        };
+    }
+
+    /** Excecao contextual para a ficha do recurso, sem ampliar a listagem da Agenda. */
+    static Specification<LeadEntity> comParticipacao(VisibilidadeLead visibilidade) {
+        return switch (visibilidade) {
+            case VisibilidadeLead.Ampla ignorado -> de(visibilidade);
+            case VisibilidadeLead.DoAtendente visao -> de(visibilidade).or((raiz, consulta, cb) -> {
                 var participacao = consulta.subquery(Integer.class);
                 var participante = participacao.from(ParticipacaoVisivelLeadEntity.class);
                 participacao.select(cb.literal(1)).where(
                         cb.equal(participante.get("leadId"), raiz.get(LeadEntity.Campos.ID)),
                         cb.equal(participante.get("usuarioId"), visao.atendenteId()));
-                return cb.or(
-                    cb.equal(raiz.get(LeadEntity.Campos.ATENDENTE_RESPONSAVEL_ID), visao.atendenteId()),
-                    cb.equal(raiz.get(LeadEntity.Campos.STATUS_BASICO), StatusBasicoLead.IA),
-                    cb.equal(raiz.get(LeadEntity.Campos.STATUS_BASICO), StatusBasicoLead.FINALIZADO),
-                    cb.exists(participacao));
-            };
+                return cb.exists(participacao);
+            });
         };
     }
 }

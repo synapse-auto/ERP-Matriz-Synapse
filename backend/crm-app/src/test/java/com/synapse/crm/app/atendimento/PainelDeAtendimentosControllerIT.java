@@ -374,14 +374,14 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("cartão pontual abre participação visível fora de ATIVOS")
-    void cartaoPontual_abreParticipacaoVisivelForaDaVisaoAtual() throws Exception {
+    @DisplayName("cartão pontual e ATIVOS incluem participação visível sem mudar o dono")
+    void cartaoPontual_abreParticipacaoVisivelNosAtivos() throws Exception {
         jdbc.update(
                 "INSERT INTO atendimento_participante(atendimento_id, usuario_id) VALUES (?, ?)",
                 atendimentoPendenteDoBruno,
                 idAna);
         assertThat(listarComo(EMAIL_ANA, SENHA_ATENDENTE, "ATIVOS"))
-                .doesNotContain(atendimentoPendenteDoBruno.toString());
+                .contains(atendimentoPendenteDoBruno.toString());
 
         ResponseEntity<String> resposta = respostaComo(
                 EMAIL_ANA,
@@ -392,6 +392,7 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         JsonNode cartao = json.readTree(resposta.getBody());
         assertThat(cartao.path("atendimentoId").asText()).isEqualTo(atendimentoPendenteDoBruno.toString());
         assertThat(cartao.path("leadId").asText()).isNotBlank();
+        assertThat(cartao.path("atendenteId").asText()).isEqualTo(idBruno.toString());
     }
 
     @Test

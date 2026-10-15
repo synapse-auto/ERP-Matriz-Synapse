@@ -336,6 +336,10 @@ class ConviteColaborativoIT extends PostgresIT {
             assertThat(chamar(emailCaio, HttpMethod.GET, rota, null).getStatusCode())
                     .isEqualTo(HttpStatus.NOT_FOUND);
         }
+        ResponseEntity<String> agenda = chamar(EMAIL_BRUNO, HttpMethod.GET, "/api/v1/leads", null);
+        assertThat(agenda.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(agenda.getBody()).as("participacao nao amplia a carteira da Agenda")
+                .doesNotContain(lead.toString());
         chamar(EMAIL_BRUNO, HttpMethod.POST, "/api/v1/atendimentos/" + atendimento + "/sair", null);
         assertThat(chamar(EMAIL_BRUNO, HttpMethod.GET, "/api/v1/leads/" + lead, null).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
