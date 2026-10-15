@@ -695,6 +695,13 @@ export function PaginaAtendimentosCliente({
     if (!atendimentoParaLeitura || !conversa) return;
     marcarLeituraDaConversa(atendimentoParaLeitura, conversa.leadId, conversa.atendenteId, conversa.naoLidas);
   }, [atendimentoParaLeitura, conversa, marcarLeituraDaConversa]);
+  const leadDosArquivos = conversa?.leadId;
+  useEffect(() => {
+    if (estado === "conectado" && leadDosArquivos) {
+      void cache.invalidateQueries({ queryKey: ["lead", leadDosArquivos, "midias"] }, { cancelRefetch: false });
+    }
+  }, [cache, ciclo, estado, leadDosArquivos]);
+
   const mensagensQuery = useMensagens(
     conversa?.atendimentoId ?? null,
     conexao,
@@ -719,6 +726,9 @@ export function PaginaAtendimentosCliente({
         void cache.invalidateQueries({ queryKey: ["lead", evento.dados.leadId] });
         void cache.invalidateQueries({ queryKey: ["resumo-ia", evento.dados.atendimentoId] });
         return;
+      }
+      if (evento.tipo === "MENSAGEM" && ["IMAGEM", "VIDEO", "AUDIO", "DOCUMENTO"].includes(evento.dados.tipo)) {
+        void cache.invalidateQueries({ queryKey: ["lead", evento.dados.leadId, "midias"] }, { cancelRefetch: false });
       }
       if (evento.tipo === "INFORMACOES_CHATBOT") {
         void cache.invalidateQueries({ queryKey: chaveInformacoesChatbot(evento.dados.atendimentoId) });

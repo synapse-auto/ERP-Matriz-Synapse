@@ -15,6 +15,7 @@ vi.mock("./api", () => ({
   listarTagsDoLead: vi.fn(),
   listarTimeline: vi.fn(),
   listarMidiasDoLead: vi.fn(),
+  contarMidiasDoLead: vi.fn(),
   listarTodasAsTags: vi.fn(),
   obterLead: vi.fn(),
   obterLeadNaAgenda: vi.fn(),
@@ -25,7 +26,7 @@ vi.mock("./api", () => ({
 vi.mock("@/lib/query/tempos", () => ({ INTERVALO_REVALIDACAO_CACHE_MS: 25 }));
 
 import * as api from "./api";
-import { TIPOS_MIDIAS_DA_FICHA, useEstadoResumoIa, useLead, useMidiasDoLead, useSalvarFicha, useSalvarTelefoneLead, useVincularTag } from "./use-painel-lead";
+import { TIPOS_MIDIAS_DA_FICHA, TIPOS_DOCUMENTOS_DA_FICHA, useContagemMidiasDoLead, useEstadoResumoIa, useLead, useMidiasDoLead, useSalvarFicha, useSalvarTelefoneLead, useVincularTag } from "./use-painel-lead";
 
 function wrapper(cache: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -188,6 +189,58 @@ describe("ficha aberta pela Agenda", () => {
 });
 
 describe("mídias da ficha", () => {
+  beforeEach(() => {
+    vi.mocked(api.contarMidiasDoLead).mockReset();
+    vi.mocked(api.listarMidiasDoLead).mockReset();
+  });
+  it("pagina as categorias sem repetir a contagem nem perder o total", async () => {
+    vi.mocked(api.contarMidiasDoLead).mockResolvedValue({midias: 25, documentos: 23});
+    vi.mocked(api.listarMidiasDoLead).mockImplementation(async (_id, pagina, _tamanho, tipos) =>
+      Array.from({length: pagina === 0 ? 20 : tipos?.[0] === "DOCUMENTO" ? 3 : 5}, (_, i) =>
+        ({mensagemId: `${tipos?.[0]}-${pagina}-${i}`, tipo: tipos?.[0]}) as MidiaDoLead));
+    const cache = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    const opcoes = {wrapper: wrapper(cache)};
+    const totais = renderHook(() => useContagemMidiasDoLead("lead-paginas"), opcoes);
+    const docs = renderHook(() => useMidiasDoLead("lead-paginas", TIPOS_DOCUMENTOS_DA_FICHA), opcoes);
+    const midias = renderHook(() => useMidiasDoLead("lead-paginas", TIPOS_MIDIAS_DA_FICHA), opcoes);
+    await waitFor(() => expect(docs.result.current.data?.pages[0]).toHaveLength(20));
+    await act(async () => { await docs.result.current.fetchNextPage(); });
+    await waitFor(() => expect(docs.result.current.data?.pages.flat()).toHaveLength(23));
+    expect(docs.result.current.hasNextPage).toBe(false);
+    expect(midias.result.current.data?.pages).toHaveLength(1);
+    expect(totais.result.current.data).toEqual({midias: 25, documentos: 23});
+    expect(api.contarMidiasDoLead).toHaveBeenCalledWith("lead-paginas");
+    expect(api.contarMidiasDoLead).toHaveBeenCalledTimes(1);
+  });
+
+  it("troca de lead esconde os dados anteriores enquanto aguarda a nova consulta", async () => {
+    vi.mocked(api.listarMidiasDoLead).mockImplementation(async id => id === "primeiro"
+      ? [{mensagemId: "privada", tipo: "DOCUMENTO"} as MidiaDoLead] : new Promise(() => {}));
+    vi.mocked(api.contarMidiasDoLead).mockImplementation(async id => id === "primeiro"
+      ? {midias: 0, documentos: 41} : new Promise(() => {}));
+    const cache = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    const {result, rerender} = renderHook(({id}) => ({
+      lista: useMidiasDoLead(id, TIPOS_DOCUMENTOS_DA_FICHA), contagem: useContagemMidiasDoLead(id),
+    }), {wrapper: wrapper(cache), initialProps: {id: "primeiro"}});
+    await waitFor(() => expect(result.current.contagem.data?.documentos).toBe(41));
+    rerender({id: "segundo"});
+    expect(result.current.lista.data).toBeUndefined();
+    expect(result.current.contagem.data).toBeUndefined();
+  });
+
+  it("invalidação por lead renova totais e só as categorias abertas", async () => {
+    vi.mocked(api.contarMidiasDoLead).mockResolvedValue({midias: 1, documentos: 2});
+    vi.mocked(api.listarMidiasDoLead).mockResolvedValue([]);
+    const cache = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    const totais = renderHook(() => useContagemMidiasDoLead("lead-evento"), {wrapper: wrapper(cache)});
+    renderHook(() => useMidiasDoLead("lead-evento", TIPOS_DOCUMENTOS_DA_FICHA), {wrapper: wrapper(cache)});
+    await waitFor(() => expect(totais.result.current.data?.documentos).toBe(2));
+    vi.mocked(api.contarMidiasDoLead).mockResolvedValue({midias: 1, documentos: 3});
+    await act(async () => { await cache.invalidateQueries({queryKey: ["lead", "lead-evento", "midias"]}); });
+    await waitFor(() => expect(totais.result.current.data?.documentos).toBe(3));
+    expect(api.listarMidiasDoLead).not.toHaveBeenCalledWith("lead-evento", 0, 20, TIPOS_MIDIAS_DA_FICHA, true);
+  });
+
   it("passa os tipos ao endpoint e separa o cache filtrado do completo", async () => {
     const imagem = { mensagemId: "imagem", tipo: "IMAGEM" } as MidiaDoLead;
     const audio = { mensagemId: "audio", tipo: "AUDIO" } as MidiaDoLead;
@@ -201,8 +254,8 @@ describe("mídias da ficha", () => {
     const completo = renderHook(() => useMidiasDoLead("lead-1"), { wrapper: wrapper(cache) });
     await waitFor(() => expect(completo.result.current.data?.pages[0]).toEqual([audio, imagem]));
 
-    expect(api.listarMidiasDoLead).toHaveBeenCalledWith("lead-1", 0, 20, TIPOS_MIDIAS_DA_FICHA);
-    expect(cache.getQueryData(["lead", "lead-1", "midias", "IMAGEM,VIDEO,DOCUMENTO"])).toBeDefined();
+    expect(api.listarMidiasDoLead).toHaveBeenCalledWith("lead-1", 0, 20, TIPOS_MIDIAS_DA_FICHA, true);
+    expect(cache.getQueryData(["lead", "lead-1", "midias", "IMAGEM,VIDEO,AUDIO"])).toBeDefined();
     expect(cache.getQueryData(["lead", "lead-1", "midias", "todos"])).toBeDefined();
   });
 });

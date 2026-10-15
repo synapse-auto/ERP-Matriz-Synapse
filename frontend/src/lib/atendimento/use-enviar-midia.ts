@@ -166,6 +166,7 @@ export function useEnviarMidia() {
       );
     },
     onSuccess: (resposta, variaveis, contexto) => {
+      void queryClient.invalidateQueries({ queryKey: ["lead", variaveis.leadId, "midias"] }, { cancelRefetch: false });
       if (!contexto) {
         return;
       }

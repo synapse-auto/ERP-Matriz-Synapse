@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.synapse.crm.atendimento.application.midia.ContagemDeMidiasDoLead;
 import com.synapse.crm.atendimento.application.midia.MidiaDoLead;
 import com.synapse.crm.atendimento.application.midia.MidiasDoLeadRepositorio;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
@@ -28,8 +29,11 @@ class MidiasDoLeadRepositorioJdbc implements MidiasDoLeadRepositorio {
     private static final String COLUNAS = "m.id, m.atendimento_id, m.tipo::text, m.midia_url, "
             + "m.midia_metadados, m.enviado_em, c.tipo AS origem";
     private static final String FROM = " FROM mensagem m JOIN atendimento a ON a.id=m.atendimento_id "
-            + "LEFT JOIN canal c ON c.id=a.canal_id WHERE a.lead_id=? AND m.midia_url IS NOT NULL "
+            + "LEFT JOIN canal c ON c.id=a.canal_id WHERE a.lead_id=? "
             + "AND m.tipo IN ('IMAGEM','AUDIO','DOCUMENTO','VIDEO')";
+    private static final String COM_ARQUIVO = " AND m.midia_url IS NOT NULL";
+    private static final String COM_REGISTRO = " AND (m.midia_url IS NOT NULL"
+            + " OR m.midia_metadados->>'indisponivel' = 'true')";
     private final JdbcTemplate chat;
     private final ObjectMapper json;
 
@@ -39,21 +43,32 @@ class MidiasDoLeadRepositorioJdbc implements MidiasDoLeadRepositorio {
     }
 
     @Override
-    public List<MidiaDoLead> listar(UUID leadId, int limite, int deslocamento, Set<TipoMensagem> tipos) {
+    public List<MidiaDoLead> listar(UUID leadId, int limite, int deslocamento, Set<TipoMensagem> tipos,
+            boolean incluirIndisponiveis) {
         TransacaoObrigatoria.exigir("listar midias do lead");
         // Somente valores do enum validado entram no SQL; a restrição precede LIMIT/OFFSET.
         String filtro = tipos == null ? "" : " AND m.tipo IN (" + tipos.stream()
                 .map(tipo -> "'" + tipo.name() + "'")
                 .collect(Collectors.joining(",")) + ")";
-        return chat.query("SELECT " + COLUNAS + FROM + filtro
+        return chat.query("SELECT " + COLUNAS + FROM
+                        + (incluirIndisponiveis ? COM_REGISTRO : COM_ARQUIVO) + filtro
                         + " ORDER BY m.enviado_em DESC, m.id DESC LIMIT ? OFFSET ?",
                 this::mapear, leadId, limite, deslocamento);
     }
 
     @Override
+    public ContagemDeMidiasDoLead contar(UUID leadId) {
+        TransacaoObrigatoria.exigir("contar midias do lead");
+        return chat.queryForObject("SELECT count(*) FILTER (WHERE m.tipo <> 'DOCUMENTO') AS midias,"
+                        + " count(*) FILTER (WHERE m.tipo = 'DOCUMENTO') AS documentos" + FROM + COM_REGISTRO,
+                (r, ignorado) -> new ContagemDeMidiasDoLead(r.getLong("midias"), r.getLong("documentos")),
+                leadId);
+    }
+
+    @Override
     public Optional<MidiaDoLead> porMensagem(UUID leadId, UUID mensagemId) {
         TransacaoObrigatoria.exigir("obter midia do lead");
-        return chat.query("SELECT " + COLUNAS + FROM + " AND m.id=?", this::mapear, leadId, mensagemId)
+        return chat.query("SELECT " + COLUNAS + FROM + COM_ARQUIVO + " AND m.id=?", this::mapear, leadId, mensagemId)
                 .stream().findFirst();
     }
 
@@ -68,7 +83,8 @@ class MidiasDoLeadRepositorioJdbc implements MidiasDoLeadRepositorio {
         return new MidiaDoLead(r.getObject("id", UUID.class), r.getObject("atendimento_id", UUID.class),
                 r.getString("tipo"), texto(metadados, "nome"), texto(metadados, "mimetype"),
                 metadados.path("tamanho").asLong(0), texto(metadados, "legenda"),
-                r.getString("midia_url"), r.getTimestamp("enviado_em").toInstant(), r.getString("origem"));
+                r.getString("midia_url"), r.getTimestamp("enviado_em").toInstant(), r.getString("origem"),
+                r.getString("midia_url") == null);
     }
 
     private static String texto(JsonNode n, String campo) {
