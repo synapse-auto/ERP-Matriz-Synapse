@@ -540,7 +540,7 @@ describe("PaginaAtendimentosCliente", () => {
     act(() => callbacks.eventoMensagem?.({tipo: "MENSAGEM", dados: {
       atendimentoId: "atendimento-1", leadId: "lead-1", tipo: "DOCUMENTO",
     }}));
-    expect(invalidar).toHaveBeenCalledWith({queryKey: ["lead", "lead-1", "midias"]}, {cancelRefetch: false});
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({queryKey: ["lead", "lead-1", "midias"]}, {cancelRefetch: false}));
     invalidar.mockClear();
     act(() => callbacks.eventoMensagem?.({tipo: "MENSAGEM", dados: {
       atendimentoId: "atendimento-1", leadId: "lead-1", tipo: "TEXTO",

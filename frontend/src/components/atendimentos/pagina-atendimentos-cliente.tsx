@@ -1,5 +1,7 @@
 "use client";
 
+import { invalidarArquivosDoLead } from "@/lib/lead/invalidar-arquivos";
+
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { ArrowLeft, X } from "lucide-react";
@@ -698,7 +700,7 @@ export function PaginaAtendimentosCliente({
   const leadDosArquivos = conversa?.leadId;
   useEffect(() => {
     if (estado === "conectado" && leadDosArquivos) {
-      void cache.invalidateQueries({ queryKey: ["lead", leadDosArquivos, "midias"] }, { cancelRefetch: false });
+      void invalidarArquivosDoLead(cache, leadDosArquivos);
     }
   }, [cache, ciclo, estado, leadDosArquivos]);
 
@@ -728,7 +730,7 @@ export function PaginaAtendimentosCliente({
         return;
       }
       if (evento.tipo === "MENSAGEM" && ["IMAGEM", "VIDEO", "AUDIO", "DOCUMENTO"].includes(evento.dados.tipo)) {
-        void cache.invalidateQueries({ queryKey: ["lead", evento.dados.leadId, "midias"] }, { cancelRefetch: false });
+        void invalidarArquivosDoLead(cache, evento.dados.leadId);
       }
       if (evento.tipo === "INFORMACOES_CHATBOT") {
         void cache.invalidateQueries({ queryKey: chaveInformacoesChatbot(evento.dados.atendimentoId) });

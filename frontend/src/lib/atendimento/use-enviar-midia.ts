@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { ErroDeApi } from "@/lib/api/errors";
+import { invalidarArquivosDoLead } from "@/lib/lead/invalidar-arquivos";
 
 import { enviarMidia } from "./api";
 import { atualizarPaginaRecente, identidadeAutenticada } from "./cache-mensagens";
@@ -166,7 +167,7 @@ export function useEnviarMidia() {
       );
     },
     onSuccess: (resposta, variaveis, contexto) => {
-      void queryClient.invalidateQueries({ queryKey: ["lead", variaveis.leadId, "midias"] }, { cancelRefetch: false });
+      void invalidarArquivosDoLead(queryClient, variaveis.leadId);
       if (!contexto) {
         return;
       }

@@ -40,7 +40,11 @@ vazia quando o total é múltiplo de 20; não oculta truncamento.
 Envio de mídia confirmado invalida só `['lead', leadId, 'midias']`. O callback existente
 do evento MENSAGEM faz o mesmo apenas para tipos de anexo; texto/reação não dispara essa
 consulta. Reconexão STOMP revalida o lead selecionado. Não adiciona assinatura nem polling.
-Invalidar não cancela/refaz uma consulta já em curso. Seções fechadas não buscam páginas.
+Uma fila por cache/lead espera leituras em curso antes de refazer a consulta: um evento
+recebido durante a primeira leitura não pode deixar seu total antigo prevalecer. Eventos
+duplicados nessa janela compartilham a mesma promessa; evento durante a leitura nova
+agenda uma única rodada posterior. Sem timer, cancelamentos repetidos ou polling.
+Seções fechadas não buscam páginas. O negativo com contagem atrasada falhou antes da correção.
 
 Troca de lead troca as chaves e remonta as seções: não reutiliza itens, contadores ou
 preview anteriores. O visualizador identifica o arquivo por mensagemId, não por índice:

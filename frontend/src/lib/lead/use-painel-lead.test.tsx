@@ -26,6 +26,7 @@ vi.mock("./api", () => ({
 vi.mock("@/lib/query/tempos", () => ({ INTERVALO_REVALIDACAO_CACHE_MS: 25 }));
 
 import * as api from "./api";
+import { invalidarArquivosDoLead } from "./invalidar-arquivos";
 import { TIPOS_MIDIAS_DA_FICHA, TIPOS_DOCUMENTOS_DA_FICHA, useContagemMidiasDoLead, useEstadoResumoIa, useLead, useMidiasDoLead, useSalvarFicha, useSalvarTelefoneLead, useVincularTag } from "./use-painel-lead";
 
 function wrapper(cache: QueryClient) {
@@ -192,6 +193,22 @@ describe("mídias da ficha", () => {
   beforeEach(() => {
     vi.mocked(api.contarMidiasDoLead).mockReset();
     vi.mocked(api.listarMidiasDoLead).mockReset();
+  });
+  it("evento durante a primeira leitura não deixa o total antigo vencer", async () => {
+    let resolver!: (valor: {midias: number; documentos: number}) => void;
+    vi.mocked(api.contarMidiasDoLead).mockImplementationOnce(() => new Promise(r => {resolver=r;}))
+      .mockResolvedValue({midias: 1, documentos: 2});
+    const cache = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    const {result} = renderHook(() => useContagemMidiasDoLead("lead-lento"), {wrapper: wrapper(cache)});
+    await waitFor(() => expect(resolver).toBeDefined());
+    let atualizacao!: Promise<void>;
+    act(() => {
+      atualizacao=invalidarArquivosDoLead(cache,"lead-lento");
+      expect(invalidarArquivosDoLead(cache,"lead-lento")).toBe(atualizacao);
+    });
+    await act(async () => {resolver({midias: 0,documentos: 0}); await atualizacao;});
+    await waitFor(() => expect(result.current.data?.documentos).toBe(2));
+    expect(api.contarMidiasDoLead).toHaveBeenCalledTimes(2);
   });
   it("pagina as categorias sem repetir a contagem nem perder o total", async () => {
     vi.mocked(api.contarMidiasDoLead).mockResolvedValue({midias: 25, documentos: 23});
