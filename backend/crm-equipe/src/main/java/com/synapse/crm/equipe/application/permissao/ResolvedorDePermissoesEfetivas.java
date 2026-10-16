@@ -69,10 +69,10 @@ public class ResolvedorDePermissoesEfetivas {
             return Optional.of(entrada.resolvido);
         }
         recalculos.incrementAndGet();
-        Optional<Resolvido> calculado = repositorio.contextoDe(usuarioId).map(contexto -> new Resolvido(
-                contexto.papel(),
-                contexto.ativo(),
-                PoliticaDePermissoes.calcular(contexto.papel(), contexto.perfil(), contexto.excecoes(), atual.flags)));
+        Optional<Resolvido> calculado = repositorio.contextoDe(usuarioId).map(contexto -> {
+            PermissoesEfetivas efetivas=PoliticaDePermissoes.calcular(contexto.papel(),contexto.perfil(),contexto.excecoes(),atual.flags);
+            return new Resolvido(contexto.papel(),contexto.ativo(),contexto.usuarioTeste()?efetivas.somenteLeitura():efetivas);
+        });
         calculado.ifPresentOrElse(
                 r -> cache.put(usuarioId, new Entrada(atual.revisao, atual.flags, r)),
                 () -> cache.remove(usuarioId));

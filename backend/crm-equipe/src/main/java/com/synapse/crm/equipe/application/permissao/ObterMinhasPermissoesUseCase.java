@@ -34,7 +34,7 @@ public class ObterMinhasPermissoesUseCase {
         boolean acessaGestao = PoliticaDePermissoes.perfilFixo(ator.papel())
                 || (ator.papel() == PapelUsuario.SUBGESTOR && ator.efetivas().permite(Capacidade.EQUIPE_VER));
         boolean editaExcecoes = FuncionalidadeDeExcecoes.habilitada(flags)
-                && (PoliticaDePermissoes.perfilFixo(ator.papel()) || ator.efetivas().permite(Capacidade.EQUIPE_EXCECOES_ATENDENTES));
+                && ator.efetivas().permite(Capacidade.EQUIPE_EXCECOES_ATENDENTES);
         return new Visoes.Minhas(ator.id(), ator.papel(), repositorio.revisaoGlobal(),
                 MontadorDeVisoes.capacidades(ator.papel(), ConfiguracaoDePermissoes.vazia(),
                         ConfiguracaoDePermissoes.vazia(), ator.efetivas(), flags, null, false),

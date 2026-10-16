@@ -1,12 +1,30 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useMutation, useQueryClient, onlineManager } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ErroDeApi } from "@/lib/api/errors";
 import { QueryProvider } from "./query-provider";
+import { useAuthStore } from "@/lib/auth/auth-store";
+import type { QueryClient } from "@tanstack/react-query";
 
-afterEach(() => onlineManager.setOnline(true));
+afterEach(() => { onlineManager.setOnline(true); useAuthStore.setState({usuarioId:null,papel:null}); });
 
 describe("política de recuperação", () => {
+  it("outro usuario ou papel recebe cache vazio e resposta antiga nao preenche a nova sessao", () => {
+    let atual: QueryClient;
+    function Capturar() { atual=useQueryClient(); return null; }
+    useAuthStore.setState({usuarioId:"adm",papel:"ADMINISTRADOR"});
+    render(<QueryProvider><Capturar/></QueryProvider>);
+    const antigo=atual!;
+    antigo.setQueryData(["equipe"],[{id:"conta-teste",usuarioTeste:true}]);
+    act(()=>useAuthStore.setState({usuarioId:"gestor",papel:"GESTOR"}));
+    expect(atual!).not.toBe(antigo);
+    expect(atual!.getQueryData(["equipe"])).toBeUndefined();
+    antigo.setQueryData(["equipe"],[{id:"resposta-atrasada"}]);
+    expect(atual!.getQueryData(["equipe"])).toBeUndefined();
+    const gestor=atual!;
+    act(()=>useAuthStore.setState({papel:"ATENDENTE"}));
+    expect(atual!).not.toBe(gestor);
+  });
   it("comando offline falha uma vez e não reenvia ao reconectar", async () => {
     onlineManager.setOnline(false);
     const enviar = vi.fn().mockRejectedValue(new TypeError());

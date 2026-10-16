@@ -53,6 +53,7 @@ public class SecurityConfig {
             RequisicaoContextSpring filtroRequisicaoContext,
             SenhaProvisoriaFilter filtroSenhaProvisoria,
             SessaoVigenteFilter filtroSessaoVigente,
+            ContaDeTesteFilter filtroContaDeTeste,
             CorsConfigurationSource corsConfigurationSource)
             throws Exception {
         return http.csrf(csrf -> csrf.disable())
@@ -75,6 +76,7 @@ public class SecurityConfig {
                 // Gestao (docs/47): papel do JWT precisa ser o papel atual e o usuario precisa estar
                 // ativo. Mesma ancora do filtro acima; a ordem de registro o coloca depois dele.
                 .addFilterAfter(filtroSessaoVigente, BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(filtroContaDeTeste, SessaoVigenteFilter.class)
                 .authorizeHttpRequests(rotas -> rotas
                         // E29: trocar a propria senha exige um Bearer token valido — sem isto a
                         // rota cairia no permitAll de /api/v1/auth/** logo abaixo, e qualquer

@@ -23,9 +23,9 @@ class DesempenhoDaEquipeRepositorioJdbc implements DesempenhoDaEquipeRepositorio
         return jdbc.query(
                 """
                 SELECT u.id, u.nome, count(a.id) AS atendimentos
-                  FROM usuario u
+                  FROM usuario_visivel u
                   LEFT JOIN atendimento a ON a.atendente_id = u.id
-                 WHERE u.papel IN ('ATENDENTE', 'SUBGESTOR')
+                 WHERE NOT u.usuario_teste AND u.papel IN ('ATENDENTE', 'SUBGESTOR')
                  GROUP BY u.id, u.nome
                  ORDER BY u.nome
                 """,

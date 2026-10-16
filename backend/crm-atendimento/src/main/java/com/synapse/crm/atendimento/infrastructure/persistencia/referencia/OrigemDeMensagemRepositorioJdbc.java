@@ -30,7 +30,7 @@ class OrigemDeMensagemRepositorioJdbc implements OrigemDeMensagemRepositorio {
             """
             SELECT m.id, m.atendimento_id, m.remetente_tipo, m.remetente_id, m.tipo, m.conteudo,
                    m.midia_url, m.midia_metadados, m.opcoes, m.status_entrega, m.enviado_em,
-                   a.lead_id, l.nome AS lead_nome, u.nome AS remetente_nome
+                   a.lead_id, l.nome AS lead_nome, u.nome AS remetente_nome, COALESCE(u.usuario_teste,FALSE) AS remetente_teste
               FROM mensagem m
               JOIN atendimento a ON a.id = m.atendimento_id
               JOIN lead l ON l.id = a.lead_id
@@ -42,7 +42,7 @@ class OrigemDeMensagemRepositorioJdbc implements OrigemDeMensagemRepositorio {
             """
             SELECT m.id, m.atendimento_id, m.remetente_tipo, m.remetente_id, m.tipo, m.conteudo,
                    m.midia_url, m.midia_metadados, m.opcoes, m.status_entrega, m.enviado_em,
-                   a.lead_id, l.nome AS lead_nome, u.nome AS remetente_nome
+                   a.lead_id, l.nome AS lead_nome, u.nome AS remetente_nome, COALESCE(u.usuario_teste,FALSE) AS remetente_teste
               FROM mensagem_id_externo x
               JOIN mensagem m ON m.id = x.mensagem_id AND m.enviado_em = x.mensagem_enviada_em
               JOIN atendimento a ON a.id = m.atendimento_id
@@ -87,6 +87,6 @@ class OrigemDeMensagemRepositorioJdbc implements OrigemDeMensagemRepositorio {
                 mensagem,
                 linha.getObject("lead_id", UUID.class),
                 linha.getString("lead_nome"),
-                linha.getString("remetente_nome"));
+                linha.getString("remetente_nome"),linha.getBoolean("remetente_teste"));
     }
 }

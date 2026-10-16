@@ -2713,5 +2713,21 @@
       "equipe.excecoes_atendentes": "Ajustar exceções de atendentes (delegação)",
       "equipe.perfis": "Editar perfis de permissão"
     }
+  },
+  "usuariosTeste": {
+    "rotulo": "Usuário de teste",
+    "selo": "Teste",
+    "ajuda": "Conta somente leitura na operação normal. Não recebe leads da IA nem pode criar vínculos operacionais.",
+    "modoLeitura": "Conta de teste — somente leitura na operação normal.",
+    "filtro": "Classificação de usuários",
+    "todos": "Todos os usuários",
+    "comuns": "Somente usuários comuns",
+    "testes": "Somente usuários de teste",
+    "alterar": "Alterar classificação",
+    "confirmar": "Confirmar classificação",
+    "impacto": "Marcar como teste oculta a conta de não administradores e bloqueia escrita na operação normal. Vínculos e agendamentos existentes impedem a marcação; nada será excluído ou cancelado.",
+    "erro": "Não foi possível salvar a classificação. Nenhuma relação foi alterada.",
+    "comVinculos": "Classificação bloqueada: a conta possui vínculos operacionais ou históricos. Revise os identificadores técnicos, sem apagar ou reatribuir registros para contornar a proteção.",
+    "salvo": "Classificação salva."
   }
 }

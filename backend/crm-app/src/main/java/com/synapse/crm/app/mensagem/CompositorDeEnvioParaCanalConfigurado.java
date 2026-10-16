@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.CompositorDeEnvioParaCanal;
+import com.synapse.crm.atendimento.application.ContaDeTesteSomenteLeituraException;
 import com.synapse.crm.atendimento.application.Outbox;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
@@ -14,6 +15,7 @@ import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.mensagem.RemetenteTipo;
 import com.synapse.crm.automacaoconfig.infrastructure.ConfiguracaoDeInstanciaResources;
+import com.synapse.crm.equipe.application.usuario.AuditarBloqueioContaTesteUseCase;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -29,11 +31,13 @@ public class CompositorDeEnvioParaCanalConfigurado implements CompositorDeEnvioP
 
     private final OrigemDeMensagemRepositorio origens;
     private final ConfiguracaoDeInstanciaResources recursos;
+    private final AuditarBloqueioContaTesteUseCase auditoria;
 
     public CompositorDeEnvioParaCanalConfigurado(
-            OrigemDeMensagemRepositorio origens, ConfiguracaoDeInstanciaResources recursos) {
+            OrigemDeMensagemRepositorio origens, ConfiguracaoDeInstanciaResources recursos,AuditarBloqueioContaTesteUseCase auditoria) {
         this.origens = origens;
         this.recursos = recursos;
+        this.auditoria=auditoria;
     }
 
     /**
@@ -53,11 +57,15 @@ public class CompositorDeEnvioParaCanalConfigurado implements CompositorDeEnvioP
     }
 
     private ConteudoDeEnvio prefixarSeNecessario(Outbox.EnvioPendente pendente) {
+        Optional<OrigemDeMensagem> origem = origens.buscar(pendente.mensagemId(), pendente.enviadoEm());
+        if (origem.map(OrigemDeMensagem::remetenteTeste).orElse(false)) {
+            auditoria.executar(origem.orElseThrow().mensagem().remetente().id(),"OUTBOX_ENVIO");
+            throw new ContaDeTesteSomenteLeituraException();
+        }
         if (pendente.conteudo() instanceof ConteudoDeEnvio.MensagemTemplate) {
             return pendente.conteudo();
         }
 
-        Optional<OrigemDeMensagem> origem = origens.buscar(pendente.mensagemId(), pendente.enviadoEm());
         String nome = origem.map(OrigemDeMensagem::remetenteNome).orElse(null);
         if (origem.isEmpty()
                 || origem.get().mensagem().remetente().tipo() != RemetenteTipo.ATENDENTE

@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.equipe.domain.usuario.Usuario;
 
@@ -26,6 +27,7 @@ public class ListarUsuariosUseCase {
     }
 
     @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('equipe.ver')")
+    @Transactional(readOnly = true)
     public List<Usuario> executar() {
         return usuarios.listar(new FiltroEquipe(true));
     }

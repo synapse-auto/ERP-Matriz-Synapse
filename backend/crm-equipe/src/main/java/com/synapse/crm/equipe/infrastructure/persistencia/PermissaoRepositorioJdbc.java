@@ -106,15 +106,15 @@ class PermissaoRepositorioJdbc implements PermissaoRepositorio {
                     usuarioId).stream().findFirst();
         }
         List<String[]> linhas = leitura.query("""
-                SELECT u.papel::text, u.ativo::text, 'P', i.tipo, i.alvo, i.valor
+                SELECT u.papel::text, u.ativo::text, 'P', i.tipo, i.alvo, i.valor, u.usuario_teste::text
                   FROM usuario u LEFT JOIN permissao_perfil_item i ON i.papel = u.papel
                  WHERE u.id = ?
                 UNION ALL
-                SELECT u.papel::text, u.ativo::text, 'U', e.tipo, e.alvo, e.valor
+                SELECT u.papel::text, u.ativo::text, 'U', e.tipo, e.alvo, e.valor, u.usuario_teste::text
                   FROM usuario u JOIN permissao_usuario_excecao e ON e.usuario_id = u.id
                  WHERE u.id = ?
                 """, (r, i) -> new String[] {
-                    r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5), r.getString(6)},
+                    r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5), r.getString(6), r.getString(7)},
                 usuarioId, usuarioId);
         if (linhas.isEmpty()) {
             return Optional.empty();
@@ -127,7 +127,7 @@ class PermissaoRepositorioJdbc implements PermissaoRepositorio {
         }
         String[] primeira = linhas.get(0);
         return Optional.of(new ContextoDeAcesso(usuarioId, PapelUsuario.valueOf(primeira[0]),
-                Boolean.parseBoolean(primeira[1]), montar(perfil), montar(excecoes)));
+                Boolean.parseBoolean(primeira[1]), montar(perfil), montar(excecoes), Boolean.parseBoolean(primeira[6])));
     }
 
     @Override
@@ -159,14 +159,14 @@ class PermissaoRepositorioJdbc implements PermissaoRepositorio {
 
     @Override
     public Optional<AlvoTravado> travarAlvo(UUID usuarioId) {
-        return jdbc.query("SELECT id, papel::text, ativo FROM usuario WHERE id = ? FOR SHARE",
+        return jdbc.query("SELECT id, papel::text, ativo FROM usuario_visivel WHERE id = ? FOR SHARE",
                 (r, i) -> new AlvoTravado(r.getObject(1, UUID.class), PapelUsuario.valueOf(r.getString(2)), r.getBoolean(3)),
                 usuarioId).stream().findFirst();
     }
 
     @Override
     public Optional<AlvoTravado> alvo(UUID usuarioId) {
-        return jdbc.query("SELECT id, papel::text, ativo FROM usuario WHERE id = ?",
+        return jdbc.query("SELECT id, papel::text, ativo FROM usuario_visivel WHERE id = ?",
                 (r, i) -> new AlvoTravado(r.getObject(1, UUID.class), PapelUsuario.valueOf(r.getString(2)), r.getBoolean(3)),
                 usuarioId).stream().findFirst();
     }

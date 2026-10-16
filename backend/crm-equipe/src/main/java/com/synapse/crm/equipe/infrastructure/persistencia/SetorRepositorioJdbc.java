@@ -27,7 +27,7 @@ class SetorRepositorioJdbc implements SetorRepositorio {
             SELECT s.id, s.nome, s.recebe_da_triagem, s.ativo, count(u.id) AS usuarios
               FROM setor s
               LEFT JOIN usuario_setor us ON us.setor_id = s.id
-              LEFT JOIN usuario u ON u.id = us.usuario_id AND u.ativo
+              LEFT JOIN usuario_visivel u ON u.id = us.usuario_id AND u.ativo
             """;
 
     private static final String AGRUPAR = " GROUP BY s.id ";
@@ -87,7 +87,7 @@ class SetorRepositorioJdbc implements SetorRepositorio {
     @Override
     public List<AtribuicaoDeSetor> listarAtribuicoes() {
         return jdbc.query(
-                "SELECT usuario_id, setor_id FROM usuario_setor ORDER BY usuario_id",
+                "SELECT us.usuario_id, us.setor_id FROM usuario_setor us JOIN usuario_visivel u ON u.id=us.usuario_id ORDER BY us.usuario_id",
                 (linha, indice) -> new AtribuicaoDeSetor(
                         linha.getObject("usuario_id", UUID.class), linha.getObject("setor_id", UUID.class)));
     }

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   avaliacoesEquipe,
   criarUsuario,
+  classificarUsuarioTeste,
   desempenhoEquipe,
   desativarUsuario,
   editarUsuario,
@@ -73,9 +74,17 @@ export function useRemoverMinhaFoto() {
 export function useCriarUsuario() {
   const cache = useQueryClient();
   return useMutation({
-    mutationFn: (dados: { nome: string; email: string; senha: string; papel: PapelGerenciavel }) =>
+    mutationFn: (dados: { nome: string; email: string; senha: string; papel: PapelGerenciavel; usuarioTeste?: boolean }) =>
       criarUsuario(dados),
     onSuccess: () => cache.invalidateQueries({ queryKey: CHAVE_EQUIPE }),
+  });
+}
+
+export function useClassificarUsuarioTeste() {
+  const cache=useQueryClient();
+  return useMutation({
+    mutationFn: ({id,usuarioTeste}:{id:string;usuarioTeste:boolean}) => classificarUsuarioTeste(id,usuarioTeste),
+    onSuccess: () => cache.invalidateQueries({queryKey:CHAVE_EQUIPE}),
   });
 }
 

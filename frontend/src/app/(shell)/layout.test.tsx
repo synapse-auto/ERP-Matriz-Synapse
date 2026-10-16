@@ -14,6 +14,8 @@ vi.mock("@/components/shell/sidebar", () => ({
 vi.mock("@/components/auth/sinalizador-shell-pronto", () => ({
   SinalizadorShellPronto: () => null,
 }));
+// A autenticacao/aviso sao cobertos separadamente; aqui a prova e geometria e tema.
+vi.mock("@/components/auth/aviso-conta-teste", () => ({ AvisoContaTeste: () => null }));
 
 vi.mock("@/lib/config/fetch-config", () => ({
   buscarTema: async () => ({}),

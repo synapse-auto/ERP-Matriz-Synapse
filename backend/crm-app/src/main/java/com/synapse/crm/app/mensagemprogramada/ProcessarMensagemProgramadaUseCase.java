@@ -10,12 +10,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.atendimento.application.ContaDeTesteSomenteLeituraException;
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.application.origem.OrigemDaMensagem;
 import com.synapse.crm.atendimento.application.origem.RegistroDeOrigemDaMensagem;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.core.application.mensagemprogramada.MensagemProgramadaRepositorio;
 import com.synapse.crm.core.domain.mensagemprogramada.MensagemProgramada;
+import com.synapse.crm.equipe.application.usuario.AuditarBloqueioContaTesteUseCase;
+import com.synapse.crm.equipe.application.usuario.ClassificacaoDeTesteRepositorio;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /** Operações transacionais do job de mensagens programadas. */
@@ -28,16 +31,19 @@ public class ProcessarMensagemProgramadaUseCase {
     private final EnviarMensagemUseCase enviar;
     private final RegistroDeOrigemDaMensagem origens;
     private final Clock relogio;
+    private final ClassificacaoDeTesteRepositorio classificacao;
+    private final AuditarBloqueioContaTesteUseCase auditoria;
 
     public ProcessarMensagemProgramadaUseCase(
             MensagemProgramadaRepositorio mensagens,
             EnviarMensagemUseCase enviar,
             RegistroDeOrigemDaMensagem origens,
-            Clock relogio) {
+            Clock relogio,ClassificacaoDeTesteRepositorio classificacao,AuditarBloqueioContaTesteUseCase auditoria) {
         this.mensagens = mensagens;
         this.enviar = enviar;
         this.origens = origens;
         this.relogio = relogio;
+        this.classificacao=classificacao; this.auditoria=auditoria;
     }
 
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
@@ -54,6 +60,10 @@ public class ProcessarMensagemProgramadaUseCase {
             return;
         }
         try {
+            if (classificacao.contaDeTeste(programada.atendenteId())) {
+                auditoria.executar(programada.atendenteId(),"MENSAGEM_PROGRAMADA");
+                throw new ContaDeTesteSomenteLeituraException();
+            }
             EnviarMensagemUseCase.Resultado enviado = enviar.executarComoServico(
                     programada.leadId(),
                     programada.atendenteId(),

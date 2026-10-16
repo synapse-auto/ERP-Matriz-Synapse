@@ -13,6 +13,13 @@ function carregarJson(caminho: string): Record<string, unknown> {
 }
 
 describe("TextosSchema", () => {
+  it("completa os textos de conta de teste em catalogos antigos sem reescrever personalizacao", () => {
+    const catalogo=carregarJson("../backend/crm-app/src/main/resources/textos.json");
+    delete catalogo.usuariosTeste;
+    expect(TextosSchema.parse(catalogo).usuariosTeste.rotulo).toBe("Usuário de teste");
+    catalogo.usuariosTeste={selo:"Ambiente de homologação"};
+    expect(TextosSchema.parse(catalogo).usuariosTeste.selo).toBe("Ambiente de homologação");
+  });
   it("preserva catálogos anteriores aos motivos e paginação da finalização em massa", () => {
     const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
     const massa = (catalogo.atendimentos as Record<string, unknown>).finalizacaoEmMassa as Record<string, Record<string, unknown>>;
