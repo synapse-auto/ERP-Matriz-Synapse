@@ -28,8 +28,10 @@ docker build --file "$RAIZ_REPOSITORIO/backend/Dockerfile" \
 # prepare o schema com o runner exclusivo antes do primeiro boot HTTP; nao dependa de
 # um processo web saudavel para executar migrations nem desative a validacao do Hibernate.
 docker compose -f "$COMPOSE" up --detach --wait postgres redis minio
-SPRING_PROFILES_ACTIVE= docker compose -f "$COMPOSE" run --rm --no-deps backend \
-  java -jar application.jar --synapse.migrations.run-once
+docker compose -f "$COMPOSE" run --rm --no-deps schema-inicial \
+  -target=72 -placeholders.telefone_ddi_padrao=55 migrate
+SPRING_PROFILES_ACTIVE= docker compose -f "$COMPOSE" run --rm --no-deps --entrypoint java backend \
+  -jar application.jar --synapse.migrations.run-once
 if ! SPRING_PROFILES_ACTIVE=dev docker compose -f "$COMPOSE" up --detach; then
   docker compose -f "$COMPOSE" logs backend traefik
   exit 1
