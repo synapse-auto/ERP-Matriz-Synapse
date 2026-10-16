@@ -56,7 +56,11 @@ Screenshots sintéticos em `docs/evidencias/usuarios-de-teste/`: criação deskt
 
 Na execução completa seguinte, `UsuariosDeTesteIT` passou 12/12 e o encaminhamento 34/34. Restaram dois casos: o diagnóstico setorial concatenava um segundo WHERE após a exclusão de teste, e a fixture de boot em schema72 não tinha a coluna aditiva exigida pelo mapeamento atual. Corrigidos sem relaxar as asserções: mantém-se a prova de ausência da V73/backfill, com a coluna atual preparada somente na fixture. A nova rodada começou sem Docker e foi repetida após iniciar o engine; esse resultado de ambiente não é aprovação dos testes.
 
-Pendente confirmar a repetição direcionada, o `clean verify` completo após essas duas correções e o CI do SHA publicado. PR deve permanecer em draft enquanto isso não estiver comprovado. Não houve deploy ou alteração de dados reais. Dokploy: nenhuma variável nova; aplicar a migration apenas pelo procedimento normal de publicação controlada após aprovação.
+Repetição direcionada aprovada: contas de teste 12/12, distribuição por setor 15/15, boot sem executar V73 1/1. Frontend completo repetido no estado final: 162 arquivos/1.303 testes, typecheck/lint/build aprovados.
+
+A CI do primeiro SHA revelou também uma premissa antiga no smoke empacotado: subir HTTP em schema72 antes de invocar o runner. A imagem atual exige a coluna V107. O smoke agora prepara o banco descartável pelo runner one-shot antes do processo web, sem relaxar a validação do Hibernate nem alterar o boot de produção. O teste com fixture72+coluna aditiva prova ausência de backfill V73; não prova compatibilidade da imagem com um banco V72 puro. Instalação antiga ainda em V72 precisa seguir o runner controlado antes de iniciar esta versão; não há execução de migration pesada no boot web.
+
+Pendente confirmar o `clean verify` completo após essas correções e o CI do SHA publicado. PR deve permanecer em draft enquanto isso não estiver comprovado. Não houve deploy ou alteração de dados reais. Dokploy: nenhuma variável nova; aplicar a migration apenas pelo procedimento normal de publicação controlada após aprovação.
 
 Skills: Playwright carregada antes da validação. As skills clean-code, architecture-patterns, api-design-principles e supabaseboaspraticas não estão disponíveis no catálogo desta sessão; as regras canônicas de arquitetura, segurança e consultas foram aplicadas diretamente.
 

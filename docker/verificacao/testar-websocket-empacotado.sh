@@ -24,7 +24,13 @@ trap finalizar EXIT INT TERM
 limpar
 docker build --file "$RAIZ_REPOSITORIO/backend/Dockerfile" \
   --tag synapse-backend-websocket-test:local "$RAIZ_REPOSITORIO"
-if ! SPRING_PROFILES_ACTIVE= docker compose -f "$COMPOSE" up --detach; then
+# A imagem atual exige colunas aditivas posteriores a V72. Num banco descartavel vazio,
+# prepare o schema com o runner exclusivo antes do primeiro boot HTTP; nao dependa de
+# um processo web saudavel para executar migrations nem desative a validacao do Hibernate.
+docker compose -f "$COMPOSE" up --detach --wait postgres redis minio
+SPRING_PROFILES_ACTIVE= docker compose -f "$COMPOSE" run --rm --no-deps backend \
+  java -jar application.jar --synapse.migrations.run-once
+if ! SPRING_PROFILES_ACTIVE=dev docker compose -f "$COMPOSE" up --detach; then
   docker compose -f "$COMPOSE" logs backend traefik
   exit 1
 fi
@@ -41,31 +47,6 @@ done
 [ "$codigo" = "200" ] || {
   docker compose -f "$COMPOSE" logs backend traefik
   echo "backend empacotado nao ficou acessivel pelo Traefik" >&2
-  exit 1
-}
-
-# O boot normal para intencionalmente na V72 quando encontra a V73 pesada pendente.
-# O smoke precisa testar a imagem no schema completo: executar o runner exclusivo
-# documentado e reiniciar o backend aplica V74+ antes dos fluxos de API abaixo.
-docker compose -f "$COMPOSE" exec --no-TTY backend \
-  java -jar application.jar --synapse.migrations.run-once
-docker compose -f "$COMPOSE" stop backend
-SPRING_PROFILES_ACTIVE=dev docker compose -f "$COMPOSE" up --detach --force-recreate --wait backend
-
-# O --wait acima aguarda somente o healthcheck do container. Após recriá-lo,
-# aguarde também a descoberta da nova instância pelo provider Docker do Traefik.
-tentativa=0
-codigo=000
-while [ "$tentativa" -lt 60 ]; do
-  codigo=$(curl --silent --output /dev/null --write-out '%{http_code}' \
-    --header 'Host: crm.ws.test' http://127.0.0.1:18080/health/liveness || true)
-  [ "$codigo" = "200" ] && break
-  tentativa=$((tentativa + 1))
-  sleep 2
-done
-[ "$codigo" = "200" ] || {
-  docker compose -f "$COMPOSE" logs backend traefik
-  echo "backend empacotado nao voltou a ficar acessivel pelo Traefik apos migrations" >&2
   exit 1
 }
 
