@@ -31,6 +31,8 @@ class UsuariosDeTesteIT extends PostgresIT {
     @Autowired TestRestTemplate http;
     @Autowired JdbcTemplate jdbc;
     @Autowired org.springframework.messaging.simp.user.SimpUserRegistry assinaturas;
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.synapse.crm.equipe.application.usuario.ArmazenamentoDeAvatar avatares;
     @org.springframework.beans.factory.annotation.Value("${local.server.port}") int porta;
     private final List<UUID> criados=new ArrayList<>();
     private final List<UUID> conversas=new ArrayList<>();
@@ -69,6 +71,18 @@ class UsuariosDeTesteIT extends PostgresIT {
 
     @Test void listasDiretoPorIdAvataresEPainelNaoRevelamTesteAoNaoAdmin() {
         UUID teste=criar(true); UUID comum=criar(null);
+        String referencia="avatar-sintetico-"+teste;
+        byte[] imagem={ (byte)137,80,78,71,13,10,26,10 };
+        jdbc.update("UPDATE usuario SET foto_referencia=? WHERE id=?",referencia,teste);
+        org.mockito.Mockito.when(avatares.buscar(referencia)).thenReturn(java.util.Optional.of(
+                new com.synapse.crm.equipe.application.usuario.ArmazenamentoDeAvatar.Arquivo(imagem,"image/png")));
+        // A negativa precisa de um recurso existente: sem foto, 404 nao prova autorizacao.
+        var headersFoto=new HttpHeaders(); headersFoto.setBearerAuth(admin());
+        var fotoAdm=http.exchange("/api/v1/me/foto/"+teste,HttpMethod.GET,
+                new HttpEntity<>(headersFoto),byte[].class);
+        assertThat(fotoAdm.getStatusCode().value()).isEqualTo(200);
+        assertThat(fotoAdm.getBody()).isEqualTo(imagem);
+        org.mockito.Mockito.clearInvocations(avatares);
         for (String token:List.of(gestor(),login(http,EMAIL_SUBGESTOR,SENHA_SUBGESTOR).accessToken())) {
             for (String rota:List.of("/api/v1/usuarios","/api/v1/gestao/permissoes/usuarios","/api/v1/chat-interno/contatos","/api/v1/atendimentos/destinos-de-transferencia","/api/v1/atendimentos/painel-operacional")) {
                 var resposta=chamar(token,HttpMethod.GET,rota,null);
@@ -79,6 +93,7 @@ class UsuariosDeTesteIT extends PostgresIT {
             assertThat(chamar(token,HttpMethod.GET,"/api/v1/me/foto/"+teste,null).getStatusCode().value()).isEqualTo(404);
             assertThat(chamar(token,HttpMethod.PATCH,"/api/v1/usuarios/"+teste+"/classificacao-teste",Map.of("usuarioTeste",false,"confirmado",true)).getStatusCode().value()).isEqualTo(403);
         }
+        org.mockito.Mockito.verifyNoInteractions(avatares);
         assertThat(chamar(gestor(),HttpMethod.GET,"/api/v1/usuarios",null).getBody().toString()).contains(comum.toString());
     }
 
