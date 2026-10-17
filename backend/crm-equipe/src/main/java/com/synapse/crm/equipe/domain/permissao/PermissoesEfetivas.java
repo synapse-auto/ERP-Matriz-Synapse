@@ -35,6 +35,16 @@ public record PermissoesEfetivas(
         return niveis.getOrDefault(modulo, NivelDeAcesso.SEM_ACESSO);
     }
 
+    /** Restricao adicional da conta, nunca uma concessao/heranca de outro papel. */
+    public PermissoesEfetivas somenteLeitura() {
+        Map<Modulo,NivelDeAcesso> leitura=new EnumMap<>(niveis);
+        leitura.replaceAll((modulo,nivel) -> nivel.ordinal()>NivelDeAcesso.VER.ordinal()?NivelDeAcesso.VER:nivel);
+        Map<Capacidade,EstadoDaCapacidade> restritos=new EnumMap<>(estados);
+        restritos.replaceAll((capacidade,estado) -> capacidade.nivelMinimo().ordinal()>NivelDeAcesso.VER.ordinal()
+                ? new EstadoDaCapacidade(capacidade,false,EstadoDaCapacidade.Motivo.DESLIGADO,estado.origem()) : estado);
+        return new PermissoesEfetivas(papel,leitura,restritos);
+    }
+
     /** Acoes configuraveis (nao estruturais) disponiveis e no teto do papel: o "M" de "N de M". */
     public long totalConfiguravel() {
         return estados.values().stream()

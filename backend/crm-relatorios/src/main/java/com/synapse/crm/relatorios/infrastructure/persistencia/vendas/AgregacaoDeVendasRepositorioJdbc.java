@@ -75,7 +75,7 @@ class AgregacaoDeVendasRepositorioJdbc implements AgregacaoDeVendasRepositorio {
                 SELECT v.responsavel_id, u.nome, u.papel::text AS papel,
                        %s AS mes, count(*) AS vendas
                   FROM vendas v
-                  LEFT JOIN usuario u ON u.id = v.responsavel_id
+                  LEFT JOIN usuario_visivel u ON u.id = v.responsavel_id
                  GROUP BY v.responsavel_id, u.nome, u.papel, mes
                  ORDER BY vendas DESC, u.nome NULLS LAST
                 """.formatted(

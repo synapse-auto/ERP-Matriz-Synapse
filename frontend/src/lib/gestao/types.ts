@@ -78,6 +78,7 @@ export interface ResumoDeUsuario {
   fotoUrl: string | null;
   excecoes: number;
   editavel: boolean;
+  usuarioTeste?: boolean;
 }
 
 export interface PermissoesDeUsuario {

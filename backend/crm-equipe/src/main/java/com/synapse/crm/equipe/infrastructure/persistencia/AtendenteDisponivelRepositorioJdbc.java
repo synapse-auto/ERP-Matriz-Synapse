@@ -62,7 +62,7 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
               JOIN usuario u ON u.id = d.atendente_id
               LEFT JOIN carga c ON c.atendente_id = u.id
               LEFT JOIN recebimentos r ON r.atendente_id = u.id
-             WHERE d.disponivel_para_ia = TRUE AND u.ativo = TRUE
+             WHERE d.disponivel_para_ia = TRUE AND u.ativo = TRUE AND NOT u.usuario_teste
                -- Espelha PapelUsuario.recebeAtendimento()
                AND u.papel IN ('ATENDENTE', 'SUBGESTOR') AND u.status_presenca = 'ONLINE'
              ORDER BY COALESCE(c.atendimentos_abertos, 0),
@@ -95,7 +95,7 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
               FROM disponibilidade_atendente_ia d
               JOIN usuario u ON u.id = d.atendente_id
               LEFT JOIN recebimentos r ON r.atendente_id = u.id
-             WHERE d.disponivel_para_ia = TRUE AND u.ativo = TRUE
+             WHERE d.disponivel_para_ia = TRUE AND u.ativo = TRUE AND NOT u.usuario_teste
                -- Espelha PapelUsuario.recebeAtendimento()
                AND u.papel IN ('ATENDENTE', 'SUBGESTOR') AND u.status_presenca = 'ONLINE'
              ORDER BY r.ultimo_recebido_em NULLS FIRST,
@@ -124,6 +124,7 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
                                       AND d.atendente_id IS NULL) AS sem_registro
               FROM usuario u
               LEFT JOIN disponibilidade_atendente_ia d ON d.atendente_id = u.id
+             WHERE NOT u.usuario_teste
             """;
 
     /**
@@ -151,7 +152,7 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
               FROM disponibilidade_atendente_ia d
               JOIN usuario u ON u.id = d.atendente_id
              WHERE u.id = ?
-               AND d.disponivel_para_ia = TRUE AND u.ativo = TRUE
+               AND d.disponivel_para_ia = TRUE AND u.ativo = TRUE AND NOT u.usuario_teste
                -- Espelha PapelUsuario.recebeAtendimento()
                AND u.papel IN ('ATENDENTE', 'SUBGESTOR') AND u.status_presenca = 'ONLINE'
             """;
@@ -182,8 +183,8 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
         String estrategia = distribuicaoSequencialAtiva()
                 ? DiagnosticoDoRodizio.ESTRATEGIA_SEQUENCIAL
                 : DiagnosticoDoRodizio.ESTRATEGIA_MENOR_CARGA;
-        // O funil nao tem WHERE: o escopo entra como WHERE no fim, so quando houver filtro.
-        String sql = escopo.eGlobal() ? SQL_FUNIL : SQL_FUNIL + " WHERE TRUE" + condicoes(escopo);
+        // O funil ja exclui contas de teste; o setor complementa esse mesmo WHERE.
+        String sql = SQL_FUNIL + condicoes(escopo);
         RowMapper<DiagnosticoDoRodizio> mapeador = (linha, indice) -> new DiagnosticoDoRodizio(
                 estrategia,
                 linha.getLong("ativos"),

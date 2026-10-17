@@ -93,6 +93,9 @@ public final class PoliticaDeConcessao {
     }
 
     public static void exigirAlcadaSobre(Ator ator, UUID alvoId, PapelUsuario papelDoAlvo) {
+        if (!ator.efetivas().permite(Capacidade.EQUIPE_EXCECOES_ATENDENTES)) {
+            throw new ConcessaoNegadaException(Codigo.SEM_DELEGACAO);
+        }
         if (ator.id().equals(alvoId)) {
             throw new ConcessaoNegadaException(Codigo.ALVO_PROPRIO);
         }

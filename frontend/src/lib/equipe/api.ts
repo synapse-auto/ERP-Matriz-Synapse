@@ -3,7 +3,8 @@ export const listarEquipe=()=>apiFetch<UsuarioEquipe[]>("/api/v1/usuarios");expo
 export function atualizarMeuUsuario(d:{nome:string;email:string;telefone:string|null;cargo:string|null;senhaAtual:string|null}){return apiFetch<MeuUsuario>("/api/v1/me",{method:"PATCH",body:JSON.stringify(d)})}
 export function atualizarMinhaFoto(arquivo:File){const corpo=new FormData();corpo.append("arquivo",arquivo);return apiFetch<MeuUsuario>("/api/v1/me/foto",{method:"POST",body:corpo})}
 export function removerMinhaFoto(){return apiFetch<MeuUsuario>("/api/v1/me/foto",{method:"DELETE"})}
-export function criarUsuario(d:{nome:string;email:string;senha:string;papel:PapelGerenciavel}){return apiFetch<UsuarioEquipe>("/api/v1/usuarios",{method:"POST",body:JSON.stringify(d)})}
+export function criarUsuario(d:{nome:string;email:string;senha:string;papel:PapelGerenciavel;usuarioTeste?:boolean}){return apiFetch<UsuarioEquipe>("/api/v1/usuarios",{method:"POST",body:JSON.stringify(d)})}
+export function classificarUsuarioTeste(id:string,usuarioTeste:boolean){return apiFetch<UsuarioEquipe>(`/api/v1/usuarios/${id}/classificacao-teste`,{method:"PATCH",body:JSON.stringify({usuarioTeste,confirmado:true})})}
 export function editarUsuario(id:string,d:{nome:string;email:string;papel:PapelGerenciavel}){return apiFetch<UsuarioEquipe>(`/api/v1/usuarios/${id}`,{method:"PUT",body:JSON.stringify(d)})}
 export const desativarUsuario=(id:string)=>apiFetch<void>(`/api/v1/usuarios/${id}/desativar`,{method:"PATCH"});
 /** E29: senha em claro devolvida uma unica vez — nao entra em cache nem sobrevive alem do dialogo que a mostra. */

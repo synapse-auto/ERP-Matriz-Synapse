@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { SinalizadorShellPronto } from "@/components/auth/sinalizador-shell-pronto";
+import { AvisoContaTeste } from "@/components/auth/aviso-conta-teste";
 import { NavegacaoInferior } from "@/components/shell/navegacao-inferior";
 import { Sidebar } from "@/components/shell/sidebar";
 import { ProvedorConversaEmTelaCheia, useConversaEmTelaCheia } from "@/lib/navegacao/conversa-em-tela-cheia";
@@ -60,6 +61,7 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
         </div>
       )}
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <AvisoContaTeste />
         {/*
           `[&>*]:shrink-0` é o que faz esta superfície ROLAR de verdade, e não é cosmético.
           Como o <main> é um flex column com altura definida, todo filho direto nasce com

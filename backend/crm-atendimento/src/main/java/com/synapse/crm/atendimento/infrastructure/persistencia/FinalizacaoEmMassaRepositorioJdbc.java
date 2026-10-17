@@ -48,7 +48,7 @@ class FinalizacaoEmMassaRepositorioJdbc implements FinalizacaoEmMassaRepositorio
             """;
 
     private static final String SQL_CONTAR =
-            "SELECT u.id AS atendente_id, u.nome, count(e.id) AS quantidade FROM usuario u"
+            "SELECT u.id AS atendente_id, u.nome, count(e.id) AS quantidade FROM usuario_visivel u"
                     + " LEFT JOIN (SELECT a.id, a.atendente_id" + ELEGIVEIS_DO_FILTRO
                     + ") e ON e.atendente_id = u.id WHERE u.id = ANY (?) GROUP BY u.id, u.nome ORDER BY u.nome, u.id";
 
@@ -120,7 +120,7 @@ class FinalizacaoEmMassaRepositorioJdbc implements FinalizacaoEmMassaRepositorio
     public Set<UUID> usuariosExistentes(Collection<UUID> ids) {
         TransacaoObrigatoria.exigir("usuariosExistentes");
         List<UUID> achados = chat.query(
-                "SELECT id FROM usuario WHERE id = ANY (?)",
+                "SELECT id FROM usuario_visivel WHERE id = ANY (?)",
                 ps -> ps.setArray(1, uuids(ps.getConnection(), ids)),
                 (rs, i) -> rs.getObject(1, UUID.class));
         return Set.copyOf(achados);
@@ -223,7 +223,7 @@ class FinalizacaoEmMassaRepositorioJdbc implements FinalizacaoEmMassaRepositorio
                 SELECT i.atendimento_id, i.atendente_id, u.nome AS atendente_nome, l.nome AS lead_nome,
                        i.status, i.motivo, i.processado_em
                   FROM finalizacao_em_massa_item i
-                  JOIN usuario u ON u.id = i.atendente_id
+                  JOIN usuario_visivel u ON u.id = i.atendente_id
                   LEFT JOIN atendimento a ON a.id = i.atendimento_id
                   LEFT JOIN lead l ON l.id = a.lead_id
                  WHERE i.operacao_id = ? AND (?::text IS NULL OR i.status = ?)

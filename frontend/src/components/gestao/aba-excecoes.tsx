@@ -55,6 +55,7 @@ import {
 } from "./apoio";
 import { BarraDeAlteracoes } from "./barra-de-alteracoes";
 import { DialogoDeCopia } from "./dialogo-de-copia";
+import { SeloUsuarioTeste } from "./selo-usuario-teste";
 
 const ORDEM_DOS_GRUPOS: Papel[] = ["GESTOR", "SUBGESTOR", "ATENDENTE", "OPERADOR"];
 
@@ -281,6 +282,7 @@ function ListaDeIntegrantes({
                       <AvatarIniciais id={u.id} nome={u.nome} fotoUrl={u.fotoUrl} className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[13px] font-semibold text-foreground">{u.nome}</span>
+                        <SeloUsuarioTeste teste={u.usuarioTeste} />
                         <span className="block truncate text-[11px] text-muted-foreground">{sub}</span>
                       </span>
                       {n > 0 && (
@@ -373,6 +375,7 @@ function DetalheDoUsuario({
           <p className="flex flex-wrap items-center gap-2">
             <span className="text-base font-bold text-foreground">{u.nome}</span>
             <PillDeStatus tom="neutro">{textos.papeis[papel]}</PillDeStatus>
+            <SeloUsuarioTeste teste={u.usuarioTeste} />
             {n > 0 && (
               <span className="rounded-md bg-cor-atencao/15 px-1.5 py-0.5 text-[11px] font-bold text-cor-atencao">
                 {n === 1 ? textos.excecoes.excecao : preencher(textos.excecoes.excecoes, { n })}

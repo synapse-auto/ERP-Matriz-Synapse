@@ -4,13 +4,42 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ErroDeApi } from "@/lib/api/errors";
 import { QueryProvider } from "./query-provider";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import type { QueryClient } from "@tanstack/react-query";
 
 afterEach(() => {
   onlineManager.setOnline(true);
-  useAuthStore.setState({ usuarioId: null, papel: null });
+  useAuthStore.setState({ usuarioId: null, papel: null, accessToken: null, expiraEm: null });
 });
 
 describe("política de recuperação", () => {
+  it("outro usuario ou papel recebe cache vazio e resposta antiga nao preenche a nova sessao", () => {
+    let atual: QueryClient;
+    function Capturar() { atual=useQueryClient(); return null; }
+    useAuthStore.setState({usuarioId:"adm",papel:"ADMINISTRADOR"});
+    render(<QueryProvider><Capturar/></QueryProvider>);
+    const antigo=atual!;
+    antigo.setQueryData(["equipe"],[{id:"conta-teste",usuarioTeste:true}]);
+    act(()=>useAuthStore.setState({usuarioId:"gestor",papel:"GESTOR"}));
+    expect(atual!).not.toBe(antigo);
+    expect(atual!.getQueryData(["equipe"])).toBeUndefined();
+    antigo.setQueryData(["equipe"],[{id:"resposta-atrasada"}]);
+    expect(atual!.getQueryData(["equipe"])).toBeUndefined();
+    const gestor=atual!;
+    act(()=>useAuthStore.setState({papel:"ATENDENTE"}));
+    expect(atual!).not.toBe(gestor);
+  });
+  it("refresh do token no mesmo usuario e papel preserva o cache autorizado", () => {
+    let atual: QueryClient;
+    function Capturar() { atual = useQueryClient(); return null; }
+    useAuthStore.setState({ usuarioId: "convidado-b", papel: "ATENDENTE" });
+    render(<QueryProvider><Capturar /></QueryProvider>);
+    const anterior = atual!;
+    anterior.setQueryData(["lead", "lead-compartilhado"], "Ficha autorizada");
+    act(() => useAuthStore.setState({ accessToken: "refresh-sintetico", expiraEm: 123 }));
+    expect(atual!).toBe(anterior);
+    expect(atual!.getQueryData(["lead", "lead-compartilhado"])).toBe("Ficha autorizada");
+  });
+
   it("terceiro não reaproveita ficha autorizada no cache da conta anterior", async () => {
     useAuthStore.setState({ usuarioId: "convidado-b", papel: "ATENDENTE" });
     const ler = vi.fn(async () => {

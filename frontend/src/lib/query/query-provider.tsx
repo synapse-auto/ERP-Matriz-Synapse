@@ -20,6 +20,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
   return <CacheDaSessao key={JSON.stringify([usuarioId, papel])}>{children}</CacheDaSessao>;
 }
 
+/** Outro ator/papel recebe outra instancia; respostas/mutations antigas continuam no cache antigo. */
 function CacheDaSessao({ children }: { children: React.ReactNode }) {
   const [client] = useState(
     () =>

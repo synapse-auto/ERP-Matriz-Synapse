@@ -38,7 +38,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
               JOIN chat_interno_participante cp ON cp.conversa_id = c.id AND cp.usuario_id = ?
               LEFT JOIN chat_interno_participante outros ON outros.conversa_id = c.id
                 AND outros.usuario_id <> ?
-              LEFT JOIN usuario u ON u.id = outros.usuario_id
+              LEFT JOIN usuario_visivel u ON u.id = outros.usuario_id
               LEFT JOIN LATERAL (SELECT m.conteudo, m.enviado_em, m.removida_em FROM chat_interno_mensagem m
                 WHERE m.conversa_id = c.id ORDER BY m.enviado_em DESC LIMIT 1) ultima ON TRUE
              GROUP BY c.id, c.tipo, c.nome, c.foto_atualizada_em, c.criado_por_id,
@@ -89,7 +89,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
         return jdbc.query("""
                 SELECT id, nome, status_presenca::text,
                        CASE WHEN foto_referencia IS NOT NULL THEN '/api/v1/me/foto/' || id::text END AS foto_url
-                  FROM usuario WHERE ativo AND id<>? ORDER BY nome
+                  FROM usuario_visivel WHERE ativo AND id<>? ORDER BY nome
                 """,
                 (r, i) -> new ContatoResumo(r.getObject("id", UUID.class), r.getString("nome"),
                         r.getString("foto_url"), StatusPresenca.valueOf(r.getString("status_presenca"))), usuarioId);
@@ -124,13 +124,13 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
 
     @Override
     public boolean usuarioExiste(UUID usuarioId) {
-        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM usuario WHERE id=? AND ativo)", Boolean.class, usuarioId));
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM usuario_visivel WHERE id=? AND ativo AND NOT usuario_teste)", Boolean.class, usuarioId));
     }
 
     @Override
     public Optional<String> nomeDoUsuario(UUID usuarioId) {
         List<String> nomes = jdbc.query(
-                "SELECT nome FROM usuario WHERE id=?",
+                "SELECT nome FROM usuario_visivel WHERE id=?",
                 (r, i) -> r.getString(1),
                 usuarioId);
         return nomes.stream().findFirst();
@@ -240,7 +240,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                        m.enviado_em,m.editado_em,m.removida_em IS NOT NULL AS removida,
                        m.referencia_origem_id,m.referencia_tipo,m.referencia_autor,
                        m.referencia_tipo_conteudo,m.referencia_previa,m.referencia_origem_removida
-                  FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id
+                  FROM chat_interno_mensagem m JOIN usuario_visivel u ON u.id=m.remetente_id
                  WHERE m.conversa_id=? %s ORDER BY m.enviado_em DESC LIMIT ?
                 """.formatted(cursor), (r, i) -> new MensagemResumo(
                 r.getObject("id", UUID.class), r.getObject("conversa_id", UUID.class),
@@ -302,7 +302,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                 conteudo);
         return jdbc.queryForObject(
                 "SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,m.conteudo,m.midia_url,m.midia_metadados,m.enviado_em,m.editado_em"
-                        + " FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id WHERE m.id=?",
+                        + " FROM chat_interno_mensagem m JOIN usuario_visivel u ON u.id=m.remetente_id WHERE m.id=?",
                 (r, i) -> new MensagemResumo(
                         r.getObject("id", UUID.class),
                         r.getObject("conversa_id", UUID.class),
@@ -321,7 +321,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
         UUID id = UUID.randomUUID();
         jdbc.update("INSERT INTO chat_interno_mensagem(id,conversa_id,remetente_id,tipo,conteudo,midia_url,midia_metadados) VALUES (?, ?, ?, ?::tipo_mensagem, ?, ?, ?::jsonb)",
                 id, conversaId, remetenteId, tipo, conteudo, midiaUrl, midiaMetadados);
-        return jdbc.queryForObject("SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,m.conteudo,m.midia_url,m.midia_metadados,m.enviado_em,m.editado_em FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id WHERE m.id=?",
+        return jdbc.queryForObject("SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,m.conteudo,m.midia_url,m.midia_metadados,m.enviado_em,m.editado_em FROM chat_interno_mensagem m JOIN usuario_visivel u ON u.id=m.remetente_id WHERE m.id=?",
                 (r, i) -> new MensagemResumo(r.getObject("id", UUID.class), r.getObject("conversa_id", UUID.class),
                         r.getObject("remetente_id", UUID.class), r.getString("nome"),
                         r.getString("tipo"), r.getString("conteudo"),
@@ -339,7 +339,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                        m.enviado_em,m.editado_em,m.removida_em IS NOT NULL AS removida,
                        m.referencia_origem_id,m.referencia_tipo,m.referencia_autor,
                        m.referencia_tipo_conteudo,m.referencia_previa,m.referencia_origem_removida
-                  FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id
+                  FROM chat_interno_mensagem m JOIN usuario_visivel u ON u.id=m.remetente_id
                  WHERE m.conversa_id=? AND m.id=?
                 """, (r, i) -> mapearMensagem(r), conversaId, mensagemId).stream().findFirst();
     }

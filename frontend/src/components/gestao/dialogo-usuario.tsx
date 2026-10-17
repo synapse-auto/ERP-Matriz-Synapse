@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
+import { Switch } from "@/components/ui/switch";
+import { useTextos } from "@/lib/config/textos-provider";
 import { ErroDeApi } from "@/lib/api/errors";
 import type { PapelGerenciavel, UsuarioEquipe } from "@/lib/equipe/types";
 import { useCriarUsuario, useEditarUsuario } from "@/lib/equipe/use-equipe";
@@ -34,12 +36,14 @@ export function DialogoUsuario({
   existente,
   funcoesPermitidas,
   podeAlterarFuncao,
+  podeClassificarTeste = false,
   onFechar,
 }: {
   textos: TextosGestao;
   existente?: UsuarioEquipe;
   funcoesPermitidas: PapelGerenciavel[];
   podeAlterarFuncao: boolean;
+  podeClassificarTeste?: boolean;
   onFechar: () => void;
 }) {
   const cache = useQueryClient();
@@ -48,6 +52,8 @@ export function DialogoUsuario({
   const [nome, setNome] = useState(existente?.nome ?? "");
   const [email, setEmail] = useState(existente?.email ?? "");
   const [senha, setSenha] = useState("");
+  const [usuarioTeste,setUsuarioTeste]=useState(false);
+  const {usuariosTeste}=useTextos();
   const [papel, setPapel] = useState<PapelGerenciavel>(
     (existente?.papel as PapelGerenciavel | undefined) ?? funcoesPermitidas[funcoesPermitidas.length - 1] ?? "ATENDENTE",
   );
@@ -66,7 +72,7 @@ export function DialogoUsuario({
       onFechar();
     };
     if (existente) editar.mutate({ id: existente.id, dados: { nome, email, papel } }, { onSuccess: aoConcluir });
-    else criar.mutate({ nome, email, senha, papel }, { onSuccess: aoConcluir });
+    else criar.mutate({ nome, email, senha, papel, ...(podeClassificarTeste ? {usuarioTeste} : {}) }, { onSuccess: aoConcluir });
   }
 
   return (
@@ -142,6 +148,12 @@ export function DialogoUsuario({
               <Info className="mt-px size-3.5 shrink-0" aria-hidden />
               {f.iaAviso}
             </p>
+          )}
+          {!existente && podeClassificarTeste && (
+            <div className="flex items-start gap-3 rounded-lg border border-border p-3">
+              <Switch checked={usuarioTeste} onCheckedChange={setUsuarioTeste} disabled={salvando} aria-label={usuariosTeste.rotulo} />
+              <span><span className="block text-sm font-semibold">{usuariosTeste.rotulo}</span><span className="block text-xs text-muted-foreground">{usuariosTeste.ajuda}</span></span>
+            </div>
           )}
           {mensagemErro && <p role="alert" className="text-sm text-destructive">{mensagemErro}</p>}
           <DialogFooter>

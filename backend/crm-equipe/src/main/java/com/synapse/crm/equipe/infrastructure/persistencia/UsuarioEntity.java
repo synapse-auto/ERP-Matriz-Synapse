@@ -48,6 +48,9 @@ class UsuarioEntity {
     @Column(name = "ativo", nullable = false)
     private boolean ativo;
 
+    @Column(name = "usuario_teste", nullable = false)
+    private boolean usuarioTeste;
+
     @Column(name = "telefone")
     private String telefone;
 
@@ -67,6 +70,6 @@ class UsuarioEntity {
 
     Usuario paraDominio() {
         return new Usuario(id, nome, email, senhaHash, papel, statusPresenca, ativo, false, telefone, cargo,
-                fotoReferencia, senhaAlteradaEm);
+                fotoReferencia, senhaAlteradaEm, usuarioTeste);
     }
 }

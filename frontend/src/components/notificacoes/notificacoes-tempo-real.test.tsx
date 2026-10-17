@@ -241,11 +241,15 @@ describe("NotificacoesTempoReal — ACESSO_ALTERADO (Gestão, docs/47)", () => {
   it("revalida as permissões efetivas sem F5 e sem mostrar aviso ao usuário", async () => {
     const cliente = new QueryClient();
     const invalidar = vi.spyOn(cliente, "invalidateQueries");
+    const reiniciar = vi.spyOn(cliente, "resetQueries");
+    cliente.setQueryData(["equipe"],[{id:"ocultavel"}]);
     renderizarCom(cliente);
 
     act(() => mocks.callback?.(aviso(false)));
 
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["permissoes"] });
+    expect(reiniciar).toHaveBeenCalled();
+    expect(cliente.getQueryData(["equipe"])).toBeUndefined();
     expect(httpMock.renovarAccessToken).not.toHaveBeenCalled();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });

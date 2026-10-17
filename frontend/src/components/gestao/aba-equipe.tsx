@@ -18,6 +18,7 @@ import {
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { Switch } from "@/components/ui/switch";
+import { Seletor } from "@/components/ui/seletor";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import { recebeAtendimento, visivelNaEquipe } from "@/lib/equipe/papel";
@@ -38,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { ICONE_DO_PAPEL, perfilFixoDoAtor, pode, preencher, type TextosGestao } from "./apoio";
 import { DialogoUsuario } from "./dialogo-usuario";
 import { PainelDeSetores, SetorDoIntegrante } from "./painel-de-setores";
+import { DialogoClassificacaoTeste } from "./dialogo-classificacao-teste";
 
 const COR_PRESENCA: Record<StatusPresenca, string> = {
   ONLINE: "var(--cor-sucesso)",
@@ -70,7 +72,7 @@ export function AbaEquipe({
   /** Ausente com Exceções "Em breve": o atalho da linha abre o perfil da função. */
   onAbrirExcecoes?: (usuarioId: string) => void;
 }) {
-  const { equipe: textosEquipe, setores: textosSetores } = useTextos();
+  const { equipe: textosEquipe, setores: textosSetores, usuariosTeste } = useTextos();
   const funcionalidades = useFuncionalidadesHabilitadas();
   const setoresLigados = funcionalidades.data?.includes(FLAG_SETORES) === true;
   const setores = useSetores(setoresLigados);
@@ -89,6 +91,10 @@ export function AbaEquipe({
   const [paraDesativar, setParaDesativar] = useState<UsuarioEquipe | null>(null);
   const [senhaPara, setSenhaPara] = useState<UsuarioEquipe | null>(null);
   const [senha, setSenha] = useState<string | null>(null);
+  const [filtroTeste,setFiltroTeste]=useState("todos");
+  const [classificar,setClassificar]=useState<UsuarioEquipe|null>(null);
+  const [classificacaoSalva,setClassificacaoSalva]=useState(false);
+  const adm=minhas.papel==="ADMINISTRADOR";
 
   if (equipe.isLoading || perfis.isLoading) return <p className="text-sm text-muted-foreground">{textos.carregando}</p>;
   if (equipe.isError || perfis.isError) {
@@ -96,9 +102,12 @@ export function AbaEquipe({
   }
 
   const usuarios = (equipe.data ?? [])
-    .filter((u) => visivelNaEquipe(u.papel))
+    .filter((u) => visivelNaEquipe(u.papel) || (adm&&u.usuarioTeste))
+    .filter((u) => !adm || filtroTeste==="todos" || (u.usuarioTeste===true)===(filtroTeste==="testes"))
     .sort((a, b) => ORDEM_DO_PAPEL[a.papel] - ORDEM_DO_PAPEL[b.papel]
       || Number(b.ativo) - Number(a.ativo) || a.nome.localeCompare(b.nome));
+  // O filtro administrativo altera a grade, nao a equipe operacional medida pelos indicadores.
+  const integrantesOperacionais=(equipe.data??[]).filter(u=>visivelNaEquipe(u.papel)&&!u.usuarioTeste);
   const excecoesPorId = new Map((permissoes.data ?? []).map((p) => [p.id, p.excecoes]));
   const visiveisNasExcecoes = new Set((permissoes.data ?? []).map((p) => p.id));
   const avaliacaoPorId = new Map((avaliacoes.data?.porAtendente ?? []).map((a) => [a.atendenteId, a]));
@@ -126,10 +135,15 @@ export function AbaEquipe({
       )}
 
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
-        <table className="w-full text-sm">
+        {adm&&<div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
+          <div className="w-full max-w-xs"><Seletor valor={filtroTeste} onChange={setFiltroTeste} ariaLabel={usuariosTeste.filtro} placeholder={usuariosTeste.filtro}
+            opcoes={[{valor:"todos",rotulo:usuariosTeste.todos},{valor:"comuns",rotulo:usuariosTeste.comuns},{valor:"testes",rotulo:usuariosTeste.testes}]}/></div>
+          {classificacaoSalva&&<p role="status" className="text-sm text-foreground">{usuariosTeste.salvo}</p>}
+        </div>}
+        <table className="w-full table-fixed text-sm sm:table-auto">
           <thead className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
             <tr className="border-b border-border">
-              <th scope="col" className="px-5 py-3.5 text-left">{textos.equipe.colunas.usuario}</th>
+              <th scope="col" className="w-2/3 px-5 py-3.5 text-left sm:w-auto">{textos.equipe.colunas.usuario}</th>
               <th scope="col" className="hidden px-3 py-3.5 text-left md:table-cell">{textos.equipe.colunas.funcao}</th>
               {setoresLigados && <th scope="col" className="hidden px-3 py-3.5 text-left lg:table-cell">{textosSetores.colunaSetor}</th>}
               <th scope="col" className="hidden px-3 py-3.5 text-left sm:table-cell">{textos.equipe.colunas.presenca}</th>
@@ -167,6 +181,7 @@ export function AbaEquipe({
                       <div className="min-w-0">
                         <p className="flex items-center gap-2">
                           <span className="truncate font-bold text-foreground">{u.nome}</span>
+                          {adm&&u.usuarioTeste&&<PillDeStatus tom="neutro">{usuariosTeste.selo}</PillDeStatus>}
                           {!u.ativo && (
                             <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
                               {textos.equipe.desativado}
@@ -209,7 +224,7 @@ export function AbaEquipe({
                       <span className="inline-flex items-center gap-2">
                         <Switch
                           checked={u.disponivelParaIa ?? false}
-                          disabled={!u.ativo || !pode(minhas, "equipe.disponibilidade_ia") || disponibilidade.isPending}
+                          disabled={!u.ativo || u.usuarioTeste===true || !pode(minhas, "equipe.disponibilidade_ia") || disponibilidade.isPending}
                           aria-label={preencher(textos.equipe.ia.rotulo, { nome: u.nome })}
                           onCheckedChange={(v) => disponibilidade.mutate({ id: u.id, disponivelParaIa: v })}
                         />
@@ -242,6 +257,7 @@ export function AbaEquipe({
                           <Pencil className="size-4" />
                         </AcaoDaLinha>
                       )}
+                      {adm&&u.id!==minhas.usuarioId&&pode(minhas,"equipe.editar")&&<AcaoDaLinha rotulo={`${usuariosTeste.alterar}: ${u.nome}`} onClick={()=>{setClassificacaoSalva(false);setClassificar(u);}}><UserRoundCog className="size-4"/></AcaoDaLinha>}
                       {podeGerenciar && pode(minhas, "equipe.senha_provisoria") && (
                         <AcaoDaLinha
                           rotulo={preencher(textos.equipe.acoes.senha, { nome: u.nome })}
@@ -272,9 +288,9 @@ export function AbaEquipe({
         <section className="space-y-3" aria-label={textos.equipe.indicadores}>
           <p className="px-0.5 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">{textos.equipe.indicadores}</p>
           <MiniDashboard
-            totalUsuarios={usuarios.length}
-            online={usuarios.filter((u) => u.statusPresenca === "ONLINE").length}
-            ativos={usuarios.filter((u) => u.ativo).length}
+            totalUsuarios={integrantesOperacionais.length}
+            online={integrantesOperacionais.filter((u) => u.statusPresenca === "ONLINE").length}
+            ativos={integrantesOperacionais.filter((u) => u.ativo).length}
             mediaGeral={avaliacoes.data.mediaGeral}
             rankingAvaliacao={avaliacoes.data.porAtendente.slice().sort((a, b) => b.media - a.media).slice(0, 5)}
             rankingVendas={desempenho.data.porAtendente.filter((i) => i.vendas > 0).slice().sort((a, b) => b.vendas - a.vendas).slice(0, 5)}
@@ -285,7 +301,7 @@ export function AbaEquipe({
       )}
 
       {novoAberto && (
-        <DialogoUsuario textos={textos} funcoesPermitidas={funcoesPermitidas} podeAlterarFuncao onFechar={onFecharNovo} />
+        <DialogoUsuario textos={textos} funcoesPermitidas={funcoesPermitidas} podeAlterarFuncao podeClassificarTeste={adm} onFechar={onFecharNovo} />
       )}
       {edicao && (
         <DialogoUsuario
@@ -299,6 +315,7 @@ export function AbaEquipe({
       {senhaPara && (
         <SenhaProvisoriaDialog usuario={senhaPara} senha={senha} erro={gerarSenha.isError} onFechar={() => setSenhaPara(null)} />
       )}
+      {classificar&&<DialogoClassificacaoTeste usuario={classificar} onFechar={()=>setClassificar(null)} onSalvo={()=>{setClassificar(null);setClassificacaoSalva(true);void cache.invalidateQueries({queryKey:CHAVE_GESTAO});}}/>}
       {paraDesativar && (
         <Dialog open onOpenChange={(v) => !v && !desativar.isPending && setParaDesativar(null)}>
           <DialogContent>

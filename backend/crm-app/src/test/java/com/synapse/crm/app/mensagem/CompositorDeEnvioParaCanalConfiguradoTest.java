@@ -1,6 +1,7 @@
 package com.synapse.crm.app.mensagem;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -14,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.synapse.crm.atendimento.application.ContaDeTesteSomenteLeituraException;
 import com.synapse.crm.atendimento.application.Outbox;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
@@ -23,6 +25,7 @@ import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.automacaoconfig.infrastructure.ConfiguracaoDeInstanciaResources;
+import com.synapse.crm.equipe.application.usuario.AuditarBloqueioContaTesteUseCase;
 
 class CompositorDeEnvioParaCanalConfiguradoTest {
 
@@ -31,6 +34,7 @@ class CompositorDeEnvioParaCanalConfiguradoTest {
 
     private final OrigemDeMensagemRepositorio origens = mock(OrigemDeMensagemRepositorio.class);
     private final ConfiguracaoDeInstanciaResources recursos = mock(ConfiguracaoDeInstanciaResources.class);
+    private final AuditarBloqueioContaTesteUseCase auditoria = mock(AuditarBloqueioContaTesteUseCase.class);
     private CompositorDeEnvioParaCanalConfigurado compositor;
 
     @BeforeEach
@@ -38,7 +42,7 @@ class CompositorDeEnvioParaCanalConfiguradoTest {
         var textos = new ObjectMapper().readTree(
                 "{\"atendimentos\":{\"mensagem\":{\"prefixoAtendente\":\"*{nome}:*\\n\\n{mensagem}\"}}}");
         when(recursos.textos()).thenReturn(textos);
-        compositor = new CompositorDeEnvioParaCanalConfigurado(origens, recursos);
+        compositor = new CompositorDeEnvioParaCanalConfigurado(origens, recursos, auditoria);
     }
 
     @Test
@@ -63,11 +67,26 @@ class CompositorDeEnvioParaCanalConfiguradoTest {
     }
 
     @Test
-    void templateNuncaRecebePrefixoNemConsultaAutoria() {
+    void templateNaoRecebePrefixoMasVerificaAutoriaAntesDoEnvio() {
         var conteudo = ConteudoDeEnvio.MensagemTemplate.de("reativacao", "pt_BR", "Cliente");
 
         assertThat(compositor.montar(pendente(conteudo)).conteudo()).isSameAs(conteudo);
-        verifyNoInteractions(origens);
+        verify(origens).buscar(MENSAGEM_ID, ENVIADO_EM);
+        verifyNoInteractions(auditoria);
+    }
+
+    @Test
+    void contaDeTesteNaoMaterializaTextoMidiaOuTemplateMesmoNaOutbox() {
+        UUID autor = UUID.randomUUID();
+        Mensagem mensagem = Mensagem.texto(MENSAGEM_ID, UUID.randomUUID(), Remetente.atendente(autor), "original", ENVIADO_EM);
+        when(origens.buscar(MENSAGEM_ID, ENVIADO_EM)).thenReturn(Optional.of(new OrigemDeMensagem(mensagem, UUID.randomUUID(), "Lead", "Autor", true)));
+        for (ConteudoDeEnvio conteudo : java.util.List.of(
+                new ConteudoDeEnvio.MensagemLivre("texto"),
+                new ConteudoDeEnvio.MensagemMidia(TipoMensagem.DOCUMENTO, "storage/doc", null, null),
+                ConteudoDeEnvio.MensagemTemplate.de("reativacao", "pt_BR", "Cliente"))) {
+            assertThatThrownBy(() -> compositor.montar(pendente(conteudo))).isInstanceOf(ContaDeTesteSomenteLeituraException.class);
+        }
+        verify(auditoria, org.mockito.Mockito.times(3)).executar(autor,"OUTBOX_ENVIO");
     }
 
     @Test

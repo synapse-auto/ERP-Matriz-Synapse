@@ -32,12 +32,14 @@ import org.springframework.web.server.ResponseStatusException;
 import com.synapse.crm.equipe.application.usuario.AtualizarDisponibilidadeParaIaUseCase;
 import com.synapse.crm.equipe.application.usuario.AtualizarMinhaPresencaUseCase;
 import com.synapse.crm.equipe.application.usuario.AtualizarUsuarioUseCase;
+import com.synapse.crm.equipe.application.usuario.ClassificarUsuarioDeTesteUseCase;
 import com.synapse.crm.equipe.application.usuario.CriarUsuarioUseCase;
 import com.synapse.crm.equipe.application.usuario.DefinirSenhaProvisoriaUseCase;
 import com.synapse.crm.equipe.application.usuario.DesativarUsuarioUseCase;
 import com.synapse.crm.equipe.application.usuario.EmailDeUsuarioEmUsoException;
 import com.synapse.crm.equipe.application.usuario.ListarUsuariosUseCase;
 import com.synapse.crm.equipe.application.usuario.ObterMinhaPresencaUseCase;
+import com.synapse.crm.equipe.application.usuario.UsuarioPossuiVinculosException;
 import com.synapse.crm.equipe.domain.usuario.PapelGerenciavel;
 import com.synapse.crm.equipe.domain.usuario.SenhaInvalidaException;
 import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
@@ -59,12 +61,14 @@ class UsuarioController {
     private final AtualizarMinhaPresencaUseCase atualizarPresenca;
     private final DefinirSenhaProvisoriaUseCase definirSenhaProvisoria;
     private final AtualizarDisponibilidadeParaIaUseCase atualizarDisponibilidadeParaIa;
+    private final ClassificarUsuarioDeTesteUseCase classificarTeste;
 
     UsuarioController(ListarUsuariosUseCase listar, CriarUsuarioUseCase criar,
             AtualizarUsuarioUseCase atualizar, DesativarUsuarioUseCase desativar,
             ObterMinhaPresencaUseCase obterPresenca, AtualizarMinhaPresencaUseCase atualizarPresenca,
             DefinirSenhaProvisoriaUseCase definirSenhaProvisoria,
-            AtualizarDisponibilidadeParaIaUseCase atualizarDisponibilidadeParaIa) {
+            AtualizarDisponibilidadeParaIaUseCase atualizarDisponibilidadeParaIa,
+            ClassificarUsuarioDeTesteUseCase classificarTeste) {
         this.listar = listar;
         this.criar = criar;
         this.atualizar = atualizar;
@@ -73,6 +77,7 @@ class UsuarioController {
         this.atualizarPresenca = atualizarPresenca;
         this.definirSenhaProvisoria = definirSenhaProvisoria;
         this.atualizarDisponibilidadeParaIa = atualizarDisponibilidadeParaIa;
+        this.classificarTeste = classificarTeste;
     }
 
     @Operation(summary = "Listar usuários", description = "Lista a equipe sem expor hashes ou credenciais; restrito aos papéis de gestão.", responses = @ApiResponse(responseCode = "200", description = "Usuários da equipe."))
@@ -86,14 +91,31 @@ class UsuarioController {
     @ResponseStatus(HttpStatus.CREATED)
     UsuarioResposta criar(@Valid @RequestBody Criacao requisicao) {
         return UsuarioResposta.de(criar.executar(requisicao.nome(), requisicao.email(),
-                requisicao.senha(), requisicao.papel()));
+                requisicao.senha(), requisicao.papel(), requisicao.usuarioTeste()));
     }
 
     @Operation(summary = "Atualizar usuário", description = "Substitui nome, e-mail e papel gerenciável do integrante.", responses = {@ApiResponse(responseCode = "200", description = "Usuário atualizado."), @ApiResponse(responseCode = "404", description = "Usuário não encontrado."), @ApiResponse(responseCode = "409", description = "E-mail já está em uso.")})
     @PutMapping("/{id}")
     UsuarioResposta atualizar(@Parameter(description = "Identificador do usuário.", required = true) @PathVariable UUID id, @Valid @RequestBody Alteracao requisicao) {
+        if (requisicao.usuarioTeste() != null) throw new org.springframework.security.access.AccessDeniedException("Classificacao exige a operacao administrativa especifica.");
         return atualizar.executar(id, requisicao.nome(), requisicao.email(), requisicao.papel())
                 .map(UsuarioResposta::de).orElseThrow(UsuarioController::naoEncontrado);
+    }
+
+    @Operation(summary="Classificar usuario de teste", description="Exclusivo do ADMINISTRADOR vigente. Exige confirmacao explicita; recusa contas com vinculos operacionais/historicos sem alterar relacoes. Contas de teste sao somente leitura, inclusive com papel ADM.", responses={@ApiResponse(responseCode="200",description="Classificacao salva."),@ApiResponse(responseCode="403",description="Sem autorizacao ou autoalteracao."),@ApiResponse(responseCode="409",description="Vinculos existentes; amostras tecnicas somente para ADM.")})
+    @PatchMapping("/{id}/classificacao-teste")
+    UsuarioResposta classificarTeste(@PathVariable UUID id, @Valid @RequestBody ClassificacaoTeste requisicao) {
+        if (!requisicao.confirmado()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Confirmacao obrigatoria.");
+        return classificarTeste.executar(id,requisicao.usuarioTeste()).map(UsuarioResposta::de).orElseThrow(UsuarioController::naoEncontrado);
+    }
+
+    @ExceptionHandler(UsuarioPossuiVinculosException.class)
+    ProblemDetail possuiVinculos(UsuarioPossuiVinculosException e) {
+        ProblemDetail problema=ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,e.getMessage());
+        problema.setTitle("Classificacao bloqueada por vinculos existentes");
+        problema.setProperty("codigo","USUARIO_TESTE_COM_VINCULOS");
+        problema.setProperty("vinculos",e.vinculos());
+        return problema;
     }
 
     @Operation(summary = "Desativar usuário", description = "Impede novas autenticações do integrante sem remover seu histórico.", responses = {@ApiResponse(responseCode = "204", description = "Usuário desativado."), @ApiResponse(responseCode = "404", description = "Usuário não encontrado.")})
@@ -150,13 +172,13 @@ class UsuarioController {
     /** Sem senha_hash: nunca sai da camada de persistencia. */
     record UsuarioResposta(UUID id, String nome, String email, PapelUsuario papel,
             StatusPresenca statusPresenca, boolean ativo, boolean disponivelParaIa, String cargo,
-            String fotoUrl) {
+            String fotoUrl, boolean usuarioTeste) {
         static UsuarioResposta de(Usuario usuario) {
             String fotoUrl = usuario.fotoReferencia() == null ? null : "/api/v1/me/foto/" + usuario.id();
             return new UsuarioResposta(
                     usuario.id(), usuario.nome(), usuario.email(), usuario.papel(),
                     usuario.statusPresenca(), usuario.ativo(), usuario.disponivelParaIa(),
-                    usuario.cargo(), fotoUrl);
+                    usuario.cargo(), fotoUrl, usuario.usuarioTeste());
         }
     }
 
@@ -164,11 +186,14 @@ class UsuarioController {
             @Schema(description = "Nome do integrante.", example = "Pessoa Exemplo", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank @Size(max = 150) String nome,
             @Schema(description = "E-mail único.", example = "pessoa@example.invalid", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank @Email String email,
             @Schema(description = "Senha inicial; precisa atender à política configurada da instância.", format = "password", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank @Size(max = 100) String senha,
-            @Schema(description = "Papel aceito na gestão de usuários.", requiredMode = Schema.RequiredMode.REQUIRED) @NotNull PapelGerenciavel papel) {}
+            @Schema(description = "Papel aceito na gestão de usuários.", requiredMode = Schema.RequiredMode.REQUIRED) @NotNull PapelGerenciavel papel,
+            @Schema(description="Opcional; somente ADM pode definir, inclusive false. Ausente cria usuario comum.") Boolean usuarioTeste) {}
     record Alteracao(
             @Schema(description = "Nome do integrante.", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank @Size(max = 150) String nome,
             @Schema(description = "E-mail único.", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank @Email String email,
-            @Schema(description = "Papel aceito na gestão de usuários.", requiredMode = Schema.RequiredMode.REQUIRED) @NotNull PapelGerenciavel papel) {}
+            @Schema(description = "Papel aceito na gestão de usuários.", requiredMode = Schema.RequiredMode.REQUIRED) @NotNull PapelGerenciavel papel,
+            @Schema(description="Nao aceito nesta operacao; usar classificacao-teste com confirmacao administrativa.") Boolean usuarioTeste) {}
+    record ClassificacaoTeste(@NotNull Boolean usuarioTeste, boolean confirmado) {}
     record PresencaRequisicao(
             @Schema(description = "Novo estado de presença.", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotNull StatusPresenca status) {}

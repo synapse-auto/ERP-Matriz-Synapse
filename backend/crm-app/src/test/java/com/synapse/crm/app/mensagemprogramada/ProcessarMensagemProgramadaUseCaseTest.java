@@ -47,10 +47,30 @@ class ProcessarMensagemProgramadaUseCaseTest {
                 mensagens,
                 enviar,
                 org.mockito.Mockito.mock(com.synapse.crm.atendimento.application.origem.RegistroDeOrigemDaMensagem.class),
-                Clock.fixed(Instant.parse("2026-08-26T15:00:00Z"), ZoneOffset.UTC));
+                Clock.fixed(Instant.parse("2026-08-26T15:00:00Z"), ZoneOffset.UTC),
+                org.mockito.Mockito.mock(com.synapse.crm.equipe.application.usuario.ClassificacaoDeTesteRepositorio.class),
+                org.mockito.Mockito.mock(com.synapse.crm.equipe.application.usuario.AuditarBloqueioContaTesteUseCase.class));
 
         assertThatThrownBy(() -> casoDeUso.processar(id))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("outbox indisponivel");
+    }
+
+    @Test
+    void contaTesteBloqueadaNaExecucaoNaoEnviaNemCancelaAgendamento() {
+        var mensagens = org.mockito.Mockito.mock(MensagemProgramadaRepositorio.class);
+        var enviar = org.mockito.Mockito.mock(EnviarMensagemUseCase.class);
+        var classificacao = org.mockito.Mockito.mock(com.synapse.crm.equipe.application.usuario.ClassificacaoDeTesteRepositorio.class);
+        var auditoria = org.mockito.Mockito.mock(com.synapse.crm.equipe.application.usuario.AuditarBloqueioContaTesteUseCase.class);
+        var agora = Instant.parse("2026-08-26T15:00:00Z");
+        var programada = new MensagemProgramada(UUID.randomUUID(), UUID.randomUUID(), "Sintetico", UUID.randomUUID(), "Autor", "Texto sintetico", agora, StatusMensagemProgramada.AGENDADA);
+        when(mensagens.reservarVencida(programada.id(), agora)).thenReturn(Optional.of(programada));
+        when(classificacao.contaDeTeste(programada.atendenteId())).thenReturn(true);
+        var caso = new ProcessarMensagemProgramadaUseCase(mensagens,enviar,
+                org.mockito.Mockito.mock(com.synapse.crm.atendimento.application.origem.RegistroDeOrigemDaMensagem.class), Clock.fixed(agora,ZoneOffset.UTC),classificacao,auditoria);
+        assertThatThrownBy(() -> caso.processar(programada.id())).isInstanceOf(com.synapse.crm.atendimento.application.ContaDeTesteSomenteLeituraException.class);
+        org.mockito.Mockito.verifyNoInteractions(enviar);
+        org.mockito.Mockito.verify(auditoria).executar(programada.atendenteId(),"MENSAGEM_PROGRAMADA");
+        org.assertj.core.api.Assertions.assertThat(programada.status()).isEqualTo(StatusMensagemProgramada.AGENDADA);
     }
 }

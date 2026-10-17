@@ -190,7 +190,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                        count(*) FILTER (WHERE a.nota BETWEEN 7 AND 8) AS bom,
                        count(*) FILTER (WHERE a.nota BETWEEN 0 AND 6) AS ruim
                   FROM avaliacao a
-                  JOIN usuario u ON u.id = a.atendente_id
+                  JOIN usuario_visivel u ON u.id = a.atendente_id
                  WHERE %s
                 """.formatted(filtro.clausula()),
                 (linha, indice) -> new AgregadoAvaliacao(
@@ -209,7 +209,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 """
                 SELECT u.id, u.nome, round(avg(a.nota), 2) AS media, count(*) AS quantidade
                   FROM avaliacao a
-                  JOIN usuario u ON u.id = a.atendente_id
+                  JOIN usuario_visivel u ON u.id = a.atendente_id
                  WHERE %s
                  GROUP BY u.id, u.nome
                  ORDER BY media DESC, quantidade DESC, u.nome
@@ -352,8 +352,8 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 """
                 SELECT count(*) FILTER (WHERE status_presenca = 'ONLINE') AS online,
                        count(*) AS total
-                  FROM usuario
-                 WHERE ativo = TRUE AND papel IN ('ATENDENTE', 'SUBGESTOR')
+                  FROM usuario_visivel
+                 WHERE ativo = TRUE AND NOT usuario_teste AND papel IN ('ATENDENTE', 'SUBGESTOR')
                 """,
                 (linha, indice) -> new VisaoGeralDashboard.AtendentesOnline(
                         linha.getLong("online"), linha.getLong("total")));
@@ -379,7 +379,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 """
                 SELECT a.atendente_id AS id, u.nome, count(*) AS quantidade
                   FROM atendimento a
-                  JOIN usuario u ON u.id = a.atendente_id
+                  JOIN usuario_visivel u ON u.id = a.atendente_id
                  WHERE a.atendente_id IS NOT NULL AND %s
                  GROUP BY a.atendente_id, u.nome
                 """.formatted(filtroAtendimentos.clausula()),
@@ -571,7 +571,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                     SELECT date_trunc('month', a.criado_em AT TIME ZONE ?)::date AS mes,
                            a.nota
                       FROM avaliacao a
-                      JOIN usuario u ON u.id = a.atendente_id
+                      JOIN usuario_visivel u ON u.id = a.atendente_id
                      WHERE %s
                 )
                 SELECT mes, count(*) AS quantidade, avg(nota) AS media,

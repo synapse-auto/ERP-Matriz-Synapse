@@ -18,7 +18,7 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransferenciaRepositorio {
 
     /** Espelha {@link com.synapse.crm.sharedkernel.identidade.PapelUsuario#recebeAtendimento()}. */
-    private static final String ELEGIVEL = "ativo = TRUE AND papel IN ('ATENDENTE','SUBGESTOR')";
+    private static final String ELEGIVEL = "ativo = TRUE AND NOT usuario_teste AND papel IN ('ATENDENTE','SUBGESTOR')";
     /**
      * Critério específico da lista de destinos exibida no diálogo de transferência.
      *
@@ -29,8 +29,8 @@ class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransfer
      * autorização da transferência nem o contrato da Automação.
      */
     private static final String ELEGIVEL_NA_LISTA = """
-            (ativo = TRUE AND papel = 'ATENDENTE')
-            OR (ativo = TRUE AND papel = 'SUBGESTOR'
+            (ativo = TRUE AND NOT usuario_teste AND papel = 'ATENDENTE')
+            OR (ativo = TRUE AND NOT usuario_teste AND papel = 'SUBGESTOR'
                 AND status_presenca = 'ONLINE'
                 AND EXISTS (
                     SELECT 1
@@ -42,13 +42,13 @@ class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransfer
     private static final String SQL = "SELECT id, nome FROM usuario WHERE id = ? AND " + ELEGIVEL;
     private static final String SQL_LISTAR =
             "SELECT id, nome, papel FROM usuario WHERE " + ELEGIVEL_NA_LISTA
-                    + " OR (ativo = TRUE AND papel = 'OPERADOR') ORDER BY nome, id";
+                    + " OR (ativo = TRUE AND NOT usuario_teste AND papel = 'OPERADOR') ORDER BY nome, id";
     private static final String SQL_BUSCAR_POR_NOME =
             "SELECT id, nome FROM usuario WHERE " + ELEGIVEL + " AND nome ILIKE ? ORDER BY nome, id";
     private static final String SQL_MOTIVO = """
             SELECT CASE
-                WHEN NOT EXISTS (SELECT 1 FROM usuario WHERE id = ?) THEN 'INEXISTENTE'
-                WHEN EXISTS (SELECT 1 FROM usuario WHERE id = ? AND ativo = FALSE) THEN 'INATIVO'
+                WHEN NOT EXISTS (SELECT 1 FROM usuario WHERE id = ? AND NOT usuario_teste) THEN 'INEXISTENTE'
+                WHEN EXISTS (SELECT 1 FROM usuario WHERE id = ? AND NOT usuario_teste AND ativo = FALSE) THEN 'INATIVO'
                 ELSE 'PAPEL_NAO_ELEGIVEL'
             END
             """;
@@ -70,7 +70,7 @@ class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransfer
 
     @Override
     public java.util.Optional<Destino> ativoDestinoHumano(UUID atendenteId) {
-        return chat.query("SELECT id, nome, papel FROM usuario WHERE id = ? AND ativo = TRUE"
+        return chat.query("SELECT id, nome, papel FROM usuario WHERE id = ? AND ativo = TRUE AND NOT usuario_teste"
                         + " AND papel IN ('ATENDENTE','SUBGESTOR','OPERADOR')",
                 (linha, indice) -> new Destino(linha.getObject("id", UUID.class),
                         linha.getString("nome"), PapelUsuario.valueOf(linha.getString("papel"))), atendenteId)

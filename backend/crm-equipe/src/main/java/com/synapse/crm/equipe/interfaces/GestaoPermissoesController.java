@@ -217,10 +217,10 @@ class GestaoPermissoesController {
     }
 
     record ResumoResposta(UUID id, String nome, String email, String papel, boolean ativo, String fotoUrl,
-            int excecoes, boolean editavel) {
+            int excecoes, boolean editavel,boolean usuarioTeste) {
         static ResumoResposta de(Visoes.ResumoDeUsuario r) {
             return new ResumoResposta(r.id(), r.nome(), r.email(), r.papel().name(), r.ativo(),
-                    r.fotoReferencia() == null ? null : "/api/v1/me/foto/" + r.id(), r.excecoes(), r.editavel());
+                    r.fotoReferencia() == null ? null : "/api/v1/me/foto/" + r.id(), r.excecoes(), r.editavel(),r.usuarioTeste());
         }
     }
 

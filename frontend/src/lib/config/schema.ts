@@ -1500,6 +1500,22 @@ export const TextosSchema = z.object({
   gestao: GestaoTextosSchema,
   campanhas: CampanhasTextosSchema,
   setores: SetoresTextosSchema,
+  usuariosTeste: z.object({
+    rotulo: z.string().default("Usuário de teste"),
+    selo: z.string().default("Teste"),
+    ajuda: z.string().default("Conta somente leitura na operação normal. Não recebe leads da IA nem pode criar vínculos operacionais."),
+    modoLeitura: z.string().default("Conta de teste — somente leitura na operação normal."),
+    filtro: z.string().default("Classificação de usuários"),
+    todos: z.string().default("Todos os usuários"),
+    comuns: z.string().default("Somente usuários comuns"),
+    testes: z.string().default("Somente usuários de teste"),
+    alterar: z.string().default("Alterar classificação"),
+    confirmar: z.string().default("Confirmar classificação"),
+    impacto: z.string().default("Marcar como teste oculta a conta de não administradores e bloqueia escrita na operação normal. Vínculos e agendamentos existentes impedem a marcação; nada será excluído ou cancelado."),
+    erro: z.string().default("Não foi possível salvar a classificação. Nenhuma relação foi alterada."),
+    comVinculos: z.string().default("Classificação bloqueada: a conta possui vínculos operacionais ou históricos. Revise os identificadores técnicos, sem apagar ou reatribuir registros para contornar a proteção."),
+    salvo: z.string().default("Classificação salva."),
+  }).default({}),
 });
 
 export type Textos = z.infer<typeof TextosSchema>;

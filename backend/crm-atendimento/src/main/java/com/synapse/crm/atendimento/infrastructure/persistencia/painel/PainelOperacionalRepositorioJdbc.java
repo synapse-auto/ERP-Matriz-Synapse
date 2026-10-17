@@ -35,7 +35,8 @@ class PainelOperacionalRepositorioJdbc implements PainelOperacionalRepositorio, 
     @Override
     public List<UUID> candidatosDaPresenca(UUID usuarioAlterado) {
         // Somente IDs de usuários ativos. Delegado limitado recebe só a alteração da própria presença.
-        return jdbc.query("SELECT id FROM usuario WHERE ativo AND (papel IN ('GESTOR','SUBGESTOR','ADMINISTRADOR') OR id = :usuario)",
+        return jdbc.query("SELECT id FROM usuario WHERE ativo AND (papel IN ('GESTOR','SUBGESTOR','ADMINISTRADOR') OR id = :usuario)"
+                        + " AND (papel='ADMINISTRADOR' OR id=:usuario OR NOT EXISTS(SELECT 1 FROM usuario origem WHERE origem.id=:usuario AND origem.usuario_teste))",
                 new MapSqlParameterSource("usuario", usuarioAlterado), (r, n) -> r.getObject("id", UUID.class));
     }
 
@@ -143,7 +144,7 @@ class PainelOperacionalRepositorioJdbc implements PainelOperacionalRepositorio, 
           SELECT u.id, u.nome, CASE WHEN u.foto_referencia IS NOT NULL
                     THEN '/api/v1/usuarios/' || u.id::text || '/foto' END AS foto,
                  u.papel::text AS papel, u.status_presenca::text AS presenca, u.ativo AS elegivel
-            FROM usuario u WHERE u.papel IN ('ATENDENTE','OPERADOR','SUBGESTOR','GESTOR','ADMINISTRADOR')
+            FROM usuario_visivel u WHERE NOT u.usuario_teste AND u.papel IN ('ATENDENTE','OPERADOR','SUBGESTOR','GESTOR','ADMINISTRADOR')
               AND (u.ativo OR EXISTS (SELECT 1 FROM contagens c WHERE c.atendente_id = u.id))
               AND (:amplo OR u.id = :usuario OR EXISTS (SELECT 1 FROM contagens c WHERE c.atendente_id = u.id))
           UNION ALL SELECT NULL::uuid, NULL::text, NULL::text, NULL::text, NULL::text, false
@@ -220,7 +221,7 @@ class PainelOperacionalRepositorioJdbc implements PainelOperacionalRepositorio, 
                    CASE WHEN b.pendente THEN 'PENDENTE' ELSE b.status::text END AS situacao,
                    ultima.previa, ultima.tipo::text AS ultima_tipo, ultima.enviado_em AS ultima_em, b.respondido,
                    canal.tipo::text AS canal_tipo, b.convite_pendente
-              FROM pagina b LEFT JOIN usuario u ON u.id = b.atendente_id
+              FROM pagina b LEFT JOIN usuario_visivel u ON u.id = b.atendente_id
               LEFT JOIN atendimento ciclo ON ciclo.id = b.id
               LEFT JOIN canal ON canal.id = ciclo.canal_id
               LEFT JOIN etapa_atendimento e ON e.id = b.etapa_atendimento_id

@@ -92,6 +92,9 @@ export function NotificacoesTempoReal() {
       const recarregar = () => {
         void cache.invalidateQueries({ queryKey: ["permissoes"] });
         void cache.invalidateQueries({ queryKey: ["gestao"] });
+        // Classificacao de teste muda pessoas visiveis. Reset remove o snapshot anterior antes
+        // de revalidar; o aviso nao transporta identidade da conta classificada.
+        void cache.resetQueries({predicate:consulta=>["equipe","gestao","dashboard","chat-interno","setores","me","atendimentos"].includes(String(consulta.queryKey[0]))});
       };
       if (bruto.dados.sessaoInvalidada) void renovarAccessToken().then(recarregar);
       else recarregar();

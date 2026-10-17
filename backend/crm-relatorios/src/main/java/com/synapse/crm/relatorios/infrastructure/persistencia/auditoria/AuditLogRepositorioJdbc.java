@@ -46,6 +46,8 @@ class AuditLogRepositorioJdbc implements AuditLogRepositorio {
     @Override
     public Page<LinhaDeAuditLog> buscar(FiltroDeAuditLog filtro, Pageable pageable) {
         List<String> condicoes = new ArrayList<>();
+        // Auditoria e preservada, mas uma conta oculta nao pode ser descoberta pelo autor/alvo.
+        condicoes.add("((SELECT app_administrador_vigente()) OR NOT EXISTS (SELECT 1 FROM usuario oculto WHERE oculto.usuario_teste AND (oculto.id=ator_id OR (entidade_tipo IN ('USUARIO','PERMISSAO') AND oculto.id=entidade_id))))");
         List<Object> parametros = new ArrayList<>();
         adicionarCondicao(condicoes, parametros, "ator_id = ?", filtro.atorId());
         adicionarCondicao(condicoes, parametros, "acao = ?", filtro.acao());
