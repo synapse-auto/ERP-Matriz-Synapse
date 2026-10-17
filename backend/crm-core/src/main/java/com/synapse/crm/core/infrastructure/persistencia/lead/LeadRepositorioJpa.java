@@ -12,6 +12,8 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Root;
 
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
@@ -22,6 +24,7 @@ import com.synapse.crm.core.domain.filtro.FiltroDeLeads;
 import com.synapse.crm.core.domain.lead.FotoDoLead;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.LeadResumo;
+import com.synapse.crm.core.domain.lead.TelefoneIndisponivelException;
 import com.synapse.crm.core.domain.lead.VisibilidadeLead;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeAgenda;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
@@ -184,7 +187,20 @@ class LeadRepositorioJpa implements LeadRepositorio {
         // nada para editar, e o caso de uso responde 404 como na leitura.
         return entidadeVisivel(lead.id()).map(entidade -> {
             entidade.aplicar(lead);
-            return jpa.save(entidade).paraDominio();
+            try {
+                // O banco arbitra duplicidade, inclusive sob concorrencia/RLS. Flush aqui permite
+                // traduzir somente este conflito antes do commit, sem consultar o cadastro oculto.
+                return jpa.saveAndFlush(entidade).paraDominio();
+            } catch (DataIntegrityViolationException erro) {
+                for (Throwable causa = erro; causa != null; causa = causa.getCause()) {
+                    if (causa instanceof ConstraintViolationException violacao
+                            && "23505".equals(violacao.getSQLState())
+                            && "ux_lead_telefone".equals(violacao.getConstraintName())) {
+                        throw new TelefoneIndisponivelException();
+                    }
+                }
+                throw erro;
+            }
         });
     }
 
