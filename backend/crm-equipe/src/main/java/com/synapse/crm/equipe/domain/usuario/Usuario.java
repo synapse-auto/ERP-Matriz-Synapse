@@ -17,7 +17,14 @@ public record Usuario(
          * {@code null} = senha provisoria, nunca trocada pelo dono (E29). Usuario recem-criado ou
          * que teve a senha redefinida por um gestor comeca assim, de proposito.
          */
-        Instant senhaAlteradaEm) {
+        Instant senhaAlteradaEm, boolean usuarioTeste) {
+
+    public Usuario(UUID id, String nome, String email, String senhaHash, PapelUsuario papel,
+            StatusPresenca statusPresenca, boolean ativo, boolean disponivelParaIa,
+            String telefone, String cargo, String fotoReferencia, Instant senhaAlteradaEm) {
+        this(id, nome, email, senhaHash, papel, statusPresenca, ativo, disponivelParaIa,
+                telefone, cargo, fotoReferencia, senhaAlteradaEm, false);
+    }
 
     /** Compatibilidade para os casos que só precisam de identidade e autenticação. */
     public Usuario(

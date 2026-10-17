@@ -23,6 +23,19 @@ services:
       retries: 30
     networks: [internal]
 
+  # Somente fixture do smoke: prepara V1-V72 em banco descartavel. A V73 continua
+  # exclusiva do runner da imagem, e V74+ sao validadas/aplicadas pelo boot normal.
+  schema-inicial:
+    image: flyway/flyway:11.7.2
+    profiles: [preparacao]
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/synapse_ws
+      FLYWAY_USER: synapse_ws
+      FLYWAY_PASSWORD: synapse_ws_teste
+    volumes:
+      - ../../backend/crm-app/src/main/resources/db/migration:/flyway/sql:ro
+    networks: [internal]
+
   minio:
     image: cgr.dev/chainguard/minio@sha256:bd014394a80898e68c149f2311fdf8d5a2c2f3bb2c33b9327ae6d02b4b065ae1
     environment:

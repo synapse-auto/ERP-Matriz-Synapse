@@ -61,6 +61,7 @@ public class ConsultarPermissoesDeUsuariosUseCase {
     public Visoes.Usuario obter(UUID usuarioId) {
         PoliticaDeConcessao.Ator ator = atores.atual();
         Usuario usuario = equipe.porId(usuarioId)
+                .filter(u -> !u.usuarioTeste() || ator.papel()==PapelUsuario.ADMINISTRADOR)
                 .filter(u -> u.papel() != PapelUsuario.ADMINISTRADOR)
                 .orElseThrow(AlvoDePermissaoNaoEncontradoException::new);
         if (!enxerga(ator, usuario)) {
@@ -100,7 +101,7 @@ public class ConsultarPermissoesDeUsuariosUseCase {
     private static Visoes.ResumoDeUsuario resumo(Usuario u, int excecoes, PoliticaDeConcessao.Ator ator,
             Set<String> flags) {
         return new Visoes.ResumoDeUsuario(u.id(), u.nome(), u.email(), u.papel(), u.ativo(), u.fotoReferencia(),
-                excecoes, editavel(ator, u, flags));
+                excecoes, editavel(ator, u, flags),u.usuarioTeste());
     }
 
     /** Com a funcionalidade desligada ninguem edita excecao: a leitura continua, a gravacao e recusada. */

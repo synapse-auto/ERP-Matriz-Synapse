@@ -21,13 +21,14 @@ public class ListarMidiasDoLeadUseCase {
 
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
-    public List<MidiaDoLead> executar(UUID leadId, int pagina, int tamanho, Set<TipoMensagem> tipos) {
+    public List<MidiaDoLead> executar(UUID leadId, int pagina, int tamanho, Set<TipoMensagem> tipos,
+            boolean incluirIndisponiveis) {
         if (tipos != null && (tipos.isEmpty() || tipos.stream().anyMatch(tipo -> !tipo.exigeMidia()))) {
             throw new IllegalArgumentException("tipos deve conter apenas IMAGEM, AUDIO, DOCUMENTO ou VIDEO");
         }
         int limite = Math.min(50, Math.max(1, tamanho));
         int deslocamento = Math.max(0, pagina) * limite;
-        return repositorio.listar(leadId, limite, deslocamento, tipos);
+        return repositorio.listar(leadId, limite, deslocamento, tipos, incluirIndisponiveis);
     }
 
     @PreAuthorize("isAuthenticated()")

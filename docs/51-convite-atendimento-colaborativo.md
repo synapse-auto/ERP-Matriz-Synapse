@@ -169,13 +169,16 @@ de chamadas para 4 em 8 s (carga inicial e invalidações por evento).
 Capturas: `evidencias/convite-colaborativo/depois-duas-sessoes-{ana,bruno}.png` e
 `depois-e2e-modal-390.png`.
 
-### Ainda aberto
+### Lacunas históricas — corrigidas na auditoria de 14/10/2026
 
 - **O convidado não carrega a ficha do lead** (`GET /api/v1/leads/{id}` e `/tags` respondem 404): a
   `VisibilidadeLeadSpecification` não considera participação, só a RLS do caminho de mensagem
   considera. B lê e responde a conversa, mas o painel de detalhes do lead fica indisponível.
-  Mudar isso altera a RN-CRM-01 da Specification; não foi feito.
+  Esse recorte foi alinhado à participação ativa, sem incluir convite pendente nem retirar RLS,
+  na auditoria documentada em [docs/73](73-auditoria-convite-colaborativo.md).
 - O cartão da conversa não aparece nas visões Ativos/Pendentes de quem é só participante.
+  A auditoria alinhou listagem e contagem à participação ativa; Pendentes continua dependente
+  da última mensagem do cliente (ou do convite pessoal ainda pendente), sem mudar o responsável.
 
 ## 7. Operador e matriz de recebimento (04/10/2026)
 

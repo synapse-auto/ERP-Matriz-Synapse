@@ -75,6 +75,8 @@ vi.mock("@/components/shell/navegacao-inferior", () => ({
 vi.mock("@/components/auth/sinalizador-shell-pronto", () => ({
   SinalizadorShellPronto: () => null,
 }));
+// Estes testes verificam exclusivamente geometria/hover da shell; o aviso tem suite propria.
+vi.mock("@/components/auth/aviso-conta-teste", () => ({ AvisoContaTeste: () => null }));
 
 import { ShellComSidebar } from "./shell-com-sidebar";
 

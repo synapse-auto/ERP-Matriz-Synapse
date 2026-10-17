@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { INTERVALO_REVALIDACAO_CACHE_MS } from "./tempos";
 import { ErroDeApi } from "@/lib/api/errors";
+import { useAuthStore } from "@/lib/auth/auth-store";
 
 /**
  * QueryClient criado dentro do componente (não em module scope): em SSR, um client no escopo do
@@ -12,6 +13,15 @@ import { ErroDeApi } from "@/lib/api/errors";
  * vazando para a tela de outro.
  */
 export function QueryProvider({ children }: { children: React.ReactNode }) {
+  const usuarioId = useAuthStore(estado => estado.usuarioId);
+  const papel = useAuthStore(estado => estado.papel);
+  // Login por navegação client-side mantém o layout raiz. Não reutilizar ficha/histórico
+  // da conta anterior. Refresh do token e aceite no mesmo usuário NÃO trocam este client.
+  return <CacheDaSessao key={JSON.stringify([usuarioId, papel])}>{children}</CacheDaSessao>;
+}
+
+/** Outro ator/papel recebe outra instancia; respostas/mutations antigas continuam no cache antigo. */
+function CacheDaSessao({ children }: { children: React.ReactNode }) {
   const [client] = useState(
     () =>
       new QueryClient({

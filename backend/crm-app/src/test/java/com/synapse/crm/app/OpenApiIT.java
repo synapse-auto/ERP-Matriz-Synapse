@@ -41,6 +41,9 @@ class OpenApiIT extends PostgresIT {
     void documentoTemIdentidadeSegurancaECoberturaDeTodasAsOperacoes() throws Exception {
         JsonNode openApi = JSON.readTree(http.getForObject("/v3/api-docs", String.class));
 
+        assertThat(openApi.at("/paths/~1api~1v1~1usuarios~1{id}~1classificacao-teste/patch").isMissingNode()).isFalse();
+        assertThat(openApi.at("/components/schemas/UsuarioResposta/properties/usuarioTeste/type").asText()).isEqualTo("boolean");
+
         assertThat(openApi.path("info").path("title").asText()).isEqualTo("Synapse CRM API");
         assertThat(openApi.path("info").path("description").asText()).isNotBlank();
         assertThat(openApi.path("info").path("version").asText()).isEqualTo("v0.1.0");
@@ -88,6 +91,10 @@ class OpenApiIT extends PostgresIT {
         assertThat(parametro(listagemMidias, "tipos").path("required").asBoolean()).isFalse();
         assertThat(parametro(listagemMidias, "tipos").path("description").asText()).contains("vírgula");
         assertThat(listagemMidias.path("responses").fieldNames()).toIterable().contains("200", "400");
+        assertThat(parametro(listagemMidias, "incluirIndisponiveis").path("required").asBoolean()).isFalse();
+        JsonNode contagemMidias = operacao(openApi, "/api/v1/leads/{leadId}/midias/contagem", "get");
+        assertThat(contagemMidias.at("/security/0/bearerAuth").isArray()).isTrue();
+        assertThat(contagemMidias.path("description").asText()).contains("RLS", "DOCUMENTO");
         assertThat(openApi
                         .at("/paths/~1api~1v1~1atendimentos~1destinos-de-transferencia/get/security/0/bearerAuth")
                         .isArray())

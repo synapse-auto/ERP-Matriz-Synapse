@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.atendimento.application.CompositorDeEnvioParaCanal;
+import com.synapse.crm.atendimento.application.ContaDeTesteSomenteLeituraException;
 import com.synapse.crm.atendimento.application.Outbox;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
@@ -108,6 +109,8 @@ public class PublicadorDaOutboxOperacoes {
     private ResultadoDeEnvio enviarSemDeixarEscapar(Outbox.EnvioPendente pendente) {
         try {
             return canal.enviar(compositor.montar(pendente));
+        } catch (ContaDeTesteSomenteLeituraException e) {
+            return ResultadoDeEnvio.Recusado.permanente(e.getMessage());
         } catch (RuntimeException e) {
             log.warn("Falha nao tratada ao enviar a mensagem {}.", pendente.mensagemId(), e);
             return ResultadoDeEnvio.Recusado.temporario(

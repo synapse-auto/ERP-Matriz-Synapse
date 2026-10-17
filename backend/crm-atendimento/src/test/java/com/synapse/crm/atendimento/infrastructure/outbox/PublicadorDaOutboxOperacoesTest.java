@@ -41,6 +41,21 @@ class PublicadorDaOutboxOperacoesTest {
     }
 
     @Test
+    void pontoDeEntradaDaRodadaRecusaContaTesteSemChamarProvedorERetornaFalhaPermanente() {
+        var transacoes=mock(PublicadorDaOutboxTransacoes.class);
+        var canal=mock(CanalGateway.class);
+        var compositor=mock(com.synapse.crm.atendimento.application.CompositorDeEnvioParaCanal.class);
+        var envio=pendente();
+        when(transacoes.reservar(AGORA)).thenReturn(List.of(envio));
+        when(transacoes.marcarDespachando(any(),any())).thenReturn(true);
+        when(compositor.montar(envio)).thenThrow(new com.synapse.crm.atendimento.application.ContaDeTesteSomenteLeituraException());
+        var operacoes=new PublicadorDaOutboxOperacoes(transacoes,canal,compositor,RELOGIO,Runnable::run);
+        assertThat(operacoes.rodada()).isEqualTo(1);
+        org.mockito.Mockito.verifyNoInteractions(canal);
+        verify(transacoes).registrarResultado(org.mockito.ArgumentMatchers.eq(envio),org.mockito.ArgumentMatchers.argThat(resultado -> resultado instanceof ResultadoDeEnvio.Recusado recusa && recusa.permanente() && recusa.motivo().equals("CONTA_TESTE_SOMENTE_LEITURA")),org.mockito.ArgumentMatchers.eq(AGORA));
+    }
+
+    @Test
     void linhaLentaNaoBloqueiaOutraDoMesmoLote() throws Exception {
         PublicadorDaOutboxTransacoes transacoes = mock(PublicadorDaOutboxTransacoes.class);
         CanalGateway canal = mock(CanalGateway.class);

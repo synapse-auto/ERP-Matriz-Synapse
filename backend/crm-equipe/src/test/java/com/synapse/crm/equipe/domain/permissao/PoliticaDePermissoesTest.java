@@ -21,6 +21,17 @@ class PoliticaDePermissoesTest {
     private static final Set<String> FLAGS = Set.of("dashboard", "campanhas");
     private static final ConfiguracaoDePermissoes VAZIA = ConfiguracaoDePermissoes.vazia();
 
+    @ParameterizedTest
+    @EnumSource(PapelUsuario.class)
+    void contaTesteLimitaEscritaSemConcederLeituraAdicionalInclusiveAdm(PapelUsuario papel) {
+        var normal=PoliticaDePermissoes.calcular(papel,VAZIA,VAZIA,FLAGS);
+        var teste=normal.somenteLeitura();
+        for (Capacidade c:Capacidade.values()) {
+            assertThat(teste.permite(c)).as(c.id()+"/"+papel).isEqualTo(normal.permite(c)&&c.nivelMinimo().ordinal()<=NivelDeAcesso.VER.ordinal());
+        }
+        assertThat(Capacidade.ATENDIMENTOS_VER.alcancePara(teste.papel())).isEqualTo(Capacidade.ATENDIMENTOS_VER.alcancePara(papel));
+    }
+
     private static ConfiguracaoDePermissoes acoes(Map<Capacidade, Boolean> acoes) {
         return new ConfiguracaoDePermissoes(Map.of(), acoes);
     }

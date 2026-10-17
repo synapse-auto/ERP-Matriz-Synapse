@@ -49,6 +49,8 @@ Achado para revisão separada: o UPDATE JPA da ficha inclui colunas além das ed
 
 CI inicial da PR (run 39028546606): `PrechecagemV102ScriptIT.semConstraintValidadaAvisa` falhou porque a fixture concatenava um número aleatório sem preenchimento, produzindo telefone curto para `ck_lead_telefone_canonico`. A pré-checagem precisa somente do ID do lead; o helper agora cria o lead sem telefone, estado válido já permitido, sem alterar a constraint ou as migrations. A falha e a execução posterior devem ser distinguidas no relatório, sem chamar o primeiro CI de aprovado.
 
+Conciliação em 17/10/2026 com `main` em `b1ef1c7` (PRs #309, #310 e #311): preservados `codigo` e `vinculos` no Problem Details, todos os testes de compatibilidade de catálogos (telefone, contas de teste e categorias de arquivos), o recorte de participação consentida da main e o tratamento 409 do hotfix. Não há alteração ou renumeração de migration. O usuário autorizou explicitamente o merge da #312 após validação do último SHA; deploy continua fora da tarefa. Resultados novos e SHA de merge são registrados na PR/relatório, sem reaproveitar CI anterior como prova da integração.
+
 Skills: Playwright carregada antes da validação; clean-code, architecture-patterns, api-design-principles e supabaseboaspraticas não estavam disponíveis no catálogo da sessão. Regras canônicas aplicadas diretamente.
 
 Dokploy: nenhuma variável ou procedimento novo; publicação normal de backend e frontend após aprovação. Sem merge/deploy automático.

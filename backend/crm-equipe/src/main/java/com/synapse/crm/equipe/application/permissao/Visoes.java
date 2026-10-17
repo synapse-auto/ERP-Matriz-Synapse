@@ -33,7 +33,7 @@ public final class Visoes {
             boolean editavel, List<LinhaDeModulo> modulos, List<LinhaDeCapacidade> capacidades) {}
 
     public record ResumoDeUsuario(UUID id, String nome, String email, PapelUsuario papel, boolean ativo,
-            String fotoReferencia, int excecoes, boolean editavel) {}
+            String fotoReferencia, int excecoes, boolean editavel,boolean usuarioTeste) {}
 
     public record Usuario(ResumoDeUsuario resumo, long revisao, long revisaoDoPerfil, boolean fixo,
             List<LinhaDeModulo> modulos, List<LinhaDeCapacidade> capacidades) {}

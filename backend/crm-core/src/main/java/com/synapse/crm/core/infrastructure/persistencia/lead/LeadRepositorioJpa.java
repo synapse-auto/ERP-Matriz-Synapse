@@ -133,9 +133,8 @@ class LeadRepositorioJpa implements LeadRepositorio {
 
     @Override
     public Optional<Lead> porId(UUID id) {
-        // Consulta por id passa pelo MESMO predicado da listagem. Buscar primeiro e
-        // conferir depois deixaria o lead do colega chegar ate a memoria do processo;
-        // aqui ele nem sai do banco. Esse e o vetor que mais escapa em revisao.
+        // Ficha compoe a participacao ativa com a carteira, antes de ler o recurso.
+        // A listagem da Agenda permanece no recorte base; convite pendente nao entra.
         return entidadeVisivel(id).map(LeadEntity::paraDominio);
     }
 
@@ -231,15 +230,18 @@ class LeadRepositorioJpa implements LeadRepositorio {
     }
 
     private Optional<LeadEntity> entidadeVisivel(UUID id) {
-        return jpa.findOne(visibilidade()
+        return jpa.findOne(VisibilidadeLeadSpecification.comParticipacao(visibilidadeAtual())
                 .and((raiz, consulta, cb) -> cb.equal(raiz.get(LeadEntity.Campos.ID), id)));
     }
 
     private Specification<LeadEntity> visibilidade() {
-        VisibilidadeLead visibilidade = ContextoDeAgenda.ativo() || ContextoDeServico.ativo()
+        return VisibilidadeLeadSpecification.de(visibilidadeAtual());
+    }
+
+    private VisibilidadeLead visibilidadeAtual() {
+        return ContextoDeAgenda.ativo() || ContextoDeServico.ativo()
                 ? new VisibilidadeLead.Ampla()
                 : VisibilidadeLead.de(usuarioContext.atual());
-        return VisibilidadeLeadSpecification.de(visibilidade);
     }
 
     /**

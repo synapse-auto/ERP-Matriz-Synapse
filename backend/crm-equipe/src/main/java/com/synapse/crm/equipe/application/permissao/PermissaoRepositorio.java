@@ -65,7 +65,12 @@ public interface PermissaoRepositorio {
     record Armazenado(long revisao, ConfiguracaoDePermissoes configuracao) {}
 
     record ContextoDeAcesso(UUID usuarioId, PapelUsuario papel, boolean ativo,
-            ConfiguracaoDePermissoes perfil, ConfiguracaoDePermissoes excecoes) {}
+            ConfiguracaoDePermissoes perfil, ConfiguracaoDePermissoes excecoes, boolean usuarioTeste) {
+        public ContextoDeAcesso(UUID usuarioId, PapelUsuario papel, boolean ativo,
+                ConfiguracaoDePermissoes perfil, ConfiguracaoDePermissoes excecoes) {
+            this(usuarioId,papel,ativo,perfil,excecoes,false);
+        }
+    }
 
     record AlvoTravado(UUID id, PapelUsuario papel, boolean ativo) {}
 

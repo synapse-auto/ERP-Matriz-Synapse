@@ -190,11 +190,11 @@ class MeuUsuarioController {
             @Schema(description = "Cargo de exibição, quando cadastrado.") String cargo,
             @Schema(description = "URL relativa autenticada para a foto processada, quando cadastrada.") String fotoUrl,
             @Schema(description = "Instante da última troca de senha; nulo para senha provisória.")
-                    java.time.Instant senhaAlteradaEm) {
+                    java.time.Instant senhaAlteradaEm, boolean usuarioTeste) {
         static MeuUsuarioResposta de(Usuario usuario) {
             String fotoUrl = usuario.fotoReferencia() == null ? null : "/api/v1/me/foto/" + usuario.id();
             return new MeuUsuarioResposta(usuario.id(), usuario.nome(), usuario.email(), usuario.papel(),
-                    usuario.statusPresenca(), usuario.telefone(), usuario.cargo(), fotoUrl, usuario.senhaAlteradaEm());
+                    usuario.statusPresenca(), usuario.telefone(), usuario.cargo(), fotoUrl, usuario.senhaAlteradaEm(), usuario.usuarioTeste());
         }
     }
 }

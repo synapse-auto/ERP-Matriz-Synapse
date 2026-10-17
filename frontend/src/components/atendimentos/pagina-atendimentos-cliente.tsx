@@ -1,5 +1,7 @@
 "use client";
 
+import { invalidarArquivosDoLead } from "@/lib/lead/invalidar-arquivos";
+
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { ArrowLeft, X } from "lucide-react";
@@ -72,6 +74,7 @@ import { useConviteRecebido } from "@/lib/atendimento/use-convite-recebido";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
+import { useMeuUsuario } from "@/lib/equipe/use-equipe";
 import { apiFetch } from "@/lib/api/http-client";
 import { listarContatosChat, abrirConversaDireta, criarGrupoChat } from "@/lib/chat-interno/api";
 import { useConversaEmTelaCheia } from "@/lib/navegacao/conversa-em-tela-cheia";
@@ -202,6 +205,7 @@ export function PaginaAtendimentosCliente({
   });
   const [novoContatoAberto, setNovoContatoAberto] = useState(false);
   const capacidades = useCapacidades();
+  const {data:usuarioAtual}=useMeuUsuario();
   const capacidadeDoCanal = useQuery({
     queryKey: ["config", "canal"],
     queryFn: obterCapacidadeDoCanal,
@@ -214,6 +218,7 @@ export function PaginaAtendimentosCliente({
   const sessao = useAuthStore.getState();
   const marcarLeituraDaConversa = useCallback(
     (atendimentoId: string, leadId: string, responsavelId: string | null, naoLidas: number) => {
+      if (usuarioAtual?.usuarioTeste) return;
       const leituraPessoal = leituraOperacionalEhPessoal(sessao.papel, sessao.usuarioId, responsavelId);
       const emVoo = leiturasEmVoo.current.get(leadId) ?? {
         pendentes: 0, contagemAntes: naoLidas, confirmada: false, zerou: false,
@@ -245,7 +250,7 @@ export function PaginaAtendimentosCliente({
           }
         });
     },
-    [cache, sessao.papel, sessao.usuarioId],
+    [cache, sessao.papel, sessao.usuarioId,usuarioAtual?.usuarioTeste],
   );
 
   const selecionarAtendimento = useCallback(
@@ -396,10 +401,12 @@ export function PaginaAtendimentosCliente({
       || (!cartaoDaAbertura.data && !cartaoDaAbertura.isError)
       || aberturaProcessada.current === atendimentoParaAbrirId
     ) return;
-    aberturaProcessada.current = atendimentoParaAbrirId;
     let cancelado = false;
     queueMicrotask(() => {
       if (cancelado) return;
+      // Marcar antes da microtask perdia o deep link se a atualização de aba/lista
+      // cancelasse este efeito: o próximo render considerava uma abertura nunca executada.
+      aberturaProcessada.current = atendimentoParaAbrirId;
       if (cartaoDaAbertura.data) {
         reconciliador.registrarSnapshot(cartaoDaAbertura.data);
         const cartaoNaLista = atendimentos.some(
@@ -695,6 +702,21 @@ export function PaginaAtendimentosCliente({
     if (!atendimentoParaLeitura || !conversa) return;
     marcarLeituraDaConversa(atendimentoParaLeitura, conversa.leadId, conversa.atendenteId, conversa.naoLidas);
   }, [atendimentoParaLeitura, conversa, marcarLeituraDaConversa]);
+  const leadDosArquivos = conversa?.leadId;
+  const cicloDosArquivos = useRef<number | null>(null);
+  useEffect(() => {
+    if (estado === "conectado" && leadDosArquivos) {
+      const reconectou = cicloDosArquivos.current !== null && cicloDosArquivos.current !== ciclo;
+      cicloDosArquivos.current = ciclo;
+      if (reconectou) {
+        void invalidarArquivosDoLead(cache, leadDosArquivos);
+      } else {
+        // Na abertura, a leitura que acabou de montar já atende à atualização.
+        void cache.invalidateQueries({queryKey: ["lead", leadDosArquivos, "midias"]}, {cancelRefetch: false});
+      }
+    }
+  }, [cache, ciclo, estado, leadDosArquivos]);
+
   const mensagensQuery = useMensagens(
     conversa?.atendimentoId ?? null,
     conexao,
@@ -719,6 +741,9 @@ export function PaginaAtendimentosCliente({
         void cache.invalidateQueries({ queryKey: ["lead", evento.dados.leadId] });
         void cache.invalidateQueries({ queryKey: ["resumo-ia", evento.dados.atendimentoId] });
         return;
+      }
+      if (evento.tipo === "MENSAGEM" && ["IMAGEM", "VIDEO", "AUDIO", "DOCUMENTO"].includes(evento.dados.tipo)) {
+        void invalidarArquivosDoLead(cache, evento.dados.leadId);
       }
       if (evento.tipo === "INFORMACOES_CHATBOT") {
         void cache.invalidateQueries({ queryKey: chaveInformacoesChatbot(evento.dados.atendimentoId) });

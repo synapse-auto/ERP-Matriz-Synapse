@@ -20,6 +20,7 @@ const PSQL = process.env.PSQL ?? "";
 const FIXTURE = path.join(__dirname, "fixtures", "convite-colaborativo.sql");
 
 test.describe.configure({ mode: "serial" });
+test.setTimeout(90_000);
 test.skip(!PSQL, "defina PSQL para reaplicar a fixture no banco do backend");
 
 function sql(consulta: string) {
@@ -37,13 +38,15 @@ async function entrar(page: Page, email: string) {
   await page.getByLabel(/e-?mail/i).fill(email);
   await page.locator('input[type="password"]').fill("atendente123");
   await page.getByRole("button", { name: /entrar/i }).click();
-  await expect(page).toHaveURL(/\/atendimentos/);
+  await expect(page).toHaveURL(/\/atendimentos/, { timeout: 30_000 });
+  await page.evaluate(() => document.fonts.ready);
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).fontFamily)).toContain("Inter");
 }
 
 async function abrirConversa(page: Page, visao: string) {
   await page.goto(`/atendimentos?leadId=${LEAD_ID}&atendimentoId=${ATENDIMENTO_ID}&visao=${visao}`);
   const cabecalho = page.locator('[data-slot="cabecalho-conversa"]');
-  await expect(cabecalho).toContainText("Cliente Convite");
+  await expect(cabecalho).toContainText("Cliente Convite", { timeout: 30_000 });
   return cabecalho;
 }
 
@@ -105,6 +108,23 @@ for (const largura of [1366, 390] as const) {
     expect(await candidato.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
     expect(posts.filter((url) => url.includes("/convidar"))).toHaveLength(0);
 
+    if (largura === 390) {
+      await page.setViewportSize({ width: 390, height: 320 });
+      // Resize/entrada do Base UI podem estar em transição: esperar a geometria, não um sleep.
+      await expect.poll(async () => (await dialogo.boundingBox())!.y).toBeGreaterThanOrEqual(0);
+      await expect.poll(async () => {
+        const limites = (await dialogo.boundingBox())!;
+        return limites.y + limites.height;
+      }).toBeLessThanOrEqual(320);
+      await candidato.focus();
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Tab");
+      await expect(dialogo.getByRole("button", { name: "Enviar convite" })).toBeFocused();
+      await dialogo.getByRole("button", { name: "Enviar convite" }).scrollIntoViewIfNeeded();
+      await expect(dialogo.getByRole("button", { name: "Enviar convite" })).toBeInViewport({ ratio: 1 });
+      await page.screenshot({ path: `${CAPTURAS}/modal-390x320.png` });
+    }
+
     await dialogo.getByRole("button", { name: "Enviar convite" }).click();
     await expect(dialogo).toBeHidden();
 
@@ -131,9 +151,15 @@ test("A convida, B aceita e os dois conversam em tempo real sem trocar o respons
   expect(responsaveis()).toBe(`${anaId}|${anaId}`);
 
   const cabecalhoBruno = await abrirConversa(bruno, "PENDENTES");
+  await expect(bruno.getByPlaceholder("Digite uma mensagem...")).toHaveCount(0);
+  await expect(cabecalhoBruno).toContainText("Convite para participar");
   await acionar(bruno, cabecalhoBruno, /Aceitar convite/);
   await expect(cabecalhoBruno).toContainText(/suas mensagens não transferem/);
   expect(responsaveis()).toBe(`${anaId}|${anaId}`);
+
+  // Sem F5: o aceite libera o estado canônico; a ficha também precisa estar acessível.
+  await expect(bruno.getByText("Detalhes do lead", { exact: true })).toBeVisible();
+  await expect(bruno.getByText("Lead não encontrado", { exact: false })).toHaveCount(0);
 
   await bruno.getByPlaceholder("Digite uma mensagem...").fill("B: posso ajudar com as medidas.");
   await bruno.getByRole("button", { name: "Enviar", exact: true }).click();
@@ -144,6 +170,12 @@ test("A convida, B aceita e os dois conversam em tempo real sem trocar o respons
   await ana.getByPlaceholder("Digite uma mensagem...").fill("A: obrigada, sigo com o orçamento.");
   await ana.getByRole("button", { name: "Enviar", exact: true }).click();
   await expect(historico(bruno).getByText("A: obrigada, sigo com o orçamento.")).toBeVisible({ timeout: 10_000 });
+
+  await bruno.reload();
+  await expect(historico(bruno).getByText("A: obrigada, sigo com o orçamento.")).toBeVisible();
+  await expect(bruno.getByPlaceholder("Digite uma mensagem...")).toBeEnabled();
+  await expect(cabecalhoBruno).toContainText(/suas mensagens não transferem/);
+  await expect(bruno.getByText("Não foi possível", { exact: false })).toHaveCount(0);
 
   await ana.screenshot({ path: `${CAPTURAS}/duas-sessoes-ana.png` });
   await bruno.screenshot({ path: `${CAPTURAS}/duas-sessoes-bruno.png` });

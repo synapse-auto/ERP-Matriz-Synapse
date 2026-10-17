@@ -52,6 +52,6 @@ public class ObterEstadoAtendimentoSelecionadoUseCase {
                 participantes,
                 responsavel,
                 participa,
-                atendimento.estaAberto());
+                atendimento.estaAberto() && !cartao.convitePendente());
     }
 }

@@ -31,6 +31,7 @@ const callbacks = vi.hoisted(() => ({
   mensagens: undefined as { historico: string | null; assinatura: string | null } | undefined,
   tempoRealDasMensagens: undefined as { estado: string; incrementaisLiberados: boolean } | undefined,
   eventoEstado: undefined as ((evento: unknown) => void) | undefined,
+  eventoMensagem: undefined as ((evento: unknown) => void) | undefined,
   novoContato: undefined as (() => void) | undefined,
 }));
 const abrirExistente = vi.hoisted(() => vi.fn());
@@ -439,6 +440,7 @@ vi.mock("@/lib/atendimento/use-mensagens", () => ({
       assinatura: (args[4] as string | null) ?? null,
     };
     callbacks.eventoEstado = args[5] as ((evento: unknown) => void) | undefined;
+    callbacks.eventoMensagem = args[6] as ((evento: unknown) => void) | undefined;
     callbacks.tempoRealDasMensagens = {
       estado: args[2] as string,
       incrementaisLiberados: args[7] as boolean,
@@ -447,7 +449,10 @@ vi.mock("@/lib/atendimento/use-mensagens", () => ({
   },
 }));
 vi.mock("@/lib/auth/auth-store", () => ({
-  useAuthStore: { getState: () => ({ accessToken: "token", ...sessaoDeTeste }) },
+  useAuthStore: Object.assign(
+    (seletor: (estado: typeof sessaoDeTeste) => unknown) => seletor(sessaoDeTeste),
+    { getState: () => ({ accessToken: "token", ...sessaoDeTeste }), subscribe: () => () => undefined },
+  ),
 }));
 const telaEstreita = vi.hoisted(() => ({ atual: false }));
 
@@ -530,6 +535,22 @@ function emitirNotificacao(notificacao: NotificacaoTempoReal) {
 }
 
 describe("PaginaAtendimentosCliente", () => {
+  it("evento de mídia invalida só os anexos do lead, sem invalidar por texto", async () => {
+    const {queryClient} = renderPagina("atendimento-1");
+    const invalidar = vi.spyOn(queryClient, "invalidateQueries");
+    await waitFor(() => expect(callbacks.eventoMensagem).toBeDefined());
+    invalidar.mockClear();
+    act(() => callbacks.eventoMensagem?.({tipo: "MENSAGEM", dados: {
+      atendimentoId: "atendimento-1", leadId: "lead-1", tipo: "DOCUMENTO",
+    }}));
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({queryKey: ["lead", "lead-1", "midias"]}, {cancelRefetch: false}));
+    invalidar.mockClear();
+    act(() => callbacks.eventoMensagem?.({tipo: "MENSAGEM", dados: {
+      atendimentoId: "atendimento-1", leadId: "lead-1", tipo: "TEXTO",
+    }}));
+    expect(invalidar).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     callbacks.abrir = undefined;
     callbacks.atualizarLista = undefined;

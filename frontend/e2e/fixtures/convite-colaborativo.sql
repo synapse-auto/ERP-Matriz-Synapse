@@ -3,6 +3,12 @@
 --
 -- Uso: psql "$URL" -v ON_ERROR_STOP=1 -f e2e/fixtures/convite-colaborativo.sql
 
+DO $$ BEGIN
+  IF current_database() <> 'convite_auditoria' THEN
+    RAISE EXCEPTION 'Fixture exclusiva do banco descartável convite_auditoria';
+  END IF;
+END $$;
+
 INSERT INTO usuario (id, nome, email, senha_hash, papel, senha_alterada_em)
 SELECT 'c0c00000-0000-4000-8000-0000000000c3', 'Caio Atendente', 'caio.convite@dev.local', u.senha_hash, 'ATENDENTE', now()
   FROM usuario u WHERE u.email = 'ana@dev.local'
@@ -15,9 +21,9 @@ DELETE FROM atendimento_participante WHERE atendimento_id = 'c0c00000-0000-4000-
 DELETE FROM atendimento WHERE lead_id = 'c0c00000-0000-4000-8000-000000000001';
 DELETE FROM lead WHERE id = 'c0c00000-0000-4000-8000-000000000001';
 
-INSERT INTO lead (id, nome, telefone, status_basico, atendente_responsavel_id, ultima_mensagem_do_lead_em, criado_em)
+INSERT INTO lead (id, nome, telefone, status_basico, atendente_responsavel_id, ultima_mensagem_do_lead_em, criado_em, num_atendimentos, num_mensagens)
 SELECT 'c0c00000-0000-4000-8000-000000000001', 'Cliente Convite Colaborativo', '5561999990777',
-       'EM_ATENDIMENTO', u.id, now(), now()
+       'EM_ATENDIMENTO', u.id, now(), now(), 1, 1
   FROM usuario u WHERE u.email = 'ana@dev.local';
 
 INSERT INTO atendimento (id, lead_id, canal_id, atendente_id, status, iniciado_em)
