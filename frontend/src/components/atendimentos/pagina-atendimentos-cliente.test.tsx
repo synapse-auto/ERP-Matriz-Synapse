@@ -447,7 +447,10 @@ vi.mock("@/lib/atendimento/use-mensagens", () => ({
   },
 }));
 vi.mock("@/lib/auth/auth-store", () => ({
-  useAuthStore: { getState: () => ({ accessToken: "token", ...sessaoDeTeste }) },
+  useAuthStore: Object.assign(
+    (seletor: (estado: typeof sessaoDeTeste) => unknown) => seletor(sessaoDeTeste),
+    { getState: () => ({ accessToken: "token", ...sessaoDeTeste }), subscribe: () => () => undefined },
+  ),
 }));
 const telaEstreita = vi.hoisted(() => ({ atual: false }));
 

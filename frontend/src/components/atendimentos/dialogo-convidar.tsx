@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ type Props = {
 export function DialogoConvidar(props: Props) {
   return (
     <Dialog open={props.aberto} onOpenChange={(valor) => !valor && props.onFechar()}>
-      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
+      <DialogContent className="min-w-0 max-w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] grid-cols-[minmax(0,1fr)] overflow-y-auto sm:max-w-md">
         {props.aberto && <ConteudoConvite {...props} />}
       </DialogContent>
     </Dialog>
@@ -61,8 +61,9 @@ function ConteudoConvite({
   const textos = catalogo.cabecalho;
   const usuarioId = useAuthStore((estado) => estado.usuarioId);
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
+  const envioEmCurso = useRef(false);
   const destinos = useQuery({
-    queryKey: ["destinos-de-transferencia"],
+    queryKey: ["destinos-de-transferencia", usuarioId],
     queryFn: listarDestinosDeTransferencia,
   });
   const convite = useMutation({
@@ -72,6 +73,7 @@ function ConteudoConvite({
       onSucesso?.();
       onFechar();
     },
+    onSettled: () => { envioEmCurso.current = false; },
   });
 
   const excluidos = new Set(
@@ -136,7 +138,11 @@ function ConteudoConvite({
         <Button
           type="button"
           disabled={!selecionadoId || enviando}
-          onClick={() => selecionadoId && convite.mutate(selecionadoId)}
+          onClick={() => {
+            if (!selecionadoId || envioEmCurso.current) return;
+            envioEmCurso.current = true;
+            convite.mutate(selecionadoId);
+          }}
         >
           {enviando ? textos.convidarEnviando : textos.convidarConfirmar}
         </Button>

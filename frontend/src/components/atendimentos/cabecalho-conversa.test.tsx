@@ -255,6 +255,8 @@ describe("CabecalhoConversa", () => {
       onAlternarBusca: vi.fn(), painelDetalhesAberto: true, onAlternarPainelDetalhes: vi.fn() };
     const { rerender } = render(<CabecalhoConversa {...props} convite={convite} />);
     expect(screen.queryByText("Ao enviar agora, você assume este atendimento.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Transferir" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Finalizar" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Aceitar convite" }));
     expect(convite.aceitar).toHaveBeenCalledOnce();
     expect(participacao.aprovar).not.toHaveBeenCalled();

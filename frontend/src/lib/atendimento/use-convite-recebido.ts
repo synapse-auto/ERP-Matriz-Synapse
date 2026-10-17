@@ -38,6 +38,10 @@ export function useConviteRecebido(estado: EstadoAtendimentoSelecionado | null, 
       invalidarParticipacao(id);
       // A operação já foi confirmada. Falha de atualização não autoriza envio nem desfaz o aceite.
       await cache.invalidateQueries({ queryKey: ["atendimentos"] }).catch(() => undefined);
+      if (aceitar && estado?.cartao.leadId) {
+        // Ficha/tags podem ter um 404 legítimo anterior ao aceite: revalidar só este lead.
+        await cache.invalidateQueries({ queryKey: ["lead", estado.cartao.leadId] }).catch(() => undefined);
+      }
       await reconciliar().catch(() => undefined);
     } catch (erro) {
       const status = erro instanceof ErroDeApi ? erro.status : undefined;

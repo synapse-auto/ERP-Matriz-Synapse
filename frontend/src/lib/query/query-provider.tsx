@@ -13,9 +13,11 @@ import { useAuthStore } from "@/lib/auth/auth-store";
  * vazando para a tela de outro.
  */
 export function QueryProvider({ children }: { children: React.ReactNode }) {
-  const usuario=useAuthStore(estado=>estado.usuarioId);
-  const papel=useAuthStore(estado=>estado.papel);
-  return <CacheDaSessao key={`${usuario??"anonimo"}:${papel??"anonimo"}`}>{children}</CacheDaSessao>;
+  const usuarioId = useAuthStore(estado => estado.usuarioId);
+  const papel = useAuthStore(estado => estado.papel);
+  // Login por navegação client-side mantém o layout raiz. Não reutilizar ficha/histórico
+  // da conta anterior. Refresh do token e aceite no mesmo usuário NÃO trocam este client.
+  return <CacheDaSessao key={JSON.stringify([usuarioId, papel])}>{children}</CacheDaSessao>;
 }
 
 /** Outro ator/papel recebe outra instancia; respostas/mutations antigas continuam no cache antigo. */

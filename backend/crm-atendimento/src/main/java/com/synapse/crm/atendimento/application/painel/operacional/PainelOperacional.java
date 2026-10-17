@@ -14,6 +14,6 @@ public record PainelOperacional(Instant atualizadoEm, Instant finalizadosInicio,
             String leadEmpresa, String status, UUID atendenteId, String atendenteNome,
             long naoLidas, Instant atividadeEm, Instant esperaDesde, String etapaNome, String etapaCor,
             String situacao, String ultimaMensagemPreview, String ultimaMensagemTipo,
-            Instant ultimaMensagemEm, boolean respondido, String canalTipo) {}
+            Instant ultimaMensagemEm, boolean respondido, String canalTipo, boolean convitePendente) {}
     public record Pagina(List<Conversa> itens, String proximoCursor) {}
 }

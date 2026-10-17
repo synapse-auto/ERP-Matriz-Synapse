@@ -93,6 +93,8 @@ class PainelOperacionalIT extends PostgresIT {
     @AfterEach
     void limpar() {
         for (UUID lead : leads) {
+            jdbc.update("DELETE FROM pedido_entrada_atendimento WHERE atendimento_id IN (SELECT id FROM atendimento WHERE lead_id=?)", lead);
+            jdbc.update("DELETE FROM atendimento_participante WHERE atendimento_id IN (SELECT id FROM atendimento WHERE lead_id=?)", lead);
             jdbc.update("DELETE FROM mensagem WHERE atendimento_id IN (SELECT id FROM atendimento WHERE lead_id = ?)", lead);
             jdbc.update("DELETE FROM atendimento WHERE lead_id = ?", lead);
             jdbc.update("DELETE FROM lead WHERE id = ?", lead);
@@ -100,6 +102,25 @@ class PainelOperacionalIT extends PostgresIT {
         jdbc.update("DELETE FROM permissao_perfil_item WHERE alvo = 'atendimentos.painel_operacional'");
         permissoes.aoAlterarAcesso(new com.synapse.crm.sharedkernel.permissao.AcessoDeUsuariosAlterado(
                 java.util.Set.of(ana), false, 0));
+    }
+
+    @Test
+    void delegadoVeConviteEParticipacao_semVerOutrosLeadsDoResponsavel() throws Exception {
+        UUID compartilhado = ciclo("colaboração", bruno, "EM_ATENDIMENTO");
+        UUID alheio = ciclo("não convidado", bruno, "EM_ATENDIMENTO");
+        conceder(true);
+        String token = login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        jdbc.update("INSERT INTO pedido_entrada_atendimento (atendimento_id,solicitante_id,tipo,status)"
+                + " VALUES (?,?,'CONVITE','PENDENTE')", compartilhado, ana);
+        assertThat(ler(token, "/fila?recorte=PENDENTES&busca=Painel%20operacional%20IT").toString())
+                .contains(compartilhado.toString(), "\"convitePendente\":true").doesNotContain(alheio.toString());
+        jdbc.update("UPDATE pedido_entrada_atendimento SET status='APROVADO' WHERE atendimento_id=?", compartilhado);
+        jdbc.update("INSERT INTO atendimento_participante (atendimento_id,usuario_id,origem) VALUES (?,?,'CONVITE')", compartilhado, ana);
+        assertThat(ler(token, "/fila?recorte=ATIVOS&busca=Painel%20operacional%20IT").toString())
+                .contains(compartilhado.toString(), "\"convitePendente\":false").doesNotContain(alheio.toString());
+        assertThat(linha(ler(token, "?busca=Painel%20operacional%20IT"), bruno).path("contagens").path("ativos").asLong()).isEqualTo(1);
+        jdbc.update("UPDATE atendimento_participante SET saiu_em=now() WHERE atendimento_id=? AND usuario_id=?", compartilhado, ana);
+        assertThat(ler(token, "/fila?busca=Painel%20operacional%20IT").toString()).doesNotContain(compartilhado.toString(),alheio.toString());
     }
 
     @Test
