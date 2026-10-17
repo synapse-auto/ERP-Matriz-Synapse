@@ -888,11 +888,17 @@
         "resumo": "Resumo por IA",
         "programadas": "Mensagens programadas",
         "lembretes": "Lembretes",
-        "midias": "Mídias e documentos"
+        "midias": "Mídias e documentos",
+        "midiasDaFicha": "Mídias",
+        "documentos": "Documentos"
       },
       "vazioProgramadas": "Nenhuma mensagem programada",
       "vazioLembretes": "Nenhum lembrete",
       "vazioMidias": "Nenhuma mídia ou documento",
+      "vazioMidiasDaFicha": "Nenhuma mídia",
+      "vazioDocumentos": "Nenhum documento",
+      "carregandoArquivos": "Carregando arquivos...",
+      "erroArquivos": "Não foi possível carregar os arquivos.",
       "erroMidias": "Não foi possível carregar as mídias.",
       "carregandoMidias": "Carregando mídias...",
       "carregarMaisMidias": "Carregar mais",

@@ -20,6 +20,7 @@ import {
   Trash2,
   UserRound,
   FileText,
+  Image as ImageIcon,
 } from "lucide-react";
 
 import { FotoDoLeadClicavel } from "./visualizador-midia";
@@ -41,8 +42,7 @@ import {
   useEtapas,
   useEstadoResumoIa,
   useLead,
-  useMidiasDoLead,
-  TIPOS_MIDIAS_DA_FICHA,
+  useContagemMidiasDoLead,
   useSalvarFicha,
   useSolicitarResumoIa,
 } from "@/lib/lead/use-painel-lead";
@@ -297,7 +297,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
           />
         )}
         <SecaoDeNotasInternas key={lead.data.id} lead={lead.data} />
-        <SecaoDeMidias leadId={leadId} />
+        <SecaoDeMidias key={leadId} leadId={leadId} />
       </div>
     </aside>
   );
@@ -500,16 +500,23 @@ function SecaoDeNotasInternas({ lead }: { lead: LeadFicha }) {
 
 function SecaoDeMidias({ leadId }: { leadId: string }) {
   const textos = useTextos().atendimentos.painel;
-  const midias = useMidiasDoLead(leadId, TIPOS_MIDIAS_DA_FICHA);
-  const itens = midias.data?.pages.flat() ?? [];
+  const contagem = useContagemMidiasDoLead(leadId);
   return (
-    <SecaoColapsavel
-      icone={<FileText className="size-(--tamanho-icone-interface) text-primary" />}
-      titulo={textos.secoes.midias ?? textos.secoes.resumo}
-      contagem={!midias.isLoading && !midias.isError && !midias.hasNextPage ? itens.length : undefined}
-    >
-      <ListaDeMidiasDoLead leadId={leadId} />
-    </SecaoColapsavel>
+    <>
+      {(["midias", "documentos"] as const).map((categoria) => (
+        <SecaoColapsavel
+          key={categoria}
+          icone={categoria === "midias"
+            ? <ImageIcon className="size-(--tamanho-icone-interface) text-primary" />
+            : <FileText className="size-(--tamanho-icone-interface) text-primary" />}
+          titulo={categoria === "midias" ? textos.secoes.midiasDaFicha : textos.secoes.documentos}
+          contagem={contagem.isError ? undefined : contagem.data?.[categoria]}
+        >
+          <ListaDeMidiasDoLead leadId={leadId} categoria={categoria} />
+        </SecaoColapsavel>
+      ))}
+      {contagem.isError && <p role="alert" className="text-xs text-destructive">{textos.erroArquivos}</p>}
+    </>
   );
 }
 

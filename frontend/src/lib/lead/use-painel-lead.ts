@@ -17,6 +17,7 @@ import {
   listarTimeline,
   listarTodasAsTags,
   listarMidiasDoLead,
+  contarMidiasDoLead,
   obterLead,
   obterEstadoResumoIa,
   solicitarResumoIa,
@@ -25,7 +26,15 @@ import {
 } from "./api";
 import type { AtualizacaoLead, LeadFicha, MidiaDoLead, TagDoLead } from "./types";
 
-export const TIPOS_MIDIAS_DA_FICHA = ["IMAGEM", "VIDEO", "DOCUMENTO"] as const satisfies readonly MidiaDoLead["tipo"][];
+export const TIPOS_MIDIAS_DA_FICHA = ["IMAGEM", "VIDEO", "AUDIO"] as const satisfies readonly MidiaDoLead["tipo"][];
+export const TIPOS_DOCUMENTOS_DA_FICHA = ["DOCUMENTO"] as const satisfies readonly MidiaDoLead["tipo"][];
+
+export function useContagemMidiasDoLead(leadId: string) {
+  return useQuery({
+    queryKey: ["lead", leadId, "midias", "contagem"],
+    queryFn: () => contarMidiasDoLead(leadId),
+  });
+}
 
 export function useLead(leadId: string | null, contexto: "padrao" | "agenda" = "padrao") {
   return useQuery({
@@ -112,7 +121,7 @@ export function useTimelineDoLead(leadId: string | null) {
 export function useMidiasDoLead(leadId: string | null, tipos?: readonly MidiaDoLead["tipo"][]) {
   return useInfiniteQuery({
     queryKey: ["lead", leadId, "midias", tipos?.join(",") ?? "todos"],
-    queryFn: ({ pageParam }) => listarMidiasDoLead(leadId!, pageParam, 20, tipos),
+    queryFn: ({ pageParam }) => listarMidiasDoLead(leadId!, pageParam, 20, tipos, true),
     initialPageParam: 0,
     getNextPageParam: (ultima, _paginas, pagina) => ultima.length === 20 ? pagina + 1 : undefined,
     enabled: Boolean(leadId),

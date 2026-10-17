@@ -27,6 +27,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import com.synapse.crm.atendimento.application.midia.ContagemDeMidiasDoLead;
+import com.synapse.crm.atendimento.application.midia.ContarMidiasDoLeadUseCase;
 import com.synapse.crm.atendimento.application.midia.ListarMidiasDoLeadUseCase;
 import com.synapse.crm.atendimento.application.midia.MidiaDoLead;
 import com.synapse.crm.atendimento.application.midia.MidiaDoLeadNaoEncontradaException;
@@ -40,14 +42,17 @@ import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 @SecurityRequirement(name = "bearerAuth")
 class MidiasDoLeadController {
     private final ListarMidiasDoLeadUseCase listar;
+    private final ContarMidiasDoLeadUseCase contar;
     private final ArmazenamentoDeMidia armazenamento;
     private final MidiaProperties midiaPropriedades;
 
     MidiasDoLeadController(
             ListarMidiasDoLeadUseCase listar,
+            ContarMidiasDoLeadUseCase contar,
             ArmazenamentoDeMidia armazenamento,
             MidiaProperties midiaPropriedades) {
         this.listar = listar;
+        this.contar = contar;
         this.armazenamento = armazenamento;
         this.midiaPropriedades = midiaPropriedades;
     }
@@ -57,7 +62,8 @@ class MidiasDoLeadController {
             description = "Lista metadados sem transferir bytes e sem URL de download. A URL assinada "
                     + "é emitida sob demanda em GET .../url, para não gastar TTL com o painel aberto. "
                     + "O filtro opcional tipos aceita IMAGEM, AUDIO, DOCUMENTO e VIDEO separados por vírgula; "
-                    + "sem filtro, os quatro tipos são listados.",
+                    + "sem filtro, os quatro tipos são listados. incluirIndisponiveis=true inclui registros "
+                    + "comprovadamente sem arquivo; esses não têm URL/download. O padrão false preserva clientes antigos.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Mídias paginadas."),
                 @ApiResponse(responseCode = "400", description = "Filtro de tipos inválido.")
@@ -69,8 +75,18 @@ class MidiasDoLeadController {
             @RequestParam(defaultValue = "20") int tamanho,
             @Parameter(description = "Tipos de mídia separados por vírgula; omitido inclui todos.",
                     schema = @Schema(allowableValues = {"IMAGEM", "AUDIO", "DOCUMENTO", "VIDEO"}))
-                    @RequestParam(required = false) Set<TipoMensagem> tipos) {
-        return listar.executar(leadId, pagina, tamanho, tipos).stream().map(Resposta::de).toList();
+                    @RequestParam(required = false) Set<TipoMensagem> tipos,
+            @RequestParam(defaultValue = "false") boolean incluirIndisponiveis) {
+        return listar.executar(leadId, pagina, tamanho, tipos, incluirIndisponiveis).stream().map(Resposta::de).toList();
+    }
+
+    @Operation(summary = "Contar mídias e documentos visíveis do lead",
+            description = "Uma agregação de metadados sob a mesma RLS da listagem, sem bytes nem URLs. "
+                    + "Mídias inclui IMAGEM, VIDEO e AUDIO; DOCUMENTO nunca é reclassificado por MIME/extensão. "
+                    + "Inclui os registros indisponíveis. Lead inexistente ou não visível retorna ambos os totais zero.")
+    @GetMapping("/contagem")
+    ContagemDeMidiasDoLead contar(@PathVariable UUID leadId) {
+        return contar.executar(leadId);
     }
 
     @Operation(
@@ -159,7 +175,8 @@ class MidiasDoLeadController {
             long tamanho,
             String legenda,
             String enviadoEm,
-            String origem) {
+            String origem,
+            boolean indisponivel) {
         static Resposta de(MidiaDoLead m) {
             return new Resposta(
                     m.mensagemId(),
@@ -170,7 +187,8 @@ class MidiasDoLeadController {
                     m.tamanho(),
                     m.legenda(),
                     m.enviadoEm().toString(),
-                    m.origem());
+                    m.origem(),
+                    m.indisponivel());
         }
     }
 }

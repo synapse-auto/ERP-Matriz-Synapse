@@ -681,6 +681,63 @@ class AnexoMidiaIT extends PostgresIT {
                 rota + "?tipos=IMAGEM,VIDEO,DOCUMENTO").getBody())).isEmpty();
     }
 
+    @Test
+    @DisplayName("ficha separa categorias antes de paginar e conta todos os anexos visiveis")
+    void ficha_contagensEPaginacaoPorTipo_semReclassificarDocumentoImagem() throws Exception {
+        UUID atendimento = atendimentoDoLeadOuAbrir(leadDaAna);
+        for (int i = 0; i < 23; i++) inserirMidia(atendimento, "DOCUMENTO", i);
+        for (int i = 0; i < 21; i++) inserirMidia(atendimento, "IMAGEM", i);
+        inserirMidia(atendimento, "VIDEO", 30);
+        inserirMidia(atendimento, "AUDIO", 31);
+        UUID pngDocumento = inserirMidiaComMetadados(atendimento, "DOCUMENTO", PNG_VALIDO, "foto.png", "image/png");
+        String rota = "/api/v1/leads/" + leadDaAna + "/midias";
+
+        ResponseEntity<String> resposta = autenticado(EMAIL_ANA, HttpMethod.GET, rota + "/contagem");
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode contagem = json.readTree(resposta.getBody());
+        assertThat(contagem.path("midias").asInt()).isEqualTo(23);
+        assertThat(contagem.path("documentos").asInt()).isEqualTo(24);
+        JsonNode documentos = json.readTree(autenticado(EMAIL_ANA, HttpMethod.GET,
+                rota + "?tipos=DOCUMENTO&tamanho=20").getBody());
+        assertThat(documentos).hasSize(20);
+        assertThat(documentos.findValuesAsText("tipo")).containsOnly("DOCUMENTO");
+        assertThat(documentos.findValuesAsText("mensagemId")).contains(pngDocumento.toString());
+        assertThat(json.readTree(autenticado(EMAIL_ANA, HttpMethod.GET,
+                rota + "?tipos=DOCUMENTO&tamanho=20&pagina=1").getBody())).hasSize(4);
+        assertThat(json.readTree(autenticado(EMAIL_ANA, HttpMethod.GET,
+                rota + "?tipos=IMAGEM,VIDEO,AUDIO&tamanho=20&pagina=1").getBody())).hasSize(3);
+        JsonNode negada = json.readTree(autenticado(EMAIL_BRUNO, HttpMethod.GET, rota + "/contagem").getBody());
+        assertThat(negada.path("midias").asInt(-1)).isZero();
+        assertThat(negada.path("documentos").asInt(-1)).isZero();
+        assertThat(http.getForEntity(rota + "/contagem", String.class).getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(json.readTree(autenticado(EMAIL_ANA, HttpMethod.GET,
+                "/api/v1/leads/" + UUID.randomUUID() + "/midias/contagem").getBody()).path("midias").asInt(-1)).isZero();
+    }
+
+    @Test
+    @DisplayName("anexo indisponivel e exibido sem tornar URL ou download acessiveis")
+    void ficha_indisponivelSemDownload_eContratoLegadoPreservado() throws Exception {
+        UUID atendimento = atendimentoDoLeadOuAbrir(leadDaAna);
+        UUID mensagem = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO mensagem (id, atendimento_id, remetente_tipo, tipo, midia_metadados, enviado_em, status_entrega)
+                VALUES (?, ?, 'LEAD', 'DOCUMENTO', '{"indisponivel":true,"nome":"ausente.jpg","mimetype":"image/jpeg"}', now(), 'ENTREGUE')
+                """, mensagem, atendimento);
+        String rota = "/api/v1/leads/" + leadDaAna + "/midias";
+        assertThat(json.readTree(autenticado(EMAIL_ANA, HttpMethod.GET, rota).getBody())).isEmpty();
+        JsonNode lista = json.readTree(autenticado(EMAIL_ANA, HttpMethod.GET,
+                rota + "?tipos=DOCUMENTO&incluirIndisponiveis=true").getBody());
+        assertThat(lista).hasSize(1);
+        assertThat(lista.get(0).path("indisponivel").asBoolean()).isTrue();
+        assertThat(json.readTree(autenticado(EMAIL_ANA, HttpMethod.GET, rota + "/contagem").getBody())
+                .path("documentos").asInt()).isEqualTo(1);
+        for (String acao : List.of("url", "download")) {
+            assertThat(autenticado(EMAIL_ANA, HttpMethod.GET, rota + "/" + mensagem + "/" + acao)
+                    .getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        }
+    }
+
     private UUID inserirMidia(UUID atendimentoId, String tipo, int segundosAtras) {
         UUID id = UUID.randomUUID();
         String referencia = armazenamento.salvar("audio".getBytes(StandardCharsets.UTF_8), "arquivo", "audio/mp4");

@@ -1,5 +1,7 @@
 "use client";
 
+import { invalidarArquivosDoLead } from "@/lib/lead/invalidar-arquivos";
+
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { ArrowLeft, X } from "lucide-react";
@@ -697,6 +699,21 @@ export function PaginaAtendimentosCliente({
     if (!atendimentoParaLeitura || !conversa) return;
     marcarLeituraDaConversa(atendimentoParaLeitura, conversa.leadId, conversa.atendenteId, conversa.naoLidas);
   }, [atendimentoParaLeitura, conversa, marcarLeituraDaConversa]);
+  const leadDosArquivos = conversa?.leadId;
+  const cicloDosArquivos = useRef<number | null>(null);
+  useEffect(() => {
+    if (estado === "conectado" && leadDosArquivos) {
+      const reconectou = cicloDosArquivos.current !== null && cicloDosArquivos.current !== ciclo;
+      cicloDosArquivos.current = ciclo;
+      if (reconectou) {
+        void invalidarArquivosDoLead(cache, leadDosArquivos);
+      } else {
+        // Na abertura, a leitura que acabou de montar já atende à atualização.
+        void cache.invalidateQueries({queryKey: ["lead", leadDosArquivos, "midias"]}, {cancelRefetch: false});
+      }
+    }
+  }, [cache, ciclo, estado, leadDosArquivos]);
+
   const mensagensQuery = useMensagens(
     conversa?.atendimentoId ?? null,
     conexao,
@@ -721,6 +738,9 @@ export function PaginaAtendimentosCliente({
         void cache.invalidateQueries({ queryKey: ["lead", evento.dados.leadId] });
         void cache.invalidateQueries({ queryKey: ["resumo-ia", evento.dados.atendimentoId] });
         return;
+      }
+      if (evento.tipo === "MENSAGEM" && ["IMAGEM", "VIDEO", "AUDIO", "DOCUMENTO"].includes(evento.dados.tipo)) {
+        void invalidarArquivosDoLead(cache, evento.dados.leadId);
       }
       if (evento.tipo === "INFORMACOES_CHATBOT") {
         void cache.invalidateQueries({ queryKey: chaveInformacoesChatbot(evento.dados.atendimentoId) });

@@ -69,7 +69,8 @@ const estadoResumoState = vi.hoisted(() => ({
   data: null as null | { status: "PENDENTE" | "PROCESSANDO" | "CONCLUIDO" | "FALHOU"; diagnosticoCodigo?: string; erroCodigo?: string },
 }));
 const authState = vi.hoisted(() => ({ papel: "ADMINISTRADOR" as string | null }));
-const midiasState = vi.hoisted(() => ({ pages: [[]] as MidiaDoLead[][], hasNextPage: false }));
+const midiasState = vi.hoisted(() => ({ pages: [[]] as MidiaDoLead[][], hasNextPage: false,
+  contagem: { midias: 0, documentos: 0 } }));
 
 vi.mock("@/lib/auth/auth-store", () => ({
   useAuthStore: (seletor: (estado: typeof authState) => unknown) => seletor(authState),
@@ -117,10 +118,16 @@ vi.mock("@/lib/config/textos-provider", () => ({
           programadas: "Mensagens programadas",
           lembretes: "Lembretes",
           midias: "Mídias e documentos",
+          midiasDaFicha: "Mídias",
+          documentos: "Documentos",
         },
         vazioProgramadas: "Nenhuma mensagem programada",
         vazioLembretes: "Nenhum lembrete",
         vazioMidias: "Nenhuma mídia ou documento",
+        vazioMidiasDaFicha: "Nenhuma mídia",
+        vazioDocumentos: "Nenhum documento",
+        carregandoArquivos: "Carregando arquivos...",
+        erroArquivos: "Não foi possível carregar os arquivos.",
         erroMidias: "Não foi possível carregar as mídias.",
         carregandoMidias: "Carregando mídias...",
         carregarMaisMidias: "Carregar mais",
@@ -168,7 +175,9 @@ vi.mock("@/lib/config/textos-provider", () => ({
 }));
 
 vi.mock("@/lib/lead/use-painel-lead", () => ({
-  TIPOS_MIDIAS_DA_FICHA: ["IMAGEM", "VIDEO", "DOCUMENTO"],
+  TIPOS_MIDIAS_DA_FICHA: ["IMAGEM", "VIDEO", "AUDIO"],
+  TIPOS_DOCUMENTOS_DA_FICHA: ["DOCUMENTO"],
+  useContagemMidiasDoLead: () => ({data: midiasState.contagem, isError: false}),
   useLead: () => leadState,
   useEtapas: () => etapasState,
   useEstadoResumoIa: () => ({ ...estadoResumoState, isLoading: false }),
@@ -232,6 +241,7 @@ describe("painel da conversa", () => {
     suporteState.lembretes = [];
     midiasState.pages = [[]];
     midiasState.hasNextPage = false;
+    midiasState.contagem = { midias: 0, documentos: 0 };
     leadState.data = {
       id: "lead-1",
       nome: "Marcos Vinícius",
@@ -297,20 +307,40 @@ describe("painel da conversa", () => {
     expect(screen.getByRole("textbox", { name: "Novo número de telefone" })).toHaveValue("(61) 99999-0000");
   });
 
-  it("seção de mídias com apenas áudio exibe contagem zero e estado vazio", () => {
+  it("oferece Mídias e Documentos como seções independentes", () => {
     renderizarPainel("lead-1", "Jardel Lima", vi.fn());
-    const controle = obterControleDaSecao("Mídias e documentos");
+    const midias = obterControleDaSecao("Mídias");
+    const documentos = obterControleDaSecao("Documentos");
+    expect(midias).toHaveAttribute("aria-expanded", "false");
+    expect(documentos).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(midias);
+    expect(midias).toHaveAttribute("aria-expanded", "true");
+    expect(documentos).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(documentos);
+    expect(midias).toHaveAttribute("aria-expanded", "true");
+    expect(documentos).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(midias);
+    expect(documentos).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("seções vazias mantêm seus estados específicos", () => {
+    renderizarPainel("lead-1", "Jardel Lima", vi.fn());
+    const controle = obterControleDaSecao("Mídias");
     expect(controle).toHaveTextContent("0");
     fireEvent.click(controle);
-    expect(screen.getByText("Nenhuma mídia ou documento")).toBeInTheDocument();
+    expect(screen.getByText("Nenhuma mídia")).toBeInTheDocument();
+    fireEvent.click(obterControleDaSecao("Documentos"));
+    expect(screen.getByText("Nenhum documento")).toBeInTheDocument();
     expect(screen.queryByText("voz.m4a")).not.toBeInTheDocument();
   });
 
-  it("não anuncia itens carregados como total enquanto existem páginas restantes", () => {
+  it("contadores usam os totais do servidor, não o tamanho da página", () => {
     midiasState.pages = [[{ mensagemId: "imagem-1", tipo: "IMAGEM" } as MidiaDoLead]];
     midiasState.hasNextPage = true;
+    midiasState.contagem = { midias: 41, documentos: 23 };
     renderizarPainel("lead-1", "Jardel Lima", vi.fn());
-    expect(obterControleDaSecao("Mídias e documentos")).not.toHaveTextContent("1");
+    expect(obterControleDaSecao("Mídias")).toHaveTextContent("41");
+    expect(obterControleDaSecao("Documentos")).toHaveTextContent("23");
   });
 
   it("mantém a ação no cabeçalho e desabilita enquanto o resumo é gerado", () => {

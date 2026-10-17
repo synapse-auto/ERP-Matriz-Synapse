@@ -9,6 +9,7 @@ import type {
   PaginaTimeline,
   TagDoLead,
   MidiaDoLead,
+  ContagemDeMidiasDoLead,
   UrlAssinadaDaMidia,
   SolicitacaoResumoIa,
 } from "./types";
@@ -27,10 +28,16 @@ export function listarMidiasDoLead(
   pagina = 0,
   tamanho = 20,
   tipos?: readonly MidiaDoLead["tipo"][],
+  incluirIndisponiveis = false,
 ): Promise<MidiaDoLead[]> {
   const parametros = new URLSearchParams({ pagina: String(pagina), tamanho: String(tamanho) });
   if (tipos) parametros.set("tipos", tipos.join(","));
+  if (incluirIndisponiveis) parametros.set("incluirIndisponiveis", "true");
   return apiFetch<MidiaDoLead[]>(`/api/v1/leads/${id}/midias?${parametros}`);
+}
+
+export function contarMidiasDoLead(id: string): Promise<ContagemDeMidiasDoLead> {
+  return apiFetch<ContagemDeMidiasDoLead>(`/api/v1/leads/${id}/midias/contagem`);
 }
 
 export function emitirUrlAssinadaDaMidia(leadId: string, mensagemId: string): Promise<UrlAssinadaDaMidia> {
