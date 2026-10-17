@@ -8,6 +8,8 @@ import java.util.UUID;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 
 public interface MidiasDoLeadRepositorio {
-    List<MidiaDoLead> listar(UUID leadId, int limite, int deslocamento, Set<TipoMensagem> tipos);
+    List<MidiaDoLead> listar(UUID leadId, int limite, int deslocamento, Set<TipoMensagem> tipos,
+            boolean incluirIndisponiveis);
+    ContagemDeMidiasDoLead contar(UUID leadId);
     Optional<MidiaDoLead> porMensagem(UUID leadId, UUID mensagemId);
 }

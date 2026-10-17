@@ -70,6 +70,8 @@ Entrega na [PR #311](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/311
 
 Conciliação com `main` em 17/10/2026 (base `0fc4558`, colaboração da PR #309): o painel mantém `usuario_visivel` e exclusão operacional de contas de teste, junto do sinal `convitePendente` e alcance limitado aos atendimentos compartilhados. O QueryClient mantém isolamento por UUID/papel, com chave serializada da `main`; os testes dos dois lados foram preservados e há regressão para refresh de token não trocar o cache da mesma identidade. A V107 continua livre em `origin/main`; nenhuma migration foi editada ou renumerada nesta conciliação. Resultados da nova validação ficam registrados na PR/relatório. A pendência visual anterior não foi declarada resolvida por este ajuste de conflitos.
 
+Durante a validação, `main` avançou novamente para `c23ca85` (PR #310, ficha de mídias/documentos). A segunda conciliação preserva ambos os testes de compatibilidade dos catálogos antigos em `schema.test.ts`: contas de teste e categorias de arquivos. A execução local anterior foi interrompida para repetir o ciclo completo sobre essa base final, sem apresentar o resultado parcial como aprovação.
+
 Skills: Playwright carregada antes da validação. As skills clean-code, architecture-patterns, api-design-principles e supabaseboaspraticas não estão disponíveis no catálogo desta sessão; as regras canônicas de arquitetura, segurança e consultas foram aplicadas diretamente.
 
 ## Custos e procedimento operacional

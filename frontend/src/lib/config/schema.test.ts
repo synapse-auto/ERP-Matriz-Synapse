@@ -20,6 +20,18 @@ describe("TextosSchema", () => {
     catalogo.usuariosTeste={selo:"Ambiente de homologação"};
     expect(TextosSchema.parse(catalogo).usuariosTeste.selo).toBe("Ambiente de homologação");
   });
+  it("completa títulos e estados das categorias em catálogos antigos", () => {
+    const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
+    const painel = (catalogo.atendimentos as Record<string, unknown>).painel as Record<string, unknown>;
+    const secoes = painel.secoes as Record<string, unknown>;
+    delete secoes.midiasDaFicha;
+    delete secoes.documentos;
+    for (const chave of ["vazioMidiasDaFicha", "vazioDocumentos", "carregandoArquivos", "erroArquivos"]) delete painel[chave];
+    const textos = TextosSchema.parse(catalogo).atendimentos.painel;
+    expect(textos.secoes.midiasDaFicha).toBe("Mídias");
+    expect(textos.secoes.documentos).toBe("Documentos");
+    expect(textos.vazioDocumentos).toBe("Nenhum documento");
+  });
   it("preserva catálogos anteriores aos motivos e paginação da finalização em massa", () => {
     const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
     const massa = (catalogo.atendimentos as Record<string, unknown>).finalizacaoEmMassa as Record<string, Record<string, unknown>>;

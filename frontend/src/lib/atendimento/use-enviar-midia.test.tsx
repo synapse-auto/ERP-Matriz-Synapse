@@ -84,6 +84,7 @@ describe("useEnviarMidia", () => {
   it("no sucesso troca o id temporario pelo id real devolvido pelo backend", async () => {
     const queryClient = new QueryClient();
     prepararHistorico(queryClient, "at-3");
+    queryClient.setQueryData(["lead", "lead-3", "midias", "contagem"], {midias: 0, documentos: 0});
     vi.mocked(enviarMidia).mockResolvedValue({
       atendimentoId: "at-3",
       mensagemId: "msg-real-123",
@@ -106,6 +107,7 @@ describe("useEnviarMidia", () => {
       expect(mensagens?.[0].statusEntrega).toBe("ENVIADO");
       expect(mensagens?.[0].tipo).toBe("AUDIO");
     });
+    expect(queryClient.getQueryState(["lead", "lead-3", "midias", "contagem"])?.isInvalidated).toBe(true);
   });
 
   it("reporta progresso de upload via onProgresso", async () => {

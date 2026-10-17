@@ -14,4 +14,5 @@ public record MidiaDoLead(
         String legenda,
         String referenciaStorage,
         Instant enviadoEm,
-        String origem) {}
+        String origem,
+        boolean indisponivel) {}

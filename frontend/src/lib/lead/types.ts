@@ -108,6 +108,12 @@ export interface MidiaDoLead {
   legenda: string | null;
   enviadoEm: string;
   origem: string | null;
+  indisponivel?: boolean;
+}
+
+export interface ContagemDeMidiasDoLead {
+  midias: number;
+  documentos: number;
 }
 
 export interface UrlAssinadaDaMidia {
