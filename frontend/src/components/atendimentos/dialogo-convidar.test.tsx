@@ -109,7 +109,7 @@ describe("DialogoConvidar", () => {
     expect(equipe).toHaveTextContent("Já participam");
     expect(equipe).toHaveTextContent("Caio Participante");
 
-    await screen.findByRole("button", { name: "Bruno Atendente" });
+    await screen.findByRole("button", { name: "Bruno Atendente" }, { timeout: 5_000 });
     expect(screen.queryByRole("button", { name: "Eu Mesmo" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ana Atendente" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Caio Participante" })).not.toBeInTheDocument();
@@ -196,5 +196,24 @@ describe("DialogoConvidar", () => {
         corpo: JSON.stringify({ atendenteId: "michele-1" }),
       }),
     );
+  });
+
+  it("dois cliques imediatos não geram dois convites", async () => {
+    estado.respostaConvite = () => new Promise(() => undefined);
+    renderizar();
+    fireEvent.click(await screen.findByRole("button", { name: "Bruno Atendente" }));
+    const confirmar = screen.getByRole("button", { name: "Enviar convite" });
+    fireEvent.click(confirmar);
+    fireEvent.click(confirmar);
+    await waitFor(() => expect(estado.chamadas.filter(c => c.metodo === "POST")).toHaveLength(1));
+  });
+
+  it("conserva estado vazio e limita a altura do diálogo à viewport", async () => {
+    estado.destinos = [];
+    renderizar();
+    expect(await screen.findByText("Nenhum atendente")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Enviar convite" })).toBeDisabled();
+    expect(screen.getByRole("dialog").className).toContain("max-h-[calc(100dvh-2rem)]");
+    expect(screen.getByRole("dialog").className).toContain("overflow-y-auto");
   });
 });

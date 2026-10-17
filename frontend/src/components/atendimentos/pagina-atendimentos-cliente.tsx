@@ -396,10 +396,12 @@ export function PaginaAtendimentosCliente({
       || (!cartaoDaAbertura.data && !cartaoDaAbertura.isError)
       || aberturaProcessada.current === atendimentoParaAbrirId
     ) return;
-    aberturaProcessada.current = atendimentoParaAbrirId;
     let cancelado = false;
     queueMicrotask(() => {
       if (cancelado) return;
+      // Marcar antes da microtask perdia o deep link se a atualização de aba/lista
+      // cancelasse este efeito: o próximo render considerava uma abertura nunca executada.
+      aberturaProcessada.current = atendimentoParaAbrirId;
       if (cartaoDaAbertura.data) {
         reconciliador.registrarSnapshot(cartaoDaAbertura.data);
         const cartaoNaLista = atendimentos.some(

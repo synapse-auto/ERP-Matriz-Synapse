@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TextosSchema } from "@/lib/config/schema";
-import { PainelOperacional } from "./painel-operacional";
+import { PainelOperacional, ListaFilaOperacional } from "./painel-operacional";
 import { ListaConversas } from "./lista-conversas";
 import { useFilaOperacional, useSnapshotOperacional, totalizarOperacional, parametrosOperacionais, type SnapshotOperacional } from "@/lib/atendimento/painel-operacional";
 
@@ -44,6 +44,22 @@ beforeEach(() => {
 });
 
 describe("painel operacional com componentes reais", () => {
+  it("fila operacional mantém a etapa e a marca pessoal Convidado só enquanto pendente", () => {
+    const item = { atendimentoId: "atendimento", leadId: "lead", leadNome: "Cliente Sintético", leadFotoUrl: null,
+      leadEmpresa: null, status: "EM_ATENDIMENTO", atendenteId: "ana", atendenteNome: "Ana",
+      naoLidas: 0, atividadeEm: "2026-10-14T12:00:00Z", esperaDesde: null,
+      etapaNome: "Negociação", convitePendente: true };
+    const consulta = { data: { pages: [{ itens: [item], proximoCursor: null }], pageParams: [null] }, isLoading: false,
+      isError: false, refetch: vi.fn(), hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn() };
+    const tela = renderizar(<ListaFilaOperacional consulta={consulta} onAbrir={vi.fn()} />);
+    expect(screen.getByText("Convidado")).toBeInTheDocument();
+    expect(screen.getByText("Negociação")).toBeInTheDocument();
+    tela.rerender(<QueryClientProvider client={tela.cache}><ListaFilaOperacional
+      consulta={{ ...consulta, data: { ...consulta.data, pages: [{ itens: [{ ...item, convitePendente: false }], proximoCursor: null }] } }} onAbrir={vi.fn()} />
+    </QueryClientProvider>);
+    expect(screen.queryByText("Convidado")).not.toBeInTheDocument();
+    expect(screen.getByText("Negociação")).toBeInTheDocument();
+  });
   it("transição temporal revalida contagem e fila sem duplicar a leitura de dois observadores", async () => {
     vi.useFakeTimers();
     api.mockImplementation((url: string) => {

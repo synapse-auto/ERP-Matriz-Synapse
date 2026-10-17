@@ -55,4 +55,15 @@ describe("convite recebido compartilhado", () => {
     expect(api.invalidarParticipacao).toHaveBeenCalledWith("atendimento");
     expect(reconciliar).toHaveBeenCalledOnce();
   });
+  it("aceite revalida ficha e tags apenas do lead que acabou de ganhar acesso", async () => {
+    api.aprovarPedido.mockResolvedValue(undefined);
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidar = vi.spyOn(cache, "invalidateQueries");
+    const envolver = ({ children }: { children: ReactNode }) => <QueryClientProvider client={cache}>{children}</QueryClientProvider>;
+    const snapshot = { ...estado, cartao: { ...estado.cartao, leadId: "lead-convidado" } };
+    const { result } = renderHook(() => useConviteRecebido(snapshot, vi.fn(async () => undefined)), { wrapper: envolver });
+    await act(() => result.current.aceitar());
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["lead", "lead-convidado"] });
+    expect(invalidar).not.toHaveBeenCalledWith({ queryKey: ["lead"] });
+  });
 });
