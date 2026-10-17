@@ -7,6 +7,7 @@ export interface ProblemaHttp {
   instance?: string;
   /** Motivo de negócio que o backend acrescenta em algumas recusas (ex.: FORA_DA_JANELA). */
   motivo?: string;
+  codigo?: string;
 }
 
 /**

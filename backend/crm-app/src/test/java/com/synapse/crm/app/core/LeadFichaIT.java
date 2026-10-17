@@ -232,6 +232,39 @@ class LeadFichaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("rota de telefone salva numero livre e preserva historico e propriedade")
+    void editarTelefone_numeroLivre_preservaFicha() {
+        String numero = telefoneUnico();
+        var resposta = comoAna(HttpMethod.PUT, "/api/v1/leads/" + leadDaAna + "/telefone",
+                Map.of("telefone", numero));
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains(numero, NOTA_SECRETA, RESUMO_SECRETO);
+        assertThat(jdbc.queryForObject("SELECT telefone FROM lead WHERE id=?", String.class, leadDaAna))
+                .isEqualTo(numero);
+        assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id=?", UUID.class, leadDaAna))
+                .isEqualTo(idDoUsuario(EMAIL_ANA));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"", "/telefone", "/agenda/telefone"})
+    @DisplayName("telefone ocupado por lead invisivel e conflito sanitizado, sem alterar nenhum cadastro")
+    void editarTelefone_numeroOcupado_naoVazaNemSobrescreve(String sufixo) {
+        String ocupado = telefoneUnico();
+        String original = telefoneUnico();
+        jdbc.update("UPDATE lead SET telefone=?,telefone_provedor=? WHERE id=?", original, original, leadDaAna);
+        jdbc.update("UPDATE lead SET telefone=? WHERE id=?", ocupado, leadDoBruno);
+        var resposta = comoAna(HttpMethod.PUT, "/api/v1/leads/" + leadDaAna + sufixo,
+                Map.of("telefone", ocupado));
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(resposta.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(resposta.getBody()).contains("TELEFONE_INDISPONIVEL")
+                .doesNotContain(leadDoBruno.toString(), "Cliente do Bruno", ocupado, "ux_lead_telefone", "SQL");
+        assertThat(jdbc.queryForObject("SELECT telefone FROM lead WHERE id=?", String.class, leadDaAna)).isEqualTo(original);
+        assertThat(jdbc.queryForObject("SELECT telefone_provedor FROM lead WHERE id=?", String.class, leadDaAna)).isEqualTo(original);
+        assertThat(jdbc.queryForObject("SELECT telefone FROM lead WHERE id=?", String.class, leadDoBruno)).isEqualTo(ocupado);
+    }
+
+    @Test
     @DisplayName("formatar telefone para o mesmo valor canonico preserva endereco do provedor")
     void editar_telefoneCanonicoInalterado_preservaEnderecoDoProvedor() {
         String telefoneCanonico = "5561988887777";
@@ -324,6 +357,10 @@ class LeadFichaIT extends PostgresIT {
     }
 
     // --- apoio ---------------------------------------------------------------
+
+    private static String telefoneUnico() {
+        return "55619" + String.format("%08d", Math.floorMod(UUID.randomUUID().getLeastSignificantBits(), 100_000_000L));
+    }
 
     private int contador(String coluna) {
         return jdbc.queryForObject(

@@ -13,6 +13,17 @@ function carregarJson(caminho: string): Record<string, unknown> {
 }
 
 describe("TextosSchema", () => {
+  it("mantém mensagens da edição de telefone com catálogos antigos", () => {
+    const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
+    const dados = (catalogo.painelLead as Record<string, unknown>).dados as Record<string, unknown>;
+    delete dados.telefoneIndisponivel;
+    delete dados.telefoneSemPermissao;
+    delete dados.telefoneNaoEncontrado;
+    const resultado = TextosSchema.parse(catalogo).painelLead.dados;
+    expect(resultado.telefoneIndisponivel).toBeTruthy();
+    expect(resultado.telefoneSemPermissao).toBeTruthy();
+    expect(resultado.telefoneNaoEncontrado).toBeTruthy();
+  });
   it("preserva catálogos anteriores aos motivos e paginação da finalização em massa", () => {
     const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
     const massa = (catalogo.atendimentos as Record<string, unknown>).finalizacaoEmMassa as Record<string, Record<string, unknown>>;

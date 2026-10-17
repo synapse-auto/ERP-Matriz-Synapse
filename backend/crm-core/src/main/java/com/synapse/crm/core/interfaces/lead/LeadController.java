@@ -40,6 +40,7 @@ import com.synapse.crm.core.domain.lead.CodigoInvalidoException;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.NomeInvalidoException;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
+import com.synapse.crm.core.domain.lead.TelefoneIndisponivelException;
 import com.synapse.crm.core.domain.lead.TelefoneInvalidoException;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeAgenda;
 import com.synapse.crm.sharedkernel.permissao.VerificadorDeCapacidades;
@@ -128,6 +129,7 @@ class LeadController {
             responses = {
                 @ApiResponse(responseCode = "200", description = "Telefone atualizado."),
                 @ApiResponse(responseCode = "400", description = "Telefone inválido."),
+                @ApiResponse(responseCode = "409", description = "Telefone indisponível; nenhum cadastro foi alterado."),
                 @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível.")
             })
     @PutMapping("/{id}/telefone")
@@ -143,6 +145,7 @@ class LeadController {
             responses = {
                 @ApiResponse(responseCode = "200", description = "Telefone atualizado."),
                 @ApiResponse(responseCode = "400", description = "Telefone inválido."),
+                @ApiResponse(responseCode = "409", description = "Telefone indisponível; nenhum cadastro foi alterado."),
                 @ApiResponse(responseCode = "404", description = "Lead inexistente ou não acessível pela Agenda.")
             })
     @PutMapping("/{id}/agenda/telefone")
@@ -162,6 +165,7 @@ class LeadController {
             responses = {
                 @ApiResponse(responseCode = "200", description = "Ficha atualizada."),
                 @ApiResponse(responseCode = "400", description = "Dados básicos ou customizados inválidos."),
+                @ApiResponse(responseCode = "409", description = "Telefone indisponível; nenhum cadastro foi alterado."),
                 @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível.")
             })
     @PutMapping("/{id}")
@@ -208,6 +212,15 @@ class LeadController {
         ProblemDetail problema =
                 ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
         problema.setTitle("Telefone invalido");
+        problema.setProperty("codigo", "TELEFONE_INVALIDO");
+        return problema;
+    }
+
+    @ExceptionHandler(TelefoneIndisponivelException.class)
+    ProblemDetail aoReceberTelefoneIndisponivel(TelefoneIndisponivelException erro) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, erro.getMessage());
+        problema.setTitle("Telefone indisponivel");
+        problema.setProperty("codigo", "TELEFONE_INDISPONIVEL");
         return problema;
     }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Pencil } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useSalvarTelefoneLead } from "@/lib/lead/use-painel-lead";
+import { ErroDeApi } from "@/lib/api/errors";
 
 type Props = {
   leadId: string;
@@ -29,7 +30,8 @@ export function EditorTelefoneDoLead({
   const idCampo = useId();
   const [aberto, setAberto] = useState(false);
   const [novoTelefone, setNovoTelefone] = useState("");
-  const [erro, setErro] = useState<"invalido" | "salvar" | null>(null);
+  const [erro, setErro] = useState<"invalido" | "salvar" | "indisponivel" | "permissao" | "ausente" | null>(null);
+  const enviando = useRef(false);
 
   if (!permitido) return null;
 
@@ -40,16 +42,31 @@ export function EditorTelefoneDoLead({
   }
 
   function confirmar() {
+    if (enviando.current || salvar.isPending) return;
     if (novoTelefone.replace(/\D/g, "").length < 10) {
       setErro("invalido");
       return;
     }
     setErro(null);
+    enviando.current = true;
     salvar.mutate(
       novoTelefone.trim(),
       {
-        onError: () => setErro("salvar"),
-        onSuccess: () => setAberto(false),
+        onError: (falha) => {
+          enviando.current = false;
+          if (falha instanceof ErroDeApi) {
+            if (falha.status === 409 && falha.problema?.codigo === "TELEFONE_INDISPONIVEL") {
+              setErro("indisponivel"); return;
+            }
+            if (falha.status === 400 && falha.problema?.codigo === "TELEFONE_INVALIDO") {
+              setErro("invalido"); return;
+            }
+            if (falha.status === 403) { setErro("permissao"); return; }
+            if (falha.status === 404) { setErro("ausente"); return; }
+          }
+          setErro("salvar");
+        },
+        onSuccess: () => { enviando.current = false; setAberto(false); },
       },
     );
   }
@@ -96,7 +113,9 @@ export function EditorTelefoneDoLead({
             />
             {erro && (
               <p role="alert" className="text-sm text-destructive">
-                {erro === "invalido" ? textos.telefoneInvalido : textos.erroAlteracaoTelefone}
+                {{ invalido: textos.telefoneInvalido, salvar: textos.erroAlteracaoTelefone,
+                  indisponivel: textos.telefoneIndisponivel, permissao: textos.telefoneSemPermissao,
+                  ausente: textos.telefoneNaoEncontrado }[erro]}
               </p>
             )}
           </div>
