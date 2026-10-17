@@ -139,8 +139,8 @@ class PrechecagemV102ScriptIT {
     }
 
     private UUID lead() {
-        return jdbc.queryForObject("INSERT INTO lead (nome, telefone) VALUES ('L', ?) RETURNING id", UUID.class,
-                "5561" + Math.abs(UUID.randomUUID().getLeastSignificantBits() % 1_000_000_000L));
+        // A pre-checagem usa somente o ID: telefone nulo e valido e dispensa sorteio fora do dominio.
+        return jdbc.queryForObject("INSERT INTO lead (nome) VALUES ('L') RETURNING id", UUID.class);
     }
 
     private UUID usuario() {

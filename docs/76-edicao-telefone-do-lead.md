@@ -47,6 +47,8 @@ Não se remove o índice único nem se fundem contatos. Não foram enviados What
 
 Achado para revisão separada: o UPDATE JPA da ficha inclui colunas além das editáveis, apesar de `aplicar` não atribuir os contadores. Os testes desta correção preservam dados no fluxo normal; não comprovam ausência de sobrescrita sob edição e recebimento simultâneos. O hotfix não reescreve esse mecanismo nem afirma ter corrigido essa condição concorrente preexistente.
 
+CI inicial da PR (run 39028546606): `PrechecagemV102ScriptIT.semConstraintValidadaAvisa` falhou porque a fixture concatenava um número aleatório sem preenchimento, produzindo telefone curto para `ck_lead_telefone_canonico`. A pré-checagem precisa somente do ID do lead; o helper agora cria o lead sem telefone, estado válido já permitido, sem alterar a constraint ou as migrations. A falha e a execução posterior devem ser distinguidas no relatório, sem chamar o primeiro CI de aprovado.
+
 Skills: Playwright carregada antes da validação; clean-code, architecture-patterns, api-design-principles e supabaseboaspraticas não estavam disponíveis no catálogo da sessão. Regras canônicas aplicadas diretamente.
 
 Dokploy: nenhuma variável ou procedimento novo; publicação normal de backend e frontend após aprovação. Sem merge/deploy automático.
