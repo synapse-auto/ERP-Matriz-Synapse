@@ -42,14 +42,14 @@ export function PaginaCancelamentos() {
   const identidade = `${sessao}:${permissoes.data?.revisao ?? ""}`;
   const configuracao = useQuery({ queryKey: ["cancelamentos", identidade, "configuracao"],
     queryFn: ({ signal }) => obterConfiguracaoCancelamentos(signal), enabled: pode("cancelamentos.ver"), retry: false });
-  return <main className="min-w-0 flex-1 space-y-5 overflow-auto bg-background p-4 md:p-6">
+  return <div className="min-w-0 flex-1 space-y-5 overflow-auto bg-background p-4 md:p-6">
     <header className="space-y-1"><h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
       <CalendarX2 aria-hidden className="size-5 text-primary" />{t.titulo}</h1>
       <p className="text-sm text-muted-foreground">{t.descricao}</p></header>
     {configuracao.isPending ? <p role="status">{t.carregando}</p> : configuracao.isError
       ? <Falha erro={configuracao.error} tentar={() => void configuracao.refetch()} />
       : <Consulta key={`${identidade}:${JSON.stringify(configuracao.data)}`} config={configuracao.data} identidade={identidade} />}
-  </main>;
+  </div>;
 }
 
 function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; identidade: string }) {
