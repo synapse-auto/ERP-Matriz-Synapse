@@ -5,6 +5,7 @@ import { SetoresTextosSchema } from "./schema-setores";
 import { GestaoTextosSchema } from "./schema-gestao";
 import { ErrosTextosSchema } from "./schema-erros";
 import { PainelOperacionalTextosSchema } from "./schema-painel-operacional";
+import { CancelamentosTextosSchema, TEXTOS_CANCELAMENTOS } from "./schema-cancelamentos";
 
 /**
  * Espelha tema.json (backend/crm-app/src/main/resources/tema.json), gerado a partir de
@@ -146,7 +147,7 @@ export const TextosSchema = z.object({
     mais: z.string(),
     maisTitulo: z.string(),
     fecharMais: z.string(),
-    itens: z.record(z.string(), z.string()),
+    itens: z.record(z.string(), z.string()).transform((v): Record<string, string> => ({ cancelamentos: TEXTOS_CANCELAMENTOS.titulo, ...v })),
   }),
   rodape: z.object({
     trocarConta: z.string(),
@@ -1501,6 +1502,7 @@ export const TextosSchema = z.object({
     }),
   }),
   gestao: GestaoTextosSchema,
+  cancelamentos: CancelamentosTextosSchema,
   campanhas: CampanhasTextosSchema,
   setores: SetoresTextosSchema,
   usuariosTeste: z.object({

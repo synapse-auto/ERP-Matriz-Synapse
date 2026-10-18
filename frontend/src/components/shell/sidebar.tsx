@@ -67,6 +67,7 @@ const ICONES_MENU: Record<string, React.ComponentType<{ className?: string }>> =
   atendimentos: Headset,
   dashboard: TrendingUp,
   agenda: BookUser,
+  cancelamentos: CalendarClock,
   tags: Tag,
   mensagensRapidas: Zap,
   templatesWhatsApp: FileText,

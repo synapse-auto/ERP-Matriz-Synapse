@@ -11,6 +11,7 @@ export const ITENS_MENU: readonly ItemDeMenuBase[] = [
   { chave: "atendimentos", rota: "/atendimentos" },
   { chave: "dashboard", rota: "/dashboard", flag: "dashboard" },
   { chave: "agenda", rota: "/agenda" },
+  { chave: "cancelamentos", rota: "/cancelamentos", flag: "cancelamentos" },
   { chave: "tags", rota: "/tags" },
   { chave: "mensagensRapidas", rota: "/mensagens-rapidas" },
   { chave: "templatesWhatsApp", rota: "/templates-whatsapp" },

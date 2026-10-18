@@ -83,6 +83,11 @@ e repetir somente a etapa pendente, preservando suas respectivas chaves.
 
 ## Evidências e limites
 
+A preparação da aba de consulta do CRM está documentada em
+[Cancelamentos de agendamentos](../77-cancelamentos-agendamentos.md). Ela **não confirma** a
+instalação deste SQL nem conecta o banco da integração. O adaptador real depende das respostas
+de contrato ali listadas; a fonte de produção atual retorna integração não configurada.
+
 `AgendamentoIntegracaoIT` executa o SQL versionado em PostgreSQL 15 real: replay, conflito,
 concorrência, campos inválidos, ações/view, acesso negado, reinstalação e bloqueio do banco CRM.
 `SchemaMigracoesIT` mantém o catálogo oficial e prova que esse histórico não entra nas migrations.

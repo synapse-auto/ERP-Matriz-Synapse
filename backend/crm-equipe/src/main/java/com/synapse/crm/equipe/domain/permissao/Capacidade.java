@@ -151,6 +151,8 @@ public enum Capacidade {
             true, superioresCampanhas(), nenhum(), false, "campanhas.ver"),
 
     // --- Gestao da equipe -------------------------------------------------------------------
+    CANCELAMENTOS_VER("cancelamentos.ver", Modulo.CANCELAMENTOS, NivelDeAcesso.VER, Tipo.ACAO,
+            false, todos(), EnumSet.of(ATENDENTE, OPERADOR), false),
     EQUIPE_VER("equipe.ver", Modulo.EQUIPE, NivelDeAcesso.VER, Tipo.ACAO, false, gestao(), nenhum(), false),
     EQUIPE_DISPONIBILIDADE_IA("equipe.disponibilidade_ia", Modulo.EQUIPE, NivelDeAcesso.EDITAR, Tipo.ACAO,
             false, gestao(), nenhum(), false, "equipe.ver"),

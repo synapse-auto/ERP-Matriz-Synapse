@@ -18,7 +18,7 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 class PoliticaDePermissoesTest {
 
-    private static final Set<String> FLAGS = Set.of("dashboard", "campanhas");
+    private static final Set<String> FLAGS = Set.of("dashboard", "campanhas", "cancelamentos");
     private static final ConfiguracaoDePermissoes VAZIA = ConfiguracaoDePermissoes.vazia();
 
     @ParameterizedTest
@@ -34,6 +34,22 @@ class PoliticaDePermissoesTest {
 
     private static ConfiguracaoDePermissoes acoes(Map<Capacidade, Boolean> acoes) {
         return new ConfiguracaoDePermissoes(Map.of(), acoes);
+    }
+
+    @ParameterizedTest
+    @EnumSource(PapelUsuario.class)
+    void cancelamentosExigeFlagEConcessaoSemAmpliarLeads(PapelUsuario papel) {
+        var c = Capacidade.CANCELAMENTOS_VER;
+        assertThat(PoliticaDePermissoes.calcular(papel, VAZIA, VAZIA, Set.of()).permite(c)).isFalse();
+        boolean gestao = papel.enxergaTodosOsLeads();
+        assertThat(PoliticaDePermissoes.calcular(papel, VAZIA, VAZIA, FLAGS).permite(c)).isEqualTo(gestao);
+        var concessao = new ConfiguracaoDePermissoes(Map.of(Modulo.CANCELAMENTOS, NivelDeAcesso.VER), Map.of(c, true));
+        var permitido = PoliticaDePermissoes.calcular(papel, VAZIA, concessao, FLAGS);
+        assertThat(permitido.permite(c)).isTrue();
+        assertThat(Capacidade.ATENDIMENTOS_VER.alcancePara(papel))
+                .isEqualTo(gestao ? Capacidade.Alcance.TODOS : Capacidade.Alcance.MEUS);
+        assertThat(permitido.permite(Capacidade.ATENDIMENTOS_FINALIZAR))
+                .isEqualTo(PoliticaDePermissoes.calcular(papel, VAZIA, VAZIA, FLAGS).permite(Capacidade.ATENDIMENTOS_FINALIZAR));
     }
 
     @Test
