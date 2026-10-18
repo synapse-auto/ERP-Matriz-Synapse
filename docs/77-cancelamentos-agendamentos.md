@@ -128,5 +128,8 @@ alteração obrigatória no Dokploy nesta etapa; nenhum deploy realizado.
 Automatizadas: `FiltroCancelamentosTest`, `LeituraDeCancelamentosNaoConfiguradaTest`,
 `PoliticaDePermissoesTest`, `CancelamentosIT` (HTTP real, Postgres real para permissões;
 `FonteCancelamentosDeTeste` somente em `src/test`), testes de rota/consulta/catálogo/menu.
-Dados sintéticos não são incluídos no JAR de produção. Screenshots e resultados finais serão
-registrados no complemento de validação antes da entrega. Não são homologação com fornecedor.
+Dados sintéticos não são incluídos no JAR de produção. Screenshots, fonte computada, viewports,
+interações e limites do ambiente estão em [evidências visuais](assets/cancelamentos/README.md).
+Em telas estreitas, cartões substituem a tabela sem nova consulta ou duplicação de registros.
+Limpar filtros restaura o mês inicial autorizado, sem alterar escopo. CI e resultados completos
+do último SHA constam no relatório da PR #313. Não são homologação com fornecedor.

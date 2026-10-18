@@ -13,6 +13,7 @@ import { ErroDeApi } from "@/lib/api/errors";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { useMinhasPermissoes } from "@/lib/gestao/use-gestao";
+import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { listarCancelamentos, obterCancelamento, obterConfiguracaoCancelamentos,
   type ConfiguracaoCancelamentos, type FiltrosCancelamentos, type Cancelamento } from "@/lib/cancelamentos/api";
 import { preencher } from "@/components/gestao/apoio";
@@ -53,9 +54,11 @@ export function PaginaCancelamentos() {
 
 function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; identidade: string }) {
   const t = useTextos().cancelamentos;
+  const telaEstreita = useTelaEstreita();
   const { pode } = useCapacidades();
-  const [rascunho, setRascunho] = useState<FiltrosCancelamentos>({ inicio: config.inicioPadrao, fim: config.fimPadrao,
-    base: "REGISTRO", descricao: "TODAS", profissional: "", tipo: "", nome: "" });
+  const iniciais: FiltrosCancelamentos = { inicio: config.inicioPadrao, fim: config.fimPadrao,
+    base: "REGISTRO", descricao: "TODAS", profissional: "", tipo: "", nome: "" };
+  const [rascunho, setRascunho] = useState<FiltrosCancelamentos>(iniciais);
   const [consulta, setConsulta] = useState({ filtros: rascunho, pagina: 0 });
   const [selecionado, selecionar] = useState<string | null>(null);
   const lista = useQuery({ queryKey: ["cancelamentos", identidade, "lista", consulta, config.tamanhoPagina],
@@ -76,20 +79,28 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
     <form onSubmit={aplicar} className="grid min-w-0 grid-cols-1 items-end gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2 xl:grid-cols-4">
       <label className="space-y-1 text-sm">{t.base}<Seletor valor={rascunho.base} placeholder={t.base} ariaLabel={t.base}
         opcoes={[{valor:"REGISTRO",rotulo:t.registro},{valor:"AGENDAMENTO",rotulo:t.agendamento}]}
-        onChange={v => campo("base", v as FiltrosCancelamentos["base"])} /></label>
+        obrigatorio onChange={v => { if (v) campo("base", v as FiltrosCancelamentos["base"]); }} /></label>
       <label className="space-y-1 text-sm">{t.inicio}<SeletorData obrigatorio valor={rascunho.inicio} placeholder={t.inicio} onChange={v => campo("inicio",v)} /></label>
       <label className="space-y-1 text-sm">{t.fim}<SeletorData obrigatorio valor={rascunho.fim} placeholder={t.fim} onChange={v => campo("fim",v)} /></label>
       <label className="space-y-1 text-sm">{t.descricaoFiltro}<Seletor valor={rascunho.descricao} placeholder={t.descricaoFiltro} ariaLabel={t.descricaoFiltro}
         opcoes={[{valor:"TODAS",rotulo:t.todas},{valor:"COM_DESCRICAO",rotulo:t.comDescricao},{valor:"SEM_DESCRICAO",rotulo:t.semDescricao}]}
-        onChange={v => campo("descricao", v as FiltrosCancelamentos["descricao"])} /></label>
+        obrigatorio onChange={v => { if (v) campo("descricao", v as FiltrosCancelamentos["descricao"]); }} /></label>
       <label className="space-y-1 text-sm">{t.nome}<Input maxLength={config.maximoBusca} value={rascunho.nome} onChange={e => campo("nome", e.target.value)} /></label>
       <label className="space-y-1 text-sm">{t.profissional}<Input maxLength={config.maximoBusca} value={rascunho.profissional} onChange={e => campo("profissional", e.target.value)} /></label>
       <label className="space-y-1 text-sm">{t.tipo}<Input maxLength={config.maximoBusca} value={rascunho.tipo} onChange={e => campo("tipo", e.target.value)} /></label>
-      <Button type="submit">{t.aplicar}</Button>
+      <div className="flex flex-wrap gap-2"><Button type="submit">{t.aplicar}</Button>
+        <Button type="button" variant="outline" onClick={() => {
+          setRascunho(iniciais); setConsulta({ filtros: iniciais, pagina: 0 }); selecionar(null);
+        }}>{t.limpar}</Button></div>
     </form>
-    <div className="space-y-1 text-xs text-muted-foreground"><p>{preencher(t.fuso, { fuso: config.fusoHorario })}</p><p>{t.notaDatas}</p></div>
+    <div className="space-y-1 text-xs text-muted-foreground"><p>{preencher(t.fuso, { fuso: config.fusoHorario })} · {preencher(t.limitePeriodo, { dias: config.maximoDias })}</p><p>{t.notaDatas}</p></div>
     {lista.isPending ? <p role="status">{t.carregando}</p> : lista.isError ? <Falha erro={lista.error} tentar={() => void lista.refetch()} />
       : lista.data.itens.length === 0 ? <p role="status" className="rounded-xl border bg-card p-8 text-center text-muted-foreground">{t.vazio}</p>
+      : telaEstreita ? <div className="space-y-3">{lista.data.itens.map(item =>
+        <article key={item.id} aria-label={item.contatoNome || t.naoInformado} className="space-y-4 rounded-xl border bg-card p-4">
+          <Detalhes item={item} t={t} data={data} resumido />
+          <Button variant="outline" className="w-full" onClick={() => selecionar(item.id)}>{t.detalhes}</Button>
+        </article>)}</div>
       : <div className="overflow-x-auto rounded-xl border bg-card"><table className="w-full text-left text-sm">
         <thead className="border-b bg-muted/40 text-xs text-muted-foreground"><tr>
           {[t.contato, t.agendamento, t.registro, t.profissional, t.tipo, t.descricaoFiltro, t.detalhes].map(c => <th key={c} scope="col" className="p-3 font-medium">{c}</th>)}
@@ -106,6 +117,7 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
       <Button variant="outline" disabled={!lista.data?.temProxima || lista.isError || lista.isPending || consulta.pagina + 1 >= config.maximoPaginas}
         onClick={() => setConsulta(v => ({ ...v, pagina: v.pagina + 1 }))}>{t.proxima}</Button>
     </nav>
+    {lista.data?.temProxima && consulta.pagina + 1 >= config.maximoPaginas && <p role="status" className="text-sm text-muted-foreground">{t.limitePaginas}</p>}
     <Dialog open={selecionado !== null && pode("cancelamentos.ver")} onOpenChange={aberto => { if (!aberto) selecionar(null); }}>
       <DialogContent showCloseButton={false} className="max-h-[85dvh] overflow-y-auto"><DialogHeader><DialogTitle>{t.detalheTitulo}</DialogTitle>
         <DialogDescription>{t.detalheDescricao}</DialogDescription></DialogHeader>
@@ -119,10 +131,10 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
   </>;
 }
 
-function Detalhes({ item, t, data }: { item: Cancelamento; t: Textos; data: (v: string | null) => string }) {
+function Detalhes({ item, t, data, resumido = false }: { item: Cancelamento; t: Textos; data: (v: string | null) => string; resumido?: boolean }) {
   return <dl className="space-y-3 text-sm">{[
     [t.contato, item.contatoNome], [t.agendamento, data(item.agendadoPara)], [t.registro, data(item.registradoEm)],
     [t.profissional, item.profissionalNome], [t.tipo, item.tipoAgendamento], [t.descricaoCampo, item.descricao?.trim() ? item.descricao : t.semDescricao],
-  ].map(([rotulo, valor]) => <div key={rotulo}><dt className="text-xs text-muted-foreground">{rotulo}</dt>
-    <dd className="whitespace-pre-wrap break-words text-foreground">{valor || t.naoInformado}</dd></div>)}</dl>;
+  ].map(([rotulo, valor], indice) => <div key={rotulo}><dt className="text-xs text-muted-foreground">{rotulo}</dt>
+    <dd className={`whitespace-pre-wrap break-words text-foreground ${indice === 0 ? "font-semibold" : ""} ${resumido && indice === 5 ? "line-clamp-3" : ""}`}>{valor || t.naoInformado}</dd></div>)}</dl>;
 }

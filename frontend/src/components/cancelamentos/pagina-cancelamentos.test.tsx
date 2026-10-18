@@ -8,10 +8,12 @@ import type { Cancelamento, PaginaCancelamentos } from "@/lib/cancelamentos/api"
 
 const api = vi.hoisted(() => ({ obterConfiguracaoCancelamentos: vi.fn(), listarCancelamentos: vi.fn(), obterCancelamento: vi.fn() }));
 const identidade = vi.hoisted(() => ({ usuarioId: "gestor", papel: "GESTOR", revisao: 1 }));
+const viewport = vi.hoisted(() => ({ estreita: false }));
 vi.mock("@/lib/cancelamentos/api", () => api);
 vi.mock("@/lib/auth/auth-store", () => ({ useAuthStore: (seletor: (e: typeof identidade) => unknown) => seletor(identidade) }));
 vi.mock("@/lib/config/textos-provider", () => ({ useTextos: () => textosReais }));
 vi.mock("@/lib/gestao/use-gestao", () => ({ useMinhasPermissoes: () => ({ data: { revisao: identidade.revisao } }) }));
+vi.mock("@/lib/navegacao/tela-estreita", () => ({ useTelaEstreita: () => viewport.estreita }));
 import Pagina from "@/app/(shell)/cancelamentos/page";
 
 const t = textosReais.cancelamentos;
@@ -24,6 +26,7 @@ function montar() {
 }
 beforeEach(() => {
   vi.resetAllMocks(); identidade.usuarioId = "gestor"; identidade.papel = "GESTOR"; identidade.revisao = 1;
+  viewport.estreita = false;
   api.obterConfiguracaoCancelamentos.mockResolvedValue({ fusoHorario: "America/Sao_Paulo", inicioPadrao: "2026-10-01", fimPadrao: "2026-10-18",
     tamanhoPagina: 25, maximoPagina: 100, maximoDias: 90, maximoPaginas: 100, maximoBusca: 200 });
   api.listarCancelamentos.mockResolvedValue({ itens: [item], temProxima: false });
@@ -31,6 +34,14 @@ beforeEach(() => {
 });
 
 describe("Cancelamentos na rota real", () => {
+  it("tela estreita mostra cartoes completos com detalhes sem duplicar a tabela", async()=>{
+    viewport.estreita=true; montar();
+    const cartao=await screen.findByRole("article",{name:item.contatoNome!});
+    expect(within(cartao).getByText(item.profissionalNome!)).toBeInTheDocument();
+    expect(within(cartao).getByText("25/10/2026, 11:30")).toBeInTheDocument();
+    expect(within(cartao).getByRole("button",{name:t.detalhes})).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
   it("nega URL direta sem capacidade e nem inicia leituras", () => {
     definirCapacidadesDeTeste({ negadas: ["cancelamentos.ver"] }); montar();
     expect(screen.getByText(textosReais.gestao.acesso.semAcessoTitulo)).toBeInTheDocument();
@@ -81,6 +92,9 @@ describe("Cancelamentos na rota real", () => {
     fireEvent.pointerDown(semDescricao,{pointerType:"mouse",button:0}); fireEvent.click(semDescricao);
     fireEvent.click(screen.getByRole("button",{name:t.aplicar}));
     await waitFor(() => expect(api.listarCancelamentos).toHaveBeenLastCalledWith(expect.objectContaining({nome:"Outro",profissional:"Profissional",tipo:"Retorno",base:"AGENDAMENTO",descricao:"SEM_DESCRICAO"}),0,25,expect.anything()));
+    fireEvent.click(screen.getByRole("button",{name:t.limpar}));
+    await waitFor(() => expect(api.listarCancelamentos).toHaveBeenLastCalledWith(expect.objectContaining({nome:"",profissional:"",tipo:"",base:"REGISTRO",descricao:"TODAS"}),0,25,expect.anything()));
+    expect(screen.getByLabelText(t.nome)).toHaveValue("");
   });
   it("resposta atrasada de outro filtro nao substitui a consulta atual", async () => {
     let resolver!: (v: PaginaCancelamentos) => void;

@@ -30,7 +30,8 @@ class CancelamentosController {
     }
 
     @GetMapping("/configuracao")
-    @Operation(summary = "Limites e fuso da consulta autorizada")
+    @Operation(summary = "Limites e fuso da consulta autorizada",
+            description = "Retorna limites operacionais e periodo inicial no fuso da instancia. Exige cancelamentos.ver e flag habilitada; nao consulta a fonte externa.")
     PoliticaConsultaCancelamentos.Configuracao configuracao() { return configuracao.executar(); }
 
     @GetMapping
@@ -48,7 +49,8 @@ class CancelamentosController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Detalhe minimo; inexistente ou fora do escopo retorna 404 indistinguivel")
+    @Operation(summary = "Detalhe minimo; inexistente ou fora do escopo retorna 404 indistinguivel",
+            description = "Consulta somente o registro autorizado, sem inferir correlacao ou abrir atendimento. Fonte nao configurada ou indisponivel retorna 503 com codigo sanitizado.")
     CancelamentoAgendamento detalhe(@PathVariable String id) { return detalhe.executar(id); }
 
     @ExceptionHandler(FiltroCancelamentosInvalidoException.class)
