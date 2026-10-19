@@ -745,6 +745,52 @@
         }
       }
     },
+    "/internal/v1/cancelamentos" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegistroCancelamentoRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RegistroCancelamentoResposta"
+                }
+              }
+            }
+          },
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RegistroCancelamentoResposta"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "409" : { }
+        }
+      }
+    },
     "/internal/v1/envios-automacao/pendentes" : {
       "get" : {
         "parameters" : [ {
@@ -2278,6 +2324,72 @@
         },
         "resumo" : {
           "$ref" : "#/components/schemas/ResumoIaResposta"
+        }
+      },
+      "type" : "object"
+    },
+    "RegistroCancelamentoRequisicao" : {
+      "properties" : {
+        "agendadoPara" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "agendamentoExternoId" : {
+          "maxLength" : 200,
+          "type" : "string"
+        },
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "canceladoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "contatoNome" : {
+          "maxLength" : 200,
+          "type" : "string"
+        },
+        "descricao" : {
+          "maxLength" : 2000,
+          "type" : "string"
+        },
+        "eventoExternoId" : {
+          "maxLength" : 200,
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "origem" : {
+          "maxLength" : 80,
+          "type" : "string"
+        },
+        "profissionalNome" : {
+          "maxLength" : 200,
+          "type" : "string"
+        },
+        "tipoAgendamento" : {
+          "maxLength" : 200,
+          "type" : "string"
+        }
+      },
+      "required" : [ "agendadoPara", "agendamentoExternoId", "eventoExternoId", "origem" ],
+      "type" : "object"
+    },
+    "RegistroCancelamentoResposta" : {
+      "properties" : {
+        "id" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "recebidoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "repetido" : {
+          "type" : "boolean"
         }
       },
       "type" : "object"
