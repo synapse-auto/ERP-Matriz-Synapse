@@ -242,7 +242,10 @@ class AtendimentoMensagensController {
             CitacaoResposta citacao,
             String idempotencyKey,
             // E214: emoji atual do cliente no WhatsApp; separado de `reacoes`, que sao do CRM.
-            String reacaoDoCliente) {
+            String reacaoDoCliente,
+            // E233: a mensagem saiu como template aprovado. O `conteudo` e o corpo renderizado e nao
+            // prova isso; so este campo diz. Mensagens anteriores a V110 sempre valem false.
+            boolean template) {
 
         static MensagemResposta de(
                 MensagemDoHistorico item,
@@ -272,7 +275,8 @@ class AtendimentoMensagensController {
                     item.reacoes().stream().map(ResumoReacaoResposta::de).toList(),
                     CitacaoResposta.de(item.citacao()),
                     item.chaveIdempotencia(),
-                    item.reacaoDoCliente());
+                    item.reacaoDoCliente(),
+                    mensagem.envioDeTemplate());
         }
     }
 

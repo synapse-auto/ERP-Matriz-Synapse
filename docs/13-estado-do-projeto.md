@@ -704,3 +704,57 @@ quando a configuração de avaliação estiver ativa, preparar as solicitações
 mesma transição de finalização. O log registra apenas contagens agregadas e o corte (`candidatos`,
 `finalizados`, `ignorados`, `falhas`), sem conteúdo ou dados de contato. O job não reabre conversas:
 uma nova mensagem do cliente seguirá o fluxo existente e abrirá atendimento em IA.
+
+### 19/10/2026 — E233: marcador de template na timeline de mensagens
+
+**Por quê.** O template enviado é gravado como `TEXTO`, e quando a interface manda `corpoRenderizado`
+(o modal do composer sempre manda) o `conteudo` é o corpo renderizado, sem o prefixo técnico
+`[template nome]` (`ConteudoDeEnvio.paraHistorico()`). Nada na linha dizia que a mensagem foi um
+template, então o frontend não conseguia mostrar "template enviado, aguardando resposta" (E232) sem
+adivinhar pelo texto ou pelo horário — e o horário não prova nada: o bloqueio de fora-da-janela vale só
+para texto livre, a janela configurada não chega ao front e há remetentes `SISTEMA`/`IA` na timeline.
+
+**O que existe agora.**
+
+| Camada | Contrato |
+| --- | --- |
+| Banco | V110: `mensagem.envio_de_template BOOLEAN NOT NULL DEFAULT FALSE`. Sem índice, sem backfill. É só metadado, inclusive na tabela particionada (`EnvioDeTemplateMigrationIT` confere que o `relfilenode` de cada partição não muda). |
+| Domínio | `ConteudoDeEnvio.ehTemplate()` é o único lugar que decide; `Mensagem.envioDeTemplate()` carrega o valor. Construtores e fábricas anteriores resultam em `false`. |
+| REST | `template` (booleano, sempre presente) em `GET /api/v1/atendimentos/{id}/mensagens`, em `GET .../mensagens/{mensagemId}` e na leitura "desde". Campo aditivo: clientes antigos o ignoram. |
+| Tempo real | `dados.template` (booleano) no evento STOMP `MENSAGEM`, que carrega a mensagem inteira. |
+
+**Quem grava.** O marcador vem do tipo do conteúdo de envio, nunca do texto: o composer e o contato novo
+passam por `EnviarMensagemUseCase` (também mensagens programadas e encaminhamentos que enviem template);
+a campanha grava em `EnfileirarTemplateDeCampanhaUseCase`. Texto livre, mídia, mensagem do cliente e a
+resposta da IA (`/responder`) valem `false`, mesmo que o texto imite `[template …]`.
+
+**O que fica de fora.** Mensagens que a Automação registra por `POST /mensagens-enviadas` não têm noção
+de template (nem o caso de uso nem os controllers internos citam template) e valem `false`; mudar isso
+exigiria alterar o contrato `/internal/v1`, que esta entrega não toca.
+
+**Sem backfill — consequência.** As linhas anteriores à V110 valem `false`. A E232 só reconhece
+templates enviados depois do deploy desta entrega; uma conversa que já esteja aguardando resposta de um
+template antigo continua exibindo a faixa atual de janela fechada. Investigado, sem executar:
+
+* linhas antigas com prefixo `[template ` são identificáveis por `conteudo LIKE '[template %'`, mas só
+  cobrem templates enviados sem `corpoRenderizado`;
+* o payload da outbox (`tipo = 'canal.mensagem.enviar'`) guarda `mensagemId`, `enviadoEm` e
+  `conteudo.tipo = 'TEMPLATE'` (`OutboxRepositorioJdbc`), e não há no código nenhum job que apague
+  `outbox_evento` (inferido: a retenção real em produção não foi verificada). Se as linhas ainda
+  existirem, um backfill seria viável. Consulta de verificação, somente leitura (testada em
+  `MarcadorDeTemplateNaTimelineIT`):
+
+```sql
+SELECT count(*)
+  FROM mensagem m
+  JOIN outbox_evento o
+    ON o.tipo = 'canal.mensagem.enviar' AND o.payload ->> 'mensagemId' = m.id::text
+ WHERE o.payload -> 'conteudo' ->> 'tipo' = 'TEMPLATE'
+   AND NOT m.envio_de_template;
+```
+
+Aplicar o `UPDATE` correspondente é decisão do responsável e deve ser feito fora do horário de
+atendimento, em lotes, por causa da VPS saturada.
+
+**Rollback.** A coluna é aditiva e com default: a imagem anterior segue escrevendo e lendo (o `INSERT` e
+o `SELECT` dela não citam a coluna; coberto por `EnvioDeTemplateMigrationIT`).

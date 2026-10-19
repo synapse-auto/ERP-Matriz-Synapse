@@ -462,7 +462,9 @@ public class EnviarMensagemUseCase {
                 midiaUrlDe(conteudo),
                 midiaMetadadosDe(conteudo),
                 StatusEntrega.PENDENTE,
-                agora));
+                agora,
+                null,
+                conteudo.ehTemplate()));
 
         if (chave != null) {
             idempotencia.concluir(chave, remetenteId, gravada.id(), gravada.enviadoEm(), trocouDeDono);
@@ -543,7 +545,8 @@ public class EnviarMensagemUseCase {
                 gravada.statusEntrega().name(),
                 agora,
                 MontadorDeReferenciaDeMensagem.citacaoDe(referencia),
-                chave));
+                chave,
+                gravada.envioDeTemplate()));
 
         return new Resultado(aberto, gravada, trocouDeDono, chave, false);
     }

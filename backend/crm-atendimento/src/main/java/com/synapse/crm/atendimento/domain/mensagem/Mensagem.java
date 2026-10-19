@@ -14,6 +14,10 @@ import java.util.UUID;
  * <p>{@code enviadoEm} nao e detalhe de auditoria: e a <b>chave de particao</b> da tabela
  * {@code mensagem}. Por isso e obrigatorio e viaja com o agregado em vez de ser preenchido por
  * {@code DEFAULT now()} no banco — quem escreve precisa saber em que instante esta escrevendo.
+ *
+ * <p>{@code envioDeTemplate} (E233) diz que esta mensagem saiu como template aprovado. Vem do tipo do
+ * conteudo de envio, nunca do texto: o historico guarda o corpo renderizado sem prefixo tecnico. Toda
+ * construcao que nao informa o campo e "nao template" — so quem cria um envio de template marca.
  */
 public record Mensagem(
         UUID id,
@@ -25,7 +29,8 @@ public record Mensagem(
         String midiaMetadados,
         StatusEntrega statusEntrega,
         Instant enviadoEm,
-        String opcoes) {
+        String opcoes,
+        boolean envioDeTemplate) {
 
     public Mensagem(
             UUID id,
@@ -38,6 +43,21 @@ public record Mensagem(
             StatusEntrega statusEntrega,
             Instant enviadoEm) {
         this(id, atendimentoId, remetente, tipo, conteudo, midiaUrl, midiaMetadados, statusEntrega, enviadoEm, null);
+    }
+
+    public Mensagem(
+            UUID id,
+            UUID atendimentoId,
+            Remetente remetente,
+            TipoMensagem tipo,
+            String conteudo,
+            String midiaUrl,
+            String midiaMetadados,
+            StatusEntrega statusEntrega,
+            Instant enviadoEm,
+            String opcoes) {
+        this(id, atendimentoId, remetente, tipo, conteudo, midiaUrl, midiaMetadados, statusEntrega, enviadoEm,
+                opcoes, false);
     }
 
     public Mensagem {

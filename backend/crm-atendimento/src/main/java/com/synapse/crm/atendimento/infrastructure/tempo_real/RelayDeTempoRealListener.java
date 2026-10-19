@@ -82,6 +82,8 @@ class RelayDeTempoRealListener {
         dados.put("statusEntrega", evento.statusEntrega());
         dados.put("enviadoEm", evento.enviadoEm().toString());
         dados.put("idempotencyKey", evento.chaveIdempotencia());
+        // E233: mesmo campo da timeline REST; a tela nao precisa reler para saber que foi template.
+        dados.put("template", evento.envioDeTemplate());
         var destinatarios = dados.putArray("destinatarios");
         evento.destinatarios().forEach(id -> destinatarios.add(id.toString()));
         if (evento.citacao() != null) {

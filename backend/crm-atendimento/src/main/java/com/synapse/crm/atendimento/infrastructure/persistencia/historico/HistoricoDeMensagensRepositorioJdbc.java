@@ -35,6 +35,7 @@ class HistoricoDeMensagensRepositorioJdbc implements HistoricoDeMensagensReposit
                     + " a.finalizado_em AS atendimento_finalizado_em, ua.nome AS atendimento_responsavel_nome,"
                     + " m.remetente_tipo, m.remetente_id, m.tipo, m.conteudo,"
                     + " m.midia_url, m.midia_metadados, m.opcoes, m.status_entrega, m.enviado_em,"
+                    + " m.envio_de_template,"
                     + " m.erro_entrega ->> 'codigo' AS erro_entrega_codigo,"
                     + " m.erro_entrega ->> 'titulo' AS erro_entrega_titulo,"
                     + " u.nome AS remetente_nome,"
@@ -126,7 +127,8 @@ class HistoricoDeMensagensRepositorioJdbc implements HistoricoDeMensagensReposit
                 linha.getString("midia_metadados"),
                 StatusEntrega.valueOf(linha.getString("status_entrega")),
                 linha.getTimestamp("enviado_em").toInstant(),
-                linha.getString("opcoes"));
+                linha.getString("opcoes"),
+                linha.getBoolean("envio_de_template"));
         return new MensagemDoHistorico(
                 mensagem,
                 linha.getString("remetente_nome"),
