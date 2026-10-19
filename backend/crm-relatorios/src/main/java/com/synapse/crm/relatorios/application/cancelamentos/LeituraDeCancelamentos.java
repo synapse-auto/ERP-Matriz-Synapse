@@ -11,7 +11,8 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
  * Porta generica. Adaptador aplica escopo antes de filtros/paginacao e detalhe.
  * Para alcance MEUS: somente correlacao exata validada e visivel pela Specification/RLS;
  * sem correlacao ou sem acesso, excluir. Nunca inferir vinculo por nome/telefone.
- * Ordem: data da base DESC NULLS LAST, id estavel DESC. Sem COUNT global ou catalogos historicos.
+ * Ordem: data da base DESC, id estavel DESC; intervalo exclui nulos da base antes de ordenar.
+ * Sem COUNT global ou catalogos historicos.
  * Adaptador local usa transacao read-only/RLS no pool geral, sem consulta externa.
  */
 public interface LeituraDeCancelamentos {

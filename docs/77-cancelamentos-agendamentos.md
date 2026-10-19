@@ -79,7 +79,8 @@ nova base CANCELAMENTO filtra canceladoEm conhecido, nunca substitui ausência p
 Intervalo `[inicio,proximoDia)` no fuso da instância, incluindo DST.
 
 Resposta `{itens,temProxima}`, sem total global/COUNT. Tamanho+1, página zero-based, data escolhida
-DESC NULLS LAST + UUID DESC. Controles não apresentam tamanho de página como total. Inserções entre
+DESC + UUID DESC. O intervalo exclui datas nulas antes da ordenação. Controles não apresentam
+tamanho de página como total. Inserções entre
 páginas podem deslocar offsets; não se promete snapshot histórico. Campos adicionais: recebidoEm,
 canceladoEm, leadId, atendimentoId. registradoEm fica como alias de canceladoEm para preservar a
 forma antiga da resposta draft, mas não é usado pela UI. Não deduzir recebimento por esse alias.
@@ -95,6 +96,13 @@ sem rede/provedor no caminho de gravação. SQL parametrizado, projeção explí
 V109 para as três datas + desempate (ocorrência parcial), vínculo e idempotência. Não criar índice
 textual/trigram sem evidência. Filtros sempre limitados a período/página. Limites iniciais: página
 25, máximo 100 itens, 90 dias, 100 páginas, busca 200 caracteres; não são capacidade de produção medida.
+
+O ensaio local em PostgreSQL 15, tabela temporária com 20 mil registros, identificou um Sort de
+1440 candidatos quando havia NULLS LAST explícito, incompatível com a ordem DESC do índice.
+Retirar essa cláusula redundante (o intervalo já exclui NULL) permitiu ler 26 linhas diretamente
+na ordem do índice. A migration não precisou mudar. CancelamentosRepositorioJdbcTest confere a
+ordem do SQL efetivamente emitido; CancelamentosPersistenciaIT verifica plano na tabela real com
+RLS e volume sintético. O microensaio não comprova latência nem capacidade de produção.
 
 CancelamentoRegistrado somente em nova gravação; listener AFTER_COMMIT despacha executor separado
 bounded (fila-avisos inicialmente 100), seguindo o relay de presença. Invalidação **sem conteúdo

@@ -36,7 +36,7 @@ class CancelamentosController {
 
     @GetMapping
     @Operation(summary = "Listar cancelamentos no escopo autorizado",
-        description = "Filtros combinados, datas locais inclusivas. Ordem data da base DESC NULLS LAST, id DESC. "
+        description = "Filtros combinados, datas locais inclusivas. Intervalo exclui datas nulas da base; ordem data DESC, id DESC. "
             + "REGISTRO usa recebimento no CRM; CANCELAMENTO usa ocorrencia conhecida na origem; AGENDAMENTO usa o horario agendado. "
             + "Pagina zero-based, sem total global. 200 vazio real; 503 FONTE_INDISPONIVEL; 403 sem capacidade/flag; 400 filtro invalido.")
     LeituraDeCancelamentos.Pagina listar(

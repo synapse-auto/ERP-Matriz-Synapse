@@ -65,7 +65,9 @@ class CancelamentosRepositorioJdbc implements LeituraDeCancelamentos, GravacaoDe
         busca(sql,p,"profissional_nome",f.profissional()); busca(sql,p,"tipo_agendamento",f.tipo()); busca(sql,p,"contato_nome",f.nome());
         if (f.descricao()==FiltroCancelamentos.Descricao.COM_DESCRICAO) sql.append(" AND descricao IS NOT NULL");
         if (f.descricao()==FiltroCancelamentos.Descricao.SEM_DESCRICAO) sql.append(" AND descricao IS NULL");
-        sql.append(" ORDER BY "+data+" DESC NULLS LAST,id DESC LIMIT ? OFFSET ?");
+        // O intervalo >= / < ja exclui NULL. NULLS LAST nao muda o resultado, mas impede
+        // que o PostgreSQL use a ordem DESC do indice sem um Sort intermediario.
+        sql.append(" ORDER BY "+data+" DESC,id DESC LIMIT ? OFFSET ?");
         p.add(f.tamanho()+1); p.add(Math.multiplyExact(f.pagina(),f.tamanho()));
         try {
             var linhas = jdbc.query(sql.toString(),CancelamentosRepositorioJdbc::mapear,p.toArray());
