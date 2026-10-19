@@ -43,6 +43,8 @@ Fonte computada `Inter, "Inter Fallback", Inter, sans-serif`, `document.fonts.re
 zoom/DPR 1. Nenhuma alteração de CSS/fonte/layout para produzir as capturas. Não houve
 overflow horizontal nas larguras 1920, 1280 e 390 px. As capturas incluem a interface real
 do modo de desenvolvimento, não prometem ausência de avisos no console.
+Na última rodada de vazios, o indicador de issues do Next foi recolhido pelo próprio botão
+da ferramenta para não sobrepor o texto no celular; nenhum alerta do CRM ou estilo foi ocultado.
 
 | Cenário | Evidência |
 |---|---|
