@@ -124,6 +124,20 @@ class CancelamentosPersistenciaIT extends PostgresIT {
             inicio.countDown();Set<String> ids=new HashSet<>();int criados=0;
             for(var f:tarefas) {var r=f.get(30,TimeUnit.SECONDS);assertThat(r.getStatusCode().value()).as(String.valueOf(r.getBody())).isIn(200,201);if(r.getStatusCode().value()==201)criados++;ids.add(r.getBody().path("id").asText());}
             assertThat(criados).isEqualTo(1);assertThat(ids).hasSize(1);
+            var conflitoInicio=new CountDownLatch(1);
+            var concorrentes=new ArrayList<Future<ResponseEntity<JsonNode>>>();
+            for(String variante:List.of("variante-a","variante-b")) {
+                concorrentes.add(pool.submit(()->{
+                    assertThat(conflitoInicio.await(10,TimeUnit.SECONDS)).isTrue();
+                    var body=corpo("conflito-concorrente");body.put("descricao",variante);
+                    return post(body,"conflito-concorrente");
+                }));
+            }
+            conflitoInicio.countDown();
+            var status=new ArrayList<Integer>();
+            for(var futuro:concorrentes)status.add(futuro.get(30,TimeUnit.SECONDS).getStatusCode().value());
+            assertThat(status).containsExactlyInAnyOrder(201,409);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM cancelamento_agendamento WHERE origem=? AND evento_externo_id='conflito-concorrente'",Long.class,ORIGEM)).isEqualTo(1);
         }
     }
     @Test void ocorrenciasDiferentesDoMesmoAgendamentoSaoPreservadas() {
@@ -209,7 +223,12 @@ class CancelamentosPersistenciaIT extends PostgresIT {
                     chave_idempotencia,impressao,agendado_para,recebido_em)
                 VALUES (gen_random_uuid(),'cancelamentos-it','proibido','agenda','proibido','x',now(),now())
                 """))).isInstanceOf(org.springframework.dao.DataAccessException.class)
-                    .hasRootCauseInstanceOf(java.sql.SQLException.class);
+                    .satisfies(falha->{
+                        Throwable causa=falha;
+                        while(causa.getCause()!=null)causa=causa.getCause();
+                        assertThat(causa).isInstanceOf(java.sql.SQLException.class);
+                        assertThat(((java.sql.SQLException)causa).getSQLState()).isEqualTo("42501");
+                    });
         } finally { com.synapse.crm.app.seguranca.ApoioRls.sair(); }
     }
     @Test void planoLimitadoComVinteMilRegistrosSinteticos() {
