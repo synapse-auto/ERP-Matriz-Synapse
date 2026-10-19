@@ -5,6 +5,7 @@ import { ErroDeApi } from "@/lib/api/errors";
 import { textosReais } from "@/test/textos-reais";
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 import type { Cancelamento, PaginaCancelamentos } from "@/lib/cancelamentos/api";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const api = vi.hoisted(() => ({ obterConfiguracaoCancelamentos: vi.fn(), listarCancelamentos: vi.fn(), obterCancelamento: vi.fn() }));
 const identidade = vi.hoisted(() => ({ usuarioId: "gestor", papel: "GESTOR", revisao: 1 }));
@@ -13,7 +14,7 @@ vi.mock("@/lib/cancelamentos/api", () => api);
 vi.mock("@/lib/auth/auth-store", () => ({ useAuthStore: (seletor: (e: typeof identidade) => unknown) => seletor(identidade) }));
 vi.mock("@/lib/config/textos-provider", () => ({ useTextos: () => textosReais }));
 vi.mock("@/lib/gestao/use-gestao", () => ({ useMinhasPermissoes: () => ({ data: { revisao: identidade.revisao } }) }));
-vi.mock("@/lib/navegacao/tela-estreita", () => ({ useTelaEstreita: () => viewport.estreita }));
+vi.mock("./use-lista-em-cartoes", () => ({ useListaEmCartoes: () => viewport.estreita }));
 import Pagina from "@/app/(shell)/cancelamentos/page";
 
 const t = textosReais.cancelamentos;
@@ -22,8 +23,8 @@ const item: Cancelamento = { id: "c1", contatoNome: "Contato sintético", profis
   descricao: "Motivo\nsegunda linha <script>alert(1)</script>" };
 function montar() {
   const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const resultado = render(<QueryClientProvider client={cache}><Pagina /></QueryClientProvider>);
-  return { ...resultado, cache, atualizar: () => resultado.rerender(<QueryClientProvider client={cache}><Pagina /></QueryClientProvider>) };
+  const resultado = render(<TooltipProvider><QueryClientProvider client={cache}><Pagina /></QueryClientProvider></TooltipProvider>);
+  return { ...resultado, cache, atualizar: () => resultado.rerender(<TooltipProvider><QueryClientProvider client={cache}><Pagina /></QueryClientProvider></TooltipProvider>) };
 }
 beforeEach(() => {
   vi.resetAllMocks(); identidade.usuarioId = "gestor"; identidade.papel = "GESTOR"; identidade.revisao = 1;
@@ -84,7 +85,7 @@ describe("Cancelamentos na rota real", () => {
     const segundo = montar(); expect(await screen.findByText(t.indisponivel)).toBeInTheDocument();
     api.listarCancelamentos.mockResolvedValueOnce({ itens: [], temProxima: false });
     fireEvent.click(screen.getByRole("button", { name: t.tentar }));
-    expect(await screen.findByText(t.vazio)).toBeInTheDocument(); segundo.unmount();
+    expect(await screen.findByText(t.vazioPeriodo)).toBeInTheDocument(); segundo.unmount();
     api.listarCancelamentos.mockRejectedValueOnce(new ErroDeApi(403,null,"")); montar();
     expect(await screen.findByText(t.semAcesso)).toBeInTheDocument();
   });
@@ -92,6 +93,7 @@ describe("Cancelamentos na rota real", () => {
     api.listarCancelamentos.mockResolvedValue({ itens:[item],temProxima:true }); montar();
     await screen.findByText(item.contatoNome!); fireEvent.click(screen.getByRole("button",{name:t.proxima}));
     await waitFor(() => expect(api.listarCancelamentos).toHaveBeenLastCalledWith(expect.anything(),1,25,expect.anything()));
+    fireEvent.click(screen.getByRole("button",{name:t.maisFiltros}));
     fireEvent.change(screen.getByLabelText(t.nome),{target:{value:"Outro"}});
     fireEvent.change(screen.getByLabelText(t.profissional),{target:{value:"Profissional"}});
     fireEvent.change(screen.getByLabelText(t.tipo),{target:{value:"Retorno"}});
@@ -130,5 +132,101 @@ describe("Cancelamentos na rota real", () => {
     expect(screen.getAllByText(t.naoInformado)).toHaveLength(2);
     fireEvent.click(screen.getByRole("button",{name:t.detalhes})); expect(await screen.findByText(t.naoEncontrado)).toBeInTheDocument();
     expect(screen.getByText(item.contatoNome!)).toBeInTheDocument();
+  });
+
+  it("remove avisos tecnicos permanentes e deixa fuso e limite na ajuda acessivel", async () => {
+    montar(); await screen.findByText(item.contatoNome!);
+    expect(screen.queryByText(t.notaDatas)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nenhuma alteração é realizada/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Horários em America/)).not.toBeInTheDocument();
+    const ajuda=screen.getByRole("button",{name:t.ajudaPeriodo});
+    await act(async()=>ajuda.focus());
+    const tooltip=await screen.findByRole("tooltip");
+    expect(ajuda).toHaveAttribute("aria-describedby",tooltip.id);
+    expect(tooltip).toHaveTextContent("90"); expect(tooltip).toHaveTextContent("America/Sao_Paulo");
+  });
+  it("mais filtros nao consulta ao abrir, digitar ou recolher; sinaliza apenas os aplicados", async () => {
+    montar(); await screen.findByText(item.contatoNome!);
+    const abrir=screen.getByRole("button",{name:t.maisFiltros});
+    expect(abrir).toHaveAttribute("aria-expanded","false");
+    expect(screen.getByLabelText(t.nome)).not.toBeVisible();
+    fireEvent.click(abrir); expect(screen.getByLabelText(t.nome)).toBeVisible();
+    fireEvent.change(screen.getByLabelText(t.nome),{target:{value:"Contato"}});
+    fireEvent.change(screen.getByLabelText(t.profissional),{target:{value:"Profissional"}});
+    fireEvent.click(abrir); expect(screen.getByLabelText(t.nome)).not.toBeVisible();
+    expect(api.listarCancelamentos).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button",{name:t.aplicar}));
+    await waitFor(()=>expect(api.listarCancelamentos).toHaveBeenCalledTimes(2));
+    expect(screen.getByText(t.filtrosAtivos.replace("{quantidade}","2"))).toBeInTheDocument();
+    expect(abrir).toHaveAttribute("aria-expanded","false");
+    fireEvent.click(abrir); expect(screen.getByLabelText(t.nome)).toHaveValue("Contato");
+    expect(api.listarCancelamentos).toHaveBeenCalledTimes(2);
+  });
+  it("primeira pagina vazia nao inventa total nem exibe navegacao ou pagina isolada", async () => {
+    api.listarCancelamentos.mockResolvedValue({itens:[],temProxima:false}); montar();
+    expect(await screen.findByText(t.vazioPeriodo)).toBeInTheDocument();
+    expect(screen.queryByRole("navigation",{name:t.paginacao})).not.toBeInTheDocument();
+    expect(screen.queryByText(t.pagina.replace("{pagina}","1"))).not.toBeInTheDocument();
+    expect(screen.queryByText(t.naoConfigurada)).not.toBeInTheDocument();
+  });
+  it("busca vazia distingue filtros aplicados e permite limpar sem alterar a API", async () => {
+    montar(); await screen.findByText(item.contatoNome!);
+    fireEvent.click(screen.getByRole("button",{name:t.maisFiltros}));
+    fireEvent.change(screen.getByLabelText(t.nome),{target:{value:"Sem resultado"}});
+    api.listarCancelamentos.mockResolvedValueOnce({itens:[],temProxima:false});
+    fireEvent.click(screen.getByRole("button",{name:t.aplicar}));
+    await screen.findByText(t.vazio);
+    expect(screen.queryByText(t.vazioPeriodo)).not.toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("status")).getByRole("button",{name:t.limpar}));
+    await screen.findByText(item.contatoNome!);
+    expect(screen.getByLabelText(t.nome)).toHaveValue("");
+    expect(screen.getByRole("button",{name:t.maisFiltros})).toHaveAttribute("aria-expanded","false");
+    expect(api.listarCancelamentos).toHaveBeenLastCalledWith(expect.objectContaining({nome:"",descricao:"TODAS"}),0,25,expect.anything());
+  });
+  it("pagina posterior vazia preserva volta sem inventar proxima ou numero total", async () => {
+    api.listarCancelamentos.mockResolvedValueOnce({itens:[item],temProxima:true})
+      .mockResolvedValueOnce({itens:[],temProxima:false});
+    montar(); await screen.findByText(item.contatoNome!);
+    fireEvent.click(screen.getByRole("button",{name:t.proxima}));
+    await screen.findByText(t.paginaVazia);
+    expect(screen.getByRole("button",{name:t.anterior})).toBeEnabled();
+    expect(screen.getByRole("button",{name:t.proxima})).toBeDisabled();
+    fireEvent.click(screen.getByRole("button",{name:t.anterior}));
+    await screen.findByText(item.contatoNome!);
+    await waitFor(()=>expect(api.listarCancelamentos).toHaveBeenLastCalledWith(expect.anything(),0,25,expect.anything()));
+  });
+  it("pagina unica preenchida dispensa botoes de navegacao sem utilidade", async () => {
+    montar(); await screen.findByText(item.contatoNome!);
+    expect(screen.queryByRole("navigation",{name:t.paginacao})).not.toBeInTheDocument();
+  });
+  it("loading da lista nao inventa registros e falha nao vira vazio", async () => {
+    api.listarCancelamentos.mockReturnValueOnce(new Promise(()=>{}));
+    const r=montar();
+    await waitFor(()=>expect(api.listarCancelamentos).toHaveBeenCalledTimes(1));
+    expect(await screen.findByRole("status",{name:t.carregando})).toHaveAttribute("aria-busy","true");
+    expect(screen.queryByRole("table")).not.toBeInTheDocument(); r.unmount();
+    api.listarCancelamentos.mockRejectedValueOnce(new ErroDeApi(503,{codigo:"FONTE_INDISPONIVEL"},""));
+    montar(); expect(await screen.findByRole("alert")).toHaveTextContent(t.indisponivel);
+    expect(screen.queryByText(t.vazioPeriodo)).not.toBeInTheDocument();
+  });
+  it("erro de periodo usa o limite real, associa aos campos e nao inicia outra leitura", async () => {
+    api.obterConfiguracaoCancelamentos.mockResolvedValue({fusoHorario:"America/Sao_Paulo",inicioPadrao:"2026-10-01",fimPadrao:"2026-10-18",
+      tamanhoPagina:25,maximoPagina:100,maximoDias:17,maximoPaginas:100,maximoBusca:200});
+    montar(); await screen.findByText(item.contatoNome!);
+    fireEvent.click(screen.getByRole("button",{name:t.aplicar}));
+    const erro=screen.getByRole("alert"); expect(erro).toHaveTextContent(t.periodoExcedido.replace("{dias}","17"));
+    expect(screen.getByRole("group",{name:t.periodo})).toHaveAttribute("aria-describedby",erro.id);
+    expect(screen.getByLabelText(t.inicio)).toHaveFocus();
+    expect(api.listarCancelamentos).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(item.contatoNome!)).toBeInTheDocument();
+  });
+  it("limite de paginas permanece efetivo e nao permite consultar alem dele", async () => {
+    api.obterConfiguracaoCancelamentos.mockResolvedValue({fusoHorario:"America/Sao_Paulo",inicioPadrao:"2026-10-01",fimPadrao:"2026-10-18",
+      tamanhoPagina:25,maximoPagina:100,maximoDias:90,maximoPaginas:1,maximoBusca:200});
+    api.listarCancelamentos.mockResolvedValue({itens:[item],temProxima:true});
+    montar(); await screen.findByText(item.contatoNome!);
+    expect(screen.getByRole("button",{name:t.proxima})).toBeDisabled();
+    expect(screen.getByText(t.limitePaginas)).toBeInTheDocument();
+    expect(api.listarCancelamentos).toHaveBeenCalledTimes(1);
   });
 });

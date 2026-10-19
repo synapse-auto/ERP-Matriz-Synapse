@@ -29,7 +29,8 @@ UTC/microssegundos do PostgreSQL. `canceladoEm` permanece null se desconhecido; 
 do relógio do CRM e não pode ser informado pelo n8n. Não confundir ocorrência e ingestão.
 
 Par leadId/atendimentoId: ambos presentes ou ambos ausentes. Composição valida existência pelo
-LeadRepositorio (Specification) e AtendimentoRepositorio (RLS), e relação do atendimento ao lead.
+LeadRepositorio (Specification) e consulta EXISTS de atendimento no pool geral (RLS), conferindo
+a relação do atendimento ao lead.
 UUID inexistente/par incompatível responde 400 sanitizado. Não inferir vínculo por nome/telefone.
 
 Constraints únicas `(origem,chave_idempotencia)` e `(origem,evento_externo_id)`, separadas do ID
@@ -143,3 +144,42 @@ contrato, RLS, auditoria, datas, filtros/páginas e ausência de efeitos em aten
 CancelamentosIT mantém fixture apenas para guards/falhas da porta, sem fingir prova de persistência.
 NovoCancelamentoTest, FiltroCancelamentosTest, OpenApiIT, SchemaMigracoesIT e frontend completam
 cobertura. Relatório da PR registra resultados/CI do último SHA. Homologação n8n real é separada.
+
+## Refinamento de apresentação — 19/10/2026
+
+A aba usa linguagem operacional: **Filtrar por**, **Data de registro**, **Data do cancelamento**
+e **Data do agendamento**. Registro continua sendo recebimento no CRM; cancelamento desconhecido
+continua ausente, sem substituição de data. O campo livre continua **Descrição**, não uma causa
+obrigatória. Notas sobre integração/processamento saíram da página e dos detalhes. As chaves
+antigas de ajuda permanecem no catálogo para compatibilidade, mas não são renderizadas.
+
+Período/tipo de data são os controles principais. Contato, profissional, tipo e descrição ficam
+em **Mais filtros**, com indicador da quantidade efetivamente aplicada. Abrir, recolher e digitar
+não consultam a API. Somente Aplicar/Limpar, paginação e mecanismos de atualização já existentes
+alteram a leitura. Rascunho e filtros aplicados continuam separados; limpar também volta à primeira
+página. Fuso e limite reais aparecem em ajuda contextual associada ao botão por aria-describedby.
+
+O formulário antecipa somente erros do período conforme maximoDias recebido do servidor: datas
+obrigatórias, início após fim ou limite inclusivo excedido. Associa mensagem ao grupo de campos,
+retorna foco à data inicial e preserva a consulta anterior. Não altera limite, fuso ou validação
+obrigatória no backend; não inicia outra requisição inválida para explicar o erro.
+
+A listagem tem largura de leitura limitada, sem alterar o shell. Tipo aparece abaixo do contato.
+Nomes e descrições têm prévia de duas linhas; detalhes preservam conteúdo completo e quebras,
+com rolagem só no corpo do modal e ações sempre visíveis, inclusive com descrição longa no celular.
+Abaixo do recorte lg (1024 px) a tabela vira cartões, em duas colunas a partir de md e uma no
+celular. Esse breakpoint é local à listagem, sem modificar navegação ou outros módulos.
+
+Vazio por período e busca sem resultados têm mensagens distintas, sem inferir total da instância.
+Primeira página vazia e página única sem próxima não exibem paginação. Página posterior vazia
+ou com erro preserva a volta. Somente temProxima e os limites reais controlam Próxima; não há
+total global inventado. Loading tem placeholders visuais, não registros ou indicadores fictícios;
+erro continua erro, com retry explícito. O aviso de vínculo com atendimento só aparece após
+detalhe carregado, nunca durante loading/erro. Referências e autorização não mudaram.
+
+Textos vêm do catálogo padrão e dos defaults compatíveis do schema; personalizações da instância
+continuam prioritárias. Não há CSS global, fonte, token, biblioteca ou requisição nova. Nenhuma
+mudança em ingestão, contrato, persistência, idempotência, retenção, flag, capacidades ou RLS.
+**Dokploy: nenhuma ação adicional.** Não houve deploy/alteração de produção.
+
+Capturas antes/depois, cenários e limites da validação: [evidências do refinamento](assets/cancelamentos-refinamento/README.md).
