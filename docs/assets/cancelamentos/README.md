@@ -1,5 +1,43 @@
 # Validação local — Cancelamentos
 
+## Continuação com persistência local — 19/10/2026
+
+As capturas `cancelamentos-persistidos-*` substituem as capturas anteriores como evidência da
+integração atual. Next.js real em localhost:3019, Spring Boot real em localhost:8099, PostgreSQL
+15 e Redis descartáveis. **Sem FonteCancelamentosDeTeste/@Primary e sem interceptação de API no
+navegador**: os registros desta rodada foram gravados por POST no endpoint interno implementado.
+Flag ON apenas no banco descartável, login público do seed dev, provedor de mensagens fake.
+
+| Captura | Verificação |
+|---|---|
+| cancelamentos-persistidos-1920.png | 1920×1080; dois registros recebidos pelo endpoint, datas reais distintas |
+| cancelamentos-persistidos-1280.png | 1280×900; terceiro registro recebido sem F5, nomes longos contidos |
+| cancelamentos-persistidos-filtro-origem-1280.png | Base CANCELAMENTO exclui os dois registros sem ocorrência conhecida |
+| cancelamentos-persistidos-mobile-390.png | 390×844; filtros e navegação reais da aplicação |
+| cancelamentos-persistidos-lista-390.png | Cartões com datas/ausências e ação acessível, sem tabela duplicada |
+| cancelamentos-persistidos-detalhe-390.png | Modal, nome longo, ocorrência desconhecida explícita, sem vínculo inventado |
+
+Em 1920, 1280 e 390, scrollWidth igual à viewport, devicePixelRatio 1; após document.fonts.ready,
+fontes loaded e font-family computado `Inter, "Inter Fallback", Inter, sans-serif`. Fonte/tema do
+produto preservados. A marca do seed é configuração de desenvolvimento, não regra por cliente.
+
+Sequência observada: dois POSTs iniciais = 201; página com dois registros; terceiro POST externo
+ao navegador = 201; novo contato surgiu na tela **sem reload**; após reload, os três continuaram
+presentes. Não se executou workflow n8n real. Em seguida, teclado ArrowDown/End/Enter selecionou
+Cancelamento na origem e Aplicar retornou somente o contato A (único com canceladoEm conhecido).
+Novo reload restaurou período/base padrão e três registros persistidos. Escape fechou o detalhe,
+devolvendo foco ao botão Ver detalhes. Comparação visual dos PNGs confirmou contenção de nomes,
+botões e metadados nas larguras testadas.
+
+Vínculo positivo e autorização negativa são provas automatizadas HTTP/PostgreSQL + frontend, não
+cliques em conversa de cliente. O preview local não conecta Meta/Uzapi, não envia mensagens e não
+é homologação Fêmina/n8n. Logo privada não provisionada usa fallback existente; o indicador de
+dev do Next aparece em algumas capturas. Logs brutos de browser não são versionados: podem
+conter token descartável no handshake. Falhas iniciais de startup/classpath do preview foram
+descartadas, não apresentadas como evidência final. CI e clean verify estão no relatório da PR.
+
+## Evidência histórica da etapa inicial — 18/10/2026
+
 18/10/2026. Aplicação Next.js real em `localhost:3019`, Spring Boot real em `localhost:8099`,
 PostgreSQL 15 e Redis descartáveis por Testcontainers. Login pelo formulário do CRM com o
 administrador público do seed de desenvolvimento. Não são telas HTML reproduzidas nem dados reais
