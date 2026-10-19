@@ -1,0 +1,55 @@
+import { z } from "zod";
+
+/** Fallback local para catalogos de instancias anteriores; personalizavel em textos.json. */
+export const TEXTOS_CANCELAMENTOS = {
+  titulo: "Cancelamentos",
+  descricao: "Consulta de agendamentos cancelados. Nenhuma alteração é realizada por esta tela.",
+  periodo: "Período",
+  base: "Data usada no período",
+  registro: "Recebimento no CRM",
+  canceladoEm: "Cancelamento na origem",
+  abrirAtendimento: "Abrir atendimento",
+  agendamento: "Horário do agendamento",
+  inicio: "De",
+  fim: "Até",
+  profissional: "Profissional",
+  tipo: "Tipo de agendamento",
+  nome: "Nome do contato",
+  descricaoFiltro: "Descrição",
+  todas: "Todas",
+  comDescricao: "Com descrição",
+  semDescricao: "Sem descrição informada",
+  aplicar: "Aplicar filtros",
+  limpar: "Limpar filtros",
+  contato: "Contato",
+  detalhes: "Ver detalhes",
+  detalheTitulo: "Detalhes do cancelamento",
+  detalheDescricao: "Informações fornecidas pela integração. Somente leitura.",
+  descricaoCampo: "Descrição / motivo informado",
+  naoInformado: "Não informado",
+  carregando: "Carregando cancelamentos…",
+  vazio: "Nenhum cancelamento encontrado com esses filtros.",
+  naoConfigurada: "Integração de cancelamentos ainda não configurada.",
+  pendencia: "A conexão com a fonte de dados aguarda confirmação da equipe de integração.",
+  indisponivel: "A fonte de cancelamentos está temporariamente indisponível.",
+  erro: "Não foi possível carregar os cancelamentos.",
+  filtroInvalido: "Confira o período e os limites dos filtros.",
+  semAcesso: "Você não tem acesso a esta consulta.",
+  naoEncontrado: "Registro inexistente ou não disponível para você.",
+  tentar: "Tentar novamente",
+  anterior: "Página anterior",
+  proxima: "Próxima página",
+  pagina: "Página {pagina}",
+  limitePaginas: "Limite de páginas atingido. Refine os filtros para continuar.",
+  limitePeriodo: "Consulte até {dias} dias por vez.",
+  fechar: "Fechar",
+  vinculoIndisponivel: "Sem vínculo autorizado com atendimento. Nenhuma correlação por nome ou telefone é realizada.",
+  notaDatas: "Recebimento é a gravação no CRM. Cancelamento na origem só é exibido quando informado pela integração.",
+  fuso: "Horários em {fuso}",
+} as const;
+
+export const CancelamentosTextosSchema = z.object(
+  Object.fromEntries(Object.entries(TEXTOS_CANCELAMENTOS).map(([chave, valor]) => [chave, z.string().default(valor)])) as {
+    [K in keyof typeof TEXTOS_CANCELAMENTOS]: z.ZodDefault<z.ZodString>
+  },
+).default({});

@@ -54,6 +54,7 @@ export const ICONE_DO_MODULO: Record<string, ComponentType<{ className?: string 
   lembretes: Bell,
   automacao: Bot,
   campanhas: Megaphone,
+  cancelamentos: Clock,
   equipe: Users,
 };
 

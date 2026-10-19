@@ -1,5 +1,9 @@
 # Histórico de agendamentos da integração — passagem da PR #291
 
+> Atualização (18/10/2026): para alimentar a **aba de Cancelamentos**, usar o
+> [POST autenticado e idempotente do CRM](cancelamentos-crm.md). O SQL abaixo é artefato separado
+> do histórico externo de outras ações, não é requisito da aba nem deve ser levado ao banco CRM.
+
 ## Fronteira e implantação
 
 A V100 proposta na PR #291 não foi aplicada em nenhum banco, conforme confirmação da operação.
@@ -14,7 +18,7 @@ backup e credencial apropriada. **Não executar SQL manual em produção.** Merg
 instala esse artefato. O script recusa banco com marcadores do CRM e falha se já estiver instalado;
 não tenta corrigir divergências silenciosamente. Nenhuma migration já aplicada foi editada.
 
-## O que Dylan deve adaptar no n8n
+## O que a Automação deve adaptar no n8n
 
 | Antes, na proposta | Agora |
 | --- | --- |
@@ -82,6 +86,11 @@ sistemas diferentes: não há transação distribuída; o n8n deve acompanhar o 
 e repetir somente a etapa pendente, preservando suas respectivas chaves.
 
 ## Evidências e limites
+
+A aba usa persistência genérica local, descrita em
+[Cancelamentos de agendamentos](../77-cancelamentos-agendamentos.md), alimentada pelo
+[contrato HTTP de serviço](cancelamentos-crm.md). Não confirma instalação nem lê este SQL externo.
+O adaptador não configurado da etapa anterior foi substituído pelo repositório local.
 
 `AgendamentoIntegracaoIT` executa o SQL versionado em PostgreSQL 15 real: replay, conflito,
 concorrência, campos inválidos, ações/view, acesso negado, reinstalação e bloqueio do banco CRM.

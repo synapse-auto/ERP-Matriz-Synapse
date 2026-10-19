@@ -2,6 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import { areaDeFeedbackVisivel, itemDeMenuVisivel } from "./visibilidade-do-menu";
 
+describe("menu de cancelamentos", () => {
+  it("exige flag e capacidade efetiva, inclusive para concessao ao atendente", () => {
+    const efetivas=(permitido:boolean)=>({capacidades:{"cancelamentos.ver":{permitido}}}) as never;
+    expect(itemDeMenuVisivel("cancelamentos","GESTOR",[],"cancelamentos",true,efetivas(true))).toBe(false);
+    expect(itemDeMenuVisivel("cancelamentos","GESTOR",["cancelamentos"],"cancelamentos",true,null)).toBe(false);
+    expect(itemDeMenuVisivel("cancelamentos","GESTOR",["cancelamentos"],"cancelamentos",true,efetivas(false))).toBe(false);
+    expect(itemDeMenuVisivel("cancelamentos","ATENDENTE",["cancelamentos"],"cancelamentos",true,efetivas(true))).toBe(true);
+  });
+  it("sem contexto de permissao nunca presume concessao para perfil operacional",()=>{
+    expect(itemDeMenuVisivel("cancelamentos","ATENDENTE",["cancelamentos"],"cancelamentos")).toBe(false);
+    expect(itemDeMenuVisivel("cancelamentos","OPERADOR",["cancelamentos"],"cancelamentos")).toBe(false);
+  });
+});
+
 describe("visibilidade do menu e das áreas de feedback", () => {
   it("esconde Dashboard, Gestão e Automação do atendente, mesmo com a flag ligada", () => {
     const flags = ["dashboard"];

@@ -52,6 +52,10 @@ const MODULOS_PADRAO: Record<string, { rotulo: string; descricao: string }> = {
     "rotulo": "Campanhas",
     "descricao": "Envios em massa e acompanhamento das campanhas"
   },
+  "cancelamentos": {
+    "rotulo": "Cancelamentos",
+    "descricao": "Consulta de agendamentos cancelados, sem alterar atendimentos"
+  },
   "equipe": {
     "rotulo": "Gestão da equipe",
     "descricao": "Integrantes, delegações e permissões"
@@ -59,6 +63,7 @@ const MODULOS_PADRAO: Record<string, { rotulo: string; descricao: string }> = {
 };
 
 const CAPACIDADES_PADRAO: Record<string, string> = {
+  "cancelamentos.ver": "Consultar cancelamentos de agendamentos",
   "atendimentos.ver": "Ver conversas",
   "atendimentos.painel_operacional": "Visualizar painel operacional de Atendimentos",
   "atendimentos.responder": "Responder mensagens",
@@ -354,6 +359,6 @@ export const GestaoTextosSchema = z.object({
       "atualizada": z.string().default("Seu acesso foi atualizado por um gestor."),
     }).default({}),
   }).extend({
-  modulos: z.record(z.string(), z.object({ rotulo: z.string(), descricao: z.string() })).default(MODULOS_PADRAO),
+  modulos: z.record(z.string(), z.object({ rotulo: z.string(), descricao: z.string() })).default(MODULOS_PADRAO).transform(v => ({ ...MODULOS_PADRAO, ...v })),
   capacidades: z.record(z.string(), z.string()).default(CAPACIDADES_PADRAO).transform(v => ({ ...CAPACIDADES_PADRAO, ...v })),
 }).default({});

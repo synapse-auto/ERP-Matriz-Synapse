@@ -28,6 +28,27 @@ class OpenApiIT extends PostgresIT {
     private TestRestTemplate http;
 
     @Test
+    void cancelamentoTemSchemasExclusivosELimitesDoContratoReal() throws Exception {
+        JsonNode documento=JSON.readTree(http.getForObject("/v3/api-docs",String.class));
+        JsonNode post=operacao(documento,"/internal/v1/cancelamentos","post");
+        assertThat(post.at("/requestBody/content/application~1json/schema/$ref").asText())
+            .isEqualTo("#/components/schemas/RegistroCancelamentoRequisicao");
+        JsonNode corpo=documento.at("/components/schemas/RegistroCancelamentoRequisicao");
+        assertThat(corpo.path("required")).extracting(JsonNode::asText)
+            .containsExactlyInAnyOrder("origem","eventoExternoId","agendamentoExternoId","agendadoPara");
+        assertThat(corpo.at("/properties/origem/maxLength").asInt()).isEqualTo(80);
+        assertThat(corpo.at("/properties/eventoExternoId/maxLength").asInt()).isEqualTo(200);
+        assertThat(corpo.at("/properties/descricao/maxLength").asInt()).isEqualTo(2000);
+        assertThat(corpo.path("properties").has("palavraChave")).isFalse();
+        for(String status:List.of("200","201"))
+            assertThat(post.path("responses").path(status).at("/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/RegistroCancelamentoResposta");
+        assertThat(documento.at("/components/schemas/RegistroCancelamentoResposta/properties").fieldNames())
+            .toIterable().containsExactlyInAnyOrder("id","recebidoEm","repetido");
+        assertThat(parametro(post,"Idempotency-Key").path("required").asBoolean()).isTrue();
+    }
+
+    @Test
     void endpointsPublicosDaDocumentacaoRespondemSemToken() {
         assertThat(http.getForEntity("/swagger-ui/index.html", String.class).getStatusCode())
                 .isEqualTo(HttpStatus.OK);

@@ -27,6 +27,7 @@ public enum Modulo {
     LEMBRETES("lembretes", NivelDeAcesso.SEM_ACESSO, null),
     AUTOMACAO("automacao", NivelDeAcesso.SEM_ACESSO, null),
     CAMPANHAS("campanhas", NivelDeAcesso.SEM_ACESSO, "campanhas"),
+    CANCELAMENTOS("cancelamentos", NivelDeAcesso.SEM_ACESSO, "cancelamentos"),
     EQUIPE("equipe", NivelDeAcesso.SEM_ACESSO, null);
 
     private final String id;

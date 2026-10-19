@@ -238,6 +238,15 @@ describe("NotificacoesTempoReal — ACESSO_ALTERADO (Gestão, docs/47)", () => {
     return { tipo: "ACESSO_ALTERADO", eventoId: "acesso-1", dados: { sessaoInvalidada, revisao: 7 } } as unknown as NotificacaoTempoReal;
   }
 
+  it("cancelamentos invalida somente sua leitura sem som, toast ou refetch agressivo",()=>{
+    const cliente=new QueryClient();const invalidar=vi.spyOn(cliente,"invalidateQueries");
+    renderizarCom(cliente);
+    act(()=>mocks.callback?.({tipo:"CANCELAMENTOS_ALTERADOS",eventoId:"cancel-1",dados:{}} as unknown as NotificacaoTempoReal));
+    expect(invalidar).toHaveBeenCalledWith({queryKey:["cancelamentos"]},{cancelRefetch:false});
+    expect(invalidar).not.toHaveBeenCalledWith({queryKey:["atendimentos"]});
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   it("revalida as permissões efetivas sem F5 e sem mostrar aviso ao usuário", async () => {
     const cliente = new QueryClient();
     const invalidar = vi.spyOn(cliente, "invalidateQueries");

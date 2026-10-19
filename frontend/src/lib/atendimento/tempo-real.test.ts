@@ -492,7 +492,7 @@ describe("ConexaoTempoReal", () => {
     expect(onNotificacao).toHaveBeenCalledWith(expect.objectContaining({ tipo: "PRESENCA_ALTERADA" }));
   });
 
-  it("encaminha invalidação operacional sem expor presença de terceiros", () => {
+  it.each(["PAINEL_OPERACIONAL_ALTERADO", "CANCELAMENTOS_ALTERADOS"])("encaminha invalidação %s sem expor dados de terceiros", (tipo) => {
     const { cliente } = clienteStompFalso();
     const onNotificacao = vi.fn();
     const ouvinte = vi.fn();
@@ -503,7 +503,7 @@ describe("ConexaoTempoReal", () => {
     conexao.adicionarOuvinteDeNotificacao(ouvinte);
     conexao.conectar();
     const callback = (cliente.subscribe as ReturnType<typeof vi.fn>).mock.calls[1]?.[1];
-    const aviso = { tipo: "PAINEL_OPERACIONAL_ALTERADO", eventoId: "presenca-1", dados: {} };
+    const aviso = { tipo, eventoId: "invalida-1", dados: {} };
     callback({ body: JSON.stringify(aviso) });
     expect(onNotificacao).toHaveBeenCalledWith(aviso);
     expect(ouvinte).toHaveBeenCalledWith(aviso);

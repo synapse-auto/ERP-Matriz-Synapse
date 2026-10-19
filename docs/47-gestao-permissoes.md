@@ -7,6 +7,12 @@ visuais: `Gestao - Estrutural Vidros.html` e as capturas `01`–`06` do pacote d
 
 ## 1. Regra de ouro
 
+Cancelamentos de agendamentos foi acrescentado como leitura opcional: capacidade
+`cancelamentos.ver`, flag `cancelamentos` OFF, módulo com teto VER para os papéis humanos atuais.
+Gestão mantém padrão convencional; ATENDENTE/OPERADOR exigem concessão explícita e continuam
+sem visão global de leads. Fonte de produção ainda não conectada; contrato e limites em
+[docs/77](77-cancelamentos-agendamentos.md). Não é permissão para cancelar ou reagendar.
+
 **O papel continua sendo o teto.** Cada capacidade do catálogo tem como teto exatamente o
 `hasAnyRole(...)` que o caso de uso já tinha antes desta etapa. A configuração de Gestão só
 **restringe dentro do teto** — nunca amplia. Ampliar (por exemplo, deixar atendente editar
