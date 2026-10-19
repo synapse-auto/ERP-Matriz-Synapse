@@ -18,7 +18,7 @@ backup e credencial apropriada. **Não executar SQL manual em produção.** Merg
 instala esse artefato. O script recusa banco com marcadores do CRM e falha se já estiver instalado;
 não tenta corrigir divergências silenciosamente. Nenhuma migration já aplicada foi editada.
 
-## O que Dylan deve adaptar no n8n
+## O que a Automação deve adaptar no n8n
 
 | Antes, na proposta | Agora |
 | --- | --- |

@@ -1,4 +1,4 @@
-# Dylan — enviar cancelamentos ao CRM (v1)
+# Integração de Cancelamentos — Automação (v1)
 
 Implementado em CancelamentosInternalController, testado por HTTP real em CancelamentosPersistenciaIT.
 Não fazer INSERT no banco do CRM. O histórico externo de outras ações é independente desta aba.

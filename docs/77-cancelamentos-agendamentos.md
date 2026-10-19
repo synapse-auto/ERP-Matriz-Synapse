@@ -8,7 +8,7 @@ eventos por API de serviço e mantém projeção local imutável. Não consulta 
 pelo CRM nem exigido por esta aba. Interface, permissões, filtros e detalhes existentes foram
 reaproveitados. O adaptador não configurado foi removido: banco vazio retorna lista vazia real.
 
-Contrato implementado e exemplo sintético: [passagem para Dylan](n8n/cancelamentos-crm.md).
+Contrato implementado e exemplo sintético: [documento para Automação](n8n/cancelamentos-crm.md).
 `POST /internal/v1/cancelamentos` usa `X-Synapse-Token`, ROLE_SERVICO no filtro e caso de uso.
 JWT humano não substitui o token. Não cancela na origem, finaliza/redistribui atendimento, envia
 WhatsApp ou cria lembrete/reagendamento. Não houve deploy, ativação ou alteração no workflow.
@@ -132,7 +132,7 @@ Conferir de novo antes de merge. Runner de migrations existente deve executar V1
 procedimento de release antes do backend que valida schema. Não executar SQL manual.
 
 **Dokploy: nenhuma variável nova.** Reutiliza o token interno seguro; nunca enviá-lo em PR/documento.
-Depois de CI e homologação com Dylan, operação pode habilitar a flag só na instância escolhida e
+Depois de CI e homologação com a equipe de Automação, operação pode habilitar a flag só na instância escolhida e
 conceder capacidades pela Gestão; demais OFF. Rollback funcional desliga a aba sem apagar histórico
 nem interromper ingestão autenticada configurada. Importação histórica é operação futura separada.
 
