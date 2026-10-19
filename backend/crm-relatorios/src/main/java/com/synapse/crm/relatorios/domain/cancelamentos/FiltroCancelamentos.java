@@ -9,7 +9,7 @@ import java.time.temporal.ChronoUnit;
 public record FiltroCancelamentos(
         BaseTemporal base, Instant inicio, Instant fimExclusivo, String profissional,
         String tipo, Descricao descricao, String nome, int pagina, int tamanho) {
-    public enum BaseTemporal { REGISTRO, AGENDAMENTO }
+    public enum BaseTemporal { REGISTRO, AGENDAMENTO, CANCELAMENTO }
     public enum Descricao { TODAS, COM_DESCRICAO, SEM_DESCRICAO }
 
     public static FiltroCancelamentos criar(BaseTemporal base, LocalDate inicio, LocalDate fim,

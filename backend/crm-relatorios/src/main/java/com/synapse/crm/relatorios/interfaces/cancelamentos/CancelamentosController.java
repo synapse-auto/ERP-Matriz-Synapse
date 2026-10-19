@@ -31,13 +31,14 @@ class CancelamentosController {
 
     @GetMapping("/configuracao")
     @Operation(summary = "Limites e fuso da consulta autorizada",
-            description = "Retorna limites operacionais e periodo inicial no fuso da instancia. Exige cancelamentos.ver e flag habilitada; nao consulta a fonte externa.")
+            description = "Retorna limites operacionais e periodo inicial no fuso da instancia. Exige cancelamentos.ver e flag habilitada; leitura local sem fonte externa.")
     PoliticaConsultaCancelamentos.Configuracao configuracao() { return configuracao.executar(); }
 
     @GetMapping
     @Operation(summary = "Listar cancelamentos no escopo autorizado",
         description = "Filtros combinados, datas locais inclusivas. Ordem data da base DESC NULLS LAST, id DESC. "
-            + "Pagina zero-based, sem total global. 200 vazio real; 503 INTEGRACAO_NAO_CONFIGURADA ou FONTE_INDISPONIVEL; 403 sem capacidade/flag; 400 filtro invalido.")
+            + "REGISTRO usa recebimento no CRM; CANCELAMENTO usa ocorrencia conhecida na origem; AGENDAMENTO usa o horario agendado. "
+            + "Pagina zero-based, sem total global. 200 vazio real; 503 FONTE_INDISPONIVEL; 403 sem capacidade/flag; 400 filtro invalido.")
     LeituraDeCancelamentos.Pagina listar(
             @RequestParam(defaultValue = "REGISTRO") FiltroCancelamentos.BaseTemporal base,
             @RequestParam LocalDate inicio, @RequestParam LocalDate fim,
@@ -50,7 +51,7 @@ class CancelamentosController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Detalhe minimo; inexistente ou fora do escopo retorna 404 indistinguivel",
-            description = "Consulta somente o registro autorizado, sem inferir correlacao ou abrir atendimento. Fonte nao configurada ou indisponivel retorna 503 com codigo sanitizado.")
+            description = "Consulta somente o registro local autorizado. IDs canonicos opcionais protegidos pelas RLS de lead e atendimento. Falha de banco retorna 503 sanitizado.")
     CancelamentoAgendamento detalhe(@PathVariable String id) { return detalhe.executar(id); }
 
     @ExceptionHandler(FiltroCancelamentosInvalidoException.class)

@@ -6,7 +6,9 @@ export const TEXTOS_CANCELAMENTOS = {
   descricao: "Consulta de agendamentos cancelados. Nenhuma alteração é realizada por esta tela.",
   periodo: "Período",
   base: "Data usada no período",
-  registro: "Registro do cancelamento",
+  registro: "Recebimento no CRM",
+  canceladoEm: "Cancelamento na origem",
+  abrirAtendimento: "Abrir atendimento",
   agendamento: "Horário do agendamento",
   inicio: "De",
   fim: "Até",
@@ -41,8 +43,8 @@ export const TEXTOS_CANCELAMENTOS = {
   limitePaginas: "Limite de páginas atingido. Refine os filtros para continuar.",
   limitePeriodo: "Consulte até {dias} dias por vez.",
   fechar: "Fechar",
-  vinculoIndisponivel: "Abrir atendimento indisponível: correlação e acesso ainda não confirmados.",
-  notaDatas: "Registro é a data de gravação na fonte; não comprova o instante em que o cancelamento ocorreu.",
+  vinculoIndisponivel: "Sem vínculo autorizado com atendimento. Nenhuma correlação por nome ou telefone é realizada.",
+  notaDatas: "Recebimento é a gravação no CRM. Cancelamento na origem só é exibido quando informado pela integração.",
   fuso: "Horários em {fuso}",
 } as const;
 

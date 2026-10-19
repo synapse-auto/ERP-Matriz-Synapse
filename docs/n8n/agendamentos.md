@@ -1,5 +1,9 @@
 # Histórico de agendamentos da integração — passagem da PR #291
 
+> Atualização (18/10/2026): para alimentar a **aba de Cancelamentos**, usar o
+> [POST autenticado e idempotente do CRM](cancelamentos-crm.md). O SQL abaixo é artefato separado
+> do histórico externo de outras ações, não é requisito da aba nem deve ser levado ao banco CRM.
+
 ## Fronteira e implantação
 
 A V100 proposta na PR #291 não foi aplicada em nenhum banco, conforme confirmação da operação.
@@ -83,10 +87,10 @@ e repetir somente a etapa pendente, preservando suas respectivas chaves.
 
 ## Evidências e limites
 
-A preparação da aba de consulta do CRM está documentada em
-[Cancelamentos de agendamentos](../77-cancelamentos-agendamentos.md). Ela **não confirma** a
-instalação deste SQL nem conecta o banco da integração. O adaptador real depende das respostas
-de contrato ali listadas; a fonte de produção atual retorna integração não configurada.
+A aba usa persistência genérica local, descrita em
+[Cancelamentos de agendamentos](../77-cancelamentos-agendamentos.md), alimentada pelo
+[contrato HTTP de serviço](cancelamentos-crm.md). Não confirma instalação nem lê este SQL externo.
+O adaptador não configurado da etapa anterior foi substituído pelo repositório local.
 
 `AgendamentoIntegracaoIT` executa o SQL versionado em PostgreSQL 15 real: replay, conflito,
 concorrência, campos inválidos, ações/view, acesso negado, reinstalação e bloqueio do banco CRM.

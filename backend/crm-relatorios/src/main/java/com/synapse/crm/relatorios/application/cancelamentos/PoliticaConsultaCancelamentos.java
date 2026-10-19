@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.synapse.crm.relatorios.domain.cancelamentos.FiltroCancelamentos;
 
-/** Limites operacionais configuraveis; nao define contrato do fornecedor. */
+/** Limites operacionais configuraveis da consulta local. */
 @Component
 public class PoliticaConsultaCancelamentos {
     private final Clock relogio;

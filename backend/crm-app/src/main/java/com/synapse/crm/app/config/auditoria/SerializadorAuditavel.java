@@ -32,6 +32,7 @@ public class SerializadorAuditavel {
      * exatamente aqui que um segredo deixa de vazar.
      */
     private static final Map<String, Set<String>> ALLOWLIST = Map.of(
+            "CANCELAMENTO", Set.of("id", "recebidoEm", "repetido"),
             "TAG", Set.of("id", "nome", "cor", "icone"),
             // papel/ativo entram na Gestao (docs/47): mudanca de papel e desativacao precisam de antes/depois.
             "USUARIO", Set.of("id", "nome", "email", "telefone", "cargo", "fotoReferencia", "papel", "ativo", "usuarioTeste"),

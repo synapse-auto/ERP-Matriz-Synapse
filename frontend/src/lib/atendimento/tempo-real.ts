@@ -1,5 +1,6 @@
 "use client";
 import { ehAvisoPainelOperacional } from "./aviso-painel-operacional";
+import { ehAvisoDeCancelamentos } from "@/lib/cancelamentos/aviso";
 
 import { useEffect, useState } from "react";
 
@@ -420,6 +421,7 @@ export class ConexaoTempoReal {
           ehAvisoDeAcessoAlterado(notificacao) ||
           ehAvisoDeFinalizacaoEmMassa(notificacao) ||
           ehAvisoPainelOperacional(notificacao) ||
+          ehAvisoDeCancelamentos(notificacao) ||
           ehAvisoDePresencaAlterada(notificacao)
         ) {
           this.opcoes.onNotificacao?.(notificacao);

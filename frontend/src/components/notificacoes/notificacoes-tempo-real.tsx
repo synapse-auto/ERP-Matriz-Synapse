@@ -11,6 +11,7 @@ import {
 } from "@/lib/atendimento/atualizacao-do-painel";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { ehAvisoPainelOperacional } from "@/lib/atendimento/aviso-painel-operacional";
+import { ehAvisoDeCancelamentos } from "@/lib/cancelamentos/aviso";
 import {
   chaveTecnicaDaNotificacao,
   obterConversaAtiva,
@@ -61,6 +62,10 @@ export function NotificacoesTempoReal() {
 
   const aoReceber = useCallback((notificacao: NotificacaoTempoReal) => {
     const bruto: unknown = notificacao;
+    if (ehAvisoDeCancelamentos(bruto)) {
+      void cache.invalidateQueries({ queryKey: ["cancelamentos"] }, { cancelRefetch: false });
+      return; // Invalidacao sem conteudo, sem som/toast ou alteracao de mensagens.
+    }
     if (ehAvisoPainelOperacional(bruto)) {
       atualizarPainelDeAtendimentos(cache, { chave: bruto.eventoId });
       return; // Sem toast, som ou alteração da própria presença.
@@ -132,7 +137,10 @@ export function NotificacoesTempoReal() {
   // E223: o servidor muda a presença ao CONECTAR, antes de a fila pessoal estar assinada, então o aviso daquele
   // instante não chega. Reler a presença a cada conexão fecha essa janela (e cobre a reconexão depois de uma queda).
   useEffect(() => {
-    if (ciclo > 0) void cache.invalidateQueries({ queryKey: ["me"] });
+    if (ciclo > 0) {
+      void cache.invalidateQueries({ queryKey: ["me"] });
+      void cache.invalidateQueries({ queryKey: ["cancelamentos"] });
+    }
   }, [ciclo, cache]);
 
   useEffect(() => registrarDesbloqueioDeAudio(), []);

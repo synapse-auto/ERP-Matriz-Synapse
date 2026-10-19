@@ -1,135 +1,133 @@
-# Cancelamentos de agendamentos — leitura preparada, integração pendente
+# Cancelamentos de agendamentos — persistência genérica no CRM
 
-## Estado e fronteira
+## Decisão e fronteira
 
-Esta entrega implementa navegação, autorização, consulta genérica, filtros e detalhes. **Não conecta
-uma fonte real e não comprova cancelamentos da Fêmina.** A PR permanece draft até confirmação e
-homologação da integração. Não há cancelamento, recuperação, reagendamento nem envio de mensagem.
+A decisão aprovada em 18/10/2026 substitui a leitura externa preparada na PR #313. O CRM recebe
+eventos por API de serviço e mantém projeção local imutável. Não consulta banco/view do n8n.
+`docs/n8n/sql/001-agendamento-evento.sql` continua um artefato externo independente, não instalado
+pelo CRM nem exigido por esta aba. Interface, permissões, filtros e detalhes existentes foram
+reaproveitados. O adaptador não configurado foi removido: banco vazio retorna lista vazia real.
 
-Auditados `docs/n8n/agendamentos.md` e `docs/n8n/sql/001-agendamento-evento.sql`: são proposta de
-provisionamento **externo**, não prova de instalação. `automacao_agendamentos.agendamento_evento`
-e `vw_cancelamentos_agendamento` não existem no schema do CRM e não serão duplicados aqui.
-`CANCELADO` é distinto de `REAGENDAMENTO_SOLICITADO`; a leitura não transforma o segundo no primeiro.
-Nenhuma consulta externa, credencial de n8n ou nova escrita de negócio foi adicionada.
+Contrato implementado e exemplo sintético: [passagem para Dylan](n8n/cancelamentos-crm.md).
+`POST /internal/v1/cancelamentos` usa `X-Synapse-Token`, ROLE_SERVICO no filtro e caso de uso.
+JWT humano não substitui o token. Não cancela na origem, finaliza/redistribui atendimento, envia
+WhatsApp ou cria lembrete/reagendamento. Não houve deploy, ativação ou alteração no workflow.
 
-## Arquitetura e autorização
+## Persistência e idempotência
 
-- Read model genérico em `crm-relatorios`, sem módulo clínico ou condicional por cliente.
-- Porta `LeituraDeCancelamentos`: lista/detalhe recebem obrigatoriamente o usuário autenticado.
-  O adaptador futuro precisa aplicar escopo **antes** de paginar. Para ATENDENTE/OPERADOR, somente
-  correlação exata validada e visível pela Specification/RLS; sem correlação, excluir. Gestão
-  segue seu alcance existente. Não existe bypass por ter a capacidade da aba.
-- Único adaptador em produção: `LeituraDeCancelamentosNaoConfigurada`, que falha explicitamente,
-  sem rede/banco externo e **sem substituir ausência de configuração por resultado vazio**.
-- Flag `cancelamentos` OFF por padrão (V108, número conferido em `origin/main` 0bc9f64).
-- Capacidade `cancelamentos.ver`, módulo `cancelamentos`, teto somente VER. GESTOR/SUBGESTOR têm
-  padrão concedido; ADMINISTRADOR mantém perfil fixo convencional. ATENDENTE/OPERADOR começam
-  SEM_ACESSO/OFF; concessão explícita pela Gestão não altera visibilidade de leads nem escrita.
-  SUBGESTOR não pode delegar esta capacidade, conforme a alçada atual. Exceções individuais
-  continuam dependentes da flag existente `gestao_excecoes` para edição.
-- Guarda de rota `ExigeCapacidade`, menu e `@PreAuthorize` nos três casos de uso. Flag ausente ou
-  desligada também nega acesso direto. Nenhuma autorização fica somente no frontend.
-- Links para lead/atendimento **indisponíveis nesta etapa**, com explicação. Não são inferidos por
-  telefone/nome. Mesmo no preview não há link operacional fictício. A validação real dessa
-  correlação é requisito do futuro adaptador, não uma garantia demonstrada pelo fixture.
+Tabela genérica `cancelamento_agendamento`, no módulo `crm-relatorios`, com composição dos vínculos
+em `crm-app`. Sem campo específico de ramo/cliente, tenant_id, clinica_id, telefone ou JSON livre.
+Obrigatórios: origem (80), evento externo (200), agendamento externo (200), chave (200), horário
+do agendamento. Nomes de contato/profissional/tipo são opcionais (200 cada), motivo opcional (2000).
+São limites de contrato/storage para apresentação, não autorização para copiar conteúdo clínico.
+Não armazenar prontuário, histórico, resumo ou payload bruto. Identificadores técnicos usam ASCII
+alfanumérico inicial e demais caracteres alfanuméricos ou `._:/-`; nunca nome/telefone/token.
 
-## Contrato CRM autenticado (não é contrato de fornecedor)
+Textos são normalizados nas bordas, branco vira null. Campos de uma linha rejeitam controles;
+motivo permite LF/CR/TAB e preserva quebras. Datas exigem offset explícito e são normalizadas em
+UTC/microssegundos do PostgreSQL. `canceladoEm` permanece null se desconhecido; `recebidoEm` vem
+do relógio do CRM e não pode ser informado pelo n8n. Não confundir ocorrência e ingestão.
 
-JWT normal, namespace `/api/v1/cancelamentos`:
+Par leadId/atendimentoId: ambos presentes ou ambos ausentes. Composição valida existência pelo
+LeadRepositorio (Specification) e AtendimentoRepositorio (RLS), e relação do atendimento ao lead.
+UUID inexistente/par incompatível responde 400 sanitizado. Não inferir vínculo por nome/telefone.
+
+Constraints únicas `(origem,chave_idempotencia)` e `(origem,evento_externo_id)`, separadas do ID
+do agendamento. INSERT ON CONFLICT DO NOTHING espera o concorrente; releitura READ COMMITTED
+confere chave e impressão SHA-256 do contrato normalizado. Replay idêntico = ID e recebimento
+originais, HTTP 200/repetido=true; novo = 201; incompatível = 409 sem sobrescrever. Eventos distintos
+do mesmo agendamento continuam distintos. Espaços marginais/offset equivalente/precisão além de
+micros não mudam a impressão. Não se deduplica por contato ou somente agendamento.
+
+Auditoria por @Auditable: AUTOMACAO, REGISTRAR_CANCELAMENTO e ID do registro. Allowlist limitada
+a id/recebidoEm/repetido; nomes, motivo e token não entram nos dados de auditoria.
+A ingestão autenticada é independente da flag **de visualização**: permite preparar dados com a
+aba OFF. Isso não habilita produção e não concede acesso SQL. Não existe backfill automático.
+
+## Permissões e leitura
+
+Flag `cancelamentos` OFF por padrão (V108), capacidade `cancelamentos.ver`, teto somente VER.
+GESTOR/SUBGESTOR seguem padrão gerencial; ADMINISTRADOR perfil fixo. ATENDENTE/OPERADOR começam
+sem acesso; concessão explícita pela Gestão não aumenta a carteira nem habilita escrita.
+Configuração/lista/detalhe mantêm @PreAuthorize por papel/capacidade/flag.
+
+Leituras locais abrem transação read-only no **pool geral**, com contexto RLS antes do SQL.
+Tabela com RLS ENABLE + FORCE, sem leitura sem contexto; synapse_app só insere como SERVICO e
+não tem UPDATE/DELETE. Não se depende de owner/superusuário para aparentar proteção.
+
+- Sem vínculo: somente GESTOR/SUBGESTOR/ADMINISTRADOR autorizados enxergam.
+- Com vínculo: RLS vigentes de **lead e atendimento** devem permitir ambos, antes de filtros e
+  LIMIT. Read models usam RLS conforme a arquitetura de relatórios (V12); a validação pontual
+  passa pela Specification. Não se copiam regras de dono/participação para o frontend.
+- Potenciais/finalizados/participações seguem a política atual, não uma carteira paralela.
+- Detalhe não visível/inexistente = 404 indistinguível. IDs canônicos só vêm do registro autorizado.
+  Link no detalhe exige par completo + atendimentos.ver; abrir usa fluxo que revalida o acesso.
+
+## Contrato de consulta e datas
+
+JWT normal, prefixo `/api/v1/cancelamentos`:
 
 | Método/rota | Contrato |
 |---|---|
-| GET `/configuracao` | `fusoHorario`, `inicioPadrao`, `fimPadrao`, `tamanhoPagina`, `maximoPagina`, `maximoDias`, `maximoPaginas`, `maximoBusca` |
-| GET `/` | `inicio`, `fim` obrigatórios (`yyyy-MM-dd` locais inclusivos); `base=REGISTRO\|AGENDAMENTO`, `profissional`, `tipo`, `nome`, `descricao=TODAS\|COM_DESCRICAO\|SEM_DESCRICAO`, `pagina` zero-based, `tamanho` |
-| GET `/{id}` | Identificador opaco técnico, ASCII alfanumérico/`_`/`-`, até 128 caracteres; não é telefone/nome |
+| GET `/configuracao` | Fuso, período inicial e limites existentes |
+| GET `/` | inicio/fim locais inclusivos, base, profissional/tipo/nome/descricao, pagina/tamanho |
+| GET `/{id}` | UUID opaco do registro; fora de escopo/inexistente = 404 |
 
-Lista: `{itens: [...], temProxima: boolean}`. Sem total global nem consulta COUNT. Cada item/detalhe:
-`id`, `agendadoPara`, `registradoEm`, `contatoNome`, `profissionalNome`, `tipoAgendamento`, `descricao`.
-Campos não fornecidos são `null`, sem horários/motivos inventados. Dados de descrição são texto
-escapado, preservando quebras no detalhe. A lista limita a apresentação a três linhas.
+`base=REGISTRO` agora significa **recebimento no CRM**, conforme a nova decisão (antes só havia
+contrato draft de registro na fonte, sem adaptador de produção). AGENDAMENTO usa agendadoPara;
+nova base CANCELAMENTO filtra canceladoEm conhecido, nunca substitui ausência por recebimento.
+Intervalo `[inicio,proximoDia)` no fuso da instância, incluindo DST.
 
-Datas são instantes ISO 8601; filtro converte limites locais para `[inicio, proximoDia)` em
-`synapse.tenant.timezone`, incluindo dias de mudança de offset. A UI usa o mesmo fuso retornado.
-`registradoEm` significa **registro na fonte**, nunca ocorrência efetiva do cancelamento ou
-ingestão no CRM. A UI explicita isso. `agendadoPara` é o horário do agendamento, em coluna separada.
-Se o fornecedor só tiver ingestão ou não tiver data confiável de registro, não preencher
-`registradoEm` com outro conceito: adaptar o contrato depois da confirmação.
+Resposta `{itens,temProxima}`, sem total global/COUNT. Tamanho+1, página zero-based, data escolhida
+DESC NULLS LAST + UUID DESC. Controles não apresentam tamanho de página como total. Inserções entre
+páginas podem deslocar offsets; não se promete snapshot histórico. Campos adicionais: recebidoEm,
+canceladoEm, leadId, atendimentoId. registradoEm fica como alias de canceladoEm para preservar a
+forma antiga da resposta draft, mas não é usado pela UI. Não deduzir recebimento por esse alias.
 
-Filtros de profissional/tipo/nome são entradas textuais combinadas no servidor (sem catálogos
-históricos não limitados). O futuro adaptador deve implementar substring literal normalizada,
-escapando curingas de SQL, sem interpolação. Busca por telefone **não implementada**: faltam
-contrato e correlação seguros. Descrição ausente inclui nula/branca; alinhar essa semântica com a
-fonte (o SQL proposto usa `btrim`, que sozinho não equivale a `String.isBlank` para novas linhas).
+Filtros combinados no SQL, substring literal case-insensitive escapando %, _ e !. Descrição branca
+normaliza para null na entrada, COM/SEM usa IS [NOT] NULL. HTML é escapado pelo React. Falha de
+banco = 503 FONTE_INDISPONIVEL sanitizado, nunca vazio. 401/403 preservados. Sem dados fictícios.
 
-Ordem exigida da porta: data da base DESC NULLS LAST, identificador estável DESC. Filtros e escopo
-antes da paginação; ler no máximo tamanho+1 para `temProxima`. O fixture testa essa convenção,
-**não comprova plano de consulta externo**. Alterações na fonte entre páginas podem deslocar
-offsets; snapshot/cursor só pode ser definido quando IDs/semântica forem confirmados.
+## Atualização e desempenho
 
-| Situação | Resposta |
-|---|---|
-| Consulta bem-sucedida sem registros | 200, `itens: []`, `temProxima: false` |
-| Integração não configurada | 503 Problem Details, `codigo=INTEGRACAO_NAO_CONFIGURADA` |
-| Fonte temporariamente indisponível | 503 Problem Details, `codigo=FONTE_INDISPONIVEL` |
-| Sem autenticação / sem capacidade ou flag | 401 / 403, fluxos normais preservados |
-| Filtros/limites inválidos | 400 Problem Details, sem ecoar conteúdo sensível |
-| Detalhe inexistente ou fora do escopo | 404 indistinguível |
+Transação curta, timeout configurável synapse.cancelamentos.timeout-segundos (inicialmente 5s),
+sem rede/provedor no caminho de gravação. SQL parametrizado, projeção explícita, sem N+1. Índices
+V109 para as três datas + desempate (ocorrência parcial), vínculo e idempotência. Não criar índice
+textual/trigram sem evidência. Filtros sempre limitados a período/página. Limites iniciais: página
+25, máximo 100 itens, 90 dias, 100 páginas, busca 200 caracteres; não são capacidade de produção medida.
 
-Não há polling ou retry automático da fonte. Retry de leitura é explícito pelo usuário. Trocar
-filtros cancela a leitura anterior via AbortSignal e usa nova chave, sem placeholder de outro
-período. Cache de interface inclui usuário, papel, revisão de permissões e filtros; troca de
-identidade/configuração remonta a consulta. Não há cache Redis de cancelamentos.
+CancelamentoRegistrado somente em nova gravação; listener AFTER_COMMIT despacha executor separado
+bounded (fila-avisos inicialmente 100), seguindo o relay de presença. Invalidação **sem conteúdo
+ou IDs de lead** para usuários ativos com capacidade vigente, pelo Redis/backplane pessoal atual.
+Não publica comando em RabbitMQ nem evento de negócio em fila fora de outbox.
 
-## Limites e plano de consultas
+Aviso é best-effort: Redis falhando não desfaz ingestão; log sanitizado, foco/reconexão/refetch
+recuperam snapshot. Sem garantia de entrega durável, polling, toast ou som. Frontend invalida só
+cancelamentos; não cancela refetch em voo por rajada. Evento durante leitura pode aguardar foco
+ou reconexão. Cache inclui usuário/papel/revisão/filtros; sem cache Redis de dados de cancelamento.
+Não altera caminho de mensagens, outbox, pool do chat, responsabilidade ou provedores.
 
-Configuração `synapse.cancelamentos.*` em `application.yml`: página inicial 25, máximo 100 itens;
-período máximo 90 dias inclusivos, até 100 páginas e 200 caracteres por busca. São limites
-operacionais iniciais conservadores, **não capacidade medida da fonte**. A tela começa no mês
-atual até hoje, calculado no fuso do servidor, sem adivinhar o relógio do navegador. Recortes
-maiores devem ser divididos; nunca buscar toda a história para filtrar localmente.
+## Retenção, migration e ativação
 
-O adaptador definitivo exige timeout, circuit breaker, concorrência/pool isolados do chat,
-limites de payload/descrição e diagnóstico sanitizado. Nenhum deles é simulado por uma chamada
-externa nesta entrega: o adaptador atual não realiza I/O. Antes de conectar, medir volume,
-latência fria/quente e plano com dados representativos. Não há evidência para propor índice.
-O índice externo proposto `(acao, criado_em DESC)` não garante bom plano para profissional,
-tipo, nome ou data de agendamento, nem ordenação por desempate; medir antes de alterar escrita.
+Política desta entrega: somente os dados mínimos acima, registros imutáveis, **sem expiração/purga
+automática**. Chaves/eventos precisam sobreviver a retries tardios. Retenção operacional/legal com
+expurgo/anonimização exige procedimento separado autorizado, preservando recibos de idempotência.
+Não inventar prazo em dias sem responsável; revisar antes de uso continuado com dados reais.
+Não se afirma que uma política legal de retenção já foi aprovada.
 
-## Confirmações objetivas para Dylan
+V109 conferida em origin/main (última V107) e branch (V108); nenhuma migration aplicada editada.
+Conferir de novo antes de merge. Runner de migrations existente deve executar V108/V109 pelo
+procedimento de release antes do backend que valida schema. Não executar SQL manual.
 
-1. Onde a fonte realmente existe (API/banco próprio da integração), versão instalada e processo
-   de provisionamento; não enviar senha/token/exportação clínica integral.
-2. Schema/campos reais e amostra **sintética/sanitizada**: identidade estável do registro/evento,
-   identidade de agendamento, tipo de cada data, offsets/fuso e nulabilidade.
-3. Histórico de eventos `CANCELADO` ou estado atual do agendamento? O que fazer após confirmação
-   posterior, cancelamento repetido e reagendamento solicitado? Não escolher silenciosamente.
-4. Mecanismo de entrega/acesso aprovado e autenticação de menor privilégio; retenção, volume,
-   consistência, paginação/limites e autorização da fonte.
-5. Se existem `leadId`/`atendimentoId` canônicos e como validar o par no CRM, inclusive inexistente,
-   sem acesso, ciclo antigo e ausência. Nome/telefone não são correlação autorizada.
-6. Definição de descrição/motivo e data de **registro**, distinguindo ocorrência e ingestão.
-
-Depois dessas respostas: avaliar API autenticada ou projeção **genérica** local por contrato
-interno versionado. Não dar ao n8n acesso SQL ao CRM e não conceder leitura do banco n8n por
-suposição. Adaptador definitivo, enforcement de visibilidade com dados reais, plano de execução,
-falhas de rede e homologação ponta a ponta permanecem pendentes.
-
-## Habilitação futura e Dokploy
-
-**Não habilitar agora.** A migration apenas registra flag falsa; não concede permissão nova a
-ATENDENTE/OPERADOR. Depois do contrato, adaptador, CI e homologação, ativar pelo procedimento
-operacional versionado de feature flags somente na instância escolhida. Gestão configura os
-perfis/exceções autorizados; manter demais instâncias OFF. Não basta ligar a flag para haver dados.
-Rollback funcional: desligar flag, sem apagar histórico/configuração. Nenhuma variável nova ou
-alteração obrigatória no Dokploy nesta etapa; nenhum deploy realizado.
+**Dokploy: nenhuma variável nova.** Reutiliza o token interno seguro; nunca enviá-lo em PR/documento.
+Depois de CI e homologação com Dylan, operação pode habilitar a flag só na instância escolhida e
+conceder capacidades pela Gestão; demais OFF. Rollback funcional desliga a aba sem apagar histórico
+nem interromper ingestão autenticada configurada. Importação histórica é operação futura separada.
 
 ## Evidências
 
-Automatizadas: `FiltroCancelamentosTest`, `LeituraDeCancelamentosNaoConfiguradaTest`,
-`PoliticaDePermissoesTest`, `CancelamentosIT` (HTTP real, Postgres real para permissões;
-`FonteCancelamentosDeTeste` somente em `src/test`), testes de rota/consulta/catálogo/menu.
-Dados sintéticos não são incluídos no JAR de produção. Screenshots, fonte computada, viewports,
-interações e limites do ambiente estão em [evidências visuais](assets/cancelamentos/README.md).
-Em telas estreitas, cartões substituem a tabela sem nova consulta ou duplicação de registros.
-Limpar filtros restaura o mês inicial autorizado, sem alterar escopo. CI e resultados completos
-do último SHA constam no relatório da PR #313. Não são homologação com fornecedor.
+CancelamentosPersistenciaIT usa HTTP, PostgreSQL e adaptador reais: replay, concorrência, conflitos,
+contrato, RLS, auditoria, datas, filtros/páginas e ausência de efeitos em atendimento/outbox.
+CancelamentosIT mantém fixture apenas para guards/falhas da porta, sem fingir prova de persistência.
+NovoCancelamentoTest, FiltroCancelamentosTest, OpenApiIT, SchemaMigracoesIT e frontend completam
+cobertura. Relatório da PR registra resultados/CI do último SHA. Homologação n8n real é separada.

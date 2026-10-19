@@ -75,6 +75,7 @@ class SchemaMigracoesIT extends PostgresIT {
                     "atendimento_informacao_chatbot",
                     "audit_log",
                     "avaliacao",
+                    "cancelamento_agendamento",
                     "campanha",
                     "campanha_mensagem",
                     "campanha_mensagem_metrica",

@@ -18,7 +18,8 @@ import Pagina from "@/app/(shell)/cancelamentos/page";
 
 const t = textosReais.cancelamentos;
 const item: Cancelamento = { id: "c1", contatoNome: "Contato sintético", profissionalNome: "Profissional A", tipoAgendamento: "Consulta",
-  agendadoPara: "2026-10-25T14:30:00Z", registradoEm: "2026-10-18T12:00:00Z", descricao: "Motivo\nsegunda linha <script>alert(1)</script>" };
+  agendadoPara: "2026-10-25T14:30:00Z", registradoEm: null, recebidoEm: "2026-10-18T12:00:00Z", canceladoEm: null,
+  descricao: "Motivo\nsegunda linha <script>alert(1)</script>" };
 function montar() {
   const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const resultado = render(<QueryClientProvider client={cache}><Pagina /></QueryClientProvider>);
@@ -34,6 +35,16 @@ beforeEach(() => {
 });
 
 describe("Cancelamentos na rota real", () => {
+  it("separa recebimento de cancelamento ausente e so cria link com par canonico autorizado", async()=>{
+    api.obterCancelamento.mockResolvedValue({...item,leadId:"lead-canonico",atendimentoId:"atendimento-canonico"});
+    montar();await screen.findByText(item.contatoNome!);
+    expect(screen.getByText("18/10/2026, 09:00")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button",{name:t.detalhes}));
+    const dialogo=await screen.findByRole("dialog");
+    expect(await within(dialogo).findByRole("link",{name:t.abrirAtendimento})).toHaveAttribute("href","/atendimentos?leadId=lead-canonico&atendimentoId=atendimento-canonico");
+    expect(within(dialogo).getByText(t.canceladoEm)).toBeInTheDocument();
+    expect(within(dialogo).getByText(t.naoInformado)).toBeInTheDocument();
+  });
   it("tela estreita mostra cartoes completos com detalhes sem duplicar a tabela", async()=>{
     viewport.estreita=true; montar();
     const cartao=await screen.findByRole("article",{name:item.contatoNome!});

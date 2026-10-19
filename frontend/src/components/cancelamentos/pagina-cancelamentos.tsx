@@ -3,7 +3,8 @@
 import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarX2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Seletor } from "@/components/ui/seletor";
 import { SeletorData } from "@/components/ui/seletor-data";
@@ -78,7 +79,7 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
   return <>
     <form onSubmit={aplicar} className="grid min-w-0 grid-cols-1 items-end gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2 xl:grid-cols-4">
       <label className="space-y-1 text-sm">{t.base}<Seletor valor={rascunho.base} placeholder={t.base} ariaLabel={t.base}
-        opcoes={[{valor:"REGISTRO",rotulo:t.registro},{valor:"AGENDAMENTO",rotulo:t.agendamento}]}
+        opcoes={[{valor:"REGISTRO",rotulo:t.registro},{valor:"AGENDAMENTO",rotulo:t.agendamento},{valor:"CANCELAMENTO",rotulo:t.canceladoEm}]}
         obrigatorio onChange={v => { if (v) campo("base", v as FiltrosCancelamentos["base"]); }} /></label>
       <label className="space-y-1 text-sm">{t.inicio}<SeletorData obrigatorio valor={rascunho.inicio} placeholder={t.inicio} onChange={v => campo("inicio",v)} /></label>
       <label className="space-y-1 text-sm">{t.fim}<SeletorData obrigatorio valor={rascunho.fim} placeholder={t.fim} onChange={v => campo("fim",v)} /></label>
@@ -106,7 +107,7 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
           {[t.contato, t.agendamento, t.registro, t.profissional, t.tipo, t.descricaoFiltro, t.detalhes].map(c => <th key={c} scope="col" className="p-3 font-medium">{c}</th>)}
         </tr></thead><tbody>{lista.data.itens.map(item => <tr key={item.id} className="border-b last:border-0">
           <td className="max-w-60 break-words p-3 font-semibold text-foreground">{item.contatoNome || t.naoInformado}</td>
-          <td className="p-3">{data(item.agendadoPara)}</td><td className="p-3">{data(item.registradoEm)}</td>
+          <td className="p-3">{data(item.agendadoPara)}</td><td className="p-3">{data(item.recebidoEm ?? null)}</td>
           <td className="max-w-52 break-words p-3">{item.profissionalNome || t.naoInformado}</td><td className="max-w-52 break-words p-3">{item.tipoAgendamento || t.naoInformado}</td>
           <td className="max-w-64 break-words p-3"><span className="line-clamp-3 whitespace-pre-wrap">{item.descricao?.trim() ? item.descricao : t.semDescricao}</span></td>
           <td className="p-3"><Button variant="outline" size="sm" onClick={() => selecionar(item.id)}>{t.detalhes}</Button></td>
@@ -124,7 +125,11 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
         {detalhe.isPending ? <p role="status">{t.carregando}</p> : detalhe.isError ? <Falha erro={detalhe.error} tentar={() => void detalhe.refetch()} />
           : <Detalhes item={detalhe.data} t={t} data={data} />}
         <p className="text-xs text-muted-foreground">{t.notaDatas}</p>
-        <p className="text-sm text-muted-foreground">{t.vinculoIndisponivel}</p>
+        {detalhe.isSuccess && detalhe.data.leadId && detalhe.data.atendimentoId && pode("atendimentos.ver")
+          ? <Link className={buttonVariants({variant:"outline"})}
+              href={`/atendimentos?leadId=${encodeURIComponent(detalhe.data.leadId)}&atendimentoId=${encodeURIComponent(detalhe.data.atendimentoId)}`}>
+              {t.abrirAtendimento}</Link>
+          : <p className="text-sm text-muted-foreground">{t.vinculoIndisponivel}</p>}
         <Button variant="outline" onClick={() => selecionar(null)}>{t.fechar}</Button>
       </DialogContent>
     </Dialog>
@@ -133,8 +138,9 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
 
 function Detalhes({ item, t, data, resumido = false }: { item: Cancelamento; t: Textos; data: (v: string | null) => string; resumido?: boolean }) {
   return <dl className="space-y-3 text-sm">{[
-    [t.contato, item.contatoNome], [t.agendamento, data(item.agendadoPara)], [t.registro, data(item.registradoEm)],
+    [t.contato, item.contatoNome], [t.agendamento, data(item.agendadoPara)], [t.registro, data(item.recebidoEm ?? null)],
     [t.profissional, item.profissionalNome], [t.tipo, item.tipoAgendamento], [t.descricaoCampo, item.descricao?.trim() ? item.descricao : t.semDescricao],
+    [t.canceladoEm, data(item.canceladoEm ?? null)],
   ].map(([rotulo, valor], indice) => <div key={rotulo}><dt className="text-xs text-muted-foreground">{rotulo}</dt>
     <dd className={`whitespace-pre-wrap break-words text-foreground ${indice === 0 ? "font-semibold" : ""} ${resumido && indice === 5 ? "line-clamp-3" : ""}`}>{valor || t.naoInformado}</dd></div>)}</dl>;
 }

@@ -139,6 +139,8 @@ resilience4j:
 synapse:
   # Consulta de leitura independente do chat. Limites iniciais, ajustaveis por configuracao.
   cancelamentos:
+    timeout-segundos: 5
+    fila-avisos: 100
     tamanho-pagina: 25
     maximo-pagina: 100
     maximo-dias: 90

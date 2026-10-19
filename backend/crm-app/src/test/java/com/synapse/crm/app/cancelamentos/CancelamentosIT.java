@@ -125,6 +125,6 @@ class CancelamentosIT extends PostgresIT {
         var vazio = get(gestor,"/api/v1/cancelamentos/teste-1").getBody();
         assertThat(vazio.path("agendadoPara").isNull()).isTrue();
         assertThat(vazio.path("descricao").isNull()).isTrue();
-        assertThat(vazio.has("canceladoEm")).isFalse();
+        assertThat(vazio.has("canceladoEm")).isTrue();
     }
 }

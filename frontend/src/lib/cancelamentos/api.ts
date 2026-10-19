@@ -13,7 +13,7 @@ export interface ConfiguracaoCancelamentos {
 export interface FiltrosCancelamentos {
   inicio: string;
   fim: string;
-  base: "REGISTRO" | "AGENDAMENTO";
+  base: "REGISTRO" | "AGENDAMENTO" | "CANCELAMENTO";
   descricao: "TODAS" | "COM_DESCRICAO" | "SEM_DESCRICAO";
   profissional: string;
   tipo: string;
@@ -23,6 +23,10 @@ export interface Cancelamento {
   id: string;
   agendadoPara: string | null;
   registradoEm: string | null;
+  recebidoEm?: string | null;
+  canceladoEm?: string | null;
+  leadId?: string | null;
+  atendimentoId?: string | null;
   contatoNome: string | null;
   profissionalNome: string | null;
   tipoAgendamento: string | null;
