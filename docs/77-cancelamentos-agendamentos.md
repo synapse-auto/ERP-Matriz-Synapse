@@ -114,6 +114,10 @@ recuperam snapshot. Sem garantia de entrega durável, polling, toast ou som. Fro
 cancelamentos; não cancela refetch em voo por rajada. Evento durante leitura pode aguardar foco
 ou reconexão. Cache inclui usuário/papel/revisão/filtros; sem cache Redis de dados de cancelamento.
 Não altera caminho de mensagens, outbox, pool do chat, responsabilidade ou provedores.
+A validação do lead reutiliza sua Specification; a conferência do par com atendimento usa
+`SELECT EXISTS` no pool geral, na mesma transação com RLS. Não reutiliza o repositório de
+atendimento ligado ao pool reservado do chat. Há uma barreira arquitetural de teste para esse
+qualificador, além dos casos HTTP de vínculo válido, inexistente, parcial e incompatível.
 
 ## Retenção, migration e ativação
 
