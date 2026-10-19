@@ -190,7 +190,9 @@ class CancelamentosPersistenciaIT extends PostgresIT {
         var primeira=get(gestor,LISTA+"&tamanho=1").getBody();var segunda=get(gestor,LISTA+"&tamanho=1&pagina=1").getBody();
         assertThat(primeira.path("temProxima").asBoolean()).isTrue();assertThat(primeira.has("total")).isFalse();
         assertThat(primeira.path("itens").get(0).path("id")).isNotEqualTo(segunda.path("itens").get(0).path("id"));
-        assertThat(get(gestor,LISTA+"&nome=100%25_literal&profissional=Profissional%20A&tipo=retorno&descricao=COM_DESCRICAO").getBody().path("itens")).hasSize(1);
+        var filtrada=get(gestor,LISTA+"&nome=100%25_literal&profissional=Profissional%20A&tipo=retorno&descricao=COM_DESCRICAO");
+        assertThat(filtrada.getStatusCode().value()).as(String.valueOf(filtrada.getBody())).isEqualTo(200);
+        assertThat(filtrada.getBody().path("itens")).hasSize(1);
         assertThat(get(gestor,LISTA+"&descricao=SEM_DESCRICAO").getBody().path("itens")).hasSize(2);
         assertThat(get(gestor,LISTA+"&nome=inexistente").getBody().path("itens")).isEmpty();
     }
