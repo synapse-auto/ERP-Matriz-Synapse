@@ -196,11 +196,14 @@ class CancelamentosPersistenciaIT extends PostgresIT {
     }
     @Test void rlsRealNegaLeituraSemContextoEEscritaHumanaMesmoPorSqlDireto() {
         var a=comVinculo("rls",ANA);criar(a,"rls");criar(corpo("oculto-sem-vinculo"),"oculto-sem-vinculo");
-        assertThat(transacao.execute(s->jdbc.queryForObject("SELECT count(*) FROM cancelamento_agendamento",Long.class))).isZero();
+        Long semContexto=transacao.execute(s->jdbc.queryForObject("SELECT count(*) FROM cancelamento_agendamento",Long.class));
+        assertThat(semContexto).isZero();
         com.synapse.crm.app.seguranca.ApoioRls.entrarComo(ANA,com.synapse.crm.sharedkernel.identidade.PapelUsuario.ATENDENTE);
         try {
-            assertThat(transacao.execute(s->jdbc.queryForObject("SELECT current_user",String.class))).isEqualTo("synapse_app");
-            assertThat(transacao.execute(s->jdbc.queryForObject("SELECT count(*) FROM cancelamento_agendamento",Long.class))).isEqualTo(1);
+            String role=transacao.execute(s->jdbc.queryForObject("SELECT current_user",String.class));
+            Long visiveis=transacao.execute(s->jdbc.queryForObject("SELECT count(*) FROM cancelamento_agendamento",Long.class));
+            assertThat(role).isEqualTo("synapse_app");
+            assertThat(visiveis).isEqualTo(1);
             assertThatThrownBy(()->transacao.executeWithoutResult(s->jdbc.update("""
                 INSERT INTO cancelamento_agendamento(id,origem,evento_externo_id,agendamento_externo_id,
                     chave_idempotencia,impressao,agendado_para,recebido_em)
