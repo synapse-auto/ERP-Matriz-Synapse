@@ -86,10 +86,11 @@ cenários foram executados no Node 22/Linux, como no CI, sem aumentar timeout ou
 O `clean verify` completo Java 21 e o CI do SHA final são informados no relatório da PR
 de revalidação. Não confundir os resultados históricos da #310 com esse CI.
 
-Permanecem os avisos de chaves duplicadas na inbox, falhas de conexão WebSocket observadas
-durante a sessão longa local e logo sem configuração, já registrados na implementação
-anterior; não são apresentados como corrigidos. Não equivalem a alteração de categoria,
-perda de arquivo ou falha de download nos cenários verificados. Não houve homologação
-em Meta/Uzapi reais, benchmark da HML, auditoria WCAG completa ou uso de dados de clientes.
+Permanecem os avisos de chaves duplicadas na inbox e logo sem configuração já registrados
+na implementação anterior; não são apresentados como corrigidos. Nesta sessão longa local
+também houve falhas de conexão WebSocket, sem diagnóstico causal concluído. Os cenários de
+categorias, paginação, download e envio descritos acima passaram, mas isso não comprova
+recebimento/reconexão ponta a ponta do provedor. Não houve homologação em Meta/Uzapi reais,
+benchmark da HML, auditoria WCAG completa ou uso de dados de clientes.
 
 **Ação necessária no Dokploy: nenhuma. Sem deploy.**
