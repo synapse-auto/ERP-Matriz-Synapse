@@ -4,8 +4,22 @@
 
 Chat externo, ficha lateral direita. Duas seções recolhíveis independentes, com os
 componentes, ícones e tokens já usados pela ficha. Não altera Chat Interno, provedores,
-histórico, envio/outbox, permissões, RLS, schema ou migrations. Base `origin/main 9a2fc89`.
-Não incorpora as alterações da PR #309, que continua sendo uma entrega independente.
+histórico, envio/outbox, permissões, RLS, schema ou migrations. A implementação original
+partiu de `origin/main 9a2fc89`, na PR #310, e não duplicou a entrega independente da #309.
+A PR #310 foi mergeada em 17/10/2026 (`c23ca850746d49c6bd887a3263e8c11b633f1897`).
+
+## Estado verificado em 19/10/2026
+
+Revisão da `origin/main 9204d5f`: a separação já está implementada e não precisou de outra
+implementação ou mudança de contrato. Foram acrescentadas somente evidências atuais e
+uma fixture SQL opt-in para categorias vazias independentemente e Mídias em duas páginas.
+Não houve alteração de componentes, endpoints, consultas de produção ou Chat Interno.
+
+Índice da revalidação: [capturas e resultados](evidencias/ficha-midias-documentos-20261019/README.md).
+O helper original continua sendo o ambiente de partida. O complemento
+`frontend/e2e/fixtures/ficha-midias-categorias-isoladas.sql` recusa banco diferente de
+`midias_ficha`; essa recusa foi testada deliberadamente antes da aplicação no banco descartável.
+Não é migration nem script de produção.
 
 ## Classificação e contratos
 
@@ -74,7 +88,7 @@ inbox durante abertura por deep link/atualização canônica, fora das linhas de
 logo não configurado retorna 404 e preserva o fallback. Não são descritos como regressão
 corrigida por esta PR. A investigação do 410 Uzapi permanece separada (docs/52).
 
-## Evidência e testes
+## Evidência e testes da implementação original (PR #310)
 
 - Antes: dois testes novos de endpoint falharam (contagem 404 e indisponível ausente);
   o teste de duas seções independentes também falhou na interface anterior.
@@ -117,4 +131,5 @@ Os demais arquivos da fixture são gerados em memória pelo próprio helper.
 Skills clean-code/architecture-patterns/api-design-principles/supabaseboaspraticas não
 estavam disponíveis no catálogo; Playwright foi lida antes da implementação/validação.
 
-**Ação necessária no Dokploy: nenhuma.** Sem variável de produção nova, merge ou deploy.
+**Ação necessária no Dokploy: nenhuma.** Sem variável de produção nova. A revalidação não
+executa merge ou deploy; o merge histórico da implementação está registrado acima.
