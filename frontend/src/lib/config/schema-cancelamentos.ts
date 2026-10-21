@@ -6,10 +6,10 @@ export const TEXTOS_CANCELAMENTOS = {
   descricao: "Consulte os agendamentos cancelados.",
   periodo: "Período",
   base: "Filtrar por",
-  registro: "Data de registro",
-  canceladoEm: "Data do cancelamento",
+  registro: "Registrado no CRM",
+  canceladoEm: "Data e hora do cancelamento",
   abrirAtendimento: "Abrir atendimento",
-  agendamento: "Data do agendamento",
+  agendamento: "Data e hora da agenda",
   inicio: "De",
   fim: "Até",
   profissional: "Profissional",
@@ -59,6 +59,11 @@ export const TEXTOS_CANCELAMENTOS = {
   periodoObrigatorio: "Selecione as datas de início e fim.",
   periodoInvertido: "A data inicial deve ser igual ou anterior à data final.",
   periodoExcedido: "Selecione um período de até {dias} dias.",
+  ordenacao: "Ordenação: {base}, mais recentes primeiro.",
+  identificacaoTitulo: "Dados atuais do cadastro",
+  identificacaoAjuda: "Dados do contato vinculado, não do momento do cancelamento.",
+  cpf: "CPF/CNPJ",
+  telefone: "Telefone",
 } as const;
 
 export const CancelamentosTextosSchema = z.object(

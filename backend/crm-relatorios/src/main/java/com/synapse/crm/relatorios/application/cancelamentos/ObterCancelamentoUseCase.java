@@ -14,11 +14,19 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 public class ObterCancelamentoUseCase {
     private final LeituraDeCancelamentos fonte;
     private final UsuarioContext usuarios;
-    public ObterCancelamentoUseCase(LeituraDeCancelamentos fonte, UsuarioContext usuarios) { this.fonte=fonte; this.usuarios=usuarios; }
+    private final IdentificacaoDoLeadCancelamento identificacao;
+    public ObterCancelamentoUseCase(LeituraDeCancelamentos fonte, UsuarioContext usuarios,
+            IdentificacaoDoLeadCancelamento identificacao) {
+        this.fonte=fonte; this.usuarios=usuarios; this.identificacao=identificacao;
+    }
     @PreAuthorize("hasAnyRole('ATENDENTE','OPERADOR','SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('cancelamentos.ver')")
     @Transactional(readOnly=true, timeoutString="${synapse.cancelamentos.timeout-segundos}")
-    public CancelamentoAgendamento executar(String id) {
+    public Detalhe executar(String id) {
         if (id == null || !id.matches("[A-Za-z0-9_-]{1,128}")) throw new FiltroCancelamentosInvalidoException();
-        return fonte.detalhe(id, usuarios.atual()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        var registro = fonte.detalhe(id, usuarios.atual()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return new Detalhe(registro, registro.leadId() == null ? null : identificacao.obter(registro.leadId()).orElse(null));
     }
+
+    public record Detalhe(CancelamentoAgendamento registro,
+            IdentificacaoDoLeadCancelamento.DadosDeIdentificacaoDoCancelamento identificacao) {}
 }

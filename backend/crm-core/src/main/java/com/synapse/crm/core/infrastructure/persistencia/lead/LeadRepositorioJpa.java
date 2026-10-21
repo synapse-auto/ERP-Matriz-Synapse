@@ -22,6 +22,7 @@ import com.synapse.crm.core.application.lead.LeadRepositorio;
 import com.synapse.crm.core.application.lead.PaginaDeLeads;
 import com.synapse.crm.core.domain.filtro.FiltroDeLeads;
 import com.synapse.crm.core.domain.lead.FotoDoLead;
+import com.synapse.crm.core.domain.lead.IdentificacaoLead;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.LeadResumo;
 import com.synapse.crm.core.domain.lead.TelefoneIndisponivelException;
@@ -136,6 +137,19 @@ class LeadRepositorioJpa implements LeadRepositorio {
         // Ficha compoe a participacao ativa com a carteira, antes de ler o recurso.
         // A listagem da Agenda permanece no recorte base; convite pendente nao entra.
         return entidadeVisivel(id).map(LeadEntity::paraDominio);
+    }
+
+    @Override
+    public Optional<IdentificacaoLead> identificacao(UUID id) {
+        var cb = em.getCriteriaBuilder();
+        var consulta = cb.createQuery(IdentificacaoLead.class);
+        var raiz = consulta.from(LeadEntity.class);
+        consulta.select(cb.construct(IdentificacaoLead.class,
+                raiz.get(LeadEntity.Campos.CPF), raiz.get(LeadEntity.Campos.TELEFONE)));
+        var visibilidade = VisibilidadeLeadSpecification.comParticipacao(visibilidadeAtual())
+                .and((lead, ignorada, builder) -> builder.equal(lead.get(LeadEntity.Campos.ID), id));
+        consulta.where(visibilidade.toPredicate(raiz, consulta, cb));
+        return em.createQuery(consulta).getResultList().stream().findFirst();
     }
 
     @Override

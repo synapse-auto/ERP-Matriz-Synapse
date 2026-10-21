@@ -75,6 +75,21 @@ de cancelamento; confirmação/pedido de reagendamento não são cancelamentos.
 
 ## Homologação
 
+### Campos de apresentacao e identificacao (21/10/2026)
+
+`profissionalNome` e a chave exata para o profissional do agendamento, no nivel superior.
+O CRM nao preenche por inferencia; ausente/null/branco permanece desconhecido. Confirmar a
+presenca na saida publicada da Automacao e no registro pelo diagnostico sanitizado, sem expor
+o nome. Valores ja aceitos sao imutaveis: nao reenviar um evento antigo com corpo alterado.
+
+`tipoAgendamento` continua tipo, como Consulta/Retorno/Exame; nao passar a chama-lo de
+Especialidade. A extensao para especialidade aguarda definicao de dado atual versus snapshot;
+nao enviar chave nova antes de contrato publicado (campo desconhecido e 400).
+
+CPF/telefone nao devem ser enviados nesta API. O detalhe humano pode ler os dados atuais do
+lead canonicamente vinculado, com autorizacao independente. Sem vinculo/dados, Nao informado.
+Isso nao altera corpo da ingestao nem sua impressao normalizada de idempotencia.
+
 Não dispara mensagens, reagendamento, lembretes, finalização ou transferência. Flag cancelamentos
 controla **visualização**, não ingestão autenticada; manter OFF até homologação autorizada.
 Nenhum workflow ou produção foi alterado nesta entrega.

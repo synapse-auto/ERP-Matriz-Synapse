@@ -39,12 +39,57 @@ describe("Cancelamentos na rota real", () => {
   it("separa recebimento de cancelamento ausente e so cria link com par canonico autorizado", async()=>{
     api.obterCancelamento.mockResolvedValue({...item,leadId:"lead-canonico",atendimentoId:"atendimento-canonico"});
     montar();await screen.findByText(item.contatoNome!);
-    expect(screen.getByText("18/10/2026, 09:00")).toBeInTheDocument();
+    expect(screen.queryByText("18/10/2026, 09:00")).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader",{name:t.canceladoEm})).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button",{name:t.detalhes}));
     const dialogo=await screen.findByRole("dialog");
     expect(await within(dialogo).findByRole("link",{name:t.abrirAtendimento})).toHaveAttribute("href","/atendimentos?leadId=lead-canonico&atendimentoId=atendimento-canonico");
     expect(within(dialogo).getByText(t.canceladoEm)).toBeInTheDocument();
-    expect(within(dialogo).getByText(t.naoInformado)).toBeInTheDocument();
+    expect(within(dialogo).getAllByText(t.naoInformado).length).toBeGreaterThan(0);
+    expect(within(dialogo).getByText("18/10/2026, 09:00")).toBeInTheDocument();
+  });
+  it("coluna usa a ocorrencia no fuso e explicita a ordenacao por registro", async()=>{
+    api.listarCancelamentos.mockResolvedValue({itens:[{...item,canceladoEm:"2026-10-17T01:30:00Z"}],temProxima:false});
+    montar(); await screen.findByText(item.contatoNome!);
+    expect(screen.getByText("16/10/2026, 22:30")).toBeInTheDocument();
+    expect(screen.queryByText("18/10/2026, 09:00")).not.toBeInTheDocument();
+    expect(screen.getByText(t.ordenacao.replace("{base}",t.registro))).toBeInTheDocument();
+  });
+  it("identificacao atual so aparece no detalhe e nao e inferida dos dados da lista", async()=>{
+    api.obterCancelamento.mockResolvedValue({...item,identificacao:{cpf:"00000000000",telefone:"556100000001"}});
+    montar(); await screen.findByText(item.contatoNome!);
+    expect(api.obterCancelamento).not.toHaveBeenCalled();
+    expect(screen.queryByText("00000000000")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button",{name:t.detalhes}));
+    const dialogo=await screen.findByRole("dialog");
+    expect(await within(dialogo).findByText("00000000000")).toBeInTheDocument();
+    expect(within(dialogo).getByText("556100000001")).toBeInTheDocument();
+    expect(within(dialogo).getByText(t.identificacaoAjuda)).toBeInTheDocument();
+    expect(within(dialogo).getByText("Consulta")).toBeInTheDocument();
+  });
+  it("detalhe ausente ou negado nao reaproveita identificacao de outro registro", async()=>{
+    api.listarCancelamentos.mockResolvedValue({itens:[item,{...item,id:"c2",contatoNome:"Outro contato"}],temProxima:false});
+    api.obterCancelamento.mockResolvedValueOnce({...item,identificacao:{cpf:"00000000000",telefone:null}})
+      .mockRejectedValueOnce(new ErroDeApi(404,{},""));
+    montar(); await screen.findByText(item.contatoNome!);
+    fireEvent.click(screen.getAllByRole("button",{name:t.detalhes})[0]);
+    expect(await screen.findByText("00000000000")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button",{name:t.fechar}));
+    await waitFor(()=>expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    fireEvent.click(screen.getAllByRole("button",{name:t.detalhes})[1]);
+    expect(await screen.findByText(t.naoEncontrado)).toBeInTheDocument();
+    expect(screen.queryByText("00000000000")).not.toBeInTheDocument();
+    expect(screen.queryByText(t.identificacaoTitulo)).not.toBeInTheDocument();
+  });
+  it("revalidacao oculta dados pessoais anteriores enquanto a autorizacao atual e conferida",async()=>{
+    api.obterCancelamento.mockResolvedValue({...item,identificacao:{cpf:"00000000000",telefone:null}});
+    const r=montar(); await screen.findByText(item.contatoNome!);
+    fireEvent.click(screen.getByRole("button",{name:t.detalhes}));
+    expect(await screen.findByText("00000000000")).toBeInTheDocument();
+    api.obterCancelamento.mockReturnValue(new Promise(()=>{}));
+    await act(async()=>{ void r.cache.invalidateQueries({predicate:q=>q.queryKey[2]==="detalhe"}); });
+    await waitFor(()=>expect(screen.queryByText("00000000000")).not.toBeInTheDocument());
+    expect(within(screen.getByRole("dialog")).getByRole("status")).toBeInTheDocument();
   });
   it("tela estreita mostra cartoes completos com detalhes sem duplicar a tabela", async()=>{
     viewport.estreita=true; montar();
@@ -129,7 +174,7 @@ describe("Cancelamentos na rota real", () => {
     api.listarCancelamentos.mockResolvedValueOnce({itens:[{...item,descricao:"   ",agendadoPara:null,profissionalNome:null}],temProxima:false});
     api.obterCancelamento.mockRejectedValue(new ErroDeApi(404,null,"")); montar();
     await screen.findByText(item.contatoNome!); expect(within(screen.getByRole("table")).getByText(t.semDescricao)).toBeInTheDocument();
-    expect(screen.getAllByText(t.naoInformado)).toHaveLength(2);
+    expect(screen.getAllByText(t.naoInformado)).toHaveLength(3);
     fireEvent.click(screen.getByRole("button",{name:t.detalhes})); expect(await screen.findByText(t.naoEncontrado)).toBeInTheDocument();
     expect(screen.getByText(item.contatoNome!)).toBeInTheDocument();
   });

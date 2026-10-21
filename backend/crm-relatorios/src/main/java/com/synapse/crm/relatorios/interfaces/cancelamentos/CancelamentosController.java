@@ -1,6 +1,8 @@
 package com.synapse.crm.relatorios.interfaces.cancelamentos;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.UUID;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -51,8 +53,19 @@ class CancelamentosController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Detalhe minimo; inexistente ou fora do escopo retorna 404 indistinguivel",
-            description = "Consulta somente o registro local autorizado. IDs canonicos opcionais protegidos pelas RLS de lead e atendimento. Falha de banco retorna 503 sanitizado.")
-    CancelamentoAgendamento detalhe(@PathVariable String id) { return detalhe.executar(id); }
+            description = "Registro local autorizado pelas RLS de lead e atendimento. identificacao opcional contem somente CPF/telefone atuais do lead vinculado visivel pela Specification, nao snapshot. Esses dados nao aparecem na lista. Falha de banco retorna 503 sanitizado.")
+    DetalheCancelamentoResposta detalhe(@PathVariable String id) {
+        var resultado = detalhe.executar(id);
+        var r = resultado.registro();
+        return new DetalheCancelamentoResposta(r.id(), r.agendadoPara(), r.registradoEm(), r.contatoNome(),
+                r.profissionalNome(), r.tipoAgendamento(), r.descricao(), r.recebidoEm(), r.canceladoEm(),
+                r.leadId(), r.atendimentoId(), resultado.identificacao());
+    }
+
+    record DetalheCancelamentoResposta(String id, Instant agendadoPara, Instant registradoEm, String contatoNome,
+            String profissionalNome, String tipoAgendamento, String descricao, Instant recebidoEm,
+            Instant canceladoEm, UUID leadId, UUID atendimentoId,
+            com.synapse.crm.relatorios.application.cancelamentos.IdentificacaoDoLeadCancelamento.DadosDeIdentificacaoDoCancelamento identificacao) {}
 
     @ExceptionHandler(FiltroCancelamentosInvalidoException.class)
     ProblemDetail filtroInvalido() {

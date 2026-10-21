@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import com.synapse.crm.core.domain.filtro.FiltroDeLeads;
 import com.synapse.crm.core.domain.lead.FotoDoLead;
+import com.synapse.crm.core.domain.lead.IdentificacaoLead;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.LeadResumo;
 
@@ -49,6 +50,9 @@ public interface LeadRepositorio {
      * informacao que a RN-CRM-01 protege.
      */
     Optional<Lead> porId(UUID id);
+
+    /** Somente CPF/telefone do cadastro atual, com a mesma Specification da ficha. */
+    Optional<IdentificacaoLead> identificacao(UUID id);
 
     /**
      * Resolve o id pelo telefone já normalizado, sempre dentro da visibilidade do usuário.

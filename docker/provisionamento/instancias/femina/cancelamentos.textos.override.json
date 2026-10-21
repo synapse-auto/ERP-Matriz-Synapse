@@ -1,0 +1,12 @@
+{
+  "cancelamentos": {
+    "contato": "Paciente",
+    "nome": "Paciente",
+    "profissional": "Médico",
+    "agendamento": "Data e hora da agenda",
+    "canceladoEm": "Data e hora do cancelamento",
+    "registro": "Registrado no CRM",
+    "cpf": "CPF",
+    "identificacaoAjuda": "Dados atuais do paciente vinculado, não do momento do cancelamento."
+  }
+}
