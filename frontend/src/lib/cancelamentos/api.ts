@@ -34,6 +34,9 @@ export interface Cancelamento {
   temDescricao?: boolean;
 }
 export interface PaginaCancelamentos { itens: Cancelamento[]; temProxima: boolean }
+export interface DetalheCancelamento extends Cancelamento {
+  identificacao?: { cpf: string | null; telefone: string | null } | null;
+}
 
 export const obterConfiguracaoCancelamentos = (signal?: AbortSignal) =>
   apiFetch<ConfiguracaoCancelamentos>("/api/v1/cancelamentos/configuracao", { signal });
@@ -42,4 +45,4 @@ export function listarCancelamentos(filtros: FiltrosCancelamentos, pagina: numbe
   return apiFetch<PaginaCancelamentos>(`/api/v1/cancelamentos?${busca}`, { signal });
 }
 export const obterCancelamento = (id: string, signal?: AbortSignal) =>
-  apiFetch<Cancelamento>(`/api/v1/cancelamentos/${encodeURIComponent(id)}`, { signal });
+  apiFetch<DetalheCancelamento>(`/api/v1/cancelamentos/${encodeURIComponent(id)}`, { signal });

@@ -144,6 +144,48 @@ class CancelamentosPersistenciaIT extends PostgresIT {
         criar(corpo("ocorrencia-1"),"ocorrencia-1");criar(corpo("ocorrencia-2"),"ocorrencia-2");
         assertThat(get(gestor,LISTA).getBody().path("itens")).hasSize(2);
     }
+    @Test void detalheProjetaIdentificacaoAtualAutorizadaSemVazarNaListaOuEntreLeads() {
+        conceder();
+        var proprio = comVinculo("identificacao-propria", ANA);
+        var outro = comVinculo("identificacao-outro", BRUNO);
+        jdbc.update("UPDATE lead SET cpf=?,telefone=? WHERE id=?", "00000000000", "556100000001", proprio.get("leadId"));
+        jdbc.update("UPDATE lead SET cpf=?,telefone=? WHERE id=?", "11111111111", "556100000002", outro.get("leadId"));
+        var id = criar(proprio,"identificacao-propria").path("id").asText();
+        var idOutro = criar(outro,"identificacao-outro").path("id").asText();
+        var detalhe = get(ana,"/api/v1/cancelamentos/"+id);
+        assertThat(detalhe.getStatusCode().value()).isEqualTo(200);
+        assertThat(detalhe.getBody().path("identificacao").path("cpf").asText()).isEqualTo("00000000000");
+        assertThat(detalhe.getBody().path("identificacao").path("telefone").asText()).isEqualTo("556100000001");
+        assertThat(detalhe.getBody().path("profissionalNome").asText()).isEqualTo("Profissional A");
+        assertThat(get(ana,LISTA).getBody().toString()).doesNotContain("identificacao","cpf","telefone","00000000000","556100000001");
+        var negado = get(ana,"/api/v1/cancelamentos/"+idOutro);
+        assertThat(negado.getStatusCode().value()).isEqualTo(404);
+        assertThat(negado.getBody().toString()).doesNotContain("11111111111","556100000002");
+        jdbc.update("UPDATE lead SET cpf=?,telefone=? WHERE id=?", "22222222222", "556100000003", proprio.get("leadId"));
+        var atual = get(ana,"/api/v1/cancelamentos/"+id).getBody().path("identificacao");
+        assertThat(atual.path("cpf").asText()).isEqualTo("22222222222");
+        assertThat(atual.path("telefone").asText()).isEqualTo("556100000003");
+        var gestorOutro = get(gestor,"/api/v1/cancelamentos/"+idOutro).getBody().path("identificacao");
+        assertThat(gestorOutro.path("cpf").asText()).isEqualTo("11111111111");
+        jdbc.update("UPDATE lead SET atendente_responsavel_id=? WHERE id=?", BRUNO, proprio.get("leadId"));
+        jdbc.update("UPDATE atendimento SET atendente_id=? WHERE id=?", BRUNO, proprio.get("atendimentoId"));
+        assertThat(get(ana,"/api/v1/cancelamentos/"+id).getStatusCode().value()).isEqualTo(404);
+    }
+
+    @Test void detalheSemVinculoOuSemIdentificacaoNaoInventaDadosNemAlteraIngestao() {
+        var semVinculo = corpo("sem-identificacao"); semVinculo.remove("profissionalNome");
+        var id = criar(semVinculo,"sem-identificacao").path("id").asText();
+        var detalhe = get(gestor,"/api/v1/cancelamentos/"+id).getBody();
+        assertThat(detalhe.path("identificacao").isNull()).isTrue();
+        assertThat(detalhe.path("profissionalNome").isNull()).isTrue();
+        assertThat(detalhe.path("canceladoEm").isNull()).isTrue();
+        assertThat(post(semVinculo,"sem-identificacao").getStatusCode().value()).isEqualTo(200);
+        var vinculado = comVinculo("cadastro-vazio",ANA);
+        var outroId = criar(vinculado,"cadastro-vazio").path("id").asText();
+        var vazio = get(gestor,"/api/v1/cancelamentos/"+outroId).getBody().path("identificacao");
+        assertThat(vazio.path("cpf").isNull()).isTrue();
+        assertThat(vazio.path("telefone").isNull()).isTrue();
+    }
     @Test void autenticaSomenteServicoNaoJwtDeUsuario() {
         var h=new HttpHeaders();h.setBearerAuth(gestor);h.set("Idempotency-Key","teste");
         assertThat(http.exchange(INTERNO,HttpMethod.POST,new HttpEntity<>(corpo("negado"),h),String.class).getStatusCode().value()).isEqualTo(401);

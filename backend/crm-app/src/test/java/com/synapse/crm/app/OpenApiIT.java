@@ -46,6 +46,17 @@ class OpenApiIT extends PostgresIT {
         assertThat(documento.at("/components/schemas/RegistroCancelamentoResposta/properties").fieldNames())
             .toIterable().containsExactlyInAnyOrder("id","recebidoEm","repetido");
         assertThat(parametro(post,"Idempotency-Key").path("required").asBoolean()).isTrue();
+        var detalhe=operacao(documento,"/api/v1/cancelamentos/{id}","get");
+        var conteudoDetalhe=detalhe.at("/responses/200/content");
+        assertThat(conteudoDetalhe.elements().next().at("/schema/$ref").asText())
+            .isEqualTo("#/components/schemas/DetalheCancelamentoResposta");
+        assertThat(documento.at("/components/schemas/DetalheCancelamentoResposta/properties/identificacao/$ref").asText())
+            .isEqualTo("#/components/schemas/DadosDeIdentificacaoDoCancelamento");
+        assertThat(documento.at("/components/schemas/DadosDeIdentificacaoDoCancelamento/properties").fieldNames())
+            .toIterable().containsExactlyInAnyOrder("cpf","telefone");
+        assertThat(documento.at("/components/schemas/CancelamentoAgendamento/properties").has("identificacao")).isFalse();
+        assertThat(corpo.path("properties").has("cpf")).isFalse();
+        assertThat(corpo.path("properties").has("telefone")).isFalse();
     }
 
     @Test

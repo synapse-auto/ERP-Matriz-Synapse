@@ -139,6 +139,30 @@ nem interromper ingestão autenticada configurada. Importação histórica é op
 
 ## Evidências
 
+## Ajustes de campos e identificacao (21/10/2026)
+
+A tabela/cartoes mostram `canceladoEm` como Data e hora do cancelamento, sem usar `recebidoEm`
+como fallback. Recebimento fica nos detalhes como Registrado no CRM. Periodo e ordenacao SQL
+nao mudam; a tela explicita a base selecionada na ordenacao.
+
+Somente `GET /api/v1/cancelamentos/{id}` acrescenta `identificacao` opcional (`cpf`, `telefone`).
+Sao dados **atuais do cadastro**, nao um snapshot da origem. A composicao consulta projecao minima
+do lead somente depois de autorizar o cancelamento; mesma Specification da ficha, sem contexto
+amplo de Agenda/servico, e capacidade atendimentos.ver. Sem vinculo/dados autorizados, valores
+ausentes sao Nao informado. Lista, auditoria e eventos nao ganham CPF/telefone. Cache do detalhe
+nao e retido ao fechar e dados anteriores nao sao exibidos durante revalidacao.
+
+`profissionalNome` ja percorria entrada, persistencia e UI; teste HTTP prova os valores informado
+e ausente. Causa da ausencia na instancia real nao e comprovada sem diagnostico sanitizado.
+Tipo (ex.: Retorno) nao e especialidade. Fronteira desta ultima aguarda decisao sobre snapshot
+do agendamento versus campo customizado atual do lead; nao ha reinterpretacao nem backfill.
+
+Rotulos da Femina sao pacote de sobreposicao do catalogo em
+`docker/provisionamento/instancias/femina/`, sem condicional por cliente. O servidor atual le
+textos do classpath: nao existe aplicacao automatica desse fragmento nem endpoint generico de
+edicao. Aplicacao do catalogo da instancia e etapa operacional pendente, sem variavel nova.
+Veja [auditoria e instrucoes para Automacao](auditorias/cancelamentos-campos-20261021.md).
+
 CancelamentosPersistenciaIT usa HTTP, PostgreSQL e adaptador reais: replay, concorrência, conflitos,
 contrato, RLS, auditoria, datas, filtros/páginas e ausência de efeitos em atendimento/outbox.
 CancelamentosIT mantém fixture apenas para guards/falhas da porta, sem fingir prova de persistência.

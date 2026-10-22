@@ -18,7 +18,7 @@ import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { useMinhasPermissoes } from "@/lib/gestao/use-gestao";
 import { useListaEmCartoes } from "./use-lista-em-cartoes";
 import { listarCancelamentos, obterCancelamento, obterConfiguracaoCancelamentos,
-  type ConfiguracaoCancelamentos, type FiltrosCancelamentos, type Cancelamento } from "@/lib/cancelamentos/api";
+  type ConfiguracaoCancelamentos, type FiltrosCancelamentos, type Cancelamento, type DetalheCancelamento } from "@/lib/cancelamentos/api";
 import { preencher } from "@/components/gestao/apoio";
 
 type Textos = ReturnType<typeof useTextos>["cancelamentos"];
@@ -90,7 +90,8 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
     queryFn: ({ signal }) => listarCancelamentos(consulta.filtros, consulta.pagina, config.tamanhoPagina, signal),
     enabled: pode("cancelamentos.ver"), retry: false });
   const detalhe = useQuery({ queryKey: ["cancelamentos", identidade, "detalhe", selecionado],
-    queryFn: ({ signal }) => obterCancelamento(selecionado!, signal), enabled: selecionado !== null && pode("cancelamentos.ver"), retry: false });
+    queryFn: ({ signal }) => obterCancelamento(selecionado!, signal), enabled: selecionado !== null && pode("cancelamentos.ver"),
+    gcTime: 0, retry: false });
   const extrasAtivos = [consulta.filtros.nome.trim(), consulta.filtros.profissional.trim(), consulta.filtros.tipo.trim(),
     consulta.filtros.descricao !== "TODAS"].filter(Boolean).length;
   const consultaAlterada = !filtrosIguais(consulta.filtros, iniciais);
@@ -173,7 +174,8 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
             <p className="text-sm text-muted-foreground">{consulta.pagina > 0 ? t.paginaVaziaAjuda : extrasAtivos > 0 ? t.vazioAjuda : t.vazioPeriodoAjuda}</p></div>
           {consultaAlterada && <Button type="button" variant="outline" onClick={limpar}>{t.limpar}</Button>}
         </div> : <>
-          <h2 className="text-sm font-semibold text-foreground">{t.resultados}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold text-foreground">{t.resultados}</h2>
+            <p className="text-xs text-muted-foreground">{preencher(t.ordenacao, { base: consulta.filtros.base === "REGISTRO" ? t.registro : consulta.filtros.base === "AGENDAMENTO" ? t.agendamento : t.canceladoEm })}</p></div>
           {telaEstreita ? <div className="grid gap-3 md:grid-cols-2">{lista.data.itens.map(item =>
             <article key={item.id} aria-label={item.contatoNome || t.naoInformado} className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4">
               <Detalhes item={item} t={t} data={data} resumido />
@@ -182,14 +184,14 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
             : <div className="overflow-hidden rounded-xl border bg-card"><table className="w-full table-fixed text-left text-sm">
               <thead className="border-b bg-muted/40 text-xs text-muted-foreground"><tr>
                 <th scope="col" className="w-1/4 p-3 font-medium">{t.contato}</th><th scope="col" className="p-3 font-medium">{t.profissional}</th>
-                <th scope="col" className="p-3 font-medium">{t.agendamento}</th><th scope="col" className="p-3 font-medium">{t.registro}</th>
+                <th scope="col" className="p-3 font-medium">{t.agendamento}</th><th scope="col" className="p-3 font-medium">{t.canceladoEm}</th>
                 <th scope="col" className="p-3 font-medium">{t.descricaoFiltro}</th><th scope="col" className="w-28 p-3 font-medium"><span className="sr-only">{t.detalhes}</span></th>
               </tr></thead><tbody>{lista.data.itens.map(item => <tr key={item.id} className="border-b last:border-0 hover:bg-muted/30">
                 <td className="min-w-0 p-3 align-top [overflow-wrap:anywhere]"><p className="line-clamp-2 font-semibold text-foreground">{item.contatoNome || t.naoInformado}</p>
                   <p className="mt-1 text-xs text-muted-foreground"><span className="sr-only">{t.tipo}: </span>{item.tipoAgendamento || t.naoInformado}</p></td>
                 <td className="p-3 align-top [overflow-wrap:anywhere]"><span className="line-clamp-2">{item.profissionalNome || t.naoInformado}</span></td>
                 <td className="p-3 align-top text-xs tabular-nums [overflow-wrap:anywhere]">{data(item.agendadoPara)}</td>
-                <td className="p-3 align-top text-xs text-muted-foreground tabular-nums [overflow-wrap:anywhere]">{data(item.recebidoEm ?? null)}</td>
+                <td className="p-3 align-top text-xs text-muted-foreground tabular-nums [overflow-wrap:anywhere]">{data(item.canceladoEm ?? null)}</td>
                 <td className="p-3 align-top [overflow-wrap:anywhere]"><span className="line-clamp-2 whitespace-pre-wrap text-muted-foreground">{item.descricao?.trim() ? item.descricao : t.semDescricao}</span></td>
                 <td className="p-3 align-top"><Button variant="ghost" size="sm" onClick={() => selecionar(item.id)}>{t.detalhes}</Button></td>
               </tr>)}</tbody></table></div>}
@@ -207,8 +209,8 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
       <DialogContent showCloseButton={false} className="flex max-h-[85dvh] flex-col overflow-hidden sm:max-w-xl">
         <DialogHeader className="shrink-0"><DialogTitle>{t.detalheTitulo}</DialogTitle><DialogDescription>{t.detalheDescricao}</DialogDescription></DialogHeader>
         <div className="min-h-0 overflow-y-auto">
-          {detalhe.isPending ? <Carregando /> : detalhe.isError ? <Falha erro={detalhe.error} tentar={() => void detalhe.refetch()} />
-            : <Detalhes item={detalhe.data} t={t} data={data} />}
+          {detalhe.isPending || detalhe.isFetching ? <Carregando /> : detalhe.isError ? <Falha erro={detalhe.error} tentar={() => void detalhe.refetch()} />
+            : <><Detalhes item={detalhe.data} t={t} data={data} /><Identificacao item={detalhe.data} t={t} /></>}
         </div>
         {detalhe.isSuccess && !(detalhe.data.leadId && detalhe.data.atendimentoId && pode("atendimentos.ver")) && <p className="shrink-0 text-xs text-muted-foreground">{t.vinculoIndisponivel}</p>}
         <DialogFooter className="shrink-0"><Button variant="outline" onClick={() => selecionar(null)}>{t.fechar}</Button>
@@ -220,13 +222,26 @@ function Consulta({ config, identidade }: { config: ConfiguracaoCancelamentos; i
   </>;
 }
 
+function Identificacao({ item, t }: { item: DetalheCancelamento; t: Textos }) {
+  return <section aria-label={t.identificacaoTitulo} className="mt-5 space-y-3 border-t pt-4">
+    <h3 className="text-sm font-semibold text-foreground">{t.identificacaoTitulo}</h3>
+    <p className="text-xs text-muted-foreground">{t.identificacaoAjuda}</p>
+    <dl className="grid grid-cols-2 gap-4 text-sm">{[
+      [t.cpf, item.identificacao?.cpf], [t.telefone, item.identificacao?.telefone],
+    ].map(([rotulo, valor]) => <div key={rotulo} className="min-w-0 space-y-1">
+      <dt className="text-xs text-muted-foreground">{rotulo}</dt><dd className="text-foreground [overflow-wrap:anywhere]">{valor || t.naoInformado}</dd>
+    </div>)}</dl>
+  </section>;
+}
+
 function Detalhes({ item, t, data, resumido = false }: { item: Cancelamento; t: Textos; data: (v: string | null) => string; resumido?: boolean }) {
-  return <dl className={`grid min-w-0 grid-cols-2 content-start gap-x-5 gap-y-4 text-sm ${resumido ? "flex-1" : ""}`}>{[
+  const campos = [
     [t.contato, item.contatoNome], [t.profissional, item.profissionalNome], [t.tipo, item.tipoAgendamento],
-    [t.agendamento, data(item.agendadoPara)], [t.registro, data(item.recebidoEm ?? null)],
-    [t.canceladoEm, data(item.canceladoEm ?? null)], [t.descricaoCampo, item.descricao?.trim() ? item.descricao : t.semDescricao],
-  ].map(([rotulo, valor], indice) => <div key={rotulo} className={`min-w-0 space-y-1 ${indice === 0 || indice === 6 ? "col-span-2" : ""}`}>
+    [t.agendamento, data(item.agendadoPara)], [t.canceladoEm, data(item.canceladoEm ?? null)],
+    ...(!resumido ? [[t.registro, data(item.recebidoEm ?? null)]] : []), [t.descricaoCampo, item.descricao?.trim() ? item.descricao : t.semDescricao],
+  ];
+  return <dl className={`grid min-w-0 grid-cols-2 content-start gap-x-5 gap-y-4 text-sm ${resumido ? "flex-1" : ""}`}>{campos.map(([rotulo, valor], indice) => <div key={rotulo} className={`min-w-0 space-y-1 ${indice === 0 || indice === campos.length - 1 ? "col-span-2" : ""}`}>
     <dt className="text-xs text-muted-foreground">{rotulo}</dt>
-    <dd className={`whitespace-pre-wrap text-foreground [overflow-wrap:anywhere] ${indice === 0 ? "font-semibold" : ""} ${resumido && [0, 1, 2, 6].includes(indice) ? "line-clamp-2" : ""}`}>{valor || t.naoInformado}</dd>
+    <dd className={`whitespace-pre-wrap text-foreground [overflow-wrap:anywhere] ${indice === 0 ? "font-semibold" : ""} ${resumido ? "line-clamp-2" : ""}`}>{valor || t.naoInformado}</dd>
   </div>)}</dl>;
 }
