@@ -76,6 +76,76 @@ fake explícito; não um HTML reproduzido nem WhatsApp real. A fixture existente
 Resultados finais, screenshots e limitações são vinculados ao SHA/PR no relatório.
 Não confundir testes controlados de falha HTTP com homologação na Femina.
 
+### Resultados em 22/10/2026
+
+- Frontend com Node 22.23.3, Next.js 16.4.2 e dependências do lockfile: **167 arquivos,
+  1.373 testes aprovados**; typecheck e build aprovados. Lint: zero erros e quatro
+  avisos preexistentes (virtualizador e navegação em sidebar/menu/cliente HTTP).
+- Backend: `mvnw.cmd clean verify -Dmaven.compiler.release=21`, JDK 21.0.12,
+  **BUILD SUCCESS**, 30m47s; Spotless, ArchUnit e Testcontainers incluídos.
+  `TempoRealIT`: 12 testes, incluindo assinatura não autorizada, revogação, TTL,
+  reconciliação, backplane e evento canônico com dois atendentes; todos aprovados.
+- O teste de leitura mantém o POST pendente para isolar seu cancelamento otimista.
+  Sem isso, a recarga legítima após a confirmação terminava o GET controlado e
+  invalidava a asserção de `fetchStatus`, sem representar uma perda do histórico.
+- Primeira execução Linux usou uma cópia antiga do catálogo do backend e falhou em
+  `TextosSchema`. Repetida com fontes atuais: passou. Não foi afrouxada a validação
+  do catálogo. O CI também passou esse teste com o catálogo versionado.
+- PR [#318](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/318).
+  CI [39841341751](https://github.com/synapse-auto/ERP-Matriz-Synapse/actions/runs/39841341751),
+  SHA `0a5ff759dd097926a5fb0815ae9e453c2cbda793`: Backend, Frontend e Stack aprovados;
+  imagem GHCR skipped. Esse SHA contém o código validado; commits posteriores de
+  evidência devem ter sua própria run conferida, sem herdar este resultado.
+
+### Navegador real, somente dados sintéticos
+
+Chromium headed, aplicação Next.js real em `localhost:3012`, backend real em
+`localhost:8092`, PostgreSQL/Redis/MinIO descartáveis e canal explicitamente fake.
+Login pelo BFF real; tokens/cookies não foram gravados nas evidências. Fonte computada
+`Inter, "Inter Fallback", Inter, sans-serif`, após `document.fonts.ready`.
+
+| Cenário | Resultado observado |
+| --- | --- |
+| Ana responsável e Bruno convidado/aceito, em sessões isoladas | Mensagem de Bruno chegou pelo WebSocket; propriedade continuou com Ana. |
+| Áudio durante mensagem colaborativa e leitura da segunda sessão | Mesmo elemento `audio`, conectado e reproduzindo; rascunho preservado. WAV sintético de 1 segundo em loop só no teste. |
+| Offline/online e fechamento controlado do WebSocket | Conversa mantida; reconexão real executou nova leitura de estado. |
+| 503 na reconciliação | Histórico/player/rascunho preservados e feedback com tentativa explícita; recuperar não fez POST de mensagem. |
+| 408, 500 e timeout de rede | Conversa e rascunho preservados; botão de recuperação removeu o erro após GET bem-sucedido. |
+| 401 uma vez | Refresh real do BFF e nova leitura, sem redirecionar a conversa para vazio. |
+| Filtro excluindo o cartão aberto | Cabeçalho permaneceu no atendimento selecionado, sem substituição pela lista. |
+| GET de A atrasado, clique em B e 404 posterior de A | B permaneceu selecionado; zero POSTs de mensagem pela recuperação. |
+| Participante sai e reconecta | Backend deixou de autorizar seu estado; cabeçalho protegido foi removido. Saída de B não fechou A. |
+| Finalização e reativação pelo cabeçalho | Histórico finalizado permaneceu; reativação abriu novo ciclo, sem mensagem automática. |
+| Gestor transfere em outra sessão e responsável anterior reconecta | GET do antigo responsável retornou 404; conversa protegida removida da tela. |
+
+**Limite da fixture:** os agendamentos estão desligados para não executar outros
+jobs. A publicação canônica da outbox não foi simulada como se fosse entrega real:
+nos cenários de saída/transferência, a negativa foi confirmada na reconexão REST.
+O worker real, publicação e revogação pelo backplane são cobertos separadamente pelo
+`TempoRealIT`. Não houve homologação de entrega/leitura do WhatsApp/Uzapi.
+Eventos duplicados, outro atendimento, versões fora de ordem, lista/página ausente,
+atualização de status e isolamento de cache são cobertos pelos testes automatizados;
+não se afirma que cada combinação foi reproduzida visualmente com o provedor real.
+
+Capturas da aplicação, não reprodução HTML:
+
+- [Desktop 1920×1080](../evidencias/2026-10-22-conversa-estavel/conversa-desktop.png)
+- [Celular 390×844](../evidencias/2026-10-22-conversa-estavel/conversa-mobile.png)
+- [503 com conversa preservada](../evidencias/2026-10-22-conversa-estavel/conversa-recuperacao-503.png)
+- [Revogação legítima](../evidencias/2026-10-22-conversa-estavel/conversa-revogacao.png)
+
+### Atualização de segurança autorizada
+
+O CI inicial interrompeu o frontend na auditoria de produção, antes dos testes, por
+alertas críticos preexistentes em Next.js 16.3.8. Após autorização explícita, commit
+separado atualiza `next` e `eslint-config-next` para **16.4.2**, preservando React,
+Node, regras de auditoria e configuração de build. O lockfile foi regenerado;
+`npm audit --omit=dev --audit-level=high` retornou **zero vulnerabilidades**.
+Referências oficiais: [release 16.4.2](https://github.com/vercel/next.js/releases/tag/v16.4.2),
+[GHSA-2464-fhr4-w9xw](https://github.com/advisories/GHSA-2464-fhr4-w9xw) e
+[GHSA-673q-mjm6-r5xr](https://github.com/advisories/GHSA-673q-mjm6-r5xr).
+Não foi executado `audit fix --force`, upgrade de Java ou alteração de permissões.
+
 ## Roteiro para a próxima ocorrência real
 
 1. Anotar horário com fuso e versão/tag/digest efetivamente implantados. Não exigir
@@ -100,6 +170,12 @@ Sem a correlação acima, não é possível escolher uma delas com segurança.
 Achado separado: o caminho legado `TRANSFERENCIA` ainda trata exceção de revalidação
 de colaboração como negativa. Não foi ampliado neste hotfix; necessita reprodução
 dedicada antes de alterar a política de entrega. Nenhum frame é liberado por erro.
+
+Na navegação sintética, o console também registrou chave React repetida na inbox
+para o mesmo lead, sem perda da seleção nestes cenários. Não se atribui a ocorrência
+real a esse aviso sem uma reprodução própria. Os indicadores de quantidade de
+mensagens da ficha não são atualizados pela carga direta da fixture de mídia; esses
+zeros sintéticos não são evidência de defeito de contagem na instância real.
 
 ## Operação
 
