@@ -34,10 +34,56 @@ public record MensagemParaTempoReal(
         CitacaoDeMensagem citacao,
         String chaveIdempotencia,
         String leadNome,
-        List<UUID> destinatarios) {
+        List<UUID> destinatarios,
+        boolean envioDeTemplate) {
 
     public MensagemParaTempoReal {
         destinatarios = destinatarios == null ? List.of() : List.copyOf(destinatarios);
+    }
+
+    /** Sem marcador de template (E233): toda mensagem que nao e envio de template. */
+    public MensagemParaTempoReal(
+            UUID atendimentoId,
+            UUID leadId,
+            UUID mensagemId,
+            String remetenteTipo,
+            UUID remetenteId,
+            String tipo,
+            String conteudo,
+            String midiaUrl,
+            String midiaMetadados,
+            String opcoes,
+            String statusEntrega,
+            Instant enviadoEm,
+            CitacaoDeMensagem citacao,
+            String chaveIdempotencia,
+            String leadNome,
+            List<UUID> destinatarios) {
+        this(atendimentoId, leadId, mensagemId, remetenteTipo, remetenteId, tipo, conteudo, midiaUrl,
+                midiaMetadados, opcoes, statusEntrega, enviadoEm, citacao, chaveIdempotencia, leadNome,
+                destinatarios, false);
+    }
+
+    /** Envio manual: leva a chave de idempotencia e diz se a mensagem saiu como template (E233). */
+    public MensagemParaTempoReal(
+            UUID atendimentoId,
+            UUID leadId,
+            UUID mensagemId,
+            String remetenteTipo,
+            UUID remetenteId,
+            String tipo,
+            String conteudo,
+            String midiaUrl,
+            String midiaMetadados,
+            String opcoes,
+            String statusEntrega,
+            Instant enviadoEm,
+            CitacaoDeMensagem citacao,
+            String chaveIdempotencia,
+            boolean envioDeTemplate) {
+        this(atendimentoId, leadId, mensagemId, remetenteTipo, remetenteId, tipo, conteudo, midiaUrl,
+                midiaMetadados, opcoes, statusEntrega, enviadoEm, citacao, chaveIdempotencia, null,
+                List.of(), envioDeTemplate);
     }
 
     public MensagemParaTempoReal(

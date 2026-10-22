@@ -35,15 +35,16 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
 
     private static final String SQL_POR_ID =
             "SELECT id, atendimento_id, remetente_tipo, remetente_id, tipo, conteudo, midia_url, "
-                    + "midia_metadados, opcoes, status_entrega, enviado_em FROM mensagem "
+                    + "midia_metadados, opcoes, status_entrega, enviado_em, envio_de_template FROM mensagem "
                     + "WHERE id = ? AND enviado_em = ?";
 
     private static final String SQL_REGISTRAR =
             """
             INSERT INTO mensagem (id, atendimento_id, remetente_tipo, remetente_id, tipo,
-                                  conteudo, midia_url, midia_metadados, opcoes, status_entrega, enviado_em)
+                                  conteudo, midia_url, midia_metadados, opcoes, status_entrega, enviado_em,
+                                  envio_de_template)
                  VALUES (?, ?, ?::remetente_tipo, ?, ?::tipo_mensagem, ?, ?, ?::jsonb, ?::jsonb,
-                         ?::status_entrega, ?)
+                         ?::status_entrega, ?, ?)
             """;
 
     // enviado_em no WHERE porque e a chave de particao: sem ela o PostgreSQL
@@ -120,7 +121,8 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
                 mensagem.midiaMetadados(),
                 mensagem.opcoes(),
                 mensagem.statusEntrega().name(),
-                Timestamp.from(mensagem.enviadoEm()));
+                Timestamp.from(mensagem.enviadoEm()),
+                mensagem.envioDeTemplate());
         return mensagem;
     }
 
@@ -140,7 +142,8 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
                         rs.getString("midia_metadados"),
                         StatusEntrega.valueOf(rs.getString("status_entrega")),
                         rs.getTimestamp("enviado_em").toInstant(),
-                        rs.getString("opcoes")),
+                        rs.getString("opcoes"),
+                        rs.getBoolean("envio_de_template")),
                 mensagemId,
                 Timestamp.from(enviadoEm)).stream().findFirst();
     }

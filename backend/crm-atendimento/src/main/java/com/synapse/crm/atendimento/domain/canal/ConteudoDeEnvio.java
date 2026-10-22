@@ -87,6 +87,14 @@ public sealed interface ConteudoDeEnvio {
         }
     }
 
+    /**
+     * Se este envio e um template aprovado (E233). E o unico lugar que decide isso: o historico grava o
+     * corpo renderizado sem prefixo tecnico, entao o texto da mensagem nunca prova que foi um template.
+     */
+    default boolean ehTemplate() {
+        return this instanceof MensagemTemplate;
+    }
+
     /** Como a mensagem aparece na conversa e no historico do CRM. */
     default String paraHistorico() {
         return switch (this) {

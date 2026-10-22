@@ -114,7 +114,9 @@ public class EnfileirarTemplateDeCampanhaUseCase {
                 null,
                 null,
                 StatusEntrega.PENDENTE,
-                agora));
+                agora,
+                null,
+                conteudo.ehTemplate()));
         outbox.enfileirarEnvio(
                 mensagem.id(),
                 agora,
