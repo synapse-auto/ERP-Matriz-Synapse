@@ -559,6 +559,8 @@ describe("PaginaAtendimentosCliente", () => {
 
   it("marcar leitura não cancela o snapshot em voo nem apaga o histórico já reconciliado", async () => {
     const { queryClient } = renderPagina();
+    // Isola o cancelamento otimista da leitura da recarga legítima após o POST terminar.
+    leitura.pendente = true;
     // GET iniciado sem dados. Outro caminho REST preenche o snapshot antes de esse GET terminar.
     // O rollback de cancelQueries voltava ao estado vazio original e desmontava a conversa.
     const chave = ["atendimentos", "estado", "atendimento-1"];
@@ -574,6 +576,7 @@ describe("PaginaAtendimentosCliente", () => {
     expect(queryClient.getQueryState(chave)?.fetchStatus).toBe("fetching");
     expect(await screen.findByTestId("historico")).toBeInTheDocument();
     await act(async () => { resolver(snapshotDe(cartaoInicial)); await emVoo; });
+    await act(async () => { leitura.resolver?.(); });
   });
 
   it.each([403, 404])("revogação comprovada por HTTP %i remove seleção e cache protegido", async (status) => {
