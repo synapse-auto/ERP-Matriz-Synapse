@@ -631,6 +631,24 @@ describe("ConexaoTempoReal", () => {
     expect(unsubscribeConversa1).toHaveBeenCalledTimes(1);
   });
 
+  it("ignora revogação atrasada de um socket substituído, mas aplica a do socket atual", () => {
+    const antigos = clienteStompFalso();
+    const atual = clienteStompFalso();
+    const criarCliente = vi.fn().mockReturnValueOnce(antigos.cliente).mockReturnValueOnce(atual.cliente);
+    const onRevogacao = vi.fn();
+    const conexao = new ConexaoTempoReal({ brokerUrl: "ws://test", obterAccessToken: () => "token", criarCliente, onRevogacao });
+    conexao.abrirConversa("atendimento-1", () => undefined);
+    conexao.conectar();
+    const callbackAntigo = vi.mocked(antigos.cliente.subscribe).mock.calls.find(([destino]) => destino === "/user/queue/revogacoes")![1] as (mensagem: { body: string }) => void;
+    conexao.conectar();
+    const callbackAtual = vi.mocked(atual.cliente.subscribe).mock.calls.find(([destino]) => destino === "/user/queue/revogacoes")![1] as (mensagem: { body: string }) => void;
+    const frame = { body: JSON.stringify({ atendimentoId: "atendimento-1" }) };
+    callbackAntigo(frame);
+    expect(onRevogacao).not.toHaveBeenCalled();
+    callbackAtual(frame);
+    expect(onRevogacao).toHaveBeenCalledOnce();
+  });
+
   it("ignora frame que chegou atrasado da assinatura da conversa anterior", () => {
     const { cliente } = clienteStompFalso();
     const callbackDaConversa1 = vi.fn();

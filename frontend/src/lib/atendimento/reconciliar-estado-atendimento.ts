@@ -23,12 +23,21 @@ export class ReconciliadorEstadoAtendimento {
   private readonly eventosProcessados = new Set<string>();
   private readonly versoes = new Map<string, number>();
   private readonly versoesPendentes = new Map<string, number>();
+  private readonly geracoes = new Map<string, number>();
   private readonly sincronizacoes = new Map<
     string,
     Promise<EstadoAtendimentoSelecionado>
   >();
 
   constructor(private readonly cache: QueryClient) {}
+
+  /** Revogação invalida inclusive respostas HTTP que ainda estejam em voo. */
+  descartar(atendimentoId: string): void {
+    this.geracoes.set(atendimentoId, (this.geracoes.get(atendimentoId) ?? 0) + 1);
+    this.versoes.delete(atendimentoId);
+    this.versoesPendentes.delete(atendimentoId);
+    this.sincronizacoes.delete(atendimentoId);
+  }
 
   registrarSnapshot(snapshot: EstadoAtendimentoSelecionado): void {
     const atendimentoId = snapshot.cartao.atendimentoId;
@@ -81,7 +90,9 @@ export class ReconciliadorEstadoAtendimento {
     if (existente) return existente;
 
     const sincronizacao = this.buscarAteAlcancarVersaoPendente(atendimentoId)
-      .finally(() => this.sincronizacoes.delete(atendimentoId));
+      .finally(() => {
+        if (this.sincronizacoes.get(atendimentoId) === sincronizacao) this.sincronizacoes.delete(atendimentoId);
+      });
     this.sincronizacoes.set(atendimentoId, sincronizacao);
     return sincronizacao;
   }
@@ -90,9 +101,13 @@ export class ReconciliadorEstadoAtendimento {
     atendimentoId: string,
   ): Promise<EstadoAtendimentoSelecionado> {
     let snapshot: EstadoAtendimentoSelecionado;
+    const geracao = this.geracoes.get(atendimentoId) ?? 0;
     do {
       const alvoAntesDaLeitura = this.versoesPendentes.get(atendimentoId) ?? -1;
       snapshot = await obterEstadoAtendimento(atendimentoId);
+      if (geracao !== (this.geracoes.get(atendimentoId) ?? 0)) {
+        throw new Error("Sincronização descartada após revogação de acesso");
+      }
       const conhecida = this.versaoConhecida(atendimentoId);
       if (snapshot.versao >= conhecida) {
         this.cache.setQueryData(chaveEstadoAtendimento(atendimentoId), snapshot);
@@ -109,7 +124,7 @@ export class ReconciliadorEstadoAtendimento {
     } while (true);
 
     this.invalidarListas();
-    return snapshot;
+    return this.ultimoSnapshot(atendimentoId) ?? snapshot;
   }
 
   private invalidarListas(): void {

@@ -85,9 +85,10 @@ O relay não embute destinatários. Na entrega, o subscriber calcula usuários a
 política RLS vigente: papéis amplos, responsável atual, participantes ativos e, quando o estado é
 `EM_IA` ou `FINALIZADO`, atendentes autorizados pela visão correspondente.
 
-Toda assinatura selecionada é revalidada em cada `ATENDIMENTO_ESTADO`, mesmo antes do TTL. Falha de
-consulta também falha fechada: a assinatura é removida, `/user/queue/revogacoes` é enviado e o frame
-de estado não chega à conversa. A fila pessoal só recebe usuários retornados pelo recorte autorizado.
+Toda assinatura selecionada é revalidada em cada `ATENDIMENTO_ESTADO`, mesmo antes do TTL.
+Negativa de acesso remove a assinatura e envia `/user/queue/revogacoes`. Falha técnica da consulta
+descarta somente o frame e preserva a assinatura para nova tentativa (proteção E208 já existente);
+timeout não é prova de perda de acesso. A fila pessoal só recebe usuários retornados pelo recorte autorizado.
 
 ## Snapshot canônico
 
@@ -142,6 +143,9 @@ intervalo negociado; não há limpador paralelo de sessões. O valor de heartbea
 independente do backoff do navegador.
 
 ## Runbook
+
+Para desaparecimento indevido da conversa, corridas de seleção/leitura e callbacks de socket
+substituído, ver a [auditoria de 22/10/2026](auditorias/conversa-desaparece-20261022.md).
 
 ### `lead ... não encontrado`
 
