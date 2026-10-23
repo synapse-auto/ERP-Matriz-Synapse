@@ -535,6 +535,22 @@ Gestão, não por cartão. A V111 compõe políticas restritivas com RLS e prote
 entrada com 403; a inbox unificada apenas omite a fonte externa e mantém a fonte interna.
 Rotas `/internal/v1`, workers e webhooks continuam com contexto técnico próprio.
 
+O contexto é resolvido **antes** de reservar a conexão da nova transação. Uma revalidação
+fria pode consultar o pool do chat, mas não deve fazê-lo segurando a conexão recém-reservada
+do outro pool. O `SET LOCAL ROLE` e os `set_config` continuam depois do `begin`, na mesma
+conexão e no escopo da transação; não existe intervalo de execução de negócio sem RLS.
+Se esse SQL falhar depois do `begin`, os dois gerenciadores desfazem a transação e liberam
+conexão/EntityManager antes de propagar a falha. Não se assume acesso na falha do banco.
+
+**Regressão de CI (23/10/2026):** a tentativa 2 da run `40005875346` esgotou o pool geral
+no teste de seis salvamentos concorrentes e atingiu o limite de 25 minutos. Uma consulta
+de permissão que falha durante o antigo `doBegin` deixava recursos presos: dois testes
+negativos reproduziram isso em PostgreSQL real, para JPA e JDBC. A correção separa a
+consulta do início da transação e cobre também falha após publicar o contexto SQL.
+O gatilho exato da primeira falha intermitente daquela run não foi registrado; uma execução
+local de 12 repetições do cenário concorrente passou antes da correção. Portanto não é
+correto atribuir o incidente somente à lentidão do runner nem aumentar o timeout para ocultá-lo.
+
 Notificações externas e assinaturas são revalidadas; o canal interno não usa essa negação.
 O aviso `ACESSO_ALTERADO` cancela leituras e retira caches externos/seletores, revalida as
 permissões e mantém a conversa interna. Resposta antiga cancelada não repovoa o cache.

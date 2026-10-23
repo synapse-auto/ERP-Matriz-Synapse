@@ -65,11 +65,10 @@ public class AplicadorDeContextoRls {
         this.acessoAClientes = acessoAClientes;
     }
 
-    /** Chamado logo apos o inicio da transacao, com a conexao ja ligada ao {@code dataSource}. */
-    public void aplicar(DataSource dataSource) {
+    /** Resolve permissoes antes de reservar a conexao da nova transacao. */
+    Contexto preparar() {
         if (ContextoDeServico.ativo()) {
-            definir(dataSource, "", ContextoDeServico.PAPEL, false);
-            return;
+            return new Contexto("", ContextoDeServico.PAPEL, false, true);
         }
 
         Optional<UsuarioAutenticado> usuario = usuarioSeHouver();
@@ -78,16 +77,22 @@ public class AplicadorDeContextoRls {
             // protegida. Ainda assim assumimos a role: sem isso, uma transacao sem
             // contexto rodaria como dona das tabelas e enxergaria TUDO — o oposto de
             // falhar fechado.
-            definir(dataSource, "", "", false);
-            return;
+            return new Contexto("", "", false, false);
         }
 
-        definir(
-                dataSource,
+        return new Contexto(
                 usuario.get().id().toString(),
                 usuario.get().papel().name(),
-                ContextoDeAgenda.ativo());
+                ContextoDeAgenda.ativo(),
+                acessoAClientes.permitido(usuario.get().id()));
     }
+
+    /** Somente SQL local, depois do begin: nenhuma consulta de permissoes segurando a conexao. */
+    void aplicar(DataSource dataSource, Contexto contexto) {
+        definir(dataSource, contexto);
+    }
+
+    record Contexto(String usuarioId, String papel, boolean agenda, boolean acessoAClientes) {}
 
     private Optional<UsuarioAutenticado> usuarioSeHouver() {
         try {
@@ -100,7 +105,7 @@ public class AplicadorDeContextoRls {
         }
     }
 
-    private void definir(DataSource dataSource, String usuarioId, String papel, boolean contextoAgenda) {
+    private void definir(DataSource dataSource, Contexto contexto) {
         Connection conexao = DataSourceUtils.getConnection(dataSource);
 
         // Primeiro deixa de ser dono das tabelas. Enquanto a transacao roda como
@@ -109,21 +114,19 @@ public class AplicadorDeContextoRls {
         try (Statement troca = conexao.createStatement()) {
             troca.execute(SQL_ASSUMIR_ROLE);
         } catch (SQLException e) {
-            throw new ContextoRlsIndisponivelException(papel, e);
+            throw new ContextoRlsIndisponivelException(contexto.papel(), e);
         }
 
         try (PreparedStatement comando = conexao.prepareStatement(SQL_DEFINIR)) {
-            executar(comando, CHAVE_USUARIO, usuarioId);
-            executar(comando, CHAVE_PAPEL, papel);
-            executar(comando, CHAVE_AGENDA, contextoAgenda ? "true" : "");
-            boolean permitido = ContextoDeServico.PAPEL.equals(papel)
-                    || (!usuarioId.isEmpty() && acessoAClientes.permitido(java.util.UUID.fromString(usuarioId)));
-            executar(comando, "app.acesso_clientes", permitido ? "true" : "false");
+            executar(comando, CHAVE_USUARIO, contexto.usuarioId());
+            executar(comando, CHAVE_PAPEL, contexto.papel());
+            executar(comando, CHAVE_AGENDA, contexto.agenda() ? "true" : "");
+            executar(comando, "app.acesso_clientes", contexto.acessoAClientes() ? "true" : "false");
         } catch (SQLException e) {
             // Sem contexto publicado, as politicas negam tudo. Preferimos abortar a
             // transacao com erro claro a deixar a aplicacao rodando com telas vazias
             // inexplicaveis.
-            throw new ContextoRlsIndisponivelException(papel, e);
+            throw new ContextoRlsIndisponivelException(contexto.papel(), e);
         }
     }
 

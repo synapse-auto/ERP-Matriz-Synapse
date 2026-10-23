@@ -25,6 +25,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,6 +33,7 @@ import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -495,7 +497,7 @@ class GestaoPermissoesIT extends PostgresIT {
 
     // --- concorrencia ------------------------------------------------------------------------------
 
-    @Test
+    @RepeatedTest(3)
     @DisplayName("versao antiga devolve 409 sem sobrescrever; corrida de N gestores tem exatamente um vencedor")
     void revisaoEConcorrencia() throws Exception {
         String t = token(EMAIL_GESTOR, SENHA_GESTOR);
@@ -525,18 +527,17 @@ class GestaoPermissoesIT extends PostgresIT {
             };
             resultados.add(pool.submit(tarefa));
         }
-        largada.countDown();
-        int ok = 0;
-        int conflito = 0;
-        for (Future<HttpStatus> f : resultados) {
-            HttpStatus s = f.get();
-            if (s == HttpStatus.OK) ok++;
-            if (s == HttpStatus.CONFLICT) conflito++;
+        try {
+            largada.countDown();
+            List<HttpStatus> estados = new ArrayList<>();
+            for (Future<HttpStatus> f : resultados) estados.add(f.get(15, TimeUnit.SECONDS));
+            assertThat(estados).containsOnly(HttpStatus.OK, HttpStatus.CONFLICT);
+            assertThat(estados.stream().filter(s -> s == HttpStatus.OK).count()).isEqualTo(1);
+            assertThat(estados.stream().filter(s -> s == HttpStatus.CONFLICT).count()).isEqualTo(paralelos - 1);
+            assertThat(revisaoPerfil("ATENDENTE")).isEqualTo(atual + 1);
+        } finally {
+            pool.shutdownNow();
         }
-        pool.shutdown();
-        assertThat(ok).isEqualTo(1);
-        assertThat(conflito).isEqualTo(paralelos - 1);
-        assertThat(revisaoPerfil("ATENDENTE")).isEqualTo(atual + 1);
     }
 
     // --- delegacao ---------------------------------------------------------------------------------
