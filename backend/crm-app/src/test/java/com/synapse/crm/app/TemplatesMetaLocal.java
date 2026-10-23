@@ -1,6 +1,12 @@
 package com.synapse.crm.app;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.boot.SpringApplication;
+import org.springframework.context.event.ContextClosedEvent;
+
+import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
 
 /** Aplicacao real opt-in com banco descartavel e adaptador Meta restrito ao stub local. */
 public final class TemplatesMetaLocal {
@@ -30,7 +36,17 @@ public final class TemplatesMetaLocal {
         System.setProperty("synapse.saude.critica.monitoramento-habilitado", "false");
         System.setProperty("synapse.seguranca.frontend-origem", "http://localhost:3013");
         System.setProperty("synapse.tempo-real.origens-permitidas", "http://localhost:3013");
-        SpringApplication.run(SynapseCrmApplication.class,
+        var contexto = SpringApplication.run(SynapseCrmApplication.class,
                 "--spring.profiles.active=dev", "--server.address=127.0.0.1", "--server.port=8093");
+        // Somente a outbox deste banco descartavel: os demais jobs continuam desligados.
+        // Exercita o mesmo ponto de entrada do runtime, inclusive proxy e contexto de servico.
+        var publicador = contexto.getBean(PublicadorDaOutbox.class);
+        var executor = Executors.newSingleThreadScheduledExecutor(
+                Thread.ofPlatform().daemon().name("templates-local-outbox").factory());
+        long intervalo = contexto.getEnvironment().getRequiredProperty("synapse.canal.outbox.intervalo-ms", Long.class);
+        executor.scheduleWithFixedDelay(publicador::publicarPendentes, 0, intervalo, TimeUnit.MILLISECONDS);
+        contexto.addApplicationListener(evento -> {
+            if (evento instanceof ContextClosedEvent) executor.shutdownNow();
+        });
     }
 }

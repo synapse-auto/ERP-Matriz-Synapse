@@ -45,8 +45,6 @@ async function entrar(page: Page, { email, senha }: { email: string; senha: stri
   await page.getByRole("button", { name: /entrar/i }).click();
   // O login atual escolhe a pagina inicial por capacidade; nao pressupoe Atendimentos.
   await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
-  await page.goto("/atendimentos");
-  await expect(page).toHaveURL(/\/atendimentos/);
 }
 
 async function tokenDe(request: APIRequestContext, { email, senha }: { email: string; senha: string }) {
@@ -69,6 +67,7 @@ async function abrirModalDoAtendimento(page: Page, request: APIRequestContext): 
   });
   expect(contato.ok()).toBeTruthy();
   await entrar(page, GESTOR);
+  await page.goto("/atendimentos");
   await page.getByText(CONTATO.nome).first().click();
   await page.getByRole("button", { name: "Nova mensagem" }).click();
   const modal = page.getByRole("dialog", { name: "Enviar template" });

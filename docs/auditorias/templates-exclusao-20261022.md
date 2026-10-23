@@ -122,8 +122,10 @@ Para validar visualmente sem credenciais ou banco de cliente:
 
 1. Executar o stub existente `node frontend/e2e/fixtures/graph-meta-stub.mjs`.
 2. Compilar test-classes e executar `com.synapse.crm.app.TemplatesMetaLocal`
-   com `TEMPLATES_VISUAL_LOCAL=true` e classpath de testes/dependencias.
+  com `TEMPLATES_VISUAL_LOCAL=true` e classpath de testes/dependencias.
    O fixture prepara banco/Redis descartaveis e fixa a Graph em 127.0.0.1:8089.
+   Apenas a outbox sintetica executa seu ponto de entrada real em executor local,
+   no intervalo existente da configuracao; outros jobs continuam desligados.
 3. Frontend em localhost:3013, `NEXT_PUBLIC_API_URL=http://localhost:8093`,
    `SYNAPSE_BACKEND_URL` apontando ao mesmo backend (host.docker.internal em Docker).
 4. `PLAYWRIGHT_BASE_URL=http://localhost:3013 PLAYWRIGHT_API_URL=http://localhost:8093
