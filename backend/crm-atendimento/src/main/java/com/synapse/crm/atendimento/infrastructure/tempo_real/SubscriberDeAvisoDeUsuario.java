@@ -13,6 +13,8 @@ import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
+import com.synapse.crm.sharedkernel.permissao.ConsultaDeAcessoAClientes;
+
 /** Leva o aviso de um usuario do Redis para a fila pessoal de notificacoes, em cada no onde ele esta conectado. */
 @Component
 class SubscriberDeAvisoDeUsuario implements MessageListener {
@@ -22,10 +24,12 @@ class SubscriberDeAvisoDeUsuario implements MessageListener {
 
     private final SimpMessagingTemplate template;
     private final ObjectMapper json;
+    private final ConsultaDeAcessoAClientes acessoAClientes;
 
-    SubscriberDeAvisoDeUsuario(SimpMessagingTemplate template, ObjectMapper json) {
+    SubscriberDeAvisoDeUsuario(SimpMessagingTemplate template, ObjectMapper json, ConsultaDeAcessoAClientes acessoAClientes) {
         this.template = template;
         this.json = json;
+        this.acessoAClientes = acessoAClientes;
     }
 
     @Override
@@ -33,6 +37,8 @@ class SubscriberDeAvisoDeUsuario implements MessageListener {
         try {
             JsonNode envelope = json.readTree(new String(mensagem.getBody(), StandardCharsets.UTF_8));
             UUID usuarioId = UUID.fromString(envelope.path("usuarioId").asText());
+            // Presenca pessoal nao contem dados de clientes e continua independente do acesso externo.
+            if (!"PRESENCA_ALTERADA".equals(envelope.path("tipo").asText()) && !acessoAClientes.permitido(usuarioId)) return;
             ObjectNode paraOCliente = ((ObjectNode) envelope).deepCopy();
             paraOCliente.remove("usuarioId");
             template.convertAndSendToUser(usuarioId.toString(), DESTINO, paraOCliente.toString());

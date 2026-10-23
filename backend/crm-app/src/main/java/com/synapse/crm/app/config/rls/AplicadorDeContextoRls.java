@@ -17,6 +17,7 @@ import com.synapse.crm.sharedkernel.identidade.ContextoDeAgenda;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
+import com.synapse.crm.sharedkernel.permissao.ConsultaDeAcessoAClientes;
 
 /**
  * Publica o contexto da transacao para as politicas RLS do banco.
@@ -57,9 +58,11 @@ public class AplicadorDeContextoRls {
     private static final String CHAVE_AGENDA = "app.contexto_agenda";
 
     private final UsuarioContext usuarioContext;
+    private final ConsultaDeAcessoAClientes acessoAClientes;
 
-    public AplicadorDeContextoRls(UsuarioContext usuarioContext) {
+    public AplicadorDeContextoRls(UsuarioContext usuarioContext, ConsultaDeAcessoAClientes acessoAClientes) {
         this.usuarioContext = usuarioContext;
+        this.acessoAClientes = acessoAClientes;
     }
 
     /** Chamado logo apos o inicio da transacao, com a conexao ja ligada ao {@code dataSource}. */
@@ -113,6 +116,9 @@ public class AplicadorDeContextoRls {
             executar(comando, CHAVE_USUARIO, usuarioId);
             executar(comando, CHAVE_PAPEL, papel);
             executar(comando, CHAVE_AGENDA, contextoAgenda ? "true" : "");
+            boolean permitido = ContextoDeServico.PAPEL.equals(papel)
+                    || (!usuarioId.isEmpty() && acessoAClientes.permitido(java.util.UUID.fromString(usuarioId)));
+            executar(comando, "app.acesso_clientes", permitido ? "true" : "false");
         } catch (SQLException e) {
             // Sem contexto publicado, as politicas negam tudo. Preferimos abortar a
             // transacao com erro claro a deixar a aplicacao rodando com telas vazias

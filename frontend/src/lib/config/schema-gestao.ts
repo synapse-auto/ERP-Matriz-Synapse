@@ -64,6 +64,7 @@ const MODULOS_PADRAO: Record<string, { rotulo: string; descricao: string }> = {
 
 const CAPACIDADES_PADRAO: Record<string, string> = {
   "cancelamentos.ver": "Consultar cancelamentos de agendamentos",
+  "clientes.acessar": "Acesso a clientes",
   "atendimentos.ver": "Ver conversas",
   "atendimentos.painel_operacional": "Visualizar painel operacional de Atendimentos",
   "atendimentos.responder": "Responder mensagens",

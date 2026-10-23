@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -52,6 +53,7 @@ import com.synapse.crm.sharedkernel.permissao.VerificadorDeCapacidades;
  * "nao existe" respondem igual — 404 — de proposito.
  */
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/leads")
 @Tag(name = "Leads", description = "Consulta e edição de leads sob as regras de visibilidade comercial.")
 @SecurityRequirement(name = "bearerAuth")

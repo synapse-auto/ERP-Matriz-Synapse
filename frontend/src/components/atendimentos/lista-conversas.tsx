@@ -179,10 +179,11 @@ function ListaConversasBase({
   const textos = catalogo.atendimentos;
   const papel = useAuthStore((estado) => estado.papel);
   const usuarioId = useAuthStore((estado) => estado.usuarioId);
+  const acessoClientes = useCapacidades().pode("clientes.acessar");
   const papelAmplo = papel === "SUBGESTOR" || papel === "GESTOR" || papel === "ADMINISTRADOR";
   const abas = useMemo<VisaoDeAba[]>(
-    () => (papelAmplo ? ABAS_GESTAO : ABAS_ATENDENTE) as VisaoDeAba[],
-    [papelAmplo],
+    () => !acessoClientes ? ["ATIVOS"] : (papelAmplo ? ABAS_GESTAO : ABAS_ATENDENTE) as VisaoDeAba[],
+    [papelAmplo, acessoClientes],
   );
   const [visaoEscolhida, setVisaoEscolhida] = useState<VisaoAtendimento | null>(
     visaoInicial ?? null,
@@ -190,7 +191,7 @@ function ListaConversasBase({
   // FINALIZADOS não entra em `abas`, mas é visão válida (menu). Sem este recorte, o fallback
   // para abas[0] expulsava o usuário da lista de finalizados (E136 × PR #71).
   const visaoSolicitavel = (candidata: VisaoAtendimento | null | undefined): candidata is VisaoAtendimento =>
-    candidata != null && (candidata === "FINALIZADOS" || abas.includes(candidata as VisaoDeAba));
+    candidata != null && (acessoClientes && candidata === "FINALIZADOS" || abas.includes(candidata as VisaoDeAba));
   const visao: VisaoAtendimento = visaoSolicitavel(visaoAtual)
     ? visaoAtual
     : visaoSolicitavel(visaoEscolhida)

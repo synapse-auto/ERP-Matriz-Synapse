@@ -506,6 +506,46 @@ isolamento, concessão/revogação, cópia, transferência e convite/aceite), `C
 seletor de destinos. A validação headed usa backend e PostgreSQL locais, não respostas
 mockadas no navegador. Procedimento operacional: docs/18.
 
+## 16. Acesso a clientes independente do Chat Interno
+
+Decisão aprovada: `clientes.acessar` (rótulo **Acesso a clientes**) é a porta de entrada para a
+operação externa. Desligá-la não transforma RN-CRM-01 em outro recorte: nega clientes antes da
+consulta. Ligá-la mantém carteira, Potenciais, Agenda e participação consentida nos limites já
+existentes; não concede visão global. Desligar apenas ações de escrita continua significando
+somente leitura, e não uma negação de clientes.
+
+- Padrão ligado para preservar usuários existentes, sem inserir exceções nem alterar usuários reais.
+- ATENDENTE, OPERADOR e SUBGESTOR seguem perfil e exceções individuais, na precedência oficial.
+  GESTOR/ADMINISTRADOR mantêm perfis fixos. O controle é sensível e não delegável ao subgestor.
+- O preset de nível não religa a porta implicitamente. Cópia/restauração usam a confirmação
+  sensível já existente. Exceções individuais continuam dependentes da flag de edição existente.
+- `atendimentos.ver` continua estrutural quanto ao alcance, mas depende da porta de entrada.
+  As ações de atendimento, contatos, resumo, dashboard, campanhas, cancelamentos, lembretes,
+  programadas e aplicação de tags também dependem dela.
+- Chat Interno mantém login, contatos internos, participação, leitura **e envio de mensagens**,
+  mídia e eventos conforme as autorizações existentes. Não equivale à classificação de conta
+  de teste: as restrições operacionais dessas contas continuam independentes (docs/75).
+
+O backend publica `app.acesso_clientes` uma vez por transação usando o resolvedor/cache da
+Gestão, não por cartão. A V111 compõe políticas restritivas com RLS e protege helpers
+`SECURITY DEFINER`; ausência do contexto nega clientes. Os controladores externos recusam a
+entrada com 403; a inbox unificada apenas omite a fonte externa e mantém a fonte interna.
+Rotas `/internal/v1`, workers e webhooks continuam com contexto técnico próprio.
+
+Notificações externas e assinaturas são revalidadas; o canal interno não usa essa negação.
+O aviso `ACESSO_ALTERADO` cancela leituras e retira caches externos/seletores, revalida as
+permissões e mantém a conversa interna. Resposta antiga cancelada não repovoa o cache.
+Não há polling novo, renovação obrigatória de JWT por este toggle ou reenvio de mutations.
+Entre nós permanece o limite de revalidação já documentado (`SYNAPSE_PERMISSOES_REVALIDACAO`).
+
+**Rollout:** V111 depende do backend que publica o novo contexto RLS. Não operar uma combinação
+de schema novo com backend antigo: ele falha fechado para clientes. Planejar a troca coordenada
+fora do horário crítico, conferir o número da migration em `origin/main` e reiniciar todas as
+réplicas na mesma versão. Não executar SQL manual em produção nem editar migrations aplicadas.
+Nenhuma variável nova no Dokploy. Esta implementação não altera disponibilidades, responsáveis
+ou permissões de usuários reais automaticamente; a Gestão deverá desligar o controle dos logins
+internos pretendidos após o rollout aprovado.
+
 Screenshots e procedimento headed: [docs/assets/perfil-operador](assets/perfil-operador/README.md).
 A negativa de entrada direta sem alçada agora usa `AccessDeniedException`: mantém o bloqueio
 existente e devolve 403 em vez do 500 preexistente, com teste para ATENDENTE e OPERADOR.

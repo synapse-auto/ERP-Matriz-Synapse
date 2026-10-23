@@ -112,6 +112,82 @@ class GestaoPermissoesIT extends PostgresIT {
     // --- acesso a Gestao --------------------------------------------------------------------------
 
     @Test
+    void negarClientesBloqueiaSessaoAntigaNovaEApiDiretaSemBloquearEscritaInterna() {
+        String g = token(EMAIL_GESTOR, SENHA_GESTOR);
+        String a = token(EMAIL_ANA, SENHA_ATENDENTE);
+        String b = token(EMAIL_BRUNO, SENHA_ATENDENTE);
+        UUID potencial = criarLead("Potencial bloqueado", null);
+        jdbc.update("UPDATE lead SET status_basico = 'IA' WHERE id = ?", potencial);
+        UUID atendimento = criarAtendimento(leadDaAna, ana, "EM_ATENDIMENTO");
+        UUID consentido = criarAtendimento(leadDoBruno, bruno, "EM_ATENDIMENTO");
+        jdbc.update("INSERT INTO atendimento_participante(atendimento_id, usuario_id, origem) VALUES (?, ?, 'CONVITE')", consentido, ana);
+        UUID conversa = UUID.randomUUID();
+        jdbc.update("INSERT INTO chat_interno_conversa(id,tipo) VALUES (?, 'DIRETA')", conversa);
+        jdbc.update("INSERT INTO chat_interno_participante(conversa_id,usuario_id) VALUES (?,?), (?,?)",
+                conversa, ana, conversa, bruno);
+        try {
+            assertThat(chamar(a, HttpMethod.GET, "/api/v1/leads/" + potencial, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+            var r = chamar(g, HttpMethod.PUT, BASE + "/usuarios/" + ana + "/excecoes",
+                    corpoExcecoes(revisaoUsuario(ana), Map.of(), Map.of("clientes.acessar", false)));
+            assertThat(r.getStatusCode()).as(r.getBody()).isEqualTo(HttpStatus.OK);
+            String novaSessao = token(EMAIL_ANA, SENHA_ATENDENTE);
+            for (String sessao : List.of(a, novaSessao)) {
+                for (String rota : List.of("/api/v1/leads", "/api/v1/leads?busca=Potencial",
+                        "/api/v1/atendimentos?visao=POTENCIAIS", "/api/v1/atendimentos/contagem",
+                        "/api/v1/atendimentos/busca?termo=Potencial",
+                        "/api/v1/atendimentos/" + consentido + "/participantes",
+                        "/api/v1/leads/" + potencial, "/api/v1/leads/" + leadDaAna,
+                        "/api/v1/leads/" + leadDaAna + "/timeline",
+                        "/api/v1/leads/" + leadDaAna + "/midias/contagem",
+                        "/api/v1/leads/" + leadDaAna + "/midias/" + UUID.randomUUID() + "/download",
+                        "/api/v1/atendimentos/" + atendimento + "/mensagens")) {
+                    assertThat(chamar(sessao, HttpMethod.GET, rota, null).getStatusCode()).as(rota).isEqualTo(HttpStatus.FORBIDDEN);
+                }
+                assertThat(aplicarTag(sessao, leadDaAna)).isEqualTo(HttpStatus.FORBIDDEN);
+                assertThat(chamar(sessao, HttpMethod.POST, "/api/v1/atendimentos/mensagens",
+                        Map.of("leadId", potencial.toString(), "conteudo", "Nao pode assumir nem responder"))
+                        .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+                assertThat(chamar(sessao, HttpMethod.POST, "/api/v1/atendimentos/" + atendimento + "/transferir",
+                        Map.of("paraAtendenteId", bruno.toString())).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+                assertThat(chamar(sessao, HttpMethod.POST, "/api/v1/atendimentos/" + atendimento + "/finalizar", null)
+                        .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+                JsonNode inbox = ler(chamar(sessao, HttpMethod.GET, "/api/v1/atendimentos/inbox?visao=ATIVOS&limite=50", null));
+                for (JsonNode item : inbox.path("itens")) assertThat(item.path("tipo").asText()).isEqualTo("EQUIPE_INTERNA");
+                var mensagem = chamar(sessao, HttpMethod.POST, "/api/v1/chat-interno/conversas/" + conversa + "/mensagens",
+                        Map.of("conteudo", "Mensagem sintetica sem acesso a clientes"));
+                assertThat(mensagem.getStatusCode().is2xxSuccessful()).as(mensagem.getBody()).isTrue();
+                assertThat(chamar(sessao, HttpMethod.GET, "/api/v1/chat-interno/conversas/" + conversa + "/mensagens", null)
+                        .getBody()).contains("Mensagem sintetica sem acesso a clientes");
+            }
+            assertThat(chamar(b, HttpMethod.GET, "/api/v1/leads/" + leadDoBruno, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(chamar(b, HttpMethod.GET, "/api/v1/leads/" + leadDaAna, null).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(chamar(g, HttpMethod.PUT, BASE + "/usuarios/" + ana + "/excecoes",
+                    corpoExcecoes(revisaoUsuario(ana), Map.of(), Map.of("clientes.acessar", true))).getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(chamar(a, HttpMethod.GET, "/api/v1/leads/" + potencial, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        } finally {
+            jdbc.update("DELETE FROM chat_interno_conversa WHERE id = ?", conversa);
+        }
+    }
+
+    @Test
+    void perfilSemClientesEExcecaoIndividualMantemPrecedenciaERecorte() {
+        String g = token(EMAIL_GESTOR, SENHA_GESTOR);
+        String a = token(EMAIL_ANA, SENHA_ATENDENTE);
+        String b = token(EMAIL_BRUNO, SENHA_ATENDENTE);
+        UUID potencial = criarLead("Potencial para precedencia", null);
+        jdbc.update("UPDATE lead SET status_basico = 'IA' WHERE id = ?", potencial);
+        salvarPerfilAtendente(g, Map.of("clientes.acessar", false));
+        assertThat(chamar(a, HttpMethod.GET, "/api/v1/leads/" + potencial, null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chamar(b, HttpMethod.GET, "/api/v1/leads/" + potencial, null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chamar(g, HttpMethod.PUT, BASE + "/usuarios/" + ana + "/excecoes",
+                corpoExcecoes(revisaoUsuario(ana), Map.of(), Map.of("clientes.acessar", true))).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(chamar(a, HttpMethod.GET, "/api/v1/leads/" + potencial, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(chamar(a, HttpMethod.GET, "/api/v1/leads/" + leadDoBruno, null).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(chamar(b, HttpMethod.GET, "/api/v1/leads/" + potencial, null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chamar(g, HttpMethod.GET, "/api/v1/leads/" + potencial, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
     void operadorCriadoPelaApiTemRecorteProprioEConcessaoRevogavel() {
         String g = token(EMAIL_GESTOR, SENHA_GESTOR);
         UUID operador = criarUsuario(g, "OPERADOR");
