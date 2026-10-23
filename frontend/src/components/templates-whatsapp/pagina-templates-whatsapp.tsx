@@ -101,6 +101,7 @@ export function PaginaTemplatesWhatsApp() {
     mutationFn: (template: TemplateWhatsApp) => excluirTemplateWhatsApp(template.id, template.nome),
     onSuccess: () => {
       void cache.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+      void cache.invalidateQueries({ queryKey: ["campanhas", "templates"] });
       setExcluindo(null);
     },
   });

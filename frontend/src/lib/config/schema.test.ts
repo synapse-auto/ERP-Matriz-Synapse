@@ -13,6 +13,19 @@ function carregarJson(caminho: string): Record<string, unknown> {
 }
 
 describe("TextosSchema", () => {
+  it("completa exclusão de templates em catálogo antigo sem perder personalização", () => {
+    const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
+    const templates = catalogo.templatesWhatsApp as Record<string, Record<string, unknown>>;
+    delete templates.confirmacaoExclusao.variante;
+    for (const chave of ["exclusaoCredencial", "exclusaoPermissao", "exclusaoRecurso", "exclusaoRecusada", "exclusaoIncerta"]) {
+      delete templates.erros[chave];
+    }
+    templates.erros.semPermissao = "Acesso personalizado";
+    const resultado = TextosSchema.parse(catalogo).templatesWhatsApp;
+    expect(resultado.confirmacaoExclusao.variante).toContain("{idioma}");
+    expect(resultado.erros.exclusaoIncerta).toContain("antes de tentar");
+    expect(resultado.erros.semPermissao).toBe("Acesso personalizado");
+  });
   it("mantém mensagens da edição de telefone com catálogos antigos", () => {
     const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
     const dados = (catalogo.painelLead as Record<string, unknown>).dados as Record<string, unknown>;

@@ -12,6 +12,11 @@ const TEXTOS = {
   recusadoSemMotivo: "A Meta recusou.",
   indisponivel: "Provedor indisponível.",
   generico: "Não foi possível.",
+  exclusaoCredencial: "Credencial recusada.",
+  exclusaoPermissao: "Permissão da Meta recusada.",
+  exclusaoRecurso: "Recurso não disponível.",
+  exclusaoRecusada: "Exclusão recusada.",
+  exclusaoIncerta: "Confira o estado antes de repetir.",
 };
 
 function erro(status: number, detail?: string) {
@@ -19,6 +24,18 @@ function erro(status: number, detail?: string) {
 }
 
 describe("mensagemDeErroDeTemplate", () => {
+  it.each([
+    ["CREDENCIAL_RECUSADA", "Credencial recusada."],
+    ["PERMISSAO_RECUSADA", "Permissão da Meta recusada."],
+    ["RECURSO_INDISPONIVEL", "Recurso não disponível."],
+    ["RECUSADO", "Exclusão recusada."],
+    ["RESULTADO_INCERTO", "Confira o estado antes de repetir."],
+    ["PROVEDOR_INDISPONIVEL", "Provedor indisponível."],
+  ])("traduz exclusão %s sem exibir mensagem livre", (codigo, esperado) => {
+    const falha = new ErroDeApi(codigo === "RESULTADO_INCERTO" ? 503 : 422,
+      { codigo: "TEMPLATE_EXCLUSAO_" + codigo, detail: "Bearer segredo; conteúdo do template" }, "Falha");
+    expect(mensagemDeErroDeTemplate(falha, TEXTOS)).toBe(esperado);
+  });
   it("403 vira falta de permissão, sem repetir o detalhe técnico do Spring", () => {
     expect(mensagemDeErroDeTemplate(erro(403, "Access Denied"), TEXTOS)).toBe("Sem permissão.");
   });

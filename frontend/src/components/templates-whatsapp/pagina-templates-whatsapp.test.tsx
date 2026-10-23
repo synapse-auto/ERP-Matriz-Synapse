@@ -90,6 +90,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       },
       confirmacaoExclusao: {
         titulo: "Excluir?",
+        variante: "Somente idioma {idioma}, ID {id}.",
         descricao:
           "A exclusão de {nome} acontece na conta WhatsApp Business compartilhada e pode afetar outros sistemas. Mensagens pendentes que usam este template podem falhar. Templates aprovados podem não aceitar o mesmo nome por 30 dias.",
         confirmar: "Excluir na Meta",
@@ -112,6 +113,19 @@ import { criarTemplateWhatsApp, editarTemplateWhatsApp, excluirTemplateWhatsApp 
 import { PaginaTemplatesWhatsApp } from "./pagina-templates-whatsapp";
 
 describe("pagina de templates WhatsApp", () => {
+  it("sucesso invalida catalogos de atendimento e campanhas, sem remover antes da resposta", async () => {
+    let concluir!: () => void;
+    vi.mocked(excluirTemplateWhatsApp).mockReturnValueOnce(new Promise<void>((resolve) => { concluir = resolve; }));
+    const cliente = renderizarComCliente();
+    const invalidar = vi.spyOn(cliente, "invalidateQueries");
+    fireEvent.click(await screen.findByRole("button", { name: "Excluir: retorno_orcamento" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Excluir na Meta" }));
+    expect(screen.getByText("retorno_orcamento")).toBeInTheDocument();
+    expect(invalidar).not.toHaveBeenCalled();
+    await act(async () => concluir());
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ["whatsapp-templates"] }));
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["campanhas", "templates"] });
+  });
   it("lista o template devolvido pelo provedor, sem inventar modelo", async () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
@@ -186,6 +200,7 @@ describe("pagina de templates WhatsApp", () => {
     expect(confirmacao).toHaveTextContent("conta WhatsApp Business compartilhada");
     expect(confirmacao).toHaveTextContent("Mensagens pendentes");
     expect(confirmacao).toHaveTextContent("30 dias");
+    expect(confirmacao).toHaveTextContent("Somente idioma pt_BR, ID template-1.");
     fireEvent.click(within(confirmacao).getByRole("button", { name: "Excluir na Meta" }));
     await waitFor(() =>
       expect(excluirTemplateWhatsApp).toHaveBeenCalledWith("template-1", "retorno_orcamento"),

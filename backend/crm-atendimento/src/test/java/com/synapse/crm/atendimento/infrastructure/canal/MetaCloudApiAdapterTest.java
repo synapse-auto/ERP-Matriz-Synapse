@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.ExpectedCount.times;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -656,6 +658,7 @@ class MetaCloudApiAdapterTest {
         servidor.expect(once(), requestTo(URL_BASE
                         + "/waba-teste/message_templates?hsm_id=123&name=boas_vindas"))
                 .andExpect(method(HttpMethod.DELETE))
+                .andExpect(header("Authorization", "Bearer token-de-teste"))
                 .andRespond(withSuccess("{\"success\":true}", MediaType.APPLICATION_JSON));
 
         var resultado = adapter.excluirTemplate("123", "boas_vindas");
@@ -664,8 +667,25 @@ class MetaCloudApiAdapterTest {
         assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Aceito.class);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"success\":false}", "{}", "[]", "null", "", "<html>segredo</html>", "{\"success\":\"true\"}",
+            "{\"success\":true} lixo", "{\"success\":true} {\"error\":{\"code\":100}}",
+            "{\"success\":true,\"error\":{\"code\":100}}",
+            "{\"error\":{\"code\":190,\"message\":\"nao registrar este conteudo\"}}"})
+    void exclusaoNaoConfundeJsonComConfirmacaoDoProvedor(String corpo) {
+        servidor.expect(once(), requestTo(URL_BASE
+                        + "/waba-teste/message_templates?hsm_id=123&name=boas_vindas"))
+                .andExpect(method(HttpMethod.DELETE))
+                .andRespond(withSuccess(corpo, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> adapter.excluirTemplate("123", "boas_vindas"))
+                .isInstanceOf(com.synapse.crm.atendimento.application.template.FalhaNaExclusaoDeTemplateException.class)
+                .hasMessageNotContaining("nao registrar este conteudo");
+        servidor.verify();
+    }
+
     @Test
-    void exclusaoRecusadaPelaMetaViraRecusado() {
+    void exclusaoRecusadaPelaMetaNaoExpoeMensagemLivre() {
         servidor.expect(once(), requestTo(URL_BASE
                         + "/waba-teste/message_templates?hsm_id=123&name=boas_vindas"))
                 .andExpect(method(HttpMethod.DELETE))
@@ -673,11 +693,24 @@ class MetaCloudApiAdapterTest {
                         .body("{\"error\":{\"message\":\"template inexistente\"}}")
                         .contentType(MediaType.APPLICATION_JSON));
 
-        var resultado = adapter.excluirTemplate("123", "boas_vindas");
-
+        assertThatThrownBy(() -> adapter.excluirTemplate("123", "boas_vindas"))
+                .isInstanceOf(com.synapse.crm.atendimento.application.template.FalhaNaExclusaoDeTemplateException.class)
+                .hasMessageNotContaining("template inexistente");
         servidor.verify();
-        assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Recusado.class);
-        assertThat(((ResultadoDeTemplate.Recusado) resultado).motivo()).contains("template inexistente");
+        assertThat(breakers.circuitBreaker("canal-meta-cloud-templates").getMetrics().getNumberOfFailedCalls()).isZero();
+    }
+
+    @Test
+    void timeoutNaExclusaoNaoRepeteDeleteNemConfirmaSucesso() {
+        servidor.expect(once(), requestTo(URL_BASE
+                        + "/waba-teste/message_templates?hsm_id=123&name=boas_vindas"))
+                .andExpect(method(HttpMethod.DELETE))
+                .andRespond(requisicao -> { throw new java.net.SocketTimeoutException("timeout"); });
+        assertThatThrownBy(() -> adapter.excluirTemplate("123", "boas_vindas"))
+                .isInstanceOf(com.synapse.crm.atendimento.application.template.FalhaNaExclusaoDeTemplateException.class)
+                .hasMessageContaining("RESULTADO_INCERTO");
+        servidor.verify();
+        assertThat(breakers.circuitBreaker("canal-meta-cloud-templates").getMetrics().getNumberOfFailedCalls()).isEqualTo(1);
     }
 
     @Test

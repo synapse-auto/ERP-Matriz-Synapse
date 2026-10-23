@@ -30,6 +30,9 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioException;
+import com.synapse.crm.atendimento.application.template.FalhaNaExclusaoDeTemplateException;
+import com.synapse.crm.atendimento.application.template.FalhaNaExclusaoDeTemplateException.Diagnostico;
+import com.synapse.crm.atendimento.application.template.FalhaNaExclusaoDeTemplateException.Motivo;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
@@ -434,11 +437,17 @@ class MetaCloudApiAdapter implements CanalGateway {
     public ResultadoDeTemplate excluirTemplate(String id, String nome) {
         String conta = exigirContaNegocio();
         try {
-            return breakerTemplates.executeSupplier(() -> excluirNaMeta(conta, id, nome));
+            RespostaBrutaDaMeta resposta = breakerTemplates.executeSupplier(() -> excluirNaMeta(conta, id, nome));
+            return interpretarExclusao(resposta);
         } catch (CallNotPermittedException breakerAberto) {
-            throw new CanalIndisponivelException("circuit breaker aberto para templates da Meta");
-        } catch (RestClientException e) {
-            throw indisponibilidadeAoAdministrarTemplates("excluir", e);
+            throw new FalhaNaExclusaoDeTemplateException(Motivo.PROVEDOR_INDISPONIVEL,
+                    new Diagnostico(null, null, null, null));
+        } catch (RestClientResponseException resposta) {
+            throw falhaDeExclusao(resposta.getStatusCode().value(), lerErroDeExclusao(resposta.getResponseBodyAsString()));
+        } catch (RestClientException erro) {
+            // Timeout ou conexão interrompida não provam se o DELETE foi aplicado. Sem retry automático.
+            throw new FalhaNaExclusaoDeTemplateException(Motivo.RESULTADO_INCERTO,
+                    new Diagnostico(null, null, null, null));
         }
     }
 
@@ -550,7 +559,7 @@ class MetaCloudApiAdapter implements CanalGateway {
                 && corpo.path("text").isTextual();
     }
 
-    private ResultadoDeTemplate excluirNaMeta(String conta, String id, String nome) {
+    private RespostaBrutaDaMeta excluirNaMeta(String conta, String id, String nome) {
         RespostaBrutaDaMeta bruta = lerRespostaBruta(
                 http.delete()
                         .uri(uri -> uri.path("/{conta}/message_templates")
@@ -558,7 +567,56 @@ class MetaCloudApiAdapter implements CanalGateway {
                                 .queryParam("name", nome)
                                 .build(conta))
                         .header("Authorization", "Bearer " + propriedades.token()));
-        return interpretarResultadoDaAdministracao(bruta, "excluir");
+        // Só falhas técnicas contam no breaker; uma recusa legítima não derruba a gestão inteira.
+        if (bruta.status() >= 500 || bruta.status() == EXCESSO_DE_CHAMADAS) {
+            throw falhaHttpDaMeta(bruta);
+        }
+        return bruta;
+    }
+
+    private ResultadoDeTemplate interpretarExclusao(RespostaBrutaDaMeta bruta) {
+        JsonNode resposta = lerErroDeExclusao(bruta.corpo());
+        if (bruta.status() >= 400 || (resposta != null && resposta.hasNonNull("error"))) {
+            throw falhaDeExclusao(bruta.status(), resposta);
+        }
+        if (bruta.status() < 200 || bruta.status() >= 300 || resposta == null
+                || !resposta.path("success").isBoolean() || !resposta.path("success").booleanValue()) {
+            throw new FalhaNaExclusaoDeTemplateException(Motivo.RESULTADO_INCERTO,
+                    diagnosticoDeExclusao(bruta.status(), resposta));
+        }
+        return new ResultadoDeTemplate.Aceito(null);
+    }
+
+    private JsonNode lerErroDeExclusao(String corpo) {
+        if (corpo == null || corpo.isBlank()) return null;
+        try { return json.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(corpo); }
+        catch (JsonProcessingException | RuntimeException ilegivel) { return null; }
+    }
+
+    private FalhaNaExclusaoDeTemplateException falhaDeExclusao(int status, JsonNode resposta) {
+        Diagnostico diagnostico = diagnosticoDeExclusao(status, resposta);
+        Motivo motivo;
+        if (status >= 500 || status == EXCESSO_DE_CHAMADAS) motivo = Motivo.PROVEDOR_INDISPONIVEL;
+        else if (status == 401) motivo = Motivo.CREDENCIAL_RECUSADA;
+        else if (status == 403) motivo = Motivo.PERMISSAO_RECUSADA;
+        else if (status == 404) motivo = Motivo.RECURSO_INDISPONIVEL;
+        else motivo = Motivo.RECUSADO;
+        return new FalhaNaExclusaoDeTemplateException(motivo, diagnostico);
+    }
+
+    private Diagnostico diagnosticoDeExclusao(int status, JsonNode resposta) {
+        JsonNode erro = resposta == null ? com.fasterxml.jackson.databind.node.NullNode.getInstance() : resposta.path("error");
+        String correlacao = erro.path("fbtrace_id").asText("");
+        String token = propriedades.token();
+        if (!correlacao.matches("[A-Za-z0-9_-]{1,128}")
+                || (token != null && !token.isBlank() && correlacao.contains(token))) correlacao = null;
+        return new Diagnostico(status, inteiroDeDiagnostico(erro.path("code")),
+                inteiroDeDiagnostico(erro.path("error_subcode")), correlacao);
+    }
+
+    private static Integer inteiroDeDiagnostico(JsonNode valor) {
+        return valor.isIntegralNumber() && valor.canConvertToInt() && valor.intValue() >= 0
+                ? valor.intValue() : null;
     }
 
     private ResultadoDeTemplate interpretarResultadoDaAdministracao(

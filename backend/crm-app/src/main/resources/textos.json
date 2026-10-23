@@ -1158,6 +1158,7 @@
     },
     "confirmacaoExclusao": {
       "titulo": "Excluir template na Meta?",
+      "variante": "Somente a variante de idioma {idioma}, ID {id}, será solicitada para exclusão.",
       "descricao": "A exclusão de {nome} acontece na conta WhatsApp Business compartilhada e pode afetar outros sistemas. Mensagens pendentes que usam este template podem falhar. Templates aprovados podem não aceitar o mesmo nome por 30 dias.",
       "confirmar": "Excluir na Meta",
       "cancelar": "Cancelar"
@@ -1168,6 +1169,11 @@
       "invalido": "Pedido inválido: {motivo}",
       "recusado": "A Meta recusou a operação: {motivo}",
       "recusadoSemMotivo": "A Meta recusou a operação. Confira o template e tente novamente.",
+      "exclusaoCredencial": "A Meta recusou a credencial da integração. Peça à gestão que verifique o acesso da conta WhatsApp.",
+      "exclusaoPermissao": "A Meta não autorizou a exclusão nesta conta WhatsApp. Peça à gestão que verifique as permissões da integração.",
+      "exclusaoRecurso": "A Meta não disponibilizou este template para exclusão. Atualize a lista e confira o acesso à conta WhatsApp.",
+      "exclusaoRecusada": "A Meta recusou a exclusão. Confira o estado e as restrições do template na conta WhatsApp.",
+      "exclusaoIncerta": "A exclusão não foi confirmada. Atualize a lista e confira o estado na Meta antes de tentar novamente.",
       "indisponivel": "O provedor de templates está indisponível agora. Tente novamente em instantes.",
       "generico": "Não foi possível concluir a operação. Verifique a conexão e tente novamente."
     }

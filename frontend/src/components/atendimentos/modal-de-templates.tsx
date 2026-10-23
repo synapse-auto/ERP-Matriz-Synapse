@@ -107,6 +107,7 @@ export function ModalDeTemplates({
     mutationFn: (template: TemplateWhatsApp) => excluirTemplateWhatsApp(template.id, template.nome),
     onSuccess: (_resultado, template) => {
       void cache.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+      void cache.invalidateQueries({ queryKey: ["campanhas", "templates"] });
       if (chaveSelecionada === chaveDoTemplate(template)) {
         setChaveClicada(null);
         onTemplateExcluido?.(template);
