@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+import { useTelemetriaAutomacao } from "@/lib/automacao/use-automacao";
 
 const atualizarParametro = vi.fn();
 const atualizarDisponibilidade = vi.fn();
@@ -62,7 +63,7 @@ vi.mock("@/lib/equipe/use-equipe", () => ({
 vi.mock("@/lib/automacao/use-automacao", () => ({
   useConfiguracaoAutomacao: () => ({ data: PARAMETROS, isLoading: false, isError: false, refetch: vi.fn() }),
   useAtualizarParametroAutomacao: () => ({ mutate: atualizarParametro, isPending: false, isError: false }),
-  useTelemetriaAutomacao: () => ({ data: TELEMETRIA, isLoading: false, isError: false, refetch: vi.fn() }),
+  useTelemetriaAutomacao: vi.fn(() => ({ data: TELEMETRIA, isLoading: false, isError: false, refetch: vi.fn() })),
   useRecursosIa: () => ({ data: { resumo: { ativo: true, gatilho: "AMBOS", quantidadeMensagens: 20 }, preenchimentoAutomatico: false }, isLoading: false, isError: false, refetch: vi.fn() }),
   useAtualizarResumoIa: () => ({ mutate: vi.fn(), isPending: false }),
   useRegrasFollowUp: () => ({ data: FOLLOW_UPS, isLoading: false, isError: false, refetch: vi.fn() }),
@@ -118,6 +119,16 @@ describe("pagina de automacao", () => {
     expect(screen.getByText("342")).toBeInTheDocument();
     expect(screen.getByText("Conectado")).toBeInTheDocument();
     expect(screen.getByText("Offline")).toBeInTheDocument();
+  });
+
+  it("sem clientes, desliga a consulta e oculta telemetria em cache sem fechar configuracoes", () => {
+    definirCapacidadesDeTeste({ negadas: ["clientes.acessar"] });
+    render(<PaginaAutomacao />);
+    expect(useTelemetriaAutomacao).toHaveBeenCalledWith(false);
+    expect(screen.queryByText("Mensagens Enviadas")).not.toBeInTheDocument();
+    expect(screen.queryByText("1.284")).not.toBeInTheDocument();
+    expect(screen.queryByText("342")).not.toBeInTheDocument();
+    expect(screen.getByText("Recursos de IA")).toBeInTheDocument();
   });
 
   it("lista atendentes e subgestores ativos e altera a disponibilidade pela mutacao existente", () => {

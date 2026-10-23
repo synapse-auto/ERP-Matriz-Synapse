@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,6 +36,7 @@ import com.synapse.crm.core.domain.mensagemprogramada.MensagemProgramada;
 import com.synapse.crm.core.domain.mensagemprogramada.StatusMensagemProgramada;
 
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/mensagens-programadas")
 @Tag(name = "Mensagens programadas", description = "Agendamento e cancelamento de mensagens futuras.")
 @SecurityRequirement(name = "bearerAuth")

@@ -9,6 +9,7 @@ import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
 import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
+import com.synapse.crm.sharedkernel.permissao.ConsultaDeAcessoAClientes;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -41,10 +42,12 @@ public class RevalidarAssinaturaTempoRealUseCase {
     private final AtendimentoRepositorio atendimentos;
     private final ParticipacaoAtendimentoRepositorio participacoes;
     private final PapelVigenteRepositorio papeis;
+    private final ConsultaDeAcessoAClientes acessoAClientes;
 
     public RevalidarAssinaturaTempoRealUseCase(AtendimentoRepositorio atendimentos, ParticipacaoAtendimentoRepositorio participacoes,
-            PapelVigenteRepositorio papeis) {
+            PapelVigenteRepositorio papeis, ConsultaDeAcessoAClientes acessoAClientes) {
         this.atendimentos = atendimentos; this.participacoes = participacoes; this.papeis = papeis;
+        this.acessoAClientes = acessoAClientes;
     }
 
     /**
@@ -54,6 +57,7 @@ public class RevalidarAssinaturaTempoRealUseCase {
      */
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public boolean aindaValida(UUID atendimentoId, UUID usuarioId, PapelUsuario papel) {
+        if (!acessoAClientes.permitido(usuarioId)) return false;
         if (!papeis.papelSeAtivo(usuarioId).map(atual -> atual == papel).orElse(false)) {
             return false;
         }

@@ -12,7 +12,8 @@ import com.synapse.crm.automacaoconfig.domain.telemetria.StatusAutomacaoTelemetr
  * <p>Mesma autorização de {@code ListarConfiguracoesAutomacaoAdminUseCase} — gestão e administrador
  * — e pelo mesmo motivo: essa tela e administrativa, e o singleton nao carrega recorte por atendente
  * (telemetria e da operacao inteira, nao de um dono de lead), entao a unica linha de defesa aqui e
- * o papel de quem pede, nao um filtro de visibilidade por linha.
+ * o papel de quem pede, nao um filtro de visibilidade por linha. Por conter totais de clientes,
+ * tambem exige a porta de clientes, sem retirar a autorizacao independente de configurar Automacao.
  */
 @Service
 public class ObterStatusAutomacaoTelemetriaUseCase {
@@ -23,7 +24,7 @@ public class ObterStatusAutomacaoTelemetriaUseCase {
         this.telemetria = telemetria;
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.ver')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.ver') and @capacidades.permite('clientes.acessar')")
     @Transactional(readOnly = true)
     public StatusAutomacaoTelemetria executar() {
         return telemetria.obter();

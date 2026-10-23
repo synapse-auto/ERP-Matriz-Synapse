@@ -21,6 +21,7 @@ import com.synapse.crm.automacaoconfig.application.featureflag.FeatureService;
 import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio;
 import com.synapse.crm.equipe.application.chat.ListarConversasChatUseCase;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
+import com.synapse.crm.sharedkernel.permissao.VerificadorDeCapacidades;
 
 /** Compõe páginas limitadas das duas fontes e aplica a ordenação global no backend. */
 @Service
@@ -36,16 +37,18 @@ public class ListarInboxUnificadaUseCase {
     private final ListarConversasChatUseCase equipe;
     private final FeatureService features;
     private final UsuarioContext usuarioContext;
+    private final VerificadorDeCapacidades capacidades;
 
     public ListarInboxUnificadaUseCase(
             ListarAtendimentosVisiveisUseCase clientes,
             ListarConversasChatUseCase equipe,
             FeatureService features,
-            UsuarioContext usuarioContext) {
+            UsuarioContext usuarioContext, VerificadorDeCapacidades capacidades) {
         this.clientes = clientes;
         this.equipe = equipe;
         this.features = features;
         this.usuarioContext = usuarioContext;
+        this.capacidades = capacidades;
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -68,9 +71,11 @@ public class ListarInboxUnificadaUseCase {
         List<InboxUnificada.Item> itens = new ArrayList<>();
         Cursor apos = decodificar(cursor);
         try {
+            if (capacidades.permite("clientes.acessar")) {
             carregarClientes(visao, tamanho + 1, apos, filtroAtendenteId).stream()
                     .map(InboxUnificada.Item::cliente)
                     .forEach(itens::add);
+            }
         } catch (RuntimeException erro) {
             LOG.warn("Não foi possível carregar a fonte de atendimentos da inbox", erro);
         }

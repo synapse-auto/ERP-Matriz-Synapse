@@ -24,7 +24,7 @@ export const CHAVE_MINHAS_PERMISSOES = ["permissoes", "minhas"] as const;
 export function useMinhasPermissoes(habilitado = true) {
   return useQuery({
     queryKey: CHAVE_MINHAS_PERMISSOES,
-    queryFn: obterMinhasPermissoes,
+    queryFn: ({ signal }) => obterMinhasPermissoes(signal),
     enabled: habilitado,
     staleTime: 30_000,
   });

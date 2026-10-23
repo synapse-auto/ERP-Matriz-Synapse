@@ -38,12 +38,13 @@ class RedisSubscriberDeAtendimentoTest {
     private final RevalidarAssinaturaTempoRealUseCase revalidar = mock(RevalidarAssinaturaTempoRealUseCase.class);
     private final ListarDestinatariosTempoRealUseCase listarDestinatarios =
             mock(ListarDestinatariosTempoRealUseCase.class);
+    private final com.synapse.crm.sharedkernel.permissao.ConsultaDeAcessoAClientes acessoAClientes = mock(com.synapse.crm.sharedkernel.permissao.ConsultaDeAcessoAClientes.class);
     private final RegistroDeAssinaturas registro = new RegistroDeAssinaturas(
             Clock.fixed(Instant.parse("2026-08-23T12:00:00Z"), ZoneOffset.UTC),
             new TempoRealProperties(
                     1, 1, 1, 1, "*", 60, 10_000L, 10_000L, java.time.Duration.ofMinutes(1), 1_000L, 2, 30_000L));
     private final RedisSubscriberDeAtendimento subscriber = new RedisSubscriberDeAtendimento(
-            registro, template, new ObjectMapper(), revalidar, listarDestinatarios);
+            registro, template, new ObjectMapper(), revalidar, listarDestinatarios, acessoAClientes);
 
     private final UUID atendimentoId = UUID.randomUUID();
     private final UUID transferidorId = UUID.randomUUID();
@@ -55,11 +56,19 @@ class RedisSubscriberDeAtendimentoTest {
         ContextoDeServico.instalarPonteDeAutoridade(nome -> () -> {});
         registro.doAtendimento(atendimentoId).forEach(registro::remover);
         reset(template, revalidar, listarDestinatarios);
+        org.mockito.Mockito.when(acessoAClientes.permitido(org.mockito.ArgumentMatchers.any())).thenReturn(true);
     }
 
     @AfterEach
     void restaurarPonteDeAutoridade() {
         ContextoDeServico.instalarPonteDeAutoridade(ContextoDeServico.PonteDeAutoridade.NAO_INSTALADA);
+    }
+
+    @Test
+    void negacaoDeClientesImpedeNotificacaoExternaMesmoComDestinoAnterior() {
+        when(acessoAClientes.permitido(destinatarioId)).thenReturn(false);
+        subscriber.onMessage(mensagem(transferencia(destinatarioId, transferidorId, "USUARIO")), null);
+        verify(template, never()).convertAndSendToUser(eq(destinatarioId.toString()), anyString(), anyString());
     }
 
     @Test
@@ -99,6 +108,7 @@ class RedisSubscriberDeAtendimentoTest {
 
     @Test
     void chat_interno_entrega_apenas_aos_participantes_destinatarios() {
+        when(acessoAClientes.permitido(destinatarioId)).thenReturn(false);
         String corpo = "{\"tipo\":\"CHAT_INTERNO_MENSAGEM\",\"destinatarios\":[\"" + destinatarioId
                 + "\"],\"conversaId\":\"" + UUID.randomUUID() + "\",\"mensagemId\":\""
                 + UUID.randomUUID() + "\",\"remetenteId\":\"" + transferidorId

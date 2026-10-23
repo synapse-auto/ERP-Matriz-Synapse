@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import com.synapse.crm.atendimento.application.tempo_real.ListarDestinatariosTempoRealUseCase;
 import com.synapse.crm.atendimento.application.tempo_real.RevalidarAssinaturaTempoRealUseCase;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
+import com.synapse.crm.sharedkernel.permissao.ConsultaDeAcessoAClientes;
 
 /**
  * Onde a autorizacao <b>de verdade</b> acontece para quem ja esta assinado: na entrega, nao na
@@ -49,18 +50,20 @@ class RedisSubscriberDeAtendimento implements MessageListener {
     private final ObjectMapper json;
     private final RevalidarAssinaturaTempoRealUseCase revalidar;
     private final ListarDestinatariosTempoRealUseCase listarDestinatarios;
+    private final ConsultaDeAcessoAClientes acessoAClientes;
 
     RedisSubscriberDeAtendimento(
             RegistroDeAssinaturas registro,
             SimpMessagingTemplate template,
             ObjectMapper json,
             RevalidarAssinaturaTempoRealUseCase revalidar,
-            ListarDestinatariosTempoRealUseCase listarDestinatarios) {
+            ListarDestinatariosTempoRealUseCase listarDestinatarios, ConsultaDeAcessoAClientes acessoAClientes) {
         this.registro = registro;
         this.template = template;
         this.json = json;
         this.revalidar = revalidar;
         this.listarDestinatarios = listarDestinatarios;
+        this.acessoAClientes = acessoAClientes;
     }
 
     @Override
@@ -202,7 +205,7 @@ class RedisSubscriberDeAtendimento implements MessageListener {
                     }
                 }
                 notificacao.set("dados", dados);
-                enviarParaUsuario(UUID.fromString(destinatario.asText()), DESTINO_NOTIFICACOES, notificacao.toString());
+                template.convertAndSendToUser(destinatario.asText(), DESTINO_NOTIFICACOES, notificacao.toString());
             }
         } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
             log.warn("Envelope de chat interno ilegivel.", e);
@@ -409,6 +412,14 @@ class RedisSubscriberDeAtendimento implements MessageListener {
      * de uma vez, o que e o comportamento correto: visibilidade e por usuario, nao por aba.
      */
     private void enviarParaUsuario(UUID usuarioId, String destino, String payload) {
+        if (!DESTINO_REVOGACAO.equals(destino)) {
+            try {
+                if (!acessoAClientes.permitido(usuarioId)) return;
+            } catch (RuntimeException falha) {
+                log.warn("Falha ao verificar acesso a clientes na entrega de evento; entrega omitida para {}.", usuarioId);
+                return;
+            }
+        }
         template.convertAndSendToUser(usuarioId.toString(), destino, payload);
     }
 }

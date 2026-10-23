@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 
 import {
   avaliacoesEquipe,
@@ -34,12 +35,16 @@ export function useEquipe() {
 
 /** Mini-dashboard e ranking por avaliação (E17b §Bloco 4). */
 export function useAvaliacoesEquipe(habilitado = true) {
-  return useQuery({ queryKey: CHAVE_AVALIACOES, queryFn: avaliacoesEquipe, enabled: habilitado });
+  const acesso = useCapacidades().pode("clientes.acessar");
+  const consulta = useQuery({ queryKey: CHAVE_AVALIACOES, queryFn: avaliacoesEquipe, enabled: habilitado && acesso });
+  return { ...consulta, data: acesso ? consulta.data : undefined };
 }
 
 /** Atendimentos e vendas usam read model gerencial restrito a gestao. */
 export function useDesempenhoEquipe(habilitado = true) {
-  return useQuery({ queryKey: CHAVE_DESEMPENHO, queryFn: desempenhoEquipe, enabled: habilitado });
+  const acesso = useCapacidades().pode("clientes.acessar");
+  const consulta = useQuery({ queryKey: CHAVE_DESEMPENHO, queryFn: desempenhoEquipe, enabled: habilitado && acesso });
+  return { ...consulta, data: acesso ? consulta.data : undefined };
 }
 
 /** GET /api/v1/me (E17) — nome, papel e presença de quem está autenticado. */

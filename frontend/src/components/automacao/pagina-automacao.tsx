@@ -95,17 +95,18 @@ function normalizarAba(valor: string | null): Aba {
 function GeralAutomacao({ textos }: { textos: Textos }) {
   const t = textos.automacao;
   const parametros = useConfiguracaoAutomacao();
-  const telemetria = useTelemetriaAutomacao();
+  const capacidades = useCapacidades();
+  const podeVerTelemetria = capacidades.pode("clientes.acessar");
+  const telemetria = useTelemetriaAutomacao(podeVerTelemetria);
   const recursos = useRecursosIa();
   const atualizarResumo = useAtualizarResumoIa();
   const atualizarParametro = useAtualizarParametroAutomacao();
-  const capacidades = useCapacidades();
   const podeEditarParametros = capacidades.pode("automacao.editar_parametros");
   const preenchimento = parametros.data?.find((p) => p.chave === "ia.preenchimento_automatico");
 
   return (
     <div className="space-y-6">
-      <CardsDeTelemetria dados={telemetria.data} carregando={telemetria.isLoading} comErro={telemetria.isError} onTentarNovamente={() => telemetria.refetch()} />
+      {podeVerTelemetria && <CardsDeTelemetria dados={telemetria.data} carregando={telemetria.isLoading} comErro={telemetria.isError} onTentarNovamente={() => telemetria.refetch()} />}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_26.25rem]">
         {capacidades.pode("equipe.ver") && <AtendentesDisponiveis textos={textos} />}
         <section className="rounded-xl border bg-card p-6">
