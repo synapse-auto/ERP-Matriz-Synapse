@@ -489,10 +489,22 @@ class CampanhaPublicoEControleIT extends CampanhaITBase {
         @Test
         @DisplayName("sem a funcionalidade habilitada as campanhas nao existem")
         void funcionalidadeDesligada() {
-            jdbc.update("UPDATE feature_flag SET habilitado = FALSE WHERE chave = 'campanhas'");
+            definirFlagDeCampanhas(false);
 
             assertThatThrownBy(() -> consultas.listar(0, 25)).isInstanceOf(CampanhasIndisponiveisException.class);
             assertThatThrownBy(() -> criar.executar(pedido("X", 5))).isInstanceOf(CampanhasIndisponiveisException.class);
+        }
+
+        @Test
+        @DisplayName("preparo descarta a flag desligada em cache, sem depender do tempo entre testes")
+        void preparacaoDescartaFlagAnteriorEmCache() {
+            definirFlagDeCampanhas(false);
+            assertThat(permissoes.flagsHabilitadas()).doesNotContain("campanhas");
+
+            prepararCampanhas();
+
+            assertThat(permissoes.flagsHabilitadas()).contains("campanhas");
+            assertThat(criar.executar(pedido("Cache revalidado", 5)).status()).isEqualTo(StatusDaCampanha.RASCUNHO);
         }
 
         @Test

@@ -41,6 +41,12 @@ O socket local estava aberto em `/ws`; nenhum token ou conteúdo externo foi inc
 - Repetição direcionada após esses ajustes: 58/58, incluindo `GestaoPermissoesIT` 25,
   `GestaoTempoRealIT` 3, `ParticipacaoAtendimentoIT` 2, `AjustesDoVinculoE231IT` 15,
   `LeituraPorUsuarioMigrationIT` 2, `NonoDigitoMigrationIT` 10 e listener de avisos 1.
+- O primeiro CI também expôs uma fixture de Campanhas que mudava a flag diretamente no SQL,
+  sem invalidar o instantâneo de permissões. O preparo e a limpeza agora sincronizam esse
+  cache explicitamente, sem mudar a política de produção. `CampanhaPublicoEControleIT` 19/19
+  na repetição direcionada, incluindo regressão com a flag desligada previamente em cache.
+  A run 39950981516 passou no SHA anterior a esse ajuste adicional da fixture; o resultado
+  do SHA final deve ser conferido separadamente na PR.
 
 ## Custo de autorização
 
