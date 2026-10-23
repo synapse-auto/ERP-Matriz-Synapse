@@ -66,7 +66,7 @@ async function aplicarFalha(operacao, res) {
   if (!falha) return false;
   if (falha.atrasoMs) await new Promise((resolver) => setTimeout(resolver, falha.atrasoMs));
   if (!falha.status) return false;
-  responder(res, falha.status, erroDaMeta(falha.status));
+  responder(res, falha.status, falha.corpo ?? erroDaMeta(falha.status));
   return true;
 }
 
@@ -79,12 +79,15 @@ const servidor = http.createServer(async (req, res) => {
     if (caminho === "/__controle/chamadas") return responder(res, 200, chamadas);
     if (caminho === "/__controle/reset") {
       templates = INICIAIS();
+      if (corpo?.comVariante) {
+        templates.push({ ...template("tpl-e2e-en", "boas_vindas_e2e", "APPROVED", "Hello."), language: "en_US" });
+      }
       chamadas = [];
       falhas = {};
       return responder(res, 200, { ok: true });
     }
     if (caminho === "/__controle/falhar") {
-      falhas[corpo.operacao] = { status: corpo.status ?? null, atrasoMs: corpo.atrasoMs ?? 0 };
+      falhas[corpo.operacao] = { status: corpo.status ?? null, atrasoMs: corpo.atrasoMs ?? 0, corpo: corpo.corpo };
       return responder(res, 200, { ok: true });
     }
     return responder(res, 404, {});

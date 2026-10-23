@@ -1167,6 +1167,7 @@ export const TextosSchema = z.object({
     confirmacaoExclusao: z.object({
       titulo: z.string(),
       descricao: z.string(),
+      variante: z.string().default("Somente a variante de idioma {idioma}, ID {id}, será solicitada para exclusão."),
       confirmar: z.string(),
       cancelar: z.string(),
     }),
@@ -1181,6 +1182,11 @@ export const TextosSchema = z.object({
         recusadoSemMotivo: z.string(),
         indisponivel: z.string(),
         generico: z.string(),
+        exclusaoCredencial: z.string().default("A Meta recusou a credencial da integração. Peça à gestão que verifique o acesso da conta WhatsApp."),
+        exclusaoPermissao: z.string().default("A Meta não autorizou a exclusão nesta conta WhatsApp. Peça à gestão que verifique as permissões da integração."),
+        exclusaoRecurso: z.string().default("A Meta não disponibilizou este template para exclusão. Atualize a lista e confira o acesso à conta WhatsApp."),
+        exclusaoRecusada: z.string().default("A Meta recusou a exclusão. Confira o estado e as restrições do template na conta WhatsApp."),
+        exclusaoIncerta: z.string().default("A exclusão não foi confirmada. Atualize a lista e confira o estado na Meta antes de tentar novamente."),
       })
       .default({
         semPermissao: "Você não tem permissão para esta ação em templates. Peça acesso à gestão.",
@@ -1190,6 +1196,11 @@ export const TextosSchema = z.object({
         recusadoSemMotivo: "A Meta recusou a operação. Confira o template e tente novamente.",
         indisponivel: "O provedor de templates está indisponível agora. Tente novamente em instantes.",
         generico: "Não foi possível concluir a operação. Verifique a conexão e tente novamente.",
+        exclusaoCredencial: "A Meta recusou a credencial da integração. Peça à gestão que verifique o acesso da conta WhatsApp.",
+        exclusaoPermissao: "A Meta não autorizou a exclusão nesta conta WhatsApp. Peça à gestão que verifique as permissões da integração.",
+        exclusaoRecurso: "A Meta não disponibilizou este template para exclusão. Atualize a lista e confira o acesso à conta WhatsApp.",
+        exclusaoRecusada: "A Meta recusou a exclusão. Confira o estado e as restrições do template na conta WhatsApp.",
+        exclusaoIncerta: "A exclusão não foi confirmada. Atualize a lista e confira o estado na Meta antes de tentar novamente.",
       }),
   }),
   equipe: z.object({

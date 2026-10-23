@@ -11,7 +11,10 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -23,6 +26,9 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -32,12 +38,14 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
+import com.synapse.crm.campanhas.application.TemplatesDoCanal;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("dev")
@@ -52,6 +60,7 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
     private static final List<String> requisicoes = new CopyOnWriteArrayList<>();
     private static final AtomicReference<String> contentTypeGraph = new AtomicReference<>("application/json");
     private static HttpServer provedor;
+    private static final AtomicReference<CountDownLatch> liberarResposta = new AtomicReference<>();
 
     @Autowired
     private TestRestTemplate http;
@@ -61,6 +70,12 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
 
     @Autowired
     private CircuitBreakerRegistry breakers;
+
+    @Autowired
+    private TemplatesDoCanal catalogoCampanhas;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @DynamicPropertySource
     static void provedorLocal(DynamicPropertyRegistry registro) {
@@ -72,6 +87,7 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
         registro.add("synapse.canal.whatsapp.numero-principal", () -> "phone-id-templates");
         registro.add("synapse.canal.whatsapp.token", () -> "token-de-teste");
         registro.add("synapse.canal.whatsapp.conta-negocio", () -> "waba-teste");
+        registro.add("synapse.canal.whatsapp.timeout", () -> "2s");
     }
 
     @BeforeEach
@@ -84,6 +100,7 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
         consultasCampoInvalido.set(0);
         requisicoes.clear();
         contentTypeGraph.set("application/json");
+        liberarResposta.set(null);
     }
 
     @AfterAll
@@ -236,10 +253,10 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("exclusao recusada pela Meta devolve 422 RFC 7807 com o motivo para o usuario")
+    @DisplayName("exclusao recusada preserva diagnostico numerico sem mensagem livre da Meta")
     void exclusaoRecusadaDevolve422() throws Exception {
         statusGraph.set(400);
-        corpoGraph.set("{\"error\":{\"code\":100,\"error_user_msg\":\"Template em uso por outro sistema\"}}");
+        corpoGraph.set("{\"error\":{\"code\":100,\"error_subcode\":2388000,\"fbtrace_id\":\"trace-sintetico_1\",\"error_user_msg\":\"Bearer token-de-teste conteudo-privado\"}}");
 
         ResponseEntity<String> resposta = chamarComo(
                 EMAIL_GESTOR,
@@ -252,7 +269,13 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
         assertThat(resposta.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
         JsonNode problema = json.readTree(resposta.getBody());
         assertThat(problema.path("status").asInt()).isEqualTo(422);
-        assertThat(problema.path("detail").asText()).isEqualTo("Template em uso por outro sistema");
+        assertThat(problema.path("codigo").asText()).isEqualTo("TEMPLATE_EXCLUSAO_RECUSADO");
+        assertThat(problema.path("etapa").asText()).isEqualTo("excluir_template_meta");
+        assertThat(problema.path("httpStatusProvedor").asInt()).isEqualTo(400);
+        assertThat(problema.path("codigoProvedor").asInt()).isEqualTo(100);
+        assertThat(problema.path("subcodigoProvedor").asInt()).isEqualTo(2388000);
+        assertThat(problema.path("correlacaoProvedor").asText()).isEqualTo("trace-sintetico_1");
+        assertThat(resposta.getBody()).doesNotContain("token-de-teste", "conteudo-privado", "error_user_msg");
         assertThat(requisicoes.stream().filter(r -> r.startsWith("DELETE "))).hasSize(1);
     }
 
@@ -272,6 +295,96 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
         assertThat(resposta.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
         assertThat(json.readTree(resposta.getBody()).path("status").asInt()).isEqualTo(503);
+        assertThat(requisicoes.stream().filter(r -> r.startsWith("DELETE "))).hasSize(1);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"success\":false}", "{\"success\":\"true\"}", "[]", "<html>token-de-teste</html>"})
+    void resposta200SemConfirmacaoNaoViraSucesso(String corpo) throws Exception {
+        corpoGraph.set(corpo);
+        ResponseEntity<String> resposta = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.DELETE,
+                "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas", null);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(json.readTree(resposta.getBody()).path("codigo").asText())
+                .isEqualTo("TEMPLATE_EXCLUSAO_RESULTADO_INCERTO");
+        assertThat(resposta.getBody()).doesNotContain("token-de-teste", "<html>");
+        assertThat(requisicoes.stream().filter(r -> r.startsWith("DELETE "))).hasSize(1);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"401,CREDENCIAL_RECUSADA", "403,PERMISSAO_RECUSADA", "404,RECURSO_INDISPONIVEL", "400,RECUSADO"})
+    void recusaDaMetaNaoViraFaltaDePermissaoNoCrm(int status, String motivo) throws Exception {
+        statusGraph.set(status);
+        corpoGraph.set("{\"error\":{\"code\":190,\"message\":\"segredo\",\"fbtrace_id\":\"token-de-teste\"}}");
+        ResponseEntity<String> resposta = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.DELETE,
+                "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas", null);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        JsonNode problema = json.readTree(resposta.getBody());
+        assertThat(problema.path("codigo").asText()).isEqualTo("TEMPLATE_EXCLUSAO_" + motivo);
+        assertThat(problema.path("codigoProvedor").asInt()).isEqualTo(190);
+        assertThat(problema.has("correlacaoProvedor")).isFalse();
+        assertThat(resposta.getBody()).doesNotContain("segredo", "token-de-teste");
+        assertThat(requisicoes.stream().filter(r -> r.startsWith("DELETE "))).hasSize(1);
+    }
+
+    @Test
+    void erroDentroDe200NaoVira204() throws Exception {
+        corpoGraph.set("{\"success\":true,\"error\":{\"code\":100,\"message\":\"nao exibir\"}}");
+        ResponseEntity<String> resposta = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.DELETE,
+                "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas", null);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(json.readTree(resposta.getBody()).path("codigoProvedor").asInt()).isEqualTo(100);
+        assertThat(resposta.getBody()).doesNotContain("nao exibir");
+    }
+
+    @Test
+    void exclusaoConfirmadaInvalidaCacheDeCampanhasSemExcluirReferencias() {
+        UUID campanha = UUID.randomUUID();
+        jdbc.update("INSERT INTO campanha_template (id,nome,template_id,template_nome,template_idioma,template_categoria,template_corpo,limite_diario) VALUES (?,?,'meta-1','boas_vindas','pt_BR','UTILIDADE',?,1)",
+                campanha, "Snapshot sintetico", "Snapshot preservado");
+        try {
+        catalogoCampanhas.descartarCache();
+        assertThat(catalogoCampanhas.listar()).hasSize(1);
+        corpoGraph.set("{\"success\":true}");
+        assertThat(chamarComo(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.DELETE,
+                "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas", null).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        corpoGraph.set("{\"data\":[]}");
+        assertThat(catalogoCampanhas.listar()).isEmpty();
+        assertThat(requisicoes.stream().filter(r -> r.startsWith("GET /waba-teste/message_templates"))).hasSize(2);
+        assertThat(jdbc.queryForObject("SELECT template_corpo FROM campanha_template WHERE id=?", String.class, campanha))
+                .isEqualTo("Snapshot preservado");
+        } finally {
+            jdbc.update("DELETE FROM campanha_template WHERE id=?", campanha);
+        }
+    }
+
+    @Test
+    void timeoutDoClienteHttpRetornaResultadoIncertoSemRepetir() throws Exception {
+        CountDownLatch liberar = new CountDownLatch(1);
+        liberarResposta.set(liberar);
+        try {
+            ResponseEntity<String> resposta = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.DELETE,
+                    "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas", null);
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+            assertThat(json.readTree(resposta.getBody()).path("codigo").asText()).isEqualTo("TEMPLATE_EXCLUSAO_RESULTADO_INCERTO");
+            assertThat(requisicoes.stream().filter(r -> r.startsWith("DELETE "))).hasSize(1);
+        } finally {
+            liberar.countDown();
+            liberarResposta.set(null);
+        }
+    }
+
+    @Test
+    void recusaNaoDescartaCatalogoAnteriorDeCampanhas() {
+        catalogoCampanhas.descartarCache();
+        assertThat(catalogoCampanhas.listar()).hasSize(1);
+        statusGraph.set(400);
+        corpoGraph.set("{\"error\":{\"code\":100}}");
+        assertThat(chamarComo(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.DELETE,
+                "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas", null).getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(catalogoCampanhas.listar()).hasSize(1);
+        assertThat(requisicoes.stream().filter(r -> r.startsWith("GET /waba-teste/message_templates"))).hasSize(1);
     }
 
     @Test
@@ -309,6 +422,14 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
                 requisicoes.add(troca.getRequestMethod() + " " + caminho + (query == null ? "" : "?" + query));
                 if (caminho.contains("whatsapp_business_account")) {
                     consultasCampoInvalido.incrementAndGet();
+                }
+                CountDownLatch liberar = liberarResposta.get();
+                if (liberar != null) {
+                    try {
+                        liberar.await(10, TimeUnit.SECONDS);
+                    } catch (InterruptedException interrompido) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
                 byte[] corpo = corpoGraph.get().getBytes(StandardCharsets.UTF_8);
                 int status = statusGraph.get();

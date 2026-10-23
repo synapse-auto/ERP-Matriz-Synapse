@@ -17,6 +17,15 @@ const TAMANHO_MAXIMO_DO_MOTIVO = 200;
 export function mensagemDeErroDeTemplate(erro: unknown, textos: TextosDeErro): string {
   if (!(erro instanceof ErroDeApi)) return textos.generico;
   if (erro.status === 403) return textos.semPermissao;
+  // Codigos da exclusao sao do CRM. Nunca mostrar mensagens livres do provedor.
+  switch (erro.problema?.codigo) {
+    case "TEMPLATE_EXCLUSAO_CREDENCIAL_RECUSADA": return textos.exclusaoCredencial;
+    case "TEMPLATE_EXCLUSAO_PERMISSAO_RECUSADA": return textos.exclusaoPermissao;
+    case "TEMPLATE_EXCLUSAO_RECURSO_INDISPONIVEL": return textos.exclusaoRecurso;
+    case "TEMPLATE_EXCLUSAO_RECUSADO": return textos.exclusaoRecusada;
+    case "TEMPLATE_EXCLUSAO_RESULTADO_INCERTO": return textos.exclusaoIncerta;
+    case "TEMPLATE_EXCLUSAO_PROVEDOR_INDISPONIVEL": return textos.indisponivel;
+  }
   if (erro.status === 404) return textos.naoEncontrado;
   if (erro.status >= 500) return textos.indisponivel;
   const motivo = motivoSeguro(erro.problema?.detail);

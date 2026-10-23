@@ -125,6 +125,9 @@ export function DialogoConfirmacaoExclusaoTemplate({
         <p className="text-sm text-muted-foreground">
           {interpolarCatalogo(textos.confirmacaoExclusao.descricao, { nome: template.nome })}
         </p>
+        <p className="break-words text-sm">
+          {interpolarCatalogo(textos.confirmacaoExclusao.variante, { id: template.id, idioma: template.idioma })}
+        </p>
         {erro && (
           <p role="alert" className="text-sm text-destructive">
             {erro}

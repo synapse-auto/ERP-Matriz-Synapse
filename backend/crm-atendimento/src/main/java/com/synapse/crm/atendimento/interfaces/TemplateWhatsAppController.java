@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,6 +32,7 @@ import com.synapse.crm.atendimento.application.template.CanalRecusouTemplateExce
 import com.synapse.crm.atendimento.application.template.CriarTemplateWhatsAppUseCase;
 import com.synapse.crm.atendimento.application.template.EditarTemplateWhatsAppUseCase;
 import com.synapse.crm.atendimento.application.template.ExcluirTemplateWhatsAppUseCase;
+import com.synapse.crm.atendimento.application.template.FalhaNaExclusaoDeTemplateException;
 import com.synapse.crm.atendimento.application.template.ListarTemplatesWhatsAppUseCase;
 import com.synapse.crm.atendimento.application.template.PedidoDeTemplateInvalidoException;
 import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
@@ -42,6 +45,8 @@ import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
         description = "Cadastro e listagem de templates de mensagem no provedor da instancia.")
 @SecurityRequirement(name = "bearerAuth")
 class TemplateWhatsAppController {
+
+    private static final Logger log = LoggerFactory.getLogger(TemplateWhatsAppController.class);
 
     private final ListarTemplatesWhatsAppUseCase listar;
     private final CriarTemplateWhatsAppUseCase criar;
@@ -106,12 +111,12 @@ class TemplateWhatsAppController {
 
     @Operation(
             summary = "Excluir template do WhatsApp",
-            description = "Exclui uma variante do template na conta WhatsApp da instancia. O nome identifica a familia e o ID a lingua.",
+            description = "Solicita a exclusao pelo ID e nome na WABA configurada. So confirma com success=true. Falhas incluem codigo TEMPLATE_EXCLUSAO_*, etapa e diagnostico numerico sanitizado. Nao repete DELETE automaticamente.",
             responses = {
-                @ApiResponse(responseCode = "204", description = "Template excluido."),
+                @ApiResponse(responseCode = "204", description = "Exclusao confirmada pelo provedor."),
                 @ApiResponse(responseCode = "400", description = "Pedido invalido."),
                 @ApiResponse(responseCode = "422", description = "Provedor recusou o pedido."),
-                @ApiResponse(responseCode = "503", description = "Provedor indisponivel.")
+                @ApiResponse(responseCode = "503", description = "Provedor indisponivel ou resultado de exclusao incerto; conferir estado antes de repetir.")
             })
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -134,6 +139,27 @@ class TemplateWhatsAppController {
         ProblemDetail problema =
                 ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, erro.getMessage());
         problema.setTitle("Provedor recusou o template");
+        return problema;
+    }
+
+    @ExceptionHandler(FalhaNaExclusaoDeTemplateException.class)
+    ProblemDetail exclusaoNaoConfirmada(FalhaNaExclusaoDeTemplateException erro) {
+        HttpStatus status = switch (erro.motivo()) {
+            case RESULTADO_INCERTO, PROVEDOR_INDISPONIVEL -> HttpStatus.SERVICE_UNAVAILABLE;
+            default -> HttpStatus.UNPROCESSABLE_ENTITY;
+        };
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(status,
+                "A exclusão não foi confirmada. Confira o diagnóstico técnico antes de repetir a operação.");
+        problema.setTitle("Exclusão de template não confirmada");
+        problema.setProperty("codigo", "TEMPLATE_EXCLUSAO_" + erro.motivo().name());
+        problema.setProperty("etapa", "excluir_template_meta");
+        var diagnostico = erro.diagnostico();
+        if (diagnostico.httpStatus() != null) problema.setProperty("httpStatusProvedor", diagnostico.httpStatus());
+        if (diagnostico.codigo() != null) problema.setProperty("codigoProvedor", diagnostico.codigo());
+        if (diagnostico.subcodigo() != null) problema.setProperty("subcodigoProvedor", diagnostico.subcodigo());
+        if (diagnostico.correlacao() != null) problema.setProperty("correlacaoProvedor", diagnostico.correlacao());
+        log.warn("Exclusao de template nao confirmada: etapa=excluir_template_meta motivo={} httpStatus={} codigo={} subcodigo={} correlacao={}",
+                erro.motivo(), diagnostico.httpStatus(), diagnostico.codigo(), diagnostico.subcodigo(), diagnostico.correlacao());
         return problema;
     }
 

@@ -31,6 +31,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         erroEdicao: "Erro ao editar",
       },
       confirmacaoExclusao: {
+        variante: "Somente idioma {idioma}, ID {id}.",
         titulo: "Excluir template?",
         descricao: "A exclusão de {nome} afeta a conta compartilhada.",
         confirmar: "Excluir na Meta",

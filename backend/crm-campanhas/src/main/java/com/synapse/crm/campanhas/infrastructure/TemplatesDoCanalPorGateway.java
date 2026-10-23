@@ -9,9 +9,12 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
+import com.synapse.crm.atendimento.domain.canal.TemplateExcluido;
 import com.synapse.crm.campanhas.application.TemplatesDoCanal;
 
 /**
@@ -63,6 +66,13 @@ class TemplatesDoCanalPorGateway implements TemplatesDoCanal {
     @Override
     public void descartarCache() {
         cache = null;
+    }
+
+    // A exclusao e HTTP, sem transacao local; se houver uma transacao no chamador, espera o commit.
+    // Nao publica fila nem altera campanhas ou seus snapshots.
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void aoExcluirTemplate(TemplateExcluido evento) {
+        descartarCache();
     }
 
     @Override

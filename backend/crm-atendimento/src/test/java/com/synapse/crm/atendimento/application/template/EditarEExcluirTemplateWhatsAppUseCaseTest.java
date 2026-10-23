@@ -7,9 +7,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate;
+import com.synapse.crm.atendimento.domain.canal.TemplateExcluido;
 
 class EditarEExcluirTemplateWhatsAppUseCaseTest {
 
@@ -31,11 +33,13 @@ class EditarEExcluirTemplateWhatsAppUseCaseTest {
         CanalGateway canal = mock(CanalGateway.class);
         when(canal.excluirTemplate("meta-1", "boas_vindas"))
                 .thenReturn(new ResultadoDeTemplate.Aceito(null));
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
 
-        new ExcluirTemplateWhatsAppUseCase(canal).executar("meta-1", "boas_vindas");
+        new ExcluirTemplateWhatsAppUseCase(canal, eventos).executar("meta-1", "boas_vindas");
         verify(canal).excluirTemplate("meta-1", "boas_vindas");
+        verify(eventos).publishEvent(new TemplateExcluido("meta-1"));
 
-        assertThatThrownBy(() -> new ExcluirTemplateWhatsAppUseCase(canal)
+        assertThatThrownBy(() -> new ExcluirTemplateWhatsAppUseCase(canal, eventos)
                         .executar("meta-1", ""))
                 .isInstanceOf(PedidoDeTemplateInvalidoException.class);
     }

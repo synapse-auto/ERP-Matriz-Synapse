@@ -34,8 +34,8 @@ async function chamadas(request: APIRequestContext, metodo?: string): Promise<Ch
   return todas.filter((c) => c.caminho !== "/phone-e2e" && (!metodo || c.metodo === metodo));
 }
 
-async function falhar(request: APIRequestContext, operacao: string, status: number | null, atrasoMs = 0) {
-  await request.post(`${STUB}/__controle/falhar`, { data: { operacao, status, atrasoMs } });
+async function falhar(request: APIRequestContext, operacao: string, status: number | null, atrasoMs = 0, corpo?: unknown) {
+  await request.post(`${STUB}/__controle/falhar`, { data: { operacao, status, atrasoMs, corpo } });
 }
 
 async function entrar(page: Page, { email, senha }: { email: string; senha: string }) {
@@ -43,7 +43,8 @@ async function entrar(page: Page, { email, senha }: { email: string; senha: stri
   await page.getByLabel(/e-?mail/i).fill(email);
   await page.locator('input[type="password"]').fill(senha);
   await page.getByRole("button", { name: /entrar/i }).click();
-  await expect(page).toHaveURL(/\/atendimentos/);
+  // O login atual escolhe a pagina inicial por capacidade; nao pressupoe Atendimentos.
+  await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
 }
 
 async function tokenDe(request: APIRequestContext, { email, senha }: { email: string; senha: string }) {
@@ -66,6 +67,7 @@ async function abrirModalDoAtendimento(page: Page, request: APIRequestContext): 
   });
   expect(contato.ok()).toBeTruthy();
   await entrar(page, GESTOR);
+  await page.goto("/atendimentos");
   await page.getByText(CONTATO.nome).first().click();
   await page.getByRole("button", { name: "Nova mensagem" }).click();
   const modal = page.getByRole("dialog", { name: "Enviar template" });
@@ -80,6 +82,44 @@ function confirmacao(page: Page) {
 // --- Exclusão: página ----------------------------------------------------------------------------
 
 test.describe("página Templates WhatsApp — exclusão", () => {
+  test("selecionar idioma não exclui outra variante de mesmo nome", async ({ page, request }) => {
+    await request.post(`${STUB}/__controle/reset`, { data: { comVariante: true } });
+    await abrirPagina(page);
+    const variante = page.getByRole("listitem").filter({ hasText: "en_US" });
+    await variante.getByRole("button", { name: "Excluir: boas_vindas_e2e" }).click();
+    await expect(confirmacao(page)).toContainText("idioma en_US, ID tpl-e2e-en");
+    await confirmacao(page).getByRole("button", { name: "Excluir na Meta" }).click();
+    await expect(confirmacao(page)).toBeHidden();
+    await expect(page.getByRole("listitem").filter({ hasText: "en_US" })).toHaveCount(0);
+    await expect(page.getByRole("listitem").filter({ hasText: "boas_vindas_e2e" })).toContainText("pt_BR");
+    expect((await chamadas(request, "DELETE"))[0].query).toEqual({ hsm_id: "tpl-e2e-en", name: "boas_vindas_e2e" });
+  });
+
+  for (const largura of [1920, 390]) {
+    test(`confirmação acessível e resultado incerto em ${largura}px`, async ({ page, request }) => {
+      await page.setViewportSize({ width: largura, height: 900 });
+      await falhar(request, "excluir", 200, 0, { success: false });
+      await abrirPagina(page);
+      await page.getByRole("button", { name: "Excluir: retorno_orcamento_e2e" }).click();
+      await expect(confirmacao(page)).toContainText("idioma pt_BR, ID tpl-e2e-2");
+      await page.evaluate(() => document.fonts.ready);
+      const fonte = await confirmacao(page).evaluate(el => getComputedStyle(el).fontFamily);
+      expect(fonte).not.toMatch(/Times New Roman/);
+      const caixa = await confirmacao(page).boundingBox();
+      expect(caixa).not.toBeNull();
+      expect(caixa!.x).toBeGreaterThanOrEqual(0);
+      expect(caixa!.x + caixa!.width).toBeLessThanOrEqual(largura);
+      await page.screenshot({ path: `../output/playwright/meta-confirmacao-${largura}.png` });
+      await confirmacao(page).getByRole("button", { name: "Excluir na Meta" }).focus();
+      await page.keyboard.press("Enter");
+      await expect(confirmacao(page).getByRole("alert")).toHaveText(/não foi confirmada.*antes de tentar novamente/i);
+      await expect(confirmacao(page).getByRole("button", { name: "Excluir na Meta" })).toBeEnabled();
+      expect(await chamadas(request, "DELETE")).toHaveLength(1);
+      await page.screenshot({ path: `../output/playwright/meta-resultado-incerto-${largura}.png` });
+      await confirmacao(page).getByRole("button", { name: "Cancelar" }).click();
+      await expect(page.getByText("retorno_orcamento_e2e", { exact: true })).toBeVisible();
+    });
+  }
   test("confirmar envia exatamente um DELETE para o template escolhido e o remove da lista", async ({ page, request }) => {
     await abrirPagina(page);
     await page.getByRole("button", { name: "Excluir: retorno_orcamento_e2e" }).click();
