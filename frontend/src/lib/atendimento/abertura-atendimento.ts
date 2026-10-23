@@ -34,7 +34,7 @@ export function mensagemDaFalhaDeAbertura(
 
 export type DiagnosticoDeAbertura = {
   origem: "agenda" | "lista" | "rota";
-  etapa: "solicitada" | "confirmada" | "cartao_resolvido" | "falhou" | "evento_websocket";
+  etapa: "solicitada" | "confirmada" | "cartao_resolvido" | "falhou" | "evento_websocket" | "selecao_encerrada";
   leadId?: string | null;
   atendimentoId?: string | null;
   usuarioId?: string | null;
@@ -44,6 +44,7 @@ export type DiagnosticoDeAbertura = {
   cartaoNaLista?: boolean;
   cartaoSelecionadoId?: string | null;
   httpStatus?: number;
+  cicloConexao?: number;
   evento?: string;
 };
 

@@ -870,6 +870,9 @@ export const TextosSchema = z.object({
       mensagensRapidas: z.string(),
     }),
     tempoReal: z.object({
+      sincronizacaoFalhou: z.string().default("Não foi possível atualizar a conversa. Tente novamente."),
+      sincronizacaoCarregando: z.string().default("Carregando conversa…"),
+      sincronizacaoTentarNovamente: z.string().default("Tentar novamente"),
       reconectando: z.string(),
       conversaEncerrada: z.string(),
       transferenciaRecebida: z.string(),

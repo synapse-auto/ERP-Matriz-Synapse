@@ -397,6 +397,7 @@ export class ConexaoTempoReal {
       this.configuracaoDeBackoff = configuracaoDeBackoffDoServidor(frame?.headers);
       this.tentativas = 0;
       cliente.subscribe(DESTINO_REVOGACOES, (mensagem) => {
+        if (this.cliente !== cliente) return;
         const revogacao = JSON.parse(mensagem.body) as RevogacaoTempoReal;
         if (revogacao.atendimentoId === this.atendimentoAberto) {
           this.fecharConversa();
@@ -407,6 +408,7 @@ export class ConexaoTempoReal {
         }
       });
       this.assinaturaNotificacoes = cliente.subscribe(DESTINO_NOTIFICACOES, (mensagem) => {
+        if (this.cliente !== cliente) return;
         const notificacao = JSON.parse(mensagem.body) as NotificacaoTempoReal;
         if (
           notificacao.tipo === "NOVA_MENSAGEM" ||

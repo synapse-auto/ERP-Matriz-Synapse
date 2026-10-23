@@ -799,6 +799,9 @@
       "mensagensRapidas": "Mensagens rápidas"
     },
     "tempoReal": {
+      "sincronizacaoFalhou": "Não foi possível atualizar a conversa. Tente novamente.",
+      "sincronizacaoCarregando": "Carregando conversa…",
+      "sincronizacaoTentarNovamente": "Tentar novamente",
       "reconectando": "Reconectando...",
       "conversaEncerrada": "Esta conversa não está mais disponível para você.",
       "transferenciaRecebida": "Novo atendimento recebido",

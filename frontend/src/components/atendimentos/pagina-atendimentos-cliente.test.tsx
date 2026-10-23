@@ -502,6 +502,9 @@ vi.mock("@/lib/config/textos-provider", () => ({
         sucessoPara: "Atendimento transferido para {nome}.",
       },
       tempoReal: {
+        sincronizacaoFalhou: "Não foi possível atualizar a conversa. Tente novamente.",
+        sincronizacaoCarregando: "Carregando conversa…",
+        sincronizacaoTentarNovamente: "Tentar novamente",
         transferenciaRecebida: "Transferência recebida",
         transferenciaRecebidaDescricao: "{nome}",
         abrirTransferencia: "Abrir transferência",
@@ -535,6 +538,99 @@ function emitirNotificacao(notificacao: NotificacaoTempoReal) {
 }
 
 describe("PaginaAtendimentosCliente", () => {
+  it("uma resposta 404 atrasada de A não fecha B nem apresenta revogação de B", async () => {
+    renderPagina();
+    act(() => callbacks.abrir?.(cartaoInicial));
+    await screen.findByTestId("responsavel-cabecalho");
+    await waitFor(() => expect(callbacks.tempoRealDasMensagens?.incrementaisLiberados).toBe(true));
+    let rejeitarA!: (erro: unknown) => void;
+    obterCartao.mockImplementationOnce(() => new Promise((_, reject) => { rejeitarA = reject; }));
+    act(() => emitirNotificacao(eventoCanonico("atendimento-1", 2)));
+    await waitFor(() => expect(rejeitarA).toBeDefined());
+
+    act(() => callbacks.abrir?.({ ...cartaoInicial, atendimentoId: "atendimento-B", leadId: "lead-B", leadNome: "Conversa B" }));
+    await waitFor(() => expect(callbacks.mensagens?.historico).toBe("atendimento-B"));
+    await act(async () => { rejeitarA(new ErroDeApi(404, null, "indisponível")); });
+
+    expect(callbacks.mensagens?.historico).toBe("atendimento-B");
+    expect(screen.getByTestId("historico")).toBeInTheDocument();
+    expect(screen.queryByText("Conversa encerrada")).not.toBeInTheDocument();
+  });
+
+  it("marcar leitura não cancela o snapshot em voo nem apaga o histórico já reconciliado", async () => {
+    const { queryClient } = renderPagina();
+    // Isola o cancelamento otimista da leitura da recarga legítima após o POST terminar.
+    leitura.pendente = true;
+    // GET iniciado sem dados. Outro caminho REST preenche o snapshot antes de esse GET terminar.
+    // O rollback de cancelQueries voltava ao estado vazio original e desmontava a conversa.
+    const chave = ["atendimentos", "estado", "atendimento-1"];
+    let resolver!: (valor: ReturnType<typeof snapshotDe>) => void;
+    const emVoo = queryClient.fetchQuery({ queryKey: chave, staleTime: 0,
+      queryFn: () => new Promise<ReturnType<typeof snapshotDe>>(resolve => { resolver = resolve; }),
+    }).catch(() => undefined);
+    await waitFor(() => expect(resolver).toBeDefined());
+    const cancelar = vi.spyOn(queryClient, "cancelQueries");
+    act(() => callbacks.abrir?.(cartaoInicial));
+    await waitFor(() => expect(cancelar).toHaveBeenCalled());
+
+    expect(queryClient.getQueryState(chave)?.fetchStatus).toBe("fetching");
+    expect(await screen.findByTestId("historico")).toBeInTheDocument();
+    await act(async () => { resolver(snapshotDe(cartaoInicial)); await emVoo; });
+    await act(async () => { leitura.resolver?.(); });
+  });
+
+  it.each([403, 404])("revogação comprovada por HTTP %i remove seleção e cache protegido", async (status) => {
+    const { queryClient } = renderPagina();
+    act(() => callbacks.abrir?.(cartaoInicial));
+    await screen.findByTestId("historico");
+    await waitFor(() => expect(callbacks.tempoRealDasMensagens?.incrementaisLiberados).toBe(true));
+    queryClient.setQueryData(["mensagens", "atendimento-1"], { pages: [{ mensagens: [] }] });
+    queryClient.setQueryData(["lead", "lead-1"], { id: "lead-1" });
+    obterCartao.mockRejectedValue(new ErroDeApi(status, null, "indisponível"));
+    act(() => emitirNotificacao(eventoCanonico("atendimento-1", 2)));
+    await screen.findByText("Conversa encerrada");
+    expect(screen.queryByTestId("historico")).not.toBeInTheDocument();
+    expect(queryClient.getQueryData(["mensagens", "atendimento-1"])).toBeUndefined();
+    expect(queryClient.getQueryData(["lead", "lead-1"])).toBeUndefined();
+    expect(queryClient.getQueryData(["atendimentos", "estado", "atendimento-1"])).toBeUndefined();
+  });
+
+  it.each([500, 503, 408])("HTTP %i durante atualização preserva o histórico e oferece recuperação explícita", async (status) => {
+    renderPagina();
+    act(() => callbacks.abrir?.(cartaoInicial));
+    const historico = await screen.findByTestId("historico");
+    await waitFor(() => expect(callbacks.tempoRealDasMensagens?.incrementaisLiberados).toBe(true));
+    obterCartao.mockRejectedValue(new ErroDeApi(status, null, "indisponível"));
+    act(() => emitirNotificacao(eventoCanonico("atendimento-1", 2)));
+    await screen.findByRole("button", { name: "Tentar novamente" });
+    expect(screen.getByTestId("historico")).toBe(historico);
+    expect(screen.queryByText("Nenhuma conversa")).not.toBeInTheDocument();
+    await act(async () => emitirNotificacao(eventoCanonico("atendimento-1", 2)));
+    expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeInTheDocument();
+    backendEstado.versao = 2;
+    obterCartao.mockResolvedValue(cartaoInicial);
+    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Tentar novamente" })).not.toBeInTheDocument());
+    expect(callbacks.tempoRealDasMensagens?.incrementaisLiberados).toBe(true);
+    expect(screen.getByTestId("historico")).toBe(historico);
+  });
+
+  it("revalidação de envio iniciada em A não autoriza envio depois da troca para B", async () => {
+    renderPagina();
+    act(() => callbacks.abrir?.(cartaoInicial));
+    await screen.findByTestId("historico");
+    await waitFor(() => expect(callbacks.tempoRealDasMensagens?.incrementaisLiberados).toBe(true));
+    let resolverA!: (cartao: CartaoAtendimento) => void;
+    obterCartao.mockImplementationOnce(() => new Promise(resolve => { resolverA = resolve; }));
+    fireEvent.click(screen.getByRole("button", { name: "Revalidar envio" }));
+    await waitFor(() => expect(resolverA).toBeDefined());
+    act(() => callbacks.abrir?.({ ...cartaoInicial, atendimentoId: "atendimento-B", leadId: "lead-B" }));
+    await waitFor(() => expect(callbacks.mensagens?.historico).toBe("atendimento-B"));
+    await act(async () => { resolverA(cartaoInicial); });
+    await waitFor(() => expect(revalidacoes).toEqual([false]));
+    expect(callbacks.mensagens?.historico).toBe("atendimento-B");
+  });
+
   it("evento de mídia invalida só os anexos do lead, sem invalidar por texto", async () => {
     const {queryClient} = renderPagina("atendimento-1");
     const invalidar = vi.spyOn(queryClient, "invalidateQueries");

@@ -75,6 +75,20 @@ describe("ReconciliadorEstadoAtendimento", () => {
     obterEstado.mockReset();
   });
 
+  it("resposta em voo não recoloca dados no cache depois de revogação", async () => {
+    let resolver!: (valor: EstadoAtendimentoSelecionado) => void;
+    obterEstado.mockImplementationOnce(() => new Promise(resolve => { resolver = resolve; }));
+    const antiga = reconciliador.sincronizar(cartao.atendimentoId);
+    const rejeicao = expect(antiga).rejects.toThrow("descartada");
+    reconciliador.descartar(cartao.atendimentoId);
+    resolver(snapshot(2));
+    await rejeicao;
+    expect(reconciliador.ultimoSnapshot(cartao.atendimentoId)).toBeNull();
+    obterEstado.mockResolvedValue(snapshot(3));
+    await reconciliador.sincronizar(cartao.atendimentoId);
+    expect(reconciliador.ultimoSnapshot(cartao.atendimentoId)?.versao).toBe(3);
+  });
+
   it("processa cada eventId uma única vez", async () => {
     obterEstado.mockResolvedValue(snapshot(2));
 

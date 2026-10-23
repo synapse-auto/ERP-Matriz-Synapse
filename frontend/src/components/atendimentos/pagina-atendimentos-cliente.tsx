@@ -125,6 +125,12 @@ export function PaginaAtendimentosCliente({
   const [filtroOperacional, setFiltroOperacional] = useState<FiltroOperacional | null>(null);
   const [nomeFiltroOperacional, setNomeFiltroOperacional] = useState<string>();
   const [atendimentoSelecionadoId, setAtendimentoSelecionadoId] = useState<string | null>(null);
+  // Uma resposta iniciada em A não pode fechar B (nem uma nova abertura de A).
+  const selecaoAtualRef = useRef({ id: atendimentoSelecionadoId });
+  useLayoutEffect(() => {
+    selecaoAtualRef.current = { id: atendimentoSelecionadoId };
+  }, [atendimentoSelecionadoId]);
+  const [falhaDeSincronizacao, setFalhaDeSincronizacao] = useState<string | null>(null);
   const [atendimentoParaAbrirId, setAtendimentoParaAbrirId] = useState(atendimentoInicialId);
   const [erroDeAbertura, setErroDeAbertura] = useState<string | null>(null);
   const [atendimentos, setAtendimentos] = useState<ItemInbox[]>([]);
@@ -228,7 +234,12 @@ export function PaginaAtendimentosCliente({
       // Cancela um GET amplo que possa ter começado antes do clique; seu retorno também pode ser
       // anterior à leitura e sobrescrever o zero otimista.
       if (leituraPessoal) {
-        void cache.cancelQueries({ queryKey: ["atendimentos"] });
+        // Só a lista pode devolver um contador anterior. Cancelar /estado também revertia
+        // snapshots reconciliados por outro GET e podia desmontar a conversa/player.
+        void cache.cancelQueries({
+          queryKey: ["atendimentos"],
+          predicate: (query) => query.queryKey[1] !== "estado" && query.queryKey[1] !== "cartao",
+        });
         zerarNaoLidasDoLead(cache, leadId);
         emVoo.zerou = true;
       }
@@ -472,7 +483,11 @@ export function PaginaAtendimentosCliente({
 
   const estadoSelecionadoQuery = useQuery({
     queryKey: ["atendimentos", "estado", atendimentoSelecionadoId],
-    queryFn: () => obterEstadoAtendimento(atendimentoSelecionadoId as string),
+    queryFn: async () => {
+      const snapshot = await obterEstadoAtendimento(atendimentoSelecionadoId as string);
+      const atual = reconciliador.ultimoSnapshot(snapshot.cartao.atendimentoId);
+      return atual && atual.versao > snapshot.versao ? atual : snapshot;
+    },
     enabled: atendimentoSelecionadoId != null,
     retry: false,
   });
@@ -485,9 +500,13 @@ export function PaginaAtendimentosCliente({
 
   const textoTransferido = textos.transferir.sucesso;
   const textoTransferidoPara = textos.transferir.sucessoPara;
+  const cicloAtualRef = useRef(0);
   const indisponibilizarAtendimento = useCallback(
-    (atendimentoId: string) => {
-      if (atendimentoSelecionadoId !== atendimentoId) return;
+    (atendimentoId: string, httpStatus?: number, evento = "SNAPSHOT_INDISPONIVEL") => {
+      if (selecaoAtualRef.current.id !== atendimentoId) return;
+      registrarDiagnosticoDeAbertura({ origem: "rota", etapa: "selecao_encerrada",
+        atendimentoId, cartaoSelecionadoId: atendimentoId, evento, httpStatus,
+        usuarioId: useAuthStore.getState().usuarioId, cicloConexao: cicloAtualRef.current });
       const propria = cache.getQueryData<TransferenciaPropria>(chaveDaTransferenciaPropria(atendimentoId));
       if (propria) {
         cache.removeQueries({ queryKey: chaveDaTransferenciaPropria(atendimentoId), exact: true });
@@ -499,15 +518,26 @@ export function PaginaAtendimentosCliente({
       }
       setSincronizacaoLiberada(null);
       setAtendimentoSelecionadoId(null);
+      const snapshot = reconciliador.ultimoSnapshot(atendimentoId);
+      reconciliador.descartar(atendimentoId);
+      const dadosProtegidos = {
+        predicate: (query: { queryKey: readonly unknown[] }) => {
+          const [raiz, recurso, id] = query.queryKey;
+          return (raiz === "atendimentos" && recurso === "estado" && id === atendimentoId)
+            || (["mensagens", "informacoes-chatbot", "resumo-ia"].includes(String(raiz)) && recurso === atendimentoId)
+            || (snapshot != null && raiz === "lead" && recurso === snapshot.cartao.leadId)
+            || (snapshot != null && raiz === "midia-url-assinada" && recurso === snapshot.cartao.leadId);
+        },
+      };
+      void cache.cancelQueries(dadosProtegidos);
+      cache.removeQueries(dadosProtegidos);
     },
-    [atendimentoSelecionadoId, cache, textoTransferido, textoTransferidoPara],
+    [cache, reconciliador, textoTransferido, textoTransferidoPara],
   );
-
-  const cicloAtualRef = useRef(0);
 
   const processarEventoCanonico = useCallback(
     (evento: EventoCanonicoAtendimentoTempoReal) => {
-      const selecionado = evento.dados.atendimentoId === atendimentoSelecionadoId;
+      const selecionado = evento.dados.atendimentoId === selecaoAtualRef.current.id;
       if (!selecionado) {
         reconciliador.registrarSemSnapshot(evento);
         return;
@@ -518,11 +548,14 @@ export function PaginaAtendimentosCliente({
       // via a liberação já nula, religava com ciclo -1 e toda mensagem seguinte era descartada
       // até recarregar a página.
       const cicloDoEvento = cicloAtualRef.current;
+      const selecaoDoEvento = selecaoAtualRef.current;
       if (reconciliador.deveReconciliar(evento)) setSincronizacaoLiberada(null);
       invalidarParticipacao(evento.dados.atendimentoId);
       void reconciliador.receber(evento)
         .then((snapshot) => {
-          if (snapshot?.cartao.atendimentoId === atendimentoSelecionadoId) {
+          if (!snapshot || selecaoAtualRef.current !== selecaoDoEvento) return;
+          setFalhaDeSincronizacao(null);
+          if (snapshot?.cartao.atendimentoId === selecaoDoEvento.id) {
             setSincronizacaoLiberada({
               atendimentoId: snapshot.cartao.atendimentoId,
               ciclo: cicloDoEvento,
@@ -530,12 +563,15 @@ export function PaginaAtendimentosCliente({
           }
         })
         .catch((erro) => {
-          if (statusHttpDoErro(erro) === 404) {
-            indisponibilizarAtendimento(evento.dados.atendimentoId);
+          if (selecaoAtualRef.current !== selecaoDoEvento) return;
+          if ([403, 404].includes(statusHttpDoErro(erro) ?? 0)) {
+            indisponibilizarAtendimento(evento.dados.atendimentoId, statusHttpDoErro(erro));
+          } else {
+            setFalhaDeSincronizacao(evento.dados.atendimentoId);
           }
         });
     },
-    [atendimentoSelecionadoId, indisponibilizarAtendimento, reconciliador],
+    [indisponibilizarAtendimento, reconciliador],
   );
 
   const { conexao, estado, ciclo } = useConexaoTempoReal(
@@ -551,7 +587,7 @@ export function PaginaAtendimentosCliente({
         cartaoSelecionadoId: atendimentoSelecionadoId,
         evento: "REVOGACAO",
       });
-      indisponibilizarAtendimento(atendimentoRevogado);
+      indisponibilizarAtendimento(atendimentoRevogado, undefined, "REVOGACAO_WEBSOCKET");
       // Proteção de visibilidade nunca espera a janela de coalescência (E209).
       atualizarPainelDeAtendimentos(cache, { atendimentoId: atendimentoRevogado, urgente: true });
     },
@@ -643,6 +679,7 @@ export function PaginaAtendimentosCliente({
     void reconciliador.sincronizar(atendimentoSelecionadoId)
       .then((snapshot) => {
         if (!cancelado && snapshot.cartao.atendimentoId === atendimentoSelecionadoId) {
+          setFalhaDeSincronizacao(null);
           setSincronizacaoLiberada({
             atendimentoId: snapshot.cartao.atendimentoId,
             ciclo: cicloDaSincronizacao,
@@ -650,8 +687,12 @@ export function PaginaAtendimentosCliente({
         }
       })
       .catch((erro) => {
-        if (!cancelado && statusHttpDoErro(erro) === 404) {
-          indisponibilizarAtendimento(atendimentoSelecionadoId);
+        if (!cancelado) {
+          if ([403, 404].includes(statusHttpDoErro(erro) ?? 0)) {
+            indisponibilizarAtendimento(atendimentoSelecionadoId, statusHttpDoErro(erro));
+          } else {
+            setFalhaDeSincronizacao(atendimentoSelecionadoId);
+          }
         }
       });
     return () => {
@@ -662,10 +703,10 @@ export function PaginaAtendimentosCliente({
   useEffect(() => {
     if (!atendimentoSelecionadoId
       || !estadoSelecionadoQuery.isError
-      || statusHttpDoErro(estadoSelecionadoQuery.error) !== 404) return;
+      || ![403, 404].includes(statusHttpDoErro(estadoSelecionadoQuery.error) ?? 0)) return;
     let cancelado = false;
     queueMicrotask(() => {
-      if (!cancelado) indisponibilizarAtendimento(atendimentoSelecionadoId);
+      if (!cancelado) indisponibilizarAtendimento(atendimentoSelecionadoId, statusHttpDoErro(estadoSelecionadoQuery.error));
     });
     return () => {
       cancelado = true;
@@ -778,10 +819,13 @@ export function PaginaAtendimentosCliente({
     }
   }, [visaoAtendimento]);
   const aposAtendimentoFinalizado = useCallback((resumo: { id: string }) => {
+    const selecaoDaFinalizacao = selecaoAtualRef.current;
     setSincronizacaoLiberada(null);
     void reconciliador.sincronizar(resumo.id)
       .catch((erro) => {
-        if (statusHttpDoErro(erro) === 404) indisponibilizarAtendimento(resumo.id);
+        if (selecaoAtualRef.current !== selecaoDaFinalizacao) return;
+        if ([403, 404].includes(statusHttpDoErro(erro) ?? 0)) indisponibilizarAtendimento(resumo.id, statusHttpDoErro(erro));
+        else setFalhaDeSincronizacao(resumo.id);
       });
   }, [indisponibilizarAtendimento, reconciliador]);
 
@@ -793,22 +837,48 @@ export function PaginaAtendimentosCliente({
   const revalidarEnvio = useCallback(async (): Promise<boolean> => {
     const atendimentoId = atendimentoSelecionadoId;
     if (!atendimentoId) return false;
+    const selecaoDoEnvio = selecaoAtualRef.current;
     try {
       const snapshot = await reconciliador.sincronizar(atendimentoId);
+      if (selecaoAtualRef.current !== selecaoDoEnvio) return false;
+      setFalhaDeSincronizacao(null);
       const permitido = snapshot.cartao.atendimentoId === atendimentoId && snapshot.podeEnviar;
       setSincronizacaoLiberada(permitido ? { atendimentoId, ciclo } : null);
       return permitido;
     } catch (erro) {
+      if (selecaoAtualRef.current !== selecaoDoEnvio) return false;
       if (ehFalhaTransitoria(erro)) {
         return reconciliador.ultimoSnapshot(atendimentoId)?.podeEnviar ?? false;
       }
       setSincronizacaoLiberada(null);
-      if (statusHttpDoErro(erro) === 404) indisponibilizarAtendimento(atendimentoId);
+      if ([403, 404].includes(statusHttpDoErro(erro) ?? 0)) indisponibilizarAtendimento(atendimentoId, statusHttpDoErro(erro));
       return false;
     }
   }, [atendimentoSelecionadoId, ciclo, indisponibilizarAtendimento, reconciliador]);
 
   const convite = useConviteRecebido(estadoSelecionado, revalidarEnvio);
+
+  const tentarAtualizarConversa = useCallback(() => {
+    const selecao = selecaoAtualRef.current;
+    const atendimentoId = selecao.id;
+    if (!atendimentoId) return;
+    const cicloDaLeitura = cicloAtualRef.current;
+    void cache.fetchQuery({
+      queryKey: ["atendimentos", "estado", atendimentoId],
+      queryFn: () => reconciliador.sincronizar(atendimentoId),
+      staleTime: 0,
+      retry: false,
+    }).then(() => {
+      if (selecaoAtualRef.current !== selecao) return;
+      setFalhaDeSincronizacao(null);
+      setSincronizacaoLiberada({ atendimentoId, ciclo: cicloDaLeitura });
+    }).catch((erro) => {
+      if (selecaoAtualRef.current !== selecao) return;
+      if ([403, 404].includes(statusHttpDoErro(erro) ?? 0)) {
+        indisponibilizarAtendimento(atendimentoId, statusHttpDoErro(erro));
+      } else setFalhaDeSincronizacao(atendimentoId);
+    });
+  }, [cache, indisponibilizarAtendimento, reconciliador]);
 
   const registrarFalhasDeMidia = useCallback((falhas: FalhaDeEnvioMidia[]) => {
     setFalhasDeMidia((atuais) => [...atuais, ...falhas]);
@@ -1031,6 +1101,14 @@ export function PaginaAtendimentosCliente({
       />
 
       <div className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden", conversaEmColunaUnica && !conversaAberta && (!acessoPainel.permitido || filtroOperacional) && "hidden")}>
+        {atendimentoSelecionadoId && (estadoSelecionadoQuery.isError || falhaDeSincronizacao === atendimentoSelecionadoId) && (
+          <div role="alert" className="flex items-center justify-between gap-2 bg-cor-atencao/10 px-3 py-2 text-sm text-foreground">
+            <span>{textos.tempoReal.sincronizacaoFalhou}</span>
+            <button type="button" className="shrink-0 rounded-md px-2 py-1 underline focus-visible:ring-2 focus-visible:ring-ring"
+              disabled={estadoSelecionadoQuery.isFetching}
+              onClick={tentarAtualizarConversa}>{textos.tempoReal.sincronizacaoTentarNovamente}</button>
+          </div>
+        )}
         {estado === "reconectando" && (
           <div className="bg-cor-atencao/10 px-3 py-1 text-center text-xs text-cor-atencao">
             {textos.tempoReal.reconectando}
@@ -1160,6 +1238,10 @@ export function PaginaAtendimentosCliente({
               )}
             </ZonaSoltarArquivos>
           </>
+        ) : atendimentoSelecionadoId ? (
+          <div role="status" className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+            {estadoSelecionadoQuery.isError ? textos.tempoReal.sincronizacaoFalhou : textos.tempoReal.sincronizacaoCarregando}
+          </div>
         ) : acessoPainel.permitido ? (
           <PainelOperacional onFiltrar={filtrarOperacional} onAbrir={abrirFilaOperacional} conectado={estado === "conectado"} usuarioAtualId={sessao.usuarioId ?? undefined} />
         ) : (
