@@ -17,12 +17,14 @@ Fonte computada: `Inter, "Inter Fallback", Inter, sans-serif`; `document.fonts.s
 - [Antes de negar clientes, Potenciais disponível — 1920px](antes-1920.png).
 - [Clientes negados e mensagem enviada no Chat Interno — 1920px](interno-1920.png).
 - [Mesma conversa interna — 390px](interno-390.png). Documento e viewport com 390px, sem overflow horizontal.
+- [Controle salvo OFF na Gestão — 1920px](gestao-off-1920.png), com confirmação sensível existente.
 
 Na segunda captura, a negação foi salva pela API oficial da Gestão para o Operador sintético.
 Após recarregar, Potenciais, Agenda e contagens externas estavam ausentes; foi enviada pela
-interface a mensagem sintética visível na imagem. Isso comprova escrita interna com clientes
-bloqueados, não comprova por si só entrega WebSocket em duas sessões: esse caminho tem teste
-de integração próprio e deve constar do relatório com seu resultado efetivo.
+interface a mensagem sintética visível na imagem. Depois, em duas sessões reais, a Gestora
+religou e desligou o controle pela tela e confirmou as alterações sensíveis. Sem F5 na sessão
+do Operador, Potenciais reapareceu e sumiu novamente, mantendo a conversa interna aberta.
+O socket local estava aberto em `/ws`; nenhum token ou conteúdo externo foi incluído no diagnóstico.
 
 ## Verificações
 
@@ -36,6 +38,19 @@ de integração próprio e deve constar do relatório com seu resultado efetivo.
 - O ciclo `clean verify` completo identificou fixtures que chamavam helpers sem o contexto
   autenticado/técnico real. Foram ajustadas para passar pela publicação de RLS, sem liberar
   contexto ausente em produção. Resultado final e CI devem ser lidos no relatório da PR.
+- Repetição direcionada após esses ajustes: 58/58, incluindo `GestaoPermissoesIT` 25,
+  `GestaoTempoRealIT` 3, `ParticipacaoAtendimentoIT` 2, `AjustesDoVinculoE231IT` 15,
+  `LeituraPorUsuarioMigrationIT` 2, `NonoDigitoMigrationIT` 10 e listener de avisos 1.
+
+## Custo de autorização
+
+`desempenhoDoCache`: 50 leituras quentes, zero recálculos, 6,37ms/requisição nessa rodada local;
+após alteração, um recálculo (7,01ms). Não é benchmark da VPS e não deve ser comparado como SLA.
+[Planos de listagem e contagem](planos-locais.txt) no banco sintético mostram a porta de clientes
+como `InitPlan` escalar (uma execução por statement), sem consultar tabelas de permissões por
+linha. A amostra tem somente um lead, portanto não comprova escalabilidade de produção.
+Não há índice novo, listas completas ou consultas por cartão. O contexto transacional recebe
+mais um `set_config`; o cálculo de capacidades reutiliza o cache existente.
 
 ## Limites e operação
 

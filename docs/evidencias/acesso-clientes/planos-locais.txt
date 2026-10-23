@@ -1,0 +1,286 @@
+BEGIN
+SET
+SET
+SET
+SET
+SET
+                                                                                                                                                                                                                                                                                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=1338.71..1338.71 rows=1 width=16) (actual time=0.103..0.107 rows=1 loops=1)
+   Buffers: shared hit=5
+   InitPlan 1 (returns $0)
+     ->  Result  (cost=0.00..0.02 rows=1 width=1) (actual time=0.005..0.005 rows=1 loops=1)
+   ->  Sort  (cost=1338.69..1338.69 rows=1 width=16) (actual time=0.103..0.106 rows=1 loops=1)
+         Sort Key: lead.id
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=5
+         ->  Seq Scan on lead  (cost=0.00..1338.68 rows=1 width=16) (actual time=0.047..0.050 rows=1 loops=1)
+               Filter: ($0 AND (((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND (hashed SubPlan 23)) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) AND (current_setting('app.contexto_agenda'::text, true) = 'true'::text)) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = 'SERVICO'::text) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND ((atendente_responsavel_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid) OR (status_basico = 'IA'::status_basico_lead) OR (status_basico = 'FINALIZADO'::status_basico_lead) OR (hashed SubPlan 45)))))
+               Buffers: shared hit=2
+               SubPlan 23
+                 ->  Nested Loop  (cost=0.33..43.17 rows=1 width=16) (actual time=0.011..0.012 rows=0 loops=1)
+                       Buffers: shared hit=1
+                       InitPlan 13 (returns $13)
+                         ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                       InitPlan 22 (returns $22)
+                         ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                       ->  Index Scan using ux_pedido_convite_pendente on pedido_entrada_atendimento convite_1  (cost=0.14..8.41 rows=1 width=16) (actual time=0.011..0.011 rows=0 loops=1)
+                             Index Cond: (solicitante_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                             Filter: ($22 AND (solicitado_em > (now() - app_validade_pedido_entrada())))
+                             Buffers: shared hit=1
+                       ->  Index Scan using atendimento_pkey on atendimento a  (cost=0.15..24.84 rows=1 width=32) (never executed)
+                             Index Cond: (id = convite_1.atendimento_id)
+                             Filter: ($13 AND (((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND (hashed SubPlan 17)) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) AND (current_setting('app.contexto_agenda'::text, true) = 'true'::text)) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = 'SERVICO'::text) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND ((atendente_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid) OR (status = 'EM_IA'::status_atendimento) OR (status = 'FINALIZADO'::status_atendimento) OR (hashed SubPlan 21)))))
+                             SubPlan 17
+                               ->  Index Scan using ux_pedido_convite_pendente on pedido_entrada_atendimento convite  (cost=0.16..8.43 rows=1 width=16) (never executed)
+                                     Index Cond: (solicitante_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                                     Filter: ($17 AND (solicitado_em > (now() - app_validade_pedido_entrada())))
+                                     InitPlan 16 (returns $17)
+                                       ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                             SubPlan 21
+                               ->  Index Only Scan using uq_atendimento_participante_ativo on atendimento_participante p  (cost=0.16..8.18 rows=1 width=16) (never executed)
+                                     Index Cond: (usuario_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                                     Filter: $21
+                                     Heap Fetches: 0
+                                     InitPlan 20 (returns $21)
+                                       ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+               SubPlan 45
+                 ->  Nested Loop  (cost=0.33..42.92 rows=1 width=16) (never executed)
+                       InitPlan 35 (returns $36)
+                         ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                       InitPlan 44 (returns $45)
+                         ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                       ->  Index Only Scan using uq_atendimento_participante_ativo on atendimento_participante p_2  (cost=0.14..8.15 rows=1 width=16) (never executed)
+                             Index Cond: (usuario_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                             Filter: $45
+                             Heap Fetches: 0
+                       ->  Index Scan using atendimento_pkey on atendimento a_1  (cost=0.15..24.84 rows=1 width=32) (never executed)
+                             Index Cond: (id = p_2.atendimento_id)
+                             Filter: ($36 AND (((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND (hashed SubPlan 39)) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) AND (current_setting('app.contexto_agenda'::text, true) = 'true'::text)) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = 'SERVICO'::text) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND ((atendente_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid) OR (status = 'EM_IA'::status_atendimento) OR (status = 'FINALIZADO'::status_atendimento) OR (hashed SubPlan 43)))))
+                             SubPlan 39
+                               ->  Index Scan using ux_pedido_convite_pendente on pedido_entrada_atendimento convite_2  (cost=0.16..8.43 rows=1 width=16) (never executed)
+                                     Index Cond: (solicitante_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                                     Filter: ($40 AND (solicitado_em > (now() - app_validade_pedido_entrada())))
+                                     InitPlan 38 (returns $40)
+                                       ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                             SubPlan 43
+                               ->  Index Only Scan using uq_atendimento_participante_ativo on atendimento_participante p_1  (cost=0.16..8.18 rows=1 width=16) (never executed)
+                                     Index Cond: (usuario_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                                     Filter: $44
+                                     Heap Fetches: 0
+                                     InitPlan 42 (returns $44)
+                                       ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+ Planning:
+   Buffers: shared hit=1014
+ Planning Time: 21.352 ms
+ Execution Time: 0.693 ms
+(68 rows)
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                     QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=1338.70..1338.71 rows=1 width=8) (actual time=0.101..0.103 rows=1 loops=1)
+   Buffers: shared hit=2
+   InitPlan 1 (returns $0)
+     ->  Result  (cost=0.00..0.02 rows=1 width=1) (actual time=0.003..0.003 rows=1 loops=1)
+   ->  Seq Scan on lead  (cost=0.00..1338.68 rows=1 width=0) (actual time=0.098..0.101 rows=1 loops=1)
+         Filter: ($0 AND (((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND (hashed SubPlan 23)) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) AND (current_setting('app.contexto_agenda'::text, true) = 'true'::text)) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = 'SERVICO'::text) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND ((atendente_responsavel_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid) OR (status_basico = 'IA'::status_basico_lead) OR (status_basico = 'FINALIZADO'::status_basico_lead) OR (hashed SubPlan 45)))))
+         Buffers: shared hit=2
+         SubPlan 23
+           ->  Nested Loop  (cost=0.33..43.17 rows=1 width=16) (actual time=0.073..0.074 rows=0 loops=1)
+                 Buffers: shared hit=1
+                 InitPlan 13 (returns $13)
+                   ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                 InitPlan 22 (returns $22)
+                   ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                 ->  Index Scan using ux_pedido_convite_pendente on pedido_entrada_atendimento convite_1  (cost=0.14..8.41 rows=1 width=16) (actual time=0.071..0.071 rows=0 loops=1)
+                       Index Cond: (solicitante_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                       Filter: ($22 AND (solicitado_em > (now() - app_validade_pedido_entrada())))
+                       Buffers: shared hit=1
+                 ->  Index Scan using atendimento_pkey on atendimento a  (cost=0.15..24.84 rows=1 width=32) (never executed)
+                       Index Cond: (id = convite_1.atendimento_id)
+                       Filter: ($13 AND (((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND (hashed SubPlan 17)) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) AND (current_setting('app.contexto_agenda'::text, true) = 'true'::text)) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = 'SERVICO'::text) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND ((atendente_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid) OR (status = 'EM_IA'::status_atendimento) OR (status = 'FINALIZADO'::status_atendimento) OR (hashed SubPlan 21)))))
+                       SubPlan 17
+                         ->  Index Scan using ux_pedido_convite_pendente on pedido_entrada_atendimento convite  (cost=0.16..8.43 rows=1 width=16) (never executed)
+                               Index Cond: (solicitante_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                               Filter: ($17 AND (solicitado_em > (now() - app_validade_pedido_entrada())))
+                               InitPlan 16 (returns $17)
+                                 ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                       SubPlan 21
+                         ->  Index Only Scan using uq_atendimento_participante_ativo on atendimento_participante p  (cost=0.16..8.18 rows=1 width=16) (never executed)
+                               Index Cond: (usuario_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                               Filter: $21
+                               Heap Fetches: 0
+                               InitPlan 20 (returns $21)
+                                 ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+         SubPlan 45
+           ->  Nested Loop  (cost=0.33..42.92 rows=1 width=16) (never executed)
+                 InitPlan 35 (returns $36)
+                   ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                 InitPlan 44 (returns $45)
+                   ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                 ->  Index Only Scan using uq_atendimento_participante_ativo on atendimento_participante p_2  (cost=0.14..8.15 rows=1 width=16) (never executed)
+                       Index Cond: (usuario_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                       Filter: $45
+                       Heap Fetches: 0
+                 ->  Index Scan using atendimento_pkey on atendimento a_1  (cost=0.15..24.84 rows=1 width=32) (never executed)
+                       Index Cond: (id = p_2.atendimento_id)
+                       Filter: ($36 AND (((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND (hashed SubPlan 39)) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) AND (current_setting('app.contexto_agenda'::text, true) = 'true'::text)) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = 'SERVICO'::text) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND ((atendente_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid) OR (status = 'EM_IA'::status_atendimento) OR (status = 'FINALIZADO'::status_atendimento) OR (hashed SubPlan 43)))))
+                       SubPlan 39
+                         ->  Index Scan using ux_pedido_convite_pendente on pedido_entrada_atendimento convite_2  (cost=0.16..8.43 rows=1 width=16) (never executed)
+                               Index Cond: (solicitante_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                               Filter: ($40 AND (solicitado_em > (now() - app_validade_pedido_entrada())))
+                               InitPlan 38 (returns $40)
+                                 ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                       SubPlan 43
+                         ->  Index Only Scan using uq_atendimento_participante_ativo on atendimento_participante p_1  (cost=0.16..8.18 rows=1 width=16) (never executed)
+                               Index Cond: (usuario_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                               Filter: $44
+                               Heap Fetches: 0
+                               InitPlan 42 (returns $44)
+                                 ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+ Planning:
+   Buffers: shared hit=84
+ Planning Time: 5.279 ms
+ Execution Time: 0.455 ms
+(64 rows)
+
+SET
+                                                                                                                                                                                                                                                                                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=1338.71..1338.71 rows=1 width=16) (actual time=0.022..0.023 rows=0 loops=1)
+   Buffers: shared hit=1
+   InitPlan 1 (returns $0)
+     ->  Result  (cost=0.00..0.02 rows=1 width=1) (actual time=0.002..0.002 rows=1 loops=1)
+   ->  Sort  (cost=1338.69..1338.69 rows=1 width=16) (actual time=0.021..0.023 rows=0 loops=1)
+         Sort Key: lead.id
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=1
+         ->  Seq Scan on lead  (cost=0.00..1338.68 rows=1 width=16) (actual time=0.010..0.011 rows=0 loops=1)
+               Filter: ($0 AND (((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND (hashed SubPlan 23)) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) AND (current_setting('app.contexto_agenda'::text, true) = 'true'::text)) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = 'SERVICO'::text) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND ((atendente_responsavel_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid) OR (status_basico = 'IA'::status_basico_lead) OR (status_basico = 'FINALIZADO'::status_basico_lead) OR (hashed SubPlan 45)))))
+               Rows Removed by Filter: 1
+               Buffers: shared hit=1
+               SubPlan 23
+                 ->  Nested Loop  (cost=0.33..43.17 rows=1 width=16) (never executed)
+                       InitPlan 13 (returns $13)
+                         ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                       InitPlan 22 (returns $22)
+                         ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                       ->  Index Scan using ux_pedido_convite_pendente on pedido_entrada_atendimento convite_1  (cost=0.14..8.41 rows=1 width=16) (never executed)
+                             Index Cond: (solicitante_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                             Filter: ($22 AND (solicitado_em > (now() - app_validade_pedido_entrada())))
+                       ->  Index Scan using atendimento_pkey on atendimento a  (cost=0.15..24.84 rows=1 width=32) (never executed)
+                             Index Cond: (id = convite_1.atendimento_id)
+                             Filter: ($13 AND (((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND (hashed SubPlan 17)) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) AND (current_setting('app.contexto_agenda'::text, true) = 'true'::text)) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = 'SERVICO'::text) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND ((atendente_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid) OR (status = 'EM_IA'::status_atendimento) OR (status = 'FINALIZADO'::status_atendimento) OR (hashed SubPlan 21)))))
+                             SubPlan 17
+                               ->  Index Scan using ux_pedido_convite_pendente on pedido_entrada_atendimento convite  (cost=0.16..8.43 rows=1 width=16) (never executed)
+                                     Index Cond: (solicitante_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                                     Filter: ($17 AND (solicitado_em > (now() - app_validade_pedido_entrada())))
+                                     InitPlan 16 (returns $17)
+                                       ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                             SubPlan 21
+                               ->  Index Only Scan using uq_atendimento_participante_ativo on atendimento_participante p  (cost=0.16..8.18 rows=1 width=16) (never executed)
+                                     Index Cond: (usuario_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                                     Filter: $21
+                                     Heap Fetches: 0
+                                     InitPlan 20 (returns $21)
+                                       ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+               SubPlan 45
+                 ->  Nested Loop  (cost=0.33..42.92 rows=1 width=16) (never executed)
+                       InitPlan 35 (returns $36)
+                         ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                       InitPlan 44 (returns $45)
+                         ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                       ->  Index Only Scan using uq_atendimento_participante_ativo on atendimento_participante p_2  (cost=0.14..8.15 rows=1 width=16) (never executed)
+                             Index Cond: (usuario_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                             Filter: $45
+                             Heap Fetches: 0
+                       ->  Index Scan using atendimento_pkey on atendimento a_1  (cost=0.15..24.84 rows=1 width=32) (never executed)
+                             Index Cond: (id = p_2.atendimento_id)
+                             Filter: ($36 AND (((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND (hashed SubPlan 39)) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) AND (current_setting('app.contexto_agenda'::text, true) = 'true'::text)) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = 'SERVICO'::text) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND ((atendente_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid) OR (status = 'EM_IA'::status_atendimento) OR (status = 'FINALIZADO'::status_atendimento) OR (hashed SubPlan 43)))))
+                             SubPlan 39
+                               ->  Index Scan using ux_pedido_convite_pendente on pedido_entrada_atendimento convite_2  (cost=0.16..8.43 rows=1 width=16) (never executed)
+                                     Index Cond: (solicitante_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                                     Filter: ($40 AND (solicitado_em > (now() - app_validade_pedido_entrada())))
+                                     InitPlan 38 (returns $40)
+                                       ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                             SubPlan 43
+                               ->  Index Only Scan using uq_atendimento_participante_ativo on atendimento_participante p_1  (cost=0.16..8.18 rows=1 width=16) (never executed)
+                                     Index Cond: (usuario_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                                     Filter: $44
+                                     Heap Fetches: 0
+                                     InitPlan 42 (returns $44)
+                                       ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+ Planning:
+   Buffers: shared hit=81
+ Planning Time: 5.575 ms
+ Execution Time: 0.360 ms
+(67 rows)
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                     QUERY PLAN                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=1338.70..1338.71 rows=1 width=8) (actual time=0.018..0.021 rows=1 loops=1)
+   Buffers: shared hit=1
+   InitPlan 1 (returns $0)
+     ->  Result  (cost=0.00..0.02 rows=1 width=1) (actual time=0.003..0.004 rows=1 loops=1)
+   ->  Seq Scan on lead  (cost=0.00..1338.68 rows=1 width=0) (actual time=0.016..0.019 rows=0 loops=1)
+         Filter: ($0 AND (((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND (hashed SubPlan 23)) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) AND (current_setting('app.contexto_agenda'::text, true) = 'true'::text)) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = 'SERVICO'::text) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND ((atendente_responsavel_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid) OR (status_basico = 'IA'::status_basico_lead) OR (status_basico = 'FINALIZADO'::status_basico_lead) OR (hashed SubPlan 45)))))
+         Rows Removed by Filter: 1
+         Buffers: shared hit=1
+         SubPlan 23
+           ->  Nested Loop  (cost=0.33..43.17 rows=1 width=16) (never executed)
+                 InitPlan 13 (returns $13)
+                   ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                 InitPlan 22 (returns $22)
+                   ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                 ->  Index Scan using ux_pedido_convite_pendente on pedido_entrada_atendimento convite_1  (cost=0.14..8.41 rows=1 width=16) (never executed)
+                       Index Cond: (solicitante_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                       Filter: ($22 AND (solicitado_em > (now() - app_validade_pedido_entrada())))
+                 ->  Index Scan using atendimento_pkey on atendimento a  (cost=0.15..24.84 rows=1 width=32) (never executed)
+                       Index Cond: (id = convite_1.atendimento_id)
+                       Filter: ($13 AND (((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND (hashed SubPlan 17)) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) AND (current_setting('app.contexto_agenda'::text, true) = 'true'::text)) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = 'SERVICO'::text) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND ((atendente_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid) OR (status = 'EM_IA'::status_atendimento) OR (status = 'FINALIZADO'::status_atendimento) OR (hashed SubPlan 21)))))
+                       SubPlan 17
+                         ->  Index Scan using ux_pedido_convite_pendente on pedido_entrada_atendimento convite  (cost=0.16..8.43 rows=1 width=16) (never executed)
+                               Index Cond: (solicitante_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                               Filter: ($17 AND (solicitado_em > (now() - app_validade_pedido_entrada())))
+                               InitPlan 16 (returns $17)
+                                 ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                       SubPlan 21
+                         ->  Index Only Scan using uq_atendimento_participante_ativo on atendimento_participante p  (cost=0.16..8.18 rows=1 width=16) (never executed)
+                               Index Cond: (usuario_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                               Filter: $21
+                               Heap Fetches: 0
+                               InitPlan 20 (returns $21)
+                                 ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+         SubPlan 45
+           ->  Nested Loop  (cost=0.33..42.92 rows=1 width=16) (never executed)
+                 InitPlan 35 (returns $36)
+                   ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                 InitPlan 44 (returns $45)
+                   ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                 ->  Index Only Scan using uq_atendimento_participante_ativo on atendimento_participante p_2  (cost=0.14..8.15 rows=1 width=16) (never executed)
+                       Index Cond: (usuario_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                       Filter: $45
+                       Heap Fetches: 0
+                 ->  Index Scan using atendimento_pkey on atendimento a_1  (cost=0.15..24.84 rows=1 width=32) (never executed)
+                       Index Cond: (id = p_2.atendimento_id)
+                       Filter: ($36 AND (((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND (hashed SubPlan 39)) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) AND (current_setting('app.contexto_agenda'::text, true) = 'true'::text)) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = 'SERVICO'::text) OR (NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{SUBGESTOR,GESTOR,ADMINISTRADOR}'::text[])) OR ((NULLIF(current_setting('app.papel'::text, true), ''::text) = ANY ('{ATENDENTE,OPERADOR}'::text[])) AND ((atendente_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid) OR (status = 'EM_IA'::status_atendimento) OR (status = 'FINALIZADO'::status_atendimento) OR (hashed SubPlan 43)))))
+                       SubPlan 39
+                         ->  Index Scan using ux_pedido_convite_pendente on pedido_entrada_atendimento convite_2  (cost=0.16..8.43 rows=1 width=16) (never executed)
+                               Index Cond: (solicitante_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                               Filter: ($40 AND (solicitado_em > (now() - app_validade_pedido_entrada())))
+                               InitPlan 38 (returns $40)
+                                 ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                       SubPlan 43
+                         ->  Index Only Scan using uq_atendimento_participante_ativo on atendimento_participante p_1  (cost=0.16..8.18 rows=1 width=16) (never executed)
+                               Index Cond: (usuario_id = (NULLIF(current_setting('app.usuario_id'::text, true), ''::text))::uuid)
+                               Filter: $44
+                               Heap Fetches: 0
+                               InitPlan 42 (returns $44)
+                                 ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+ Planning:
+   Buffers: shared hit=81
+ Planning Time: 7.937 ms
+ Execution Time: 0.578 ms
+(63 rows)
+
+ROLLBACK
