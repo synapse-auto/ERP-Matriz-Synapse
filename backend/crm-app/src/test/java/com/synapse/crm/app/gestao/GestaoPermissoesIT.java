@@ -170,6 +170,17 @@ class GestaoPermissoesIT extends PostgresIT {
     }
 
     @Test
+    void telemetriaDeClientesExigeAcessoMesmoComPermissaoDeAutomacao() {
+        String g = token(EMAIL_GESTOR, SENHA_GESTOR);
+        String s = token(EMAIL_SUBGESTOR, SENHA_SUBGESTOR);
+        salvarPerfil(g, "SUBGESTOR", Map.of(), Map.of("automacao.ver", true));
+        assertThat(chamar(s, HttpMethod.GET, "/api/v1/automacao/telemetria", null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        salvarPerfil(g, "SUBGESTOR", Map.of(), Map.of("automacao.ver", true, "clientes.acessar", false));
+        assertThat(chamar(s, HttpMethod.GET, "/api/v1/automacao/telemetria", null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chamar(s, HttpMethod.GET, "/api/v1/automacao/config", null).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
     void perfilSemClientesEExcecaoIndividualMantemPrecedenciaERecorte() {
         String g = token(EMAIL_GESTOR, SENHA_GESTOR);
         String a = token(EMAIL_ANA, SENHA_ATENDENTE);

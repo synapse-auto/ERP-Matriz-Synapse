@@ -522,6 +522,9 @@ somente leitura, e não uma negação de clientes.
 - `atendimentos.ver` continua estrutural quanto ao alcance, mas depende da porta de entrada.
   As ações de atendimento, contatos, resumo, dashboard, campanhas, cancelamentos, lembretes,
   programadas e aplicação de tags também dependem dela.
+- A telemetria de Automação também exige a porta, pois contém totais de mensagens e clientes
+  transferidos. Isso não desliga a autorização independente para configurar a Automação.
+  A consulta desses cards é desabilitada e seu cache removido na revogação, sem remover configurações.
 - Chat Interno mantém login, contatos internos, participação, leitura **e envio de mensagens**,
   mídia e eventos conforme as autorizações existentes. Não equivale à classificação de conta
   de teste: as restrições operacionais dessas contas continuam independentes (docs/75).

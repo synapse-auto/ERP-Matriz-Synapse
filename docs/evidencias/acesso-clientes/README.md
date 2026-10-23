@@ -47,6 +47,10 @@ O socket local estava aberto em `/ws`; nenhum token ou conteúdo externo foi inc
   na repetição direcionada, incluindo regressão com a flag desligada previamente em cache.
   A run 39950981516 passou no SHA anterior a esse ajuste adicional da fixture; o resultado
   do SHA final deve ser conferido separadamente na PR.
+- A revisão final encontrou o agregado de clientes na telemetria de Automação. O negativo HTTP
+  reproduziu 200 onde deveria haver 403; dois negativos de frontend detectaram os cards/cache
+  antigos. A autorização e a apresentação foram compostas com a porta, preservando a configuração
+  independente de Automação. Os resultados posteriores devem ser conferidos no SHA final da PR.
 
 ## Custo de autorização
 

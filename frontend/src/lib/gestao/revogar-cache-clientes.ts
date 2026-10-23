@@ -17,7 +17,8 @@ export function consultaDeClientes(chave: QueryKey): boolean {
   return PREFIXOS.has(String(chave[0]))
     || chave[0] === "atendimentos" && chave[1] !== "internos-painel"
     || chave[0] === "equipe" && ["avaliacoes", "desempenho"].includes(String(chave[1]))
-    || chave[0] === "dialogos" && chave[1] === "atendimentos";
+    || chave[0] === "dialogos" && chave[1] === "atendimentos"
+    || chave[0] === "automacao" && chave[1] === "telemetria";
 }
 
 /** O aviso não contém novas concessões. Fecha a leitura até a revalidação, sem tocar no chat interno.
