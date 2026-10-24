@@ -8,7 +8,7 @@ preexistentes do checkout principal preservadas. Branch `codex/z-api-auditoria-p
 | Fase | Estado | Entrega / pendência | PR/base |
 |---|---|---|---|
 | 1 | Incorporada em 13/10; G1 continua bloqueando passagem | Documentação/fixtures, não adaptador; revalidação de 24/10 corrigiu contrato de citação | [PR #301](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/301), codex/z-api-fase-1 / main |
-| 2 | Saída/texto implementados nesta revisão, ainda sem liberação operacional | Testes HTTP e outbox; entrada bloqueada por G1, CI frontend bloqueado por Zod | `codex/z-api-fase-2-saida`, base #321 |
+| 2 | Saída/texto implementados nesta revisão, ainda sem liberação operacional | Testes HTTP e outbox; entrada bloqueada por G1, CI frontend bloqueado por Zod | [PR #322](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/322), base #321 |
 | 3 | Não iniciada | Autenticação/correlação/eco/status antecipado e identidade LID | futuramente base fase-2 |
 | 4 | Não iniciada | Mídia/capacidades/SSRF/limites e fontes completas | futuramente base fase-3 |
 | 5 | Não iniciada | Regressão/runbook, nenhuma homologação real nesta task | futuramente base fase-4 |
@@ -124,6 +124,7 @@ nem com CI vermelho ignorado.
   Uzapi 65); fluxo genérico PostgreSQL 52/52. Teste específico de saída, clean verify
   completo e CI final são registrados no fechamento desta revisão.
 - PR #321 continua draft/aberta. Ordem de merge: #321 → PR de `codex/z-api-fase-2-saida`.
+  PR de saída: [#322](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/322), também draft.
   O diff da segunda PR usa a branch #321 como base, não main.
 - CI da predecessora (SHA 1990dbe): PR 40071927205 e push 40071925667 com backend e
   Stack aprovados, frontend bloqueado em auditoria Zod, GHCR skipped. Decisão explícita:
