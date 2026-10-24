@@ -78,6 +78,10 @@ de autorização. Aplica-se genericamente aos gateways, sem condicional por clie
   verificadas não especificam autenticação de entrada no CRM. HTTPS e `instanceId` no JSON
   não provam autoria. Aguardar resposta oficial, conforme decisão anterior do responsável.
   Não implementar HMAC inventado, Client-Token de callback presumido ou segredo em URL próprio.
+- O [blog oficial de segurança](https://z-api.io/blog/como-garantir-seguranca-e-estabilidade/)
+  menciona assinaturas, mas não especifica algoritmo/header/configuração. Isso é uma pista
+  para o suporte, não um verificador implementável. Não afirmar que a capacidade inexiste;
+  ver [pendência oficial atualizada](./autenticacao-callback-pendente.md).
 - Correção documental: `/message/reply-message` é página; operação documentada é
   `POST /instances/{instanceId}/token/{token}/send-text` com `messageId`.
 - `Client-Token` é header de saída. Token da instância fica no path da API: futuro adapter
@@ -101,6 +105,10 @@ de autorização. Aplica-se genericamente aos gateways, sem condicional por clie
   Não interpretar resultados intermediários como aprovação.
 - Sem mudança frontend; nenhuma captura UI demonstra Z-API funcional. CI frontend do último
   SHA deve ser conferido mesmo sem diff de interface.
+- O CI desta auditoria encontrou vulnerabilidade preexistente em Zod 3
+  ([GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5), correção ≥4.6.6).
+  Migração major fora do escopo solicitada ao responsável; não suprimir `npm audit` nem
+  declarar frontend aprovado enquanto o gate reprovar. Resultado do SHA final na PR.
 - Main auditada: run [39884940281](https://github.com/synapse-auto/ERP-Matriz-Synapse/actions/runs/39884940281)
   concluída com Backend, Frontend, Stack e publicação GHCR backend/frontend aprovados.
   Inspeção local dos manifests `:61a7c6f` recebeu HTTP 403: acesso/pull e digest pelo operador

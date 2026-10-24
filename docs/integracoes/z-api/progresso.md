@@ -88,6 +88,9 @@ branch parte de main; não há dependência de PR aberta nem razão para repetir
   Não marcar integração concluída com base apenas nos testes do guard.
 - Fonte de citação corrigida: página `reply-message` documenta POST **`send-text`**.
   Checker repetiu `success/endpoints=[]`; não avaliativo. G1 não recebeu contrato oficial.
+  Blog oficial menciona assinaturas sem especificação; pendência ao fornecedor foi atualizada.
+- CI frontend encontrou bloqueio preexistente Zod 3/GHSA-mrhx-c7xc-m3w5; atualização major
+  não foi presumida nem auditoria ignorada. Resultado do SHA final no fechamento da PR.
 - Sem frontend alterado, novos endpoints, migrations, variáveis, produção ou chamadas reais.
   Skills equivalentes disponíveis foram utilizadas antes do código: arquitetura hexagonal,
   API design, segurança, Java, Spring Boot TDD e operações GitHub. Skills canônicas nomeadas
