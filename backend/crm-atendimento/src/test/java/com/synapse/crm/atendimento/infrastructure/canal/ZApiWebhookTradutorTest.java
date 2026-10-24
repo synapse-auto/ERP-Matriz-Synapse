@@ -68,6 +68,11 @@ class ZApiWebhookTradutorTest {
         assertThat(local.statusComIdentidade(status(estado))).singleElement().satisfies(s -> {
             assertThat(s.identidade().namespace()).isEqualTo("WHATSAPP");
             assertThat(s.identidade().valor()).isEqualTo("w-1");
+            assertThat(s.status().name()).isEqualTo(switch (estado) {
+                case "SENT" -> "ENVIADO";
+                case "RECEIVED" -> "ENTREGUE";
+                default -> "LIDO";
+            });
         });
         assertThat(local.statusDeEntrega(status(estado))).isEmpty();
     }

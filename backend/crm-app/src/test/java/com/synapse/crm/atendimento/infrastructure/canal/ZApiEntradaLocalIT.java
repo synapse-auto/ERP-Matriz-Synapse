@@ -247,6 +247,8 @@ class ZApiEntradaLocalIT extends PostgresIT {
 
     @Test void rlsNegaAliasAUsuarioDeAplicacaoNaoPrivilegiado() throws Exception {
         UUID mensagem = enviar(); publicador.publicarPendentes();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem_correlacao_canal WHERE mensagem_id=?", Integer.class, mensagem)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT has_table_privilege('synapse_app','mensagem_correlacao_canal','INSERT')", Boolean.class)).isTrue();
         try (var conexao = jdbc.getDataSource().getConnection()) {
             conexao.setAutoCommit(false);
             try (var comando = conexao.createStatement()) {
@@ -255,6 +257,9 @@ class ZApiEntradaLocalIT extends PostgresIT {
                 try (var linhas = comando.executeQuery("SELECT count(*) FROM mensagem_correlacao_canal")) {
                     assertThat(linhas.next()).isTrue(); assertThat(linhas.getInt(1)).isZero();
                 }
+                assertThatThrownBy(() -> comando.executeUpdate("INSERT INTO mensagem_correlacao_canal(provedor,instancia,namespace,id_externo) VALUES ('z-api','RLS-NEGATIVO','WHATSAPP','bloqueado')"))
+                        .isInstanceOf(java.sql.SQLException.class)
+                        .extracting(erro -> ((java.sql.SQLException) erro).getSQLState()).isEqualTo("42501");
             } finally { conexao.rollback(); }
         }
         assertThat(estado(mensagem)).isEqualTo("PENDENTE");

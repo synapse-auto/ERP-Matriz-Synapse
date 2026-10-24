@@ -92,6 +92,12 @@ MinIO reais. Incluem isolamento/RLS, os 25 pares de estados e colisão sem reenv
 completo Java 21 e CI do último SHA são registrados no fechamento da PR; execução em curso
 não é declarada aprovada por este documento.
 Unidades puras adicionais: identidade 7/7 e caso de uso com portas mockadas 3/3.
+A primeira CI (SHA cf4811e, PR run 40140501165) detectou inventário de schema desatualizado
+em `SchemaMigracoesIT`: faltava a nova tabela V111 na lista esperada. Corrigido acrescentando
+somente a tabela, sem afrouxar a igualdade exata. A execução local anterior foi interrompida
+com essa falha conhecida, não contada como sucesso; validação completa reiniciada após o ajuste.
+RLS negativo também exige recusa de INSERT com SQLSTATE 42501; mapeamentos dos três status
+têm asserções nominais. O resultado da nova CI pertence ao SHA posterior, não à primeira run.
 A primeira iteração falhou por ID fixo compartilhado das fixtures e expectativa da exceção
 traduzida pelo Spring; corrigidos no teste. A revisão removeu o rollback por conflito de
 alias para não transformar aceite em redisparo. Não chamar isso de falha do provedor.

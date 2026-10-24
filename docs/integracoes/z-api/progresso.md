@@ -192,3 +192,12 @@ permite registrar verificador permissivo ou abrir entrada de produção. [Entreg
   n8n, mensagens reais, merge ou deploy. **Dokploy: nenhuma ação; Z-API OFF.**
 
 **F3 parcial local: sim. Integração completa: não. Troca/homologação real: não liberadas.**
+
+### Ajuste após primeira CI desta entrega
+
+SHA cf4811e: PR run 40140501165 reprovou backend em
+`SchemaMigracoesIT.Estrutura.tabelas_bancoMigrado_existemTodas` (lista esperada sem V111),
+além do bloqueio independente Zod; Stack passou, GHCR skipped. Acrescentada a tabela à lista,
+mantida comparação exata. Reforçados negativos de escrita RLS (42501) e asserts de mapeamento.
+Não é flake nem foi ignorado/reexecutado sem correção. Clean verify local interrompido após
+diagnóstico, com nova execução completa após o ajuste; resultado final na PR/relatório.
