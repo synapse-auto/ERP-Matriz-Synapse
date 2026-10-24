@@ -432,7 +432,7 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `WHATSAPP_USUARIO_API` | vazio (legada) | Mantida por compatibilidade com E152; a Uzapi/Autotic atual não usa username, nem exige esta variável. |
 | `WHATSAPP_VERSAO_API` | vazio | `{version}` das rotas da Uzapi/Autotic (E152, provedor `uzapi-autotic`). Só esse adaptador usa; vazio não afeta `meta-cloud`. |
 | `Z_API_HABILITADO` | `false` | Somente adaptador de saída experimental; **manter OFF**. Não há entrada autenticada; não selecionar `WHATSAPP_PROVEDOR=z-api`. |
-| `Z_API_INSTANCIA_ID` | vazio | ID da instância Z-API, somente backend; não é telefone nem token. |
+| `Z_API_INSTANCIA_ID` | vazio | ID da instância Z-API; não é telefone/token. Deve coincidir com `WHATSAPP_NUMERO` (identidade capturada pela outbox); divergência bloqueia sem HTTP. Manter OFF nesta fase. |
 | `Z_API_TOKEN` | vazio | Segredo da instância Z-API, usado no path HTTPS; nunca expor ao navegador/logs/tracing. |
 | `Z_API_CLIENT_TOKEN` | vazio | Segredo de saída no header `Client-Token`; não autentica callbacks recebidos. |
 | `Z_API_CREDENCIAL_ID` | vazio | UUID da credencial do CRM que deve coincidir com a referência da outbox. Ausente/divergente bloqueia sem HTTP. |

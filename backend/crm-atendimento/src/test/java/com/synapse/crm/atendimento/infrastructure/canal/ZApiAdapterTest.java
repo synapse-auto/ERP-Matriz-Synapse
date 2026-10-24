@@ -5,6 +5,8 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -27,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.http.client.MockClientHttpResponse;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
@@ -97,6 +100,31 @@ class ZApiAdapterTest {
         servidor.expect(requestTo(BASE + "/send-text"))
                 .andRespond(withSuccess(" ".repeat(4097), MediaType.APPLICATION_JSON));
         assertThat(adapter.enviar(envio(CREDENCIAL, null))).isInstanceOf(ResultadoDeEnvio.Ambiguo.class);
+        servidor.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {200, 500})
+    void fechaStreamAntesDoClienteTentarDrenarRespostaGrande(int status) {
+        java.util.concurrent.atomic.AtomicInteger lidos = new java.util.concurrent.atomic.AtomicInteger();
+        InputStream corpo = new InputStream() {
+            private boolean fechado;
+            @Override public int read() throws IOException {
+                if (fechado) { throw new IOException("stream fechado"); }
+                return lidos.getAndIncrement() < 10000 ? ' ' : -1;
+            }
+            @Override public void close() { fechado = true; }
+        };
+        servidor.expect(requestTo(BASE + "/send-text")).andRespond(pedido ->
+                new MockClientHttpResponse(corpo, HttpStatus.valueOf(status)) {
+                    @Override public void close() {
+                        // Mesmo comportamento de drain no close do JdkClientHttpResponse.
+                        try { corpo.transferTo(OutputStream.nullOutputStream()); }
+                        catch (IOException esperadoSeFechadoAntes) { /* cancelado pelo adaptador */ }
+                    }
+                });
+        assertThat(adapter.enviar(envio(CREDENCIAL, null))).isInstanceOf(ResultadoDeEnvio.Ambiguo.class);
+        assertThat(lidos.get()).isLessThanOrEqualTo(status == 200 ? 4097 : 0);
         servidor.verify();
     }
 
@@ -172,6 +200,18 @@ class ZApiAdapterTest {
     void configuracaoNaoExibeSegredosEmToString() {
         assertThat(propriedades(true, "segredo-instancia", CREDENCIAL).toString())
                 .doesNotContain("segredo-instancia", "segredo-cliente");
+    }
+
+    @Test
+    void instanciaHttpDiferenteDaOrigemConfiguradaNaoChamaRede() {
+        RestClient.Builder cliente = RestClient.builder();
+        MockRestServiceServer semRede = MockRestServiceServer.bindTo(cliente).build();
+        ZApiAdapter local = new ZApiAdapter(cliente, propriedades(true, "segredo-instancia", CREDENCIAL),
+                new ObjectMapper(), breakers, "outra-instancia");
+        assertThat(local.enviar(envio(CREDENCIAL, null)))
+                .isEqualTo(ResultadoDeEnvio.Recusado.permanente("Z_API_CONFIGURACAO_INDISPONIVEL"));
+        assertThat(local.verificarAutenticacao().autenticada()).isFalse();
+        semRede.verify();
     }
 
     @Test

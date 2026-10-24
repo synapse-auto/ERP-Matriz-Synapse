@@ -123,6 +123,11 @@ nem com CI vermelho ignorado.
 - Dirigidos iniciais: adaptadores 161/161 (Z-API 34, configuração/seleção 3, Meta 59,
   Uzapi 65); fluxo genérico PostgreSQL 52/52. Teste específico de saída, clean verify
   completo e CI final são registrados no fechamento desta revisão.
+- Revisão final: 164/164 nos adaptadores (Z-API 37, seleção 3, Meta 59, Uzapi 65) e
+  55/55 integrações PostgreSQL (`CanalWhatsAppIT` 52, `ZApiSaidaIT` 3). Novos negativos
+  provaram o drain no close antes da correção e bloqueio de instância HTTP divergente.
+  `clean verify` completo foi reiniciado depois desses ajustes, sem contar a execução
+  interrompida como sucesso. Resultado final e CI do último SHA no fechamento da PR.
 - PR #321 continua draft/aberta. Ordem de merge: #321 → PR de `codex/z-api-fase-2-saida`.
   PR de saída: [#322](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/322), também draft.
   O diff da segunda PR usa a branch #321 como base, não main.

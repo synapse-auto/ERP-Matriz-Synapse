@@ -64,12 +64,12 @@ class ZApiSaidaIT extends PostgresIT {
 
     @TestConfiguration(proxyBeanMethods = false)
     static class TransporteDeTeste {
-        @Bean Transporte transporte(ObjectMapper json, CircuitBreakerRegistry breakers) {
+        @Bean Transporte transporte(ObjectMapper json, CircuitBreakerRegistry breakers, CanalProperties canal) {
             RestClient.Builder cliente = RestClient.builder();
             MockRestServiceServer servidor = MockRestServiceServer.bindTo(cliente).build();
             return new Transporte(servidor, new ZApiAdapter(cliente,
                     new ZApiProperties(true, "instancia-teste", "segredo-teste", "cliente-teste", CREDENCIAL,
-                            Duration.ofSeconds(10), 4096, 1), json, breakers));
+                            Duration.ofSeconds(10), 4096, 1), json, breakers, canal.numeroPrincipal()));
         }
         @Bean ZApiAdapter saidaZApi(Transporte transporte) { return transporte.adapter(); }
         @Bean TradutorDeCanal entradaInexistenteSomenteNoTeste() {

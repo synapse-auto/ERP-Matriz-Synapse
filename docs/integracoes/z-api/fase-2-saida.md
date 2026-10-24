@@ -48,7 +48,7 @@ Variáveis opcionais em `.env.example`, README e `docker/dokploy-stack.yml`:
 | Variável | Default / exemplo sintético | Regra |
 |---|---|---|
 | `Z_API_HABILITADO` | `false` | Manter OFF. Não mudar WHATSAPP_PROVEDOR. |
-| `Z_API_INSTANCIA_ID` | vazio / `instancia-teste` | Identidade, não telefone. |
+| `Z_API_INSTANCIA_ID` | vazio / `instancia-teste` | Identidade, não telefone. Deve coincidir com `WHATSAPP_NUMERO` para validar a origem capturada na outbox. Divergência bloqueia sem HTTP. |
 | `Z_API_TOKEN` | vazio | Segredo no path, somente backend. |
 | `Z_API_CLIENT_TOKEN` | vazio | Header de saída, **não** autentica callback. |
 | `Z_API_CREDENCIAL_ID` | vazio / UUID sintético | Referência CRM deve coincidir exatamente com a da intenção. |
@@ -68,6 +68,10 @@ fixos, não URI. Não executar wire logging/JDK HTTP dumps, gravação de header
 externo de rede sem redação: essas camadas não são controladas pelo adaptador. APM/JFR e
 instrumentação externa exigem verificação antes de qualquer ativação.
 
+O stream é fechado antes do auto-close da resposta: `JdkClientHttpResponse.close()` também
+drena bytes restantes (conferido no bytecode Spring Web 6.2.19). Teste negativo reproduziu
+leitura acima do teto em 2xx e 5xx; ambos param no limite/sem ler corpo de erro após a correção.
+
 Tokens nunca vão ao banco/outbox/navegador. UUID evita envio com credencial diferente;
 não resolve secret store histórico. Rotação deve criar referência versionada, não reutilizar
 UUID com outro remetente. Programadas futuras e pendências legadas mantêm o gate do runbook.
@@ -84,6 +88,9 @@ UUID com outro remetente. Programadas futuras e pendências legadas mantêm o ga
   cobrem clique duplicado e negativa de acesso. Tradutor negador existe **só no teste**.
 - Primeira iteração do IT específico encontrou FK de limpeza do próprio fixture
   (`mensagem_envio_idempotencia`); limpeza corrigida, sem alterar regra/tabela de produção.
+- Revisão detectou drain no close do transporte: teste RED 2/2 antes da correção.
+  A primeira execução completa foi interrompida voluntariamente para corrigir; não é
+  relatada como sucesso. O clean verify final precisa terminar depois dessa alteração.
 - Clean verify Java 21 e CI do último SHA são registrados na PR/relatório de fechamento;
   não usar resultados da predecessora como comprovação desta revisão.
 

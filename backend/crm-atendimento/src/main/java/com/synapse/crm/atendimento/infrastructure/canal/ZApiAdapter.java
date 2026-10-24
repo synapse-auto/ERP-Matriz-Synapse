@@ -1,10 +1,12 @@
 package com.synapse.crm.atendimento.infrastructure.canal;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -44,16 +46,23 @@ class ZApiAdapter implements CanalGateway {
     private final CircuitBreaker envioBreaker;
     private final CircuitBreaker saudeBreaker;
     private final Bulkhead limite;
+    private final String instanciaEsperada;
 
     @Autowired
-    ZApiAdapter(ZApiProperties propriedades, ObjectMapper json, CircuitBreakerRegistry breakers) {
-        this(clienteIsolado(propriedades), propriedades, json, breakers);
+    ZApiAdapter(ZApiProperties propriedades, CanalProperties canal, ObjectMapper json, CircuitBreakerRegistry breakers) {
+        this(clienteIsolado(propriedades), propriedades, json, breakers, canal.numeroPrincipal());
     }
 
     /** Builder nao gerenciado; testes substituem somente o transporte, nunca o contrato. */
     ZApiAdapter(RestClient.Builder cliente, ZApiProperties propriedades,
             ObjectMapper json, CircuitBreakerRegistry breakers) {
+        this(cliente, propriedades, json, breakers, propriedades.instanciaId());
+    }
+
+    ZApiAdapter(RestClient.Builder cliente, ZApiProperties propriedades,
+            ObjectMapper json, CircuitBreakerRegistry breakers, String instanciaEsperada) {
         this.propriedades = propriedades;
+        this.instanciaEsperada = instanciaEsperada;
         this.json = json;
         // Nao herda interceptadores, tracing ou metricas com URI contendo segredo.
         this.http = cliente.observationRegistry(ObservationRegistry.NOOP).build();
@@ -87,7 +96,7 @@ class ZApiAdapter implements CanalGateway {
 
     @Override
     public ResultadoDeEnvio enviar(Envio envio) {
-        if (!propriedades.configurada()) {
+        if (!configurada()) {
             return ResultadoDeEnvio.Recusado.permanente("Z_API_CONFIGURACAO_INDISPONIVEL");
         }
         if (!propriedades.credencialId().equals(envio.credencialId())) {
@@ -144,8 +153,13 @@ class ZApiAdapter implements CanalGateway {
     }
 
     private JsonNode lerResposta(ClientHttpResponse retorno) throws IOException {
-        if (!retorno.getStatusCode().is2xxSuccessful()) { throw new RespostaNaoConfirmada(); }
-        byte[] corpo = retorno.getBody().readNBytes(propriedades.limiteRespostaBytes() + 1);
+        // Fechar o stream ANTES do auto-close do RestClient impede o drain sem limite
+        // do JdkClientHttpResponse. Vale tambem para corpos de erro/redirecionamento.
+        byte[] corpo;
+        try (InputStream entrada = retorno.getBody()) {
+            if (!retorno.getStatusCode().is2xxSuccessful()) { throw new RespostaNaoConfirmada(); }
+            corpo = entrada.readNBytes(propriedades.limiteRespostaBytes() + 1);
+        }
         if (corpo.length > propriedades.limiteRespostaBytes()) { throw new RespostaNaoConfirmada(); }
         JsonNode resposta = json.reader().with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(corpo);
         if (resposta == null || !resposta.isObject()) {
@@ -162,7 +176,7 @@ class ZApiAdapter implements CanalGateway {
 
     @Override
     public AutenticacaoDoCanal verificarAutenticacao() {
-        if (!propriedades.configurada()) {
+        if (!configurada()) {
             return AutenticacaoDoCanal.recusada("Z_API_CONFIGURACAO_INDISPONIVEL");
         }
         try {
@@ -172,6 +186,12 @@ class ZApiAdapter implements CanalGateway {
         } catch (RuntimeException e) {
             return AutenticacaoDoCanal.recusada("Z_API_SAUDE_NAO_CONFIRMADA");
         }
+    }
+
+    private boolean configurada() {
+        // O snapshot de origem da outbox usa numeroPrincipal; nao permitir que a
+        // credencial HTTP aponte para outra instancia apesar daquele snapshot.
+        return propriedades.configurada() && Objects.equals(instanciaEsperada, propriedades.instanciaId());
     }
 
     private JsonNode consultarEstado() {
