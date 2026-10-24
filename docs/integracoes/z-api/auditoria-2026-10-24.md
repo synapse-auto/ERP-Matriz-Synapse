@@ -1,5 +1,8 @@
 # Z-API — auditoria de prontidão (24/10/2026)
 
+Retrato da base 61a7c6f e PR #321. Continuação de saída em
+[Fase 2](./fase-2-saida.md); não transforma esta matriz histórica em homologação.
+
 **Pode trocar a Uzapi na Femina nesta revisão: não.** Pronto no código: não.
 Homologado na conta Z-API real: não. Nenhum acesso à VPS/Dokploy, conexão de número,
 registro de callback, envio real, replay, merge ou deploy foi realizado.

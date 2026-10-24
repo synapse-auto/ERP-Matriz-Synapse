@@ -40,8 +40,10 @@ import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
 import com.synapse.crm.app.seguranca.ApoioRls;
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
+import com.synapse.crm.atendimento.application.Outbox;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
+import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
 import com.synapse.crm.atendimento.infrastructure.webhook.ProcessadorDeWebhookEntrada;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
@@ -90,6 +92,9 @@ class CanalWhatsAppIT extends PostgresIT {
     private CanalFake canal;
 
     @Autowired
+    private Outbox outbox;
+
+    @Autowired
     private TestRestTemplate http;
 
     @Autowired
@@ -101,6 +106,53 @@ class CanalWhatsAppIT extends PostgresIT {
     private TransactionTemplate transacao;
     private UUID idAna;
     private UUID leadDaAna;
+
+    @Test
+    void aceiteNaFilaGuardaAmbosIdsNaoConfirmaEnvioENaoReenvia() {
+        ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+        UUID mensagem = enviar.executar(leadDaAna, "aceite ainda sem confirmacao").mensagem().id();
+        canal.responderCom(new ResultadoDeEnvio.Enfileirado("instancia-a", "processo-z", "mensagem-w"));
+        rodarPublisher();
+        esperar().untilAsserted(() -> assertThat(jdbc.queryForObject(
+                "SELECT publicado_em IS NOT NULL FROM outbox_evento WHERE payload->>'mensagemId' = ?",
+                Boolean.class, mensagem.toString())).isTrue());
+        assertThat(statusDaMensagem(mensagem)).isEqualTo("PENDENTE");
+        UUID outboxId = jdbc.queryForObject("SELECT id FROM outbox_evento WHERE payload->>'mensagemId' = ?",
+                UUID.class, mensagem.toString());
+        transacao.executeWithoutResult(status -> {
+            assertThat(outbox.marcarAmbiguo(outboxId, Instant.now(), "resposta atrasada")).isFalse();
+            assertThat(outbox.marcarEnfileirado(outboxId, Instant.now(), "outro", "instancia-b", "z-b", "w-b")).isFalse();
+        });
+        assertThat(jdbc.queryForObject(
+                "SELECT payload->'aceiteNaFila'->>'idDoProcessamento' FROM outbox_evento WHERE payload->>'mensagemId' = ?",
+                String.class, mensagem.toString())).isEqualTo("processo-z");
+        assertThat(jdbc.queryForObject(
+                "SELECT payload->'aceiteNaFila'->>'idDaMensagem' FROM outbox_evento WHERE payload->>'mensagemId' = ?",
+                String.class, mensagem.toString())).isEqualTo("mensagem-w");
+        assertThat(jdbc.queryForObject(
+                "SELECT payload->'aceiteNaFila'->>'instancia' FROM outbox_evento WHERE payload->>'mensagemId' = ?",
+                String.class, mensagem.toString())).isEqualTo("instancia-a");
+        canal.aoReceberEnvio(() -> { throw new AssertionError("aceite enfileirado nao pode reenviar"); });
+        rodarPublisher();
+        assertThat(pendentesNaOutbox()).isZero();
+    }
+
+    @Test
+    void resultadoAmbiguoDoPostVaiParaConferenciaSemRetryNemFalsaRecusaDefinitiva() {
+        ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+        UUID mensagem = enviar.executar(leadDaAna, "timeout apos POST").mensagem().id();
+        canal.responderCom(new ResultadoDeEnvio.Ambiguo("Z_API_RESPOSTA_NAO_CONFIRMADA"));
+        rodarPublisher();
+        esperar().untilAsserted(() -> assertThat(statusDaMensagem(mensagem)).isEqualTo("FALHOU"));
+        assertThat(erroDaMensagem(mensagem, "titulo")).isEqualTo("Não foi possível confirmar o envio");
+        assertThat(jdbc.queryForObject(
+                "SELECT despacho_ambiguo_em IS NOT NULL FROM outbox_evento WHERE payload->>'mensagemId' = ?",
+                Boolean.class, mensagem.toString())).isTrue();
+        canal.aoReceberEnvio(() -> { throw new AssertionError("envio ambiguo nao pode retentar"); });
+        rodarPublisher();
+        assertThat(esgotadasNaOutbox()).isEqualTo(1);
+        assertThat(tentativasNaOutbox()).isEqualTo(1);
+    }
 
     @BeforeEach
     void preparar() {

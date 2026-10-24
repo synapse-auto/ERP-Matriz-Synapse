@@ -431,6 +431,12 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `WHATSAPP_CONTA_NEGOCIO` | vazio | WABA ID, necessário para listar/criar templates. Não é o Phone Number ID; vazio desabilita somente a administração de templates. |
 | `WHATSAPP_USUARIO_API` | vazio (legada) | Mantida por compatibilidade com E152; a Uzapi/Autotic atual não usa username, nem exige esta variável. |
 | `WHATSAPP_VERSAO_API` | vazio | `{version}` das rotas da Uzapi/Autotic (E152, provedor `uzapi-autotic`). Só esse adaptador usa; vazio não afeta `meta-cloud`. |
+| `Z_API_HABILITADO` | `false` | Somente adaptador de saída experimental; **manter OFF**. Não há entrada autenticada; não selecionar `WHATSAPP_PROVEDOR=z-api`. |
+| `Z_API_INSTANCIA_ID` | vazio | ID da instância Z-API, somente backend; não é telefone nem token. |
+| `Z_API_TOKEN` | vazio | Segredo da instância Z-API, usado no path HTTPS; nunca expor ao navegador/logs/tracing. |
+| `Z_API_CLIENT_TOKEN` | vazio | Segredo de saída no header `Client-Token`; não autentica callbacks recebidos. |
+| `Z_API_CREDENCIAL_ID` | vazio | UUID da credencial do CRM que deve coincidir com a referência da outbox. Ausente/divergente bloqueia sem HTTP. |
+| `Z_API_LIMITE_RESPOSTA_BYTES` | `4096` | Teto configurável para JSON de IDs/saúde. Resposta maior não é aceite; sem retry cego do POST. Timeout e concorrência reutilizam `WHATSAPP_TIMEOUT`/`OUTBOX_CONCORRENCIA`. |
 | `CANAL_FOTO_PERFIL_HABILITADO` | `true` | Habilita a captura assíncrona de foto quando o adaptador do canal oferece essa capacidade; desligar não afeta mensagens. |
 | `CANAL_FOTO_PERFIL_CACHE_TTL` | `6h` | Janela de cache por lead para evitar consultas repetidas ao provedor. |
 | `CANAL_FOTO_PERFIL_CONCORRENCIA` / `CANAL_FOTO_PERFIL_FILA` | `2` / `100` | Bulkhead da captura assíncrona; não compartilha threads com o chat. |
