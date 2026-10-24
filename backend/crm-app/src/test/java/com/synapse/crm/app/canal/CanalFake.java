@@ -65,6 +65,10 @@ public class CanalFake implements CanalGateway {
         proximaResposta.set(ResultadoDeEnvio.Recusado.permanente(motivo));
     }
 
+    public void responderCom(ResultadoDeEnvio resultado) {
+        proximaResposta.set(resultado);
+    }
+
     public void religar() {
         proximaResposta.set(new ResultadoDeEnvio.Aceito("fake-id-" + System.nanoTime()));
     }

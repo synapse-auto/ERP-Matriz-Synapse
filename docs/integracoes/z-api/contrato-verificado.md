@@ -1,7 +1,8 @@
 # Z-API — contrato verificado e desenho (Fase 1)
 
 Revalidado em 24/10/2026; código auditado na base `origin/main` 61a7c6f.
-**Não implementado, não ativado e não homologado.** Este documento planeja a integração;
+**Desenho da Fase 1; não ativado e não homologado.** A saída de texto experimental foi
+implementada depois desta auditoria: ver [Fase 2](./fase-2-saida.md). Este documento planeja a integração;
 não registra endpoints do CRM como se já existissem. Fontes são exclusivamente oficiais,
 descobertas pelo [índice principal](https://developer.z-api.io/llms.txt) e
 [índice API](https://developer.z-api.io/_llms/pt-br/api-reference.txt).

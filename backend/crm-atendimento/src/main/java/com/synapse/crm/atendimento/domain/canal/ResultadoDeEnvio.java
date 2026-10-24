@@ -7,7 +7,7 @@ package com.synapse.crm.atendimento.domain.canal;
  * que o adaptador produz, porque ela decide o destino da linha na outbox:
  *
  * <ul>
- *   <li>temporaria (timeout, 429, 5xx, breaker aberto) — vale a pena tentar de novo, com backoff;
+ *   <li>temporaria — somente quando o contrato permite nova tentativa segura, com backoff;
  *   <li>permanente (numero invalido, template nao aprovado, fora da janela) — retentar mil vezes da
  *       o mesmo resultado e so gasta quota. A linha esgota na hora e vai para inspecao.
  * </ul>
@@ -16,6 +16,13 @@ package com.synapse.crm.atendimento.domain.canal;
  * de mais trinta segundos. As duas escolhas custam mensagem nao entregue.
  */
 public sealed interface ResultadoDeEnvio {
+
+    /** Aceite na fila do fornecedor, ainda sem comprovacao de envio ao destinatario. */
+    record Enfileirado(String instancia, String idDoProcessamento, String idDaMensagem)
+            implements ResultadoDeEnvio {}
+
+    /** O POST pode ter produzido efeito: suspender envio automatico e exigir conferencia. */
+    record Ambiguo(String motivo) implements ResultadoDeEnvio {}
 
     /**
      * @param idExterno id da mensagem no provedor, para casar o callback de entrega depois

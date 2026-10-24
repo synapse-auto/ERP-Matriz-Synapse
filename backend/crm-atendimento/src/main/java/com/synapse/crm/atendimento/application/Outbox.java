@@ -152,6 +152,13 @@ public interface Outbox {
      */
     boolean marcarPublicado(UUID outboxId, Instant quando);
 
+    /** Guarda ambos os IDs e a instancia sem afirmar envio nem usar o indice global de IDs. */
+    boolean marcarEnfileirado(UUID outboxId, Instant quando, String provedor, String instancia,
+            String idDoProcessamento, String idDaMensagem);
+
+    /** Suspende definitivamente o retry automatico de um POST com efeito desconhecido (E209). */
+    boolean marcarAmbiguo(UUID outboxId, Instant quando, String motivo);
+
     /**
      * Grava que a linha esta prestes a ser entregue ao provedor (E209), numa transacao propria e
      * curta, imediatamente antes da chamada.

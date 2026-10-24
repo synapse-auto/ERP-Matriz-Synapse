@@ -116,6 +116,19 @@ class OutboxRepositorioJdbc implements Outbox {
             "UPDATE outbox_evento SET publicado_em = ?, ultimo_erro = NULL "
                     + "WHERE id = ? AND publicado_em IS NULL AND esgotado_em IS NULL";
 
+    private static final String SQL_ENFILEIRADO = """
+            UPDATE outbox_evento
+               SET publicado_em = ?, ultimo_erro = NULL,
+                   payload = jsonb_set(payload, '{aceiteNaFila}', ?::jsonb)
+             WHERE id = ? AND tipo = ? AND publicado_em IS NULL AND esgotado_em IS NULL
+            """;
+
+    private static final String SQL_AMBIGUO = """
+            UPDATE outbox_evento
+               SET esgotado_em = ?, despacho_ambiguo_em = ?, ultimo_erro = ?, tentativas = tentativas + 1
+             WHERE id = ? AND tipo = ? AND publicado_em IS NULL AND esgotado_em IS NULL
+            """;
+
     /** So grava em linha ainda em jogo; a recusa conhecida a limpa em {@link #SQL_REAGENDAR}. */
     private static final String SQL_DESPACHANDO =
             "UPDATE outbox_evento SET despachado_em = ? WHERE id = ? AND tipo = ?"
@@ -391,6 +404,24 @@ class OutboxRepositorioJdbc implements Outbox {
     public boolean marcarPublicado(UUID outboxId, Instant quando) {
         TransacaoObrigatoria.exigir("marcarPublicado");
         return chat.update(SQL_PUBLICADO, Timestamp.from(quando), outboxId) == 1;
+    }
+
+    @Override
+    public boolean marcarEnfileirado(UUID outboxId, Instant quando, String provedor, String instancia,
+            String idDoProcessamento, String idDaMensagem) {
+        TransacaoObrigatoria.exigir("marcarEnfileirado");
+        ObjectNode aceite = json.createObjectNode();
+        aceite.put("provedor", provedor);
+        aceite.put("instancia", instancia);
+        aceite.put("idDoProcessamento", idDoProcessamento);
+        aceite.put("idDaMensagem", idDaMensagem);
+        return chat.update(SQL_ENFILEIRADO, Timestamp.from(quando), aceite.toString(), outboxId, TIPO_ENVIO) == 1;
+    }
+
+    @Override
+    public boolean marcarAmbiguo(UUID outboxId, Instant quando, String motivo) {
+        TransacaoObrigatoria.exigir("marcarAmbiguo");
+        return chat.update(SQL_AMBIGUO, Timestamp.from(quando), Timestamp.from(quando), truncar(motivo), outboxId, TIPO_ENVIO) == 1;
     }
 
     @Override
