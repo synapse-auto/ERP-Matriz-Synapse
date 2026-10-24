@@ -80,3 +80,18 @@ HMAC Meta nem o protocolo de outro produto Z-API (por exemplo, Omni).
 O Checker foi usado novamente com POST `/send-text` e seus campos explícitos e retornou zero
 endpoints: resultado não avaliativo. G1 permanece aberto. Nenhuma solicitação ao suporte foi
 enviada automaticamente e nenhum callback foi implementado.
+
+## Pacote anexado e nova conferência — 24/10/2026
+
+Client-Token, introdução dos webhooks e configuração ReceivedCallback foram reconferidos.
+O primeiro é CRM → API; o PUT com value configura URL, não descreve autenticação do POST
+Z-API → CRM. HTTPS/instanceId não comprovam origem. Não foi localizado protocolo verificável
+nas fontes examinadas; não prova inexistência de capacidade privada do fornecedor.
+
+O ZIP recomenda bearer secret na URL e inclui proposta de sticker: referências, não contrato
+nativo nem autorização para revogar G1. Nenhuma entrada/segredo URL foi implementado.
+O Checker nesta consulta extraiu um endpoint de saída de documento, mas não os campos;
+resultado parcial também não responde à segurança de entrada. A pergunta ao fornecedor
+permanece acima, com checklist em [bloqueios-troca.md](./bloqueios-troca.md).
+Avanço independente: [saída de mídia](./fase-4-midia-saida.md). Entrada/status/eco/correlação/
+recebimento só prosseguem após satisfazer seus contratos essenciais.

@@ -1,7 +1,8 @@
 # Z-API — runbook de preparação, corte e rollback da Femina
 
-24/10/2026. **STATUS: BLOQUEADO / NÃO EXECUTAR CORTE.** Esta revisão não possui adaptador
-Z-API. Não existe sequência de variáveis que o torne funcional. As verificações abaixo são
+24/10/2026. **STATUS: BLOQUEADO / NÃO EXECUTAR CORTE.** Existe saída experimental de texto/mídia,
+mas não entrada segura/status/correlação operacional. Nenhuma sequência de variáveis conclui
+a integração. As verificações abaixo são
 preparatórias; as etapas de mutação só podem ser detalhadas/liberadas após as fases de código,
 homologação e autorização específica. Não conectar número, registrar callbacks ou enviar agora.
 
@@ -15,8 +16,9 @@ não copiar valores de ambiente, tokens, URLs temporárias, payloads ou mensagen
 - Responsável por operação, automação e homologação devem definir janela e reversão.
   Preservar disponibilidade de Atendimentos; não matar backend para simular pausa do canal.
 - Somente Femina. Não alterar Estrutural/Meta nem compartilhar credenciais entre instâncias.
-- Ainda faltam: autenticação oficial de callbacks, adaptadores, correlação, mídia, resultado
-  ambíguo, resolução de credenciais históricas e destino de programadas. **STOP** enquanto faltarem.
+- Ainda faltam: G1, entrada/status/correlação, mídia recebida, capacidades/homologação, CI,
+  credenciais históricas e destino de programadas. Saída/suspensão de POST ambíguo existem
+  desligadas, não concluem os itens pendentes. [Checklist](./bloqueios-troca.md). **STOP**.
 - Na VPS, conferir somente imagem e tarefas do serviço conhecido:
 
 ```bash
@@ -53,13 +55,13 @@ isso **não** prova que uma imagem daquela PR foi publicada.
 
 ## 3. Configurações/credenciais
 
-**Ação Dokploy agora: nenhuma.** Nenhuma variável nova foi implementada por esta auditoria.
+**Ação Dokploy agora: nenhuma.** Manter Z_API_HABILITADO=false; não selecionar z-api.
 Manter `WHATSAPP_PROVEDOR=uzapi-autotic` na Femina; não preencher Z-API em variáveis da Meta.
 Não alterar valor real nem exibi-lo em evidência.
 
-A futura implementação deve documentar nomes reais em README/.env.example/stack para:
-habilitação default false, instance ID, referência do token da instância, Client-Token,
-timeout e mecanismo de autenticação oficial dos callbacks. Os nomes não são inventados aqui.
+Variáveis opcionais da F2 estão em README/.env.example/stack e [fase-2-saida.md](./fase-2-saida.md).
+Mídia não acrescenta variável. Autenticação oficial de callbacks ainda não tem configuração
+implementada; não preencher segredo/HMAC por analogia.
 Ausência de recurso desativado não pode derrubar instância Meta/Uzapi.
 
 ## 4. Callbacks

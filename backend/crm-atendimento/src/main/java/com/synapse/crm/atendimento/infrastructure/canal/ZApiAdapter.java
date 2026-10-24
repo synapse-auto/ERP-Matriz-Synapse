@@ -47,10 +47,12 @@ class ZApiAdapter implements CanalGateway {
     private final CircuitBreaker saudeBreaker;
     private final Bulkhead limite;
     private final String instanciaEsperada;
+    private final ZApiMidiaSaida midias;
 
     @Autowired
-    ZApiAdapter(ZApiProperties propriedades, CanalProperties canal, ObjectMapper json, CircuitBreakerRegistry breakers) {
-        this(clienteIsolado(propriedades), propriedades, json, breakers, canal.numeroPrincipal());
+    ZApiAdapter(ZApiProperties propriedades, CanalProperties canal, ObjectMapper json, CircuitBreakerRegistry breakers,
+            ZApiMidiaSaida midias) {
+        this(clienteIsolado(propriedades), propriedades, json, breakers, canal.numeroPrincipal(), midias);
     }
 
     /** Builder nao gerenciado; testes substituem somente o transporte, nunca o contrato. */
@@ -61,9 +63,15 @@ class ZApiAdapter implements CanalGateway {
 
     ZApiAdapter(RestClient.Builder cliente, ZApiProperties propriedades,
             ObjectMapper json, CircuitBreakerRegistry breakers, String instanciaEsperada) {
+        this(cliente, propriedades, json, breakers, instanciaEsperada, null);
+    }
+
+    ZApiAdapter(RestClient.Builder cliente, ZApiProperties propriedades,
+            ObjectMapper json, CircuitBreakerRegistry breakers, String instanciaEsperada, ZApiMidiaSaida midias) {
         this.propriedades = propriedades;
         this.instanciaEsperada = instanciaEsperada;
         this.json = json;
+        this.midias = midias;
         // Nao herda interceptadores, tracing ou metricas com URI contendo segredo.
         this.http = cliente.observationRegistry(ObservationRegistry.NOOP).build();
         this.envioBreaker = breakers.circuitBreaker("canal-z-api");
@@ -102,7 +110,8 @@ class ZApiAdapter implements CanalGateway {
         if (!propriedades.credencialId().equals(envio.credencialId())) {
             return ResultadoDeEnvio.Recusado.permanente("Z_API_CREDENCIAL_DIVERGENTE");
         }
-        if (!(envio.conteudo() instanceof ConteudoDeEnvio.MensagemLivre texto)) {
+        if (!(envio.conteudo() instanceof ConteudoDeEnvio.MensagemLivre)
+                && !(envio.conteudo() instanceof ConteudoDeEnvio.MensagemMidia && midias != null)) {
             return ResultadoDeEnvio.Recusado.permanente("Z_API_CONTEUDO_NAO_SUPORTADO");
         }
         if (envio.contextoWamid() != null && !envio.contextoWamid().isBlank()) {
@@ -112,19 +121,30 @@ class ZApiAdapter implements CanalGateway {
             return ResultadoDeEnvio.Recusado.permanente("Z_API_DESTINO_INVALIDO");
         }
         try {
-            return limite.executeSupplier(() -> envioBreaker.executeSupplier(() -> enviarTexto(envio, texto)));
+            return limite.executeSupplier(() -> envioBreaker.executeSupplier(() -> enviarConteudo(envio)));
         } catch (CallNotPermittedException e) {
             return ResultadoDeEnvio.Recusado.temporario("Z_API_DISJUNTOR_ABERTO");
         } catch (BulkheadFullException e) {
             return ResultadoDeEnvio.Recusado.temporario("Z_API_LIMITE_DE_CONCORRENCIA");
+        } catch (ZApiMidiaSaida.MidiaInvalida e) {
+            return ResultadoDeEnvio.Recusado.permanente("Z_API_MIDIA_INVALIDA");
+        } catch (ZApiMidiaSaida.StorageIndisponivel e) {
+            return ResultadoDeEnvio.Recusado.temporario("Z_API_STORAGE_INDISPONIVEL");
         } catch (RuntimeException e) {
             // Inclusive timeout/5xx: a ausencia de resposta nao prova ausencia de efeito do POST.
             return new ResultadoDeEnvio.Ambiguo("Z_API_RESPOSTA_NAO_CONFIRMADA");
         }
     }
 
-    private ResultadoDeEnvio enviarTexto(Envio envio, ConteudoDeEnvio.MensagemLivre texto) {
-        JsonNode resposta = requisitarTexto(envio, texto);
+    private ResultadoDeEnvio enviarConteudo(Envio envio) {
+        JsonNode resposta;
+        if (envio.conteudo() instanceof ConteudoDeEnvio.MensagemMidia midia) {
+            try (var preparada = midias.preparar(midia)) {
+                resposta = requisitarMidia(envio, preparada);
+            }
+        } else {
+            resposta = requisitarTexto(envio, (ConteudoDeEnvio.MensagemLivre) envio.conteudo());
+        }
         if (resposta.hasNonNull("error") && (!resposta.path("error").isTextual()
                 || !resposta.path("error").asText().isBlank())) {
             throw new RespostaNaoConfirmada();
@@ -136,6 +156,18 @@ class ZApiAdapter implements CanalGateway {
             throw new RespostaNaoConfirmada();
         }
         return new ResultadoDeEnvio.Enfileirado(propriedades.instanciaId(), processamento, mensagem);
+    }
+
+    private JsonNode requisitarMidia(Envio envio, ZApiMidiaSaida.Preparada preparada) {
+        try {
+            return http.post().uri(url(preparada.rota()))
+                    .header("Client-Token", propriedades.clientToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(saida -> preparada.escrever(saida, json, envio.telefoneDestino()))
+                    .exchange((pedido, retorno) -> lerResposta(retorno));
+        } catch (RuntimeException e) {
+            throw new RespostaNaoConfirmada();
+        }
     }
 
     private JsonNode requisitarTexto(Envio envio, ConteudoDeEnvio.MensagemLivre texto) {
