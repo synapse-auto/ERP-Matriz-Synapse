@@ -28,6 +28,7 @@ import com.synapse.crm.atendimento.application.Outbox;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
+import com.synapse.crm.atendimento.infrastructure.canal.CanalProperties;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 class PublicadorDaOutboxOperacoesTest {
@@ -49,7 +50,7 @@ class PublicadorDaOutboxOperacoesTest {
         when(transacoes.reservar(AGORA)).thenReturn(List.of(envio));
         when(transacoes.marcarDespachando(any(),any())).thenReturn(true);
         when(compositor.montar(envio)).thenThrow(new com.synapse.crm.atendimento.application.ContaDeTesteSomenteLeituraException());
-        var operacoes=new PublicadorDaOutboxOperacoes(transacoes,canal,compositor,RELOGIO,Runnable::run);
+        var operacoes=new PublicadorDaOutboxOperacoes(transacoes,canal,compositor,RELOGIO,Runnable::run, mock(CanalProperties.class));
         assertThat(operacoes.rodada()).isEqualTo(1);
         org.mockito.Mockito.verifyNoInteractions(canal);
         verify(transacoes).registrarResultado(org.mockito.ArgumentMatchers.eq(envio),org.mockito.ArgumentMatchers.argThat(resultado -> resultado instanceof ResultadoDeEnvio.Recusado recusa && recusa.permanente() && recusa.motivo().equals("CONTA_TESTE_SOMENTE_LEITURA")),org.mockito.ArgumentMatchers.eq(AGORA));
@@ -94,7 +95,7 @@ class PublicadorDaOutboxOperacoesTest {
                     canal,
                     compositor,
                     RELOGIO,
-                    executor);
+                    executor, mock(CanalProperties.class));
             var rodada = CompletableFuture.runAsync(operacoes::rodada);
 
             assertThat(iniciouRapida.await(1, TimeUnit.SECONDS))
@@ -163,7 +164,7 @@ class PublicadorDaOutboxOperacoesTest {
                     canal,
                     compositor,
                     RELOGIO,
-                    executor);
+                    executor, mock(CanalProperties.class));
             CompletableFuture<Void> rodada = CompletableFuture.runAsync(operacoes::rodada);
 
             assertThat(primeiraIniciou.await(1, TimeUnit.SECONDS)).isTrue();
@@ -204,7 +205,7 @@ class PublicadorDaOutboxOperacoesTest {
         });
 
         PublicadorDaOutboxOperacoes operacoes = new PublicadorDaOutboxOperacoes(
-                transacoes, canal, compositor, RELOGIO, Runnable::run);
+                transacoes, canal, compositor, RELOGIO, Runnable::run, mock(CanalProperties.class));
 
         assertThat(operacoes.rodada()).isEqualTo(2);
         assertThat(ordemDeDespacho)
@@ -221,7 +222,7 @@ class PublicadorDaOutboxOperacoesTest {
         when(transacoes.reservar(AGORA)).thenReturn(List.of(pendente));
         when(transacoes.marcarDespachando(any(), any())).thenReturn(false);
         PublicadorDaOutboxOperacoes operacoes =
-                new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run);
+                new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run, mock(CanalProperties.class));
 
         operacoes.rodada();
 
@@ -240,7 +241,7 @@ class PublicadorDaOutboxOperacoesTest {
         when(transacoes.marcarDespachando(any(), any())).thenReturn(true);
         when(canal.enviar(any())).thenReturn(new ResultadoDeEnvio.Aceito("externo"));
         PublicadorDaOutboxOperacoes operacoes =
-                new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run);
+                new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run, mock(CanalProperties.class));
 
         operacoes.rodada();
 
@@ -446,6 +447,29 @@ class PublicadorDaOutboxOperacoesTest {
 
         verify(mensagens, org.mockito.Mockito.never()).atualizarStatusEntrega(any(), any(), any(), any());
         verify(eventos, org.mockito.Mockito.never()).publishEvent(any());
+    }
+
+    @Test
+    void divergenciaDeOrigemBloqueiaAntesDeComporMidiaOuMarcarDespacho() {
+        var transacoes = mock(PublicadorDaOutboxTransacoes.class);
+        var canal = mock(CanalGateway.class);
+        var compositor = mock(com.synapse.crm.atendimento.application.CompositorDeEnvioParaCanal.class);
+        var configuracao = mock(CanalProperties.class);
+        var original = pendente();
+        var envio = new Outbox.EnvioPendente(original.outboxId(), original.mensagemId(), original.enviadoEm(),
+                original.atendimentoId(), original.leadId(), original.telefoneDestino(), original.credencialId(),
+                original.conteudo(), 0, null, null, null, false, "provedor-anterior", "conta-anterior");
+        when(transacoes.reservar(AGORA)).thenReturn(List.of(envio));
+        when(canal.provedor()).thenReturn("provedor-atual");
+        when(configuracao.numeroPrincipal()).thenReturn("conta-atual");
+
+        new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run, configuracao).rodada();
+
+        org.mockito.Mockito.verifyNoInteractions(compositor);
+        verify(canal, org.mockito.Mockito.never()).enviar(any());
+        verify(transacoes, org.mockito.Mockito.never()).marcarDespachando(any(), any());
+        verify(transacoes).registrarResultado(envio,
+                ResultadoDeEnvio.Recusado.permanente("CANAL_DE_ORIGEM_DIVERGENTE"), AGORA);
     }
 
     private static OutboxProperties propriedades() {

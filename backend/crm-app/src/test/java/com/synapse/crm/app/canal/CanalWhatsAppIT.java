@@ -133,6 +133,71 @@ class CanalWhatsAppIT extends PostgresIT {
     class Envio {
 
         @Test
+        void origemDoCanalEGravadaNaMesmaOutboxSemCopiarSegredos() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            UUID mensagemId = enviar.executar(leadDaAna, "origem persistida").mensagem().id();
+
+            assertThat(jdbc.queryForObject(
+                    "SELECT payload->>'provedorOrigem' FROM outbox_evento WHERE payload->>'mensagemId' = ?",
+                    String.class, mensagemId.toString())).isEqualTo("fake");
+            assertThat(jdbc.queryForObject(
+                    "SELECT jsonb_exists(payload, 'identificadorCanalOrigem') FROM outbox_evento WHERE payload->>'mensagemId' = ?",
+                    Boolean.class, mensagemId.toString())).isTrue();
+        }
+
+        @Test
+        void trocaDeProvedorNaoDespachaPendenciaDeOutroCanal() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            UUID mensagemId = enviar.executar(leadDaAna, "nao reenviar no canal novo").mensagem().id();
+            jdbc.update("UPDATE outbox_evento SET payload = payload || ?::jsonb WHERE payload->>'mensagemId' = ?",
+                    "{\"provedorOrigem\":\"outro-provedor\"}", mensagemId.toString());
+
+            rodarPublisher();
+
+            esperar().untilAsserted(() -> {
+                assertThat(statusDaMensagem(mensagemId)).isEqualTo("FALHOU");
+                assertThat(canal.enviados()).isEmpty();
+                assertThat(pendentesNaOutbox()).isZero();
+                assertThat(jdbc.queryForObject(
+                        "SELECT ultimo_erro FROM outbox_evento WHERE payload->>'mensagemId' = ?",
+                        String.class, mensagemId.toString())).isEqualTo("CANAL_DE_ORIGEM_DIVERGENTE");
+                assertThat(jdbc.queryForObject(
+                        "SELECT despachado_em FROM outbox_evento WHERE payload->>'mensagemId' = ?",
+                        Timestamp.class, mensagemId.toString())).isNull();
+            });
+        }
+
+        @Test
+        void trocaDeIdentificadorNoMesmoProvedorTambemNaoDespacha() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            UUID mensagemId = enviar.executar(leadDaAna, "nao trocar a conta remetente").mensagem().id();
+            jdbc.update("UPDATE outbox_evento SET payload = payload || ?::jsonb WHERE payload->>'mensagemId' = ?",
+                    "{\"provedorOrigem\":\"fake\",\"identificadorCanalOrigem\":\"outro-identificador\"}", mensagemId.toString());
+
+            rodarPublisher();
+
+            esperar().untilAsserted(() -> {
+                assertThat(statusDaMensagem(mensagemId)).isEqualTo("FALHOU");
+                assertThat(canal.enviados()).isEmpty();
+            });
+        }
+
+        @Test
+        void payloadLegadoContinuaNoCanalAtualSemInventarOrigemHistorica() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            UUID mensagemId = enviar.executar(leadDaAna, "compatibilidade legado").mensagem().id();
+            jdbc.update("UPDATE outbox_evento SET payload = payload - 'provedorOrigem' - 'identificadorCanalOrigem' WHERE payload->>'mensagemId' = ?",
+                    mensagemId.toString());
+
+            rodarPublisher();
+
+            esperar().untilAsserted(() -> {
+                assertThat(statusDaMensagem(mensagemId)).isEqualTo("ENVIADO");
+                assertThat(canal.enviados()).hasSize(1);
+            });
+        }
+
+        @Test
         @DisplayName("a mensagem nasce PENDENTE e so vira ENVIADO quando o provedor aceita")
         void envio_pontaAPonta_terminaEnviado() {
             ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);

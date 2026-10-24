@@ -21,6 +21,7 @@ import com.synapse.crm.atendimento.application.ContaDeTesteSomenteLeituraExcepti
 import com.synapse.crm.atendimento.application.Outbox;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
+import com.synapse.crm.atendimento.infrastructure.canal.CanalProperties;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 /**
@@ -43,18 +44,21 @@ public class PublicadorDaOutboxOperacoes {
     private final CompositorDeEnvioParaCanal compositor;
     private final Clock relogio;
     private final Executor executor;
+    private final CanalProperties propriedades;
 
     public PublicadorDaOutboxOperacoes(
             PublicadorDaOutboxTransacoes transacoes,
             CanalGateway canal,
             CompositorDeEnvioParaCanal compositor,
             Clock relogio,
-            @Qualifier("publicadorDaOutboxExecutor") Executor executor) {
+            @Qualifier("publicadorDaOutboxExecutor") Executor executor,
+            CanalProperties propriedades) {
         this.transacoes = transacoes;
         this.canal = canal;
         this.compositor = compositor;
         this.relogio = relogio;
         this.executor = executor;
+        this.propriedades = propriedades;
     }
 
     /** Reserva em uma transacao curta, envia em paralelo fora dela e registra cada resultado em outra. */
@@ -93,6 +97,12 @@ public class PublicadorDaOutboxOperacoes {
 
     private void processar(Outbox.EnvioPendente pendente) {
         ContextoDeServico.executarComo("publicador-outbox-envio", () -> {
+            if (origemDivergente(pendente)) {
+                transacoes.registrarResultado(pendente,
+                        ResultadoDeEnvio.Recusado.permanente("CANAL_DE_ORIGEM_DIVERGENTE"),
+                        Instant.now(relogio));
+                return;
+            }
             if (!transacoes.marcarDespachando(pendente, Instant.now(relogio))) {
                 log.warn(
                         "Despacho ignorado: a linha {} da outbox ja foi publicada ou esgotada (mensagem {}).",
@@ -103,6 +113,14 @@ public class PublicadorDaOutboxOperacoes {
             ResultadoDeEnvio resultado = enviarSemDeixarEscapar(pendente);
             transacoes.registrarResultado(pendente, resultado, Instant.now(relogio));
         });
+    }
+
+    private boolean origemDivergente(Outbox.EnvioPendente pendente) {
+        // Legado continua legivel. Nao inferir a origem antiga: drenar/conferir antes do corte.
+        if (pendente.provedorOrigem() == null) return false;
+        String identificadorAtual = propriedades.numeroPrincipal() == null ? "" : propriedades.numeroPrincipal();
+        return !pendente.provedorOrigem().equals(canal.provedor())
+                || !identificadorAtual.equals(pendente.identificadorCanalOrigem());
     }
 
     /** Uma excecao do adaptador vira recusa temporaria; uma linha nao derruba as demais. */

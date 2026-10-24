@@ -209,7 +209,29 @@ public interface Outbox {
             String contextoWamid,
             String telefoneCanonicoObservado,
             String telefoneProvedorObservado,
-            boolean possuiSnapshotDoContato) {
+            boolean possuiSnapshotDoContato,
+            String provedorOrigem,
+            String identificadorCanalOrigem) {
+
+        /** Compatibilidade de leitura; origem ausente exige drenagem antes de trocar o canal. */
+        public EnvioPendente(
+                UUID outboxId,
+                UUID mensagemId,
+                Instant enviadoEm,
+                UUID atendimentoId,
+                UUID leadId,
+                String telefoneDestino,
+                UUID credencialId,
+                ConteudoDeEnvio conteudo,
+                int tentativas,
+                String contextoWamid,
+                String telefoneCanonicoObservado,
+                String telefoneProvedorObservado,
+                boolean possuiSnapshotDoContato) {
+            this(outboxId, mensagemId, enviadoEm, atendimentoId, leadId, telefoneDestino,
+                    credencialId, conteudo, tentativas, contextoWamid, telefoneCanonicoObservado,
+                    telefoneProvedorObservado, possuiSnapshotDoContato, null, null);
+        }
 
         /** Compatibilidade com payloads antigos que ainda nao guardam o snapshot do contato. */
         public EnvioPendente(
