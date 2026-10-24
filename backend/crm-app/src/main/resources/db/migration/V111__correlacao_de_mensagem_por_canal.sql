@@ -11,6 +11,7 @@ CREATE TABLE mensagem_correlacao_canal (
     atendimento_id UUID REFERENCES atendimento(id),
     status_observado status_entrega,
     ocorrido_em TIMESTAMPTZ,
+    conflitante BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (provedor, instancia, namespace, id_externo),
     FOREIGN KEY (mensagem_id, mensagem_enviada_em) REFERENCES mensagem(id, enviado_em) ON DELETE CASCADE,
     CHECK ((mensagem_id IS NULL AND mensagem_enviada_em IS NULL AND atendimento_id IS NULL)

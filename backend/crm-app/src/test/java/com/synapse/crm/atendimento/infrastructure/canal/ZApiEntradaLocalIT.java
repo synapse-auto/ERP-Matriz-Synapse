@@ -160,6 +160,23 @@ class ZApiEntradaLocalIT extends PostgresIT {
         assertThat(eventos.stream(MensagemParaTempoReal.class).count()).isEqualTo(1);
     }
 
+    @Test void lidSemTelefoneFicaDescartadoDeFormaDuravelSemInventarLead() throws Exception {
+        ObjectNode payload = (ObjectNode) json.readTree(recebido()); payload.put("phone", "123456@lid");
+        injetar(payload.toString()); processador.processarPendentes();
+        String id = tradutor.idsExternos(payload.toString()).getFirst();
+        assertThat(jdbc.queryForObject("SELECT descartes->0->>'motivo' FROM webhook_entrada WHERE id_externo=?", String.class, id)).isEqualTo("IDENTIDADE_NAO_SUPORTADA");
+        assertThat(jdbc.queryForObject("SELECT processado_em IS NOT NULL FROM webhook_entrada WHERE id_externo=?", Boolean.class, id)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id=?", Integer.class, atendimento)).isZero();
+    }
+
+    @Test void ecoNaoCriaMensagemNemNovoDespacho() throws Exception {
+        ObjectNode payload = (ObjectNode) json.readTree(recebido()); payload.put("fromMe", true);
+        injetar(payload.toString()); processador.processarPendentes();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id=?", Integer.class, atendimento)).isZero();
+        assertThat(simulador.despachos.get()).isZero();
+        assertThat(eventos.stream(MensagemParaTempoReal.class).count()).isZero();
+    }
+
     @Test void leituraAntesDoPostFicaDuravelEReconciliadaSemReenvioNemRegressao() {
         UUID mensagem = enviar();
         injetar(status(mensagem, "READ")); processador.processarPendentes();
@@ -221,7 +238,7 @@ class ZApiEntradaLocalIT extends PostgresIT {
         assertThat(estado(primeira)).isEqualTo("PENDENTE");
         vincular(chave, segunda);
         observar(chave, StatusEntrega.ENVIADO);
-        assertThat(estado(primeira)).isEqualTo("ENVIADO");
+        assertThat(estado(primeira)).isEqualTo("PENDENTE");
         assertThat(estado(segunda)).isEqualTo("LIDO");
     }
 
@@ -234,6 +251,11 @@ class ZApiEntradaLocalIT extends PostgresIT {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_evento WHERE publicado_em IS NOT NULL", Integer.class)).isEqualTo(2);
         assertThat(jdbc.queryForObject("SELECT mensagem_id FROM mensagem_correlacao_canal WHERE instancia=? AND namespace='WHATSAPP' AND id_externo=?", UUID.class, INSTANCIA, "w-" + atual)).isEqualTo(anterior);
         assertThat(estado(atual)).isEqualTo("PENDENTE");
+        observar(alias, StatusEntrega.LIDO);
+        assertThat(estado(anterior)).isEqualTo("PENDENTE");
+        assertThat(estado(atual)).isEqualTo("PENDENTE");
+        assertThat(jdbc.queryForObject("SELECT conflitante FROM mensagem_correlacao_canal WHERE instancia=? AND namespace='WHATSAPP' AND id_externo=?", Boolean.class, INSTANCIA, "w-" + atual)).isTrue();
+        assertThat(eventos.stream(MudancaDeStatusDeEntrega.class).count()).isZero();
     }
 
     @Test

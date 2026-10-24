@@ -34,9 +34,17 @@ class CorrelacaoDeMensagemDoCanalRepositorioJdbc implements CorrelacaoDeMensagem
                 ON CONFLICT (provedor, instancia, namespace, id_externo) DO UPDATE
                    SET mensagem_id = EXCLUDED.mensagem_id, mensagem_enviada_em = EXCLUDED.mensagem_enviada_em,
                        atendimento_id = EXCLUDED.atendimento_id
-                 WHERE c.mensagem_id IS NULL OR (c.mensagem_id = EXCLUDED.mensagem_id
-                    AND c.mensagem_enviada_em = EXCLUDED.mensagem_enviada_em AND c.atendimento_id = EXCLUDED.atendimento_id)
+                 WHERE NOT c.conflitante AND (c.mensagem_id IS NULL OR (c.mensagem_id = EXCLUDED.mensagem_id
+                    AND c.mensagem_enviada_em = EXCLUDED.mensagem_enviada_em AND c.atendimento_id = EXCLUDED.atendimento_id))
                 """, chave.provedor(), chave.instancia(), chave.namespace(), chave.valor(), mensagemId, Timestamp.from(enviadoEm), atendimentoId);
+        if (alterados != 1) {
+            // O conflito conserva o vinculo original para auditoria, mas nao permite que callbacks
+            // futuros confirmem a mensagem antiga com um ID que passou a ser ambiguo.
+            chat.update("""
+                    UPDATE mensagem_correlacao_canal SET conflitante = TRUE
+                     WHERE provedor = ? AND instancia = ? AND namespace = ? AND id_externo = ?
+                    """, chave.provedor(), chave.instancia(), chave.namespace(), chave.valor());
+        }
         return alterados == 1;
     }
 
@@ -66,6 +74,7 @@ class CorrelacaoDeMensagemDoCanalRepositorioJdbc implements CorrelacaoDeMensagem
                         THEN jsonb_build_object('titulo', 'ENVIO_RECUSADO_PELO_CANAL') ELSE m.erro_entrega END
                   FROM mensagem_correlacao_canal c JOIN atendimento a ON a.id = c.atendimento_id
                  WHERE c.provedor = ? AND c.instancia = ? AND c.namespace = ? AND c.id_externo = ?
+                   AND NOT c.conflitante
                    AND m.id = c.mensagem_id AND m.enviado_em = c.mensagem_enviada_em
                    AND CASE m.status_entrega
                        WHEN 'PENDENTE' THEN c.status_observado IN ('ENVIADO', 'ENTREGUE', 'LIDO', 'FALHOU')

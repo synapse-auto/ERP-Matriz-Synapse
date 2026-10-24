@@ -71,6 +71,13 @@ A mensagem não confirmada continua PENDENTE; não existe retry automático dess
 publicada. Falha real de banco/commit depois de efeito externo continua ambiguidade, não
 promessa de exactly-once. Não há reconciliação automática por telefone/payload aproximado.
 
+Revisão de colisão: V111 (ainda não incorporada/aplicada em instância real) também guarda
+`conflitante`. Se duas mensagens disputam o mesmo alias, o vínculo bruto anterior permanece
+para auditoria, mas **nenhum status futuro desse alias** pode confirmar qualquer mensagem.
+Não basta conservar o primeiro vínculo: isso ainda produziria confirmação na mensagem errada.
+O bloqueio não se limpa sozinho; exige reconciliação operacional explícita futura. Dois testes
+reprovaram antes da correção (ENVIADO/LIDO indevidos) e exigem PENDENTE/nenhum evento depois.
+
 No worker Z-API, a reserva passa a exigir provedor correspondente: backlog Uzapi/Meta não é
 traduzido pela ACL Z-API após uma troca futura. Os workers antigos mantêm o caminho existente;
 o problema genérico de mudança entre outros provedores não foi ampliado nesta etapa.
@@ -87,11 +94,13 @@ reprodução. Downloader limitado/SSRF-safe e fontes de mídia continuam pendent
 ## Evidências e pendências
 
 Dirigidos: tradutor 30/30, seleção fechada 3/3, outbox 14/14, worker 29/29 e regressão Uzapi
-18/18 (94); integrações `ZApiEntradaLocalIT` 39/39 e `ZApiSaidaIT` 9/9 (48), PostgreSQL/Redis/
+18/18 (94); integrações `ZApiEntradaLocalIT` 41/41 e `ZApiSaidaIT` 9/9 (50), PostgreSQL/Redis/
 MinIO reais. Incluem isolamento/RLS, os 25 pares de estados e colisão sem reenvio. Clean verify
 completo Java 21 e CI do último SHA são registrados no fechamento da PR; execução em curso
 não é declarada aprovada por este documento.
 Unidades puras adicionais: identidade 7/7 e caso de uso com portas mockadas 3/3.
+Inventário/constraints/partições: `SchemaMigracoesIT` 21/21. Última rodada dirigida completa:
+104 unidades/regressões + 71 integrações (schema 21, entrada 41, saída 9), zero falhas/erros/skips.
 A primeira CI (SHA cf4811e, PR run 40140501165) detectou inventário de schema desatualizado
 em `SchemaMigracoesIT`: faltava a nova tabela V111 na lista esperada. Corrigido acrescentando
 somente a tabela, sem afrouxar a igualdade exata. A execução local anterior foi interrompida

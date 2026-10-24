@@ -201,3 +201,15 @@ além do bloqueio independente Zod; Stack passou, GHCR skipped. Acrescentada a t
 mantida comparação exata. Reforçados negativos de escrita RLS (42501) e asserts de mapeamento.
 Não é flake nem foi ignorado/reexecutado sem correção. Clean verify local interrompido após
 diagnóstico, com nova execução completa após o ajuste; resultado final na PR/relatório.
+
+Revisão adicional antes da entrega: dois negativos provaram que apenas conservar o alias
+antigo ainda deixava um callback futuro confirmar a mensagem errada. V111 não mergeada
+ganhou marcador de conflito; aplicação de status fica bloqueada nesse alias, conservando
+vínculo/aceite para auditoria e sem redisparo. Sem desfazer estados anteriormente comprovados
+nem resolver conflito automaticamente. Novo clean verify completo após essa correção.
+
+Rodada final dirigida: 104 unidades/regressões e 71 integrações aprovadas (schema 21,
+entrada local 41, saída 9). Negativos de colisão reprovavam antes; agora exigem bloqueio
+durável, nenhum status falso e nenhum novo evento. LID-only persistido como descarte e eco
+sem mensagem/despacho também exercitam a fila/job reais. Suíte completa/CI do SHA final
+no fechamento da PR; não usar CI de predecessor para aprovar essa revisão.
