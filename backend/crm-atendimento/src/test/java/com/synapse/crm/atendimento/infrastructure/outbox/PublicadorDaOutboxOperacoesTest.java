@@ -258,6 +258,7 @@ class PublicadorDaOutboxOperacoesTest {
         when(outbox.reservarPendentes(2, AGORA, AGORA.plus(Duration.ofSeconds(30))))
                 .thenReturn(List.of());
         PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
+                mock(com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase.class),
                 outbox,
                 mock(MensagemRepositorio.class),
                 mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
@@ -278,6 +279,7 @@ class PublicadorDaOutboxOperacoesTest {
         ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
         OutboxProperties propriedades = propriedades();
         PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
+                mock(com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase.class),
                 outbox,
                 mensagens,
                 mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
@@ -315,6 +317,7 @@ class PublicadorDaOutboxOperacoesTest {
         CanalGateway canal = mock(CanalGateway.class);
         when(canal.provedor()).thenReturn("teste");
         PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
+                mock(com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase.class),
                 outbox,
                 mensagens,
                 idsExternos,
@@ -351,6 +354,7 @@ class PublicadorDaOutboxOperacoesTest {
         CanalGateway canal = mock(CanalGateway.class);
         when(canal.provedor()).thenReturn("teste");
         PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
+                mock(com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase.class),
                 outbox,
                 mock(MensagemRepositorio.class),
                 mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
@@ -379,6 +383,7 @@ class PublicadorDaOutboxOperacoesTest {
         CanalGateway canal = mock(CanalGateway.class);
         when(canal.provedor()).thenReturn("teste");
         PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
+                mock(com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase.class),
                 outbox,
                 mock(MensagemRepositorio.class),
                 mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
@@ -405,6 +410,7 @@ class PublicadorDaOutboxOperacoesTest {
         CanalGateway canal = mock(CanalGateway.class);
         when(canal.provedor()).thenReturn("teste");
         PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
+                mock(com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase.class),
                 outbox,
                 mensagens,
                 idsExternos,
@@ -431,6 +437,7 @@ class PublicadorDaOutboxOperacoesTest {
         when(canal.provedor()).thenReturn("teste");
         ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
         PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
+                mock(com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase.class),
                 outbox,
                 mensagens,
                 mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),

@@ -63,6 +63,22 @@ public interface TradutorDeCanal {
      */
     List<StatusDeEntregaDoCanal> statusDeEntrega(String payloadCru);
 
+    /** Caminho aditivo com identidade composta; adaptadores legados mantem seu contrato. */
+    default List<StatusComIdentidade> statusComIdentidade(String payloadCru) { return List.of(); }
+
+    default java.util.Optional<IdentidadeDeMensagemDoCanal> identidadeDaMensagem(String payloadCru, String idInterno) {
+        return java.util.Optional.empty();
+    }
+
+    record StatusComIdentidade(IdentidadeDeMensagemDoCanal identidade,
+            com.synapse.crm.atendimento.domain.mensagem.StatusEntrega status, Instant ocorridoEm) {
+        public StatusComIdentidade {
+            Objects.requireNonNull(identidade);
+            Objects.requireNonNull(status);
+            Objects.requireNonNull(ocorridoEm);
+        }
+    }
+
     /** Classificacoes observadas em entregas, sem valores monetarios nem JSON do provedor. */
     default List<PrecificacaoObservada> precificacoesObservadas(String payloadCru) {
         return List.of();
@@ -124,7 +140,10 @@ public interface TradutorDeCanal {
          * Reacao a uma mensagem que o CRM nao conhece, ou que nao e da conversa de quem reagiu. Nao
          * cria lead nem atendimento; so fica registrada.
          */
-        ALVO_DESCONHECIDO
+        ALVO_DESCONHECIDO,
+        IDENTIDADE_NAO_SUPORTADA,
+        OUTRO_CANAL,
+        NAMESPACE_NAO_CONFIRMADO
     }
 
     /**

@@ -388,6 +388,7 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
     private ProcessadorDeWebhookEntradaOperacoes processador(Duration prazoAbsoluto) {
         PlatformTransactionManager transacoes = transacaoPassThrough();
         return new ProcessadorDeWebhookEntradaOperacoes(
+                mock(com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase.class),
                 entrada,
                 tradutor,
                 idempotencia,

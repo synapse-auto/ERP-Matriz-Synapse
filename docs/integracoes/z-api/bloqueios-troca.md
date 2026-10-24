@@ -11,8 +11,11 @@
 - [ ] **G3 / fornecedor + CRM:** namespace ids[] (messageId/zaapId/outro); correlação por
   canal/instância/namespace, status antecipado/duplicado/fora de ordem e eco sem nova mensagem
   ou IA. IDs já preservados na outbox não concluem G3 nem tornam índice global isolado.
+  A extensão isolada/antecipação/dedup já está implementada em teste local na branch
+  `codex/z-api-entrada-local`; namespace real e garantias do fornecedor continuam pendentes.
 - [ ] **F3 / CRM:** entrada fail-closed no webhook real, instância, persistência/dedup/status/
-  WebSocket e LID-only rastreável, após G1. Sem telefone fictício ou remoção de @lid.
+  WebSocket e LID-only rastreável. ACL/fila local/eventos implementados com entrada HTTP
+  recusada; conexão autenticada de produção após G1. Sem telefone fictício ou remoção de @lid.
 - [ ] **F4 recebimento:** origens de mídia comprovadas, downloader assíncrono SSRF/DNS/
   redirect-safe com teto/timeout/MIME real. Saída desta branch não implementa recebimento
   nem recupera JPG/PNG indisponível da Uzapi.
@@ -29,6 +32,8 @@
   reenviar aceites PENDENTE. Workflow publicado não auditado.
 - [ ] **F5 futura:** aplicação/capacidades, codecs/reprodução, autorização/participação,
   reconexão, carga/memória/disco e logs/APM. Simulador não prova conta/workflow real.
+- [ ] **Operação da correlação:** retenção/reconciliação de identidades órfãs e colisões;
+  status não confirmado não pode ser apagado com prazo arbitrário nem autorizar redisparo.
 
 ## Zod também afeta a base
 

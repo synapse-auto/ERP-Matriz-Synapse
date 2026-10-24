@@ -1,7 +1,8 @@
 # Z-API — progresso e gates
 
 Atualizado: 24/10/2026. Planejamento: [planejamento.md](./planejamento.md).
-Estado operacional: **saída experimental de texto/mídia, desativada; entrada não implementada**.
+Estado operacional: **saída experimental desativada; entrada/correlação implementadas para
+teste local, sem bean/verificador de produção e sem downloader externo de mídia**.
 Base da auditoria atual: origin/main 61a7c6f. Worktree isolado reutilizado; alterações
 preexistentes do checkout principal preservadas. Branch `codex/z-api-auditoria-preparacao`.
 
@@ -9,7 +10,7 @@ preexistentes do checkout principal preservadas. Branch `codex/z-api-auditoria-p
 |---|---|---|---|
 | 1 | Incorporada em 13/10; G1 continua bloqueando passagem | Documentação/fixtures, não adaptador; revalidação de 24/10 corrigiu contrato de citação | [PR #301](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/301), codex/z-api-fase-1 / main |
 | 2 | Saída/texto implementados nesta revisão, ainda sem liberação operacional | Testes HTTP e outbox; entrada bloqueada por G1, CI frontend bloqueado por Zod | [PR #322](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/322), base #321 |
-| 3 | Não iniciada | Autenticação/correlação/eco/status antecipado e identidade LID | futuramente base fase-2 |
+| 3 | Parcial local autorizada; produção fechada | Tradução/correlação/status antecipado/eco/LID com fixtures; G1/namespace/repasse pendentes | codex/z-api-entrada-local, base #323 |
 | 4 | Parcial: saída em avanço independente autorizado | Imagem/áudio/vídeo/documento; recebimento/SSRF bloqueados G1 | codex/z-api-midia-saida, base #322 |
 | 5 | Preparação documental/regressão parcial; não concluída | Runbook/passagem; nenhuma homologação/corte | depende F3/F4 e CI |
 
@@ -24,11 +25,12 @@ preexistentes do checkout principal preservadas. Branch `codex/z-api-auditoria-p
 - Não há skill de clean-code/architecture-patterns/api-design-principles disponível no catálogo
   desta sessão. Nenhuma skill disponível se aplica à pesquisa documental/fixtures desta fase.
 
-## Gates — não ativar; entrada bloqueada antes de implementação
+## Gates — não ativar; histórico e complemento de autorização
 
 - **G1 essencial:** autenticação/origem do callback não documentada nas páginas verificadas.
-  Decisão de 12/10: **aguardar contrato oficial antes de implementar entrada**, sem fallback
-  próprio presumido. [Pendência ao fornecedor e resultado do Checker](./autenticacao-callback-pendente.md).
+  Decisão de 12/10 aguardava contrato antes de implementar. Complemento mais recente permite
+  ACL/testes locais, **não** conectar entrada de produção nem presumir autenticação.
+  [Pendência ao fornecedor e resultado do Checker](./autenticacao-callback-pendente.md).
 - **G2 identidade — decidido, não implementado:** phone pode ser LID sem conversão para telefone.
   Aprovado suporte inicial a telefones, com descarte/quarentena rastreável de LID-only e
   limitação explícita. Sem ampliação do modelo ou criação de telefone fictício.
@@ -61,7 +63,7 @@ da revisão que registra estas decisões. Checker: duas extrações retornaram s
 zero endpoints, inclusive para cURL explícito; resultado **não avaliativo**, não aprovação
 da autenticação. Nada foi homologado na conta real.
 
-## Operação e continuidade
+## Operação e continuidade (registro inicial; estado atual ao fim)
 
 Sem variáveis novas, migrations, VPS/Dokploy, deploy, conta real, registro de webhook ou n8n.
 Não abrir PRs vazias para preencher cinco links. Ordem futura: F1 → F2 → F3 → F4 → F5,
@@ -160,3 +162,33 @@ CI vermelho como sucesso. Ordem: #321 → #322 → PR de `codex/z-api-midia-said
   Clean verify completo Java 21 e CI do último SHA no relatório/PR de fechamento.
 - F3 bloqueada antes de implementação; F4 parcial e F5 não concluída. Não há cinco PRs
   concluídas nem liberação operacional. Dokploy: nenhuma ação; Z-API permanece OFF.
+
+## Complemento autorizado — F3 local, produção fechada
+
+Pedido mais recente autoriza tradução, recebimento, status e correlação com fixtures/testes
+locais antes da definição de autenticação. Planejamento e progresso relidos; nenhuma decisão
+permite registrar verificador permissivo ou abrir entrada de produção. [Entrega e fontes](./fase-3-entrada-local.md).
+
+- Branch `codex/z-api-entrada-local`, base #323 (07d7db4), mantendo a cadeia #321 → #322 →
+  #323 → PR desta branch. Todas draft; não fazer merge automaticamente.
+- ACL sem bean de produção, verificadores false; HTTP real recusa 403 sem gravar fila.
+  Testes injetam somente fixtures sintéticas na fila local e exercitam o job real.
+- Recebimento de texto/tipos de mídia, preservação DOCUMENTO, eco/LID/tipos não suportados;
+  mídia usa porta simulada com MinIO/download CRM reais, não downloader externo homologado.
+- Correlação durável por provedor/instância/namespace/ID, status antecipado e monotonia;
+  V111 nova, sem editar migrations/histórico. RLS exclusiva SERVICO e negativos.
+- Colisão não rouba alias, não desfaz aceite nem reabre outbox; diagnóstico técnico sanitizado.
+  Worker Z-API não drena backlog de outro provedor. Caminhos Meta/Uzapi mantidos.
+- Dirigidos 94/94; integrações 48/48 (entrada local 39, saída 9), inclusive 25 pares de
+  estado, duplicação, status antes do aceite, RLS, autorização e colisão sem redisparo.
+  Suíte completa Java 21 e CI do último SHA serão registrados no fechamento da PR.
+  Identidade pura 7/7 e caso de uso com portas mockadas 3/3 também aprovados.
+- G1 e namespace real de ids[] continuam pendentes. F4 downloader/SSRF, repasse n8n,
+  retenção/reconciliação, capacidades/carga/reconexão e homologação real não concluídos.
+- CI da predecessora #323: runs PR 40108269410 / push 40108250305 FAILURE; Backend/Stack
+  SUCCESS, Frontend FAILURE em audit Zod, GHCR SKIPPED. Não transferir esse resultado
+  para o SHA desta PR. Zod major/auditoria preservados conforme decisão explícita.
+- Sem frontend alterado, variável nova, proxy/VPS/Dokploy, webhook real, número conectado,
+  n8n, mensagens reais, merge ou deploy. **Dokploy: nenhuma ação; Z-API OFF.**
+
+**F3 parcial local: sim. Integração completa: não. Troca/homologação real: não liberadas.**

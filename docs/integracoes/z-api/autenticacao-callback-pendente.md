@@ -1,5 +1,11 @@
 # Z-API — autenticação dos callbacks: pendência oficial
 
+**Atualização de autorização — 24/10/2026:** o responsável permite implementar/testar tradução,
+entrada, status e correlação localmente antes da confirmação de G1. As decisões históricas
+abaixo não impedem mais a ACL local. **Entrada de produção continua bloqueada**: sem bean
+registrado, autenticação sempre negativa e sem endpoint permissivo. Não houve novo contrato
+oficial de autenticação. [Entrega local e limites](./fase-3-entrada-local.md).
+
 ## Decisões do responsável (12/10/2026)
 
 - **G1:** obter contrato oficial de autenticação antes de implementar a entrada.
