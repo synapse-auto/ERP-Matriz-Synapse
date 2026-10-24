@@ -21,6 +21,7 @@ import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.atendimento.application.Outbox;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.infrastructure.canal.CanalProperties;
 import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -164,11 +165,14 @@ class OutboxRepositorioJdbc implements Outbox {
 
     private final JdbcTemplate chat;
     private final ObjectMapper json;
+    private final CanalProperties canal;
 
     OutboxRepositorioJdbc(
-            @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource, ObjectMapper json) {
+            @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource, ObjectMapper json,
+            CanalProperties canal) {
         this.chat = new JdbcTemplate(chatDataSource);
         this.json = json;
+        this.canal = canal;
     }
 
     @Override
@@ -458,6 +462,9 @@ class OutboxRepositorioJdbc implements Outbox {
         raiz.put("leadId", leadId.toString());
         raiz.put("telefoneDestino", telefoneDestino);
         raiz.put("credencialId", credencialId == null ? null : credencialId.toString());
+        // Somente identidade de roteamento, nunca tokens, URL ou headers do provedor.
+        raiz.put("provedorOrigem", canal.provedor());
+        raiz.put("identificadorCanalOrigem", canal.numeroPrincipal() == null ? "" : canal.numeroPrincipal());
         if (mensagemProgramadaId != null) {
             raiz.put("mensagemProgramadaId", mensagemProgramadaId.toString());
         }
@@ -527,7 +534,9 @@ class OutboxRepositorioJdbc implements Outbox {
                 payload.path("telefoneProvedorObservado").isNull()
                         ? null
                         : payload.path("telefoneProvedorObservado").asText(),
-                payload.path("snapshotContatoVersao").asInt(0) == 1);
+                payload.path("snapshotContatoVersao").asInt(0) == 1,
+                payload.path("provedorOrigem").asText(null),
+                payload.path("identificadorCanalOrigem").asText(null));
     }
 
     private RepasseWebhookPendente desserializarRepasseWebhook(ResultSet linha, int indice)
