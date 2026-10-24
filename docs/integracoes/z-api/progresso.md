@@ -1,7 +1,7 @@
 # Z-API — progresso e gates
 
 Atualizado: 24/10/2026. Planejamento: [planejamento.md](./planejamento.md).
-Estado operacional: **adaptador experimental de saída/texto, desativado; entrada não implementada**.
+Estado operacional: **saída experimental de texto/mídia, desativada; entrada não implementada**.
 Base da auditoria atual: origin/main 61a7c6f. Worktree isolado reutilizado; alterações
 preexistentes do checkout principal preservadas. Branch `codex/z-api-auditoria-preparacao`.
 
@@ -10,8 +10,8 @@ preexistentes do checkout principal preservadas. Branch `codex/z-api-auditoria-p
 | 1 | Incorporada em 13/10; G1 continua bloqueando passagem | Documentação/fixtures, não adaptador; revalidação de 24/10 corrigiu contrato de citação | [PR #301](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/301), codex/z-api-fase-1 / main |
 | 2 | Saída/texto implementados nesta revisão, ainda sem liberação operacional | Testes HTTP e outbox; entrada bloqueada por G1, CI frontend bloqueado por Zod | [PR #322](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/322), base #321 |
 | 3 | Não iniciada | Autenticação/correlação/eco/status antecipado e identidade LID | futuramente base fase-2 |
-| 4 | Não iniciada | Mídia/capacidades/SSRF/limites e fontes completas | futuramente base fase-3 |
-| 5 | Não iniciada | Regressão/runbook, nenhuma homologação real nesta task | futuramente base fase-4 |
+| 4 | Parcial: saída em avanço independente autorizado | Imagem/áudio/vídeo/documento; recebimento/SSRF bloqueados G1 | codex/z-api-midia-saida, base #322 |
+| 5 | Preparação documental/regressão parcial; não concluída | Runbook/passagem; nenhuma homologação/corte | depende F3/F4 e CI |
 
 ## Fase 1: entregas e fontes
 
@@ -136,3 +136,27 @@ nem com CI vermelho ignorado.
   registrar pendência, **não** migrar Zod nem ignorar auditoria. Não chamar esse CI de verde.
 
 **Integração completa: não. Troca da Femina: não liberada. Homologação real: não executada.**
+
+## Continuação após pacote Markdown — F4 independente
+
+Planejamento/progresso relidos em 24/10; worktree isolada preservada. Autorização mais recente
+permite mídia/testes/capacidades/passagem independentes de G1. Não cria F3 fictícia nem trata
+CI vermelho como sucesso. Ordem: #321 → #322 → PR de `codex/z-api-midia-saida`, sem merge.
+
+- [Implementação, fontes e testes](./fase-4-midia-saida.md).
+- [Bloqueios da troca](./bloqueios-troca.md): causa/base Zod, G1/G3, entrada/mídia recebida,
+  capacidades, credenciais/agendas, automação e homologação.
+- ZIP com 23 Markdown lido sem execução; hash registrado. Sugestões de segredo URL/stickers
+  não substituem decisão/contrato. Checker extraiu um endpoint de documento, sem campos;
+  resultado parcial, não certificação de callbacks.
+- Saída usa storage privado e limites existentes no worker, spool limitado/Base64 incremental,
+  sem URL pública ou cópia Base64 integral. Sem migration/endpoint/variável nova.
+- HTTP 200 mantém PENDENTE mas fecha outbox. IT força lease vencido, repete API após aceite
+  e job, exigindo apenas um POST. Não há polling/retry adicional.
+- Dirigidos: adaptadores 194/194 (Z-API 37, mídia 30, seleção 3, Meta 59, Uzapi 65),
+  `ZApiSaidaIT` 9/9 com PostgreSQL/Redis/MinIO reais e transporte HTTP simulado.
+  Mídia ampliada depois para 32/32, incluindo leitura parcial com falha e DEBUG sem
+  Base64/nome/legenda/telefone/segredos; suíte completa deve exercitar novamente todos.
+  Clean verify completo Java 21 e CI do último SHA no relatório/PR de fechamento.
+- F3 bloqueada antes de implementação; F4 parcial e F5 não concluída. Não há cinco PRs
+  concluídas nem liberação operacional. Dokploy: nenhuma ação; Z-API permanece OFF.

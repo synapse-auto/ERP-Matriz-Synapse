@@ -25,6 +25,12 @@ ausente, incompatibilidade arquitetural ou ampliação de escopo. Reler este arq
 
 ## Fase 1 — contrato e desenho, sem adaptador
 
+**Complemento autorizado em 24/10:** enquanto G1 impedir entrada, avançar nas partes
+independentes de saída de mídia, testes, capacidades e passagem para automação. Manter PR
+encadeada na última entrega real (#322), sem inventar PR de fase bloqueada. Bloqueio Zod
+aceito para registro não é CI aprovado nem libera operação; distinguir avanço parcial de
+fase completa no progresso/checklist.
+
 Investigar autenticação, cinco tipos de envio, IDs, callbacks de recebimento/processamento/status,
 saúde, mídia/validade, origem dos callbacks, limites/erros/idempotência/reentrega.
 Entregar matriz capacidade → contrato → fonte → comprovado/lacuna, fixtures sintéticas,
