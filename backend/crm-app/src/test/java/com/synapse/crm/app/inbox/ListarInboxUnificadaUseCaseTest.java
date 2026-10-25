@@ -31,10 +31,12 @@ class ListarInboxUnificadaUseCaseTest {
     private final ListarConversasChatUseCase equipe = Mockito.mock(ListarConversasChatUseCase.class);
     private final FeatureService features = Mockito.mock(FeatureService.class);
     private final UsuarioContext usuarioContext = Mockito.mock(UsuarioContext.class);
+    private final com.synapse.crm.sharedkernel.permissao.VerificadorDeCapacidades capacidades = Mockito.mock(com.synapse.crm.sharedkernel.permissao.VerificadorDeCapacidades.class);
     private final ListarInboxUnificadaUseCase caso = new ListarInboxUnificadaUseCase(
-            clientes, equipe, features, usuarioContext);
+            clientes, equipe, features, usuarioContext, capacidades);
 
     ListarInboxUnificadaUseCaseTest() {
+        when(capacidades.permite("clientes.acessar")).thenReturn(true);
         when(usuarioContext.atual()).thenReturn(
                 new UsuarioAutenticado(UUID.randomUUID(), PapelUsuario.GESTOR, false));
     }

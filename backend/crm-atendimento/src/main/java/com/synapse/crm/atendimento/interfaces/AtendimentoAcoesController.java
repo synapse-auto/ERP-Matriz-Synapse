@@ -20,6 +20,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -91,6 +92,7 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
  * fugir disso aqui.
  */
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/atendimentos")
 @Tag(name = "Ações de atendimento", description = "Envio, transferência e finalização de conversas visíveis.")
 @SecurityRequirement(name = "bearerAuth")

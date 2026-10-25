@@ -203,7 +203,10 @@ describe("aplicar-marca-da-instancia.mjs", () => {
 
     for (const arquivo of ["tema.json", "identidade.json", "manifesto.json", "logo.png"]) {
       expect(existsSync(join(backup, arquivo)), arquivo).toBe(true);
-      expect(statSync(join(backup, arquivo)).mode & 0o077, `${arquivo}: só o dono lê`).toBe(0);
+      // Node não representa owner/group/others no Windows. O CI Linux verifica 0600.
+      if (process.platform !== "win32") {
+        expect(statSync(join(backup, arquivo)).mode & 0o077, `${arquivo}: só o dono lê`).toBe(0);
+      }
       expect(readFileSync(join(backup, arquivo)).includes(TOKEN), `${arquivo}: sem token`).toBe(false);
     }
     expect(JSON.parse(readFileSync(join(backup, "tema.json"), "utf8"))).toEqual(JSON.parse(readFileSync(TEMA_PADRAO, "utf8")));

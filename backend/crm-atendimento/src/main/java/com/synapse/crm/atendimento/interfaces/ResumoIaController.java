@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +23,7 @@ import com.synapse.crm.atendimento.application.resumo.SolicitarResumoIaUseCase;
 
 /** Borda autenticada do botão Gerar/Regerar; o navegador nunca acessa o n8n. */
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/atendimentos/{atendimentoId}/resumo-ia")
 @Tag(name = "Resumo por IA", description = "Solicitação assíncrona de resumo para a conversa atual.")
 class ResumoIaController {

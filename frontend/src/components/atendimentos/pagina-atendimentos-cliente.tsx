@@ -211,6 +211,25 @@ export function PaginaAtendimentosCliente({
   });
   const [novoContatoAberto, setNovoContatoAberto] = useState(false);
   const capacidades = useCapacidades();
+  const acessoClientes = capacidades.pode("clientes.acessar");
+  const acessoClientesAtual = useRef(acessoClientes);
+  useLayoutEffect(() => { acessoClientesAtual.current = acessoClientes; }, [acessoClientes]);
+  useEffect(() => {
+    if (acessoClientes) return;
+    let cancelado = false;
+    queueMicrotask(() => {
+      if (cancelado) return;
+      setAtendimentoSelecionadoId(null);
+      setAtendimentoParaAbrirId(null);
+      setLeadParaAbrir(null);
+      setRespostaAlvo(null);
+      setEncaminharAlvo(null);
+      setNovoContatoAberto(false);
+      setNotificacao(null);
+      setAtendimentos(atuais => atuais.filter(item => item.tipo === "EQUIPE_INTERNA"));
+    });
+    return () => { cancelado = true; };
+  }, [acessoClientes]);
   const {data:usuarioAtual}=useMeuUsuario();
   const capacidadeDoCanal = useQuery({
     queryKey: ["config", "canal"],
@@ -275,6 +294,7 @@ export function PaginaAtendimentosCliente({
         setBuscaAberta(false);
         return;
       }
+      if (!acessoClientes) return;
       const idParaAbrir = cartao.atendimentoAtivoId ?? cartao.atendimentoId;
       if (origem === "lista" && acessoPainel.permitido) {
         window.history.pushState(null, "", `/atendimentos?atendimentoId=${encodeURIComponent(idParaAbrir)}`);
@@ -298,7 +318,7 @@ export function PaginaAtendimentosCliente({
         cartaoSelecionadoId: idParaAbrir,
       });
     },
-    [marcarLeituraDaConversa, sessao.papel, sessao.usuarioId, visaoAtendimento, acessoPainel.permitido],
+    [marcarLeituraDaConversa, sessao.papel, sessao.usuarioId, visaoAtendimento, acessoPainel.permitido, acessoClientes],
   );
 
   useEffect(() => {
@@ -347,6 +367,7 @@ export function PaginaAtendimentosCliente({
    */
   const focarAtendimentoIniciado = useCallback(
     (resposta: { leadId: string; atendimentoId: string }) => {
+      if (!acessoClientesAtual.current) return;
       setAvisoRevogacao(false);
       setAvisoTransferencia(null);
       setConversaInternaId(null);
@@ -402,7 +423,7 @@ export function PaginaAtendimentosCliente({
   const cartaoDaAbertura = useQuery({
     queryKey: ["atendimentos", "estado", atendimentoParaAbrirId],
     queryFn: () => obterEstadoAtendimento(atendimentoParaAbrirId as string),
-    enabled: atendimentoParaAbrirId != null,
+    enabled: acessoClientes && atendimentoParaAbrirId != null,
     retry: false,
   });
 
@@ -488,7 +509,7 @@ export function PaginaAtendimentosCliente({
       const atual = reconciliador.ultimoSnapshot(snapshot.cartao.atendimentoId);
       return atual && atual.versao > snapshot.versao ? atual : snapshot;
     },
-    enabled: atendimentoSelecionadoId != null,
+    enabled: acessoClientes && atendimentoSelecionadoId != null,
     retry: false,
   });
 
@@ -722,7 +743,7 @@ export function PaginaAtendimentosCliente({
     === atendimentoSelecionadoId
     ? estadoSelecionadoQuery.data
     : null;
-  const conversa = estadoSelecionado?.cartao ?? null;
+  const conversa = acessoClientes ? estadoSelecionado?.cartao ?? null : null;
   const conversaAberta = Boolean(conversa || conversaInternaId);
   const respostaDaTela =
     conversa && respostaAlvo?.leadId === conversa.leadId ? respostaAlvo.mensagem : null;

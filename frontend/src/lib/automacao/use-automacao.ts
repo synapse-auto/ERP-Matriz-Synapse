@@ -28,10 +28,11 @@ export function useConfiguracaoAutomacao() {
 }
 
 /** Os quatro cards do topo da tela de Automação (E17b §Bloco 5). */
-export function useTelemetriaAutomacao() {
+export function useTelemetriaAutomacao(enabled = true) {
   return useQuery({
     queryKey: CHAVE_TELEMETRIA_AUTOMACAO,
     queryFn: obterTelemetriaAutomacao,
+    enabled,
   });
 }
 

@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,6 +25,7 @@ import com.synapse.crm.relatorios.domain.dashboard.VisaoGeralDashboard;
 
 /** Endpoint único da aba Visão Geral; restrição de papel declarada no caso de uso. */
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/dashboard/visao-geral")
 @Tag(name = "Dashboard", description = "Indicadores gerenciais consolidados da operação.")
 @SecurityRequirement(name = "bearerAuth")

@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,6 +28,7 @@ import com.synapse.crm.core.domain.timeline.OrigemEvento;
 
 /** Linha do tempo do lead, paginada e protegida pela mesma visibilidade da ficha. */
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/leads")
 @Tag(name = "Timeline dos leads", description = "Histórico cronológico de fatos dos leads visíveis.")
 @SecurityRequirement(name = "bearerAuth")

@@ -16,6 +16,30 @@ preexistentes do checkout principal preservadas. Branch `codex/z-api-auditoria-p
 
 ## Fase 1: entregas e fontes
 
+### Integração sequencial autorizada em 25/10/2026
+
+A missão mais recente autoriza corrigir e integrar #320 → #321 → #322 → #323 → #324,
+um merge por vez após CI do último SHA. #320 foi integrada em `ba381ab`, com runs
+PR **40169686971** e push **40169684615** SUCCESS no SHA `b68e73c`.
+Zod 4.6.7 corrigido foi incorporado da main nesta #321; auditoria não foi removida.
+Frontend local da correção: 168 arquivos / 1.400 testes, typecheck/lint/build/audit
+aprovados (quatro avisos preexistentes de lint). O CI da revisão #321 será conferido
+separadamente e registrado na PR. Isso não conclui homologação ou integração Z-API.
+Sem deploy; provedor continua OFF e segurança de callbacks permanece bloqueadora
+da entrada de produção. Nenhuma autenticação permissiva será registrada.
+
+#321 integrada em `5ceccf6`, após PR **40170618025** e push **40170615484** SUCCESS
+no SHA `ad45d65`. #322 incorpora essa main por merge, sem rebase destrutivo;
+sua base passa a main após a integração da predecessora. A validação do novo SHA
+da #322 é independente e será registrada na PR antes do merge. O código de saída
+continua experimental/OFF; HTTP 200 não confirma entrega e não reabre a outbox.
+
+#322 integrada em `ecec625`, após PR **40171435859** e push **40171431231** SUCCESS
+no SHA `f6c8e74`. Repetição local dirigida: 54/54 testes Java 21, sem ignorados.
+#323 incorpora a main e passa a tê-la como base, mantendo o diff apenas de mídia.
+O CI próprio do novo SHA será conferido antes do merge. Não há ativação,
+homologação do fornecedor ou liberação do recebimento de mídia em produção.
+
 - [Contrato verificado](./contrato-verificado.md): matriz com fontes oficiais por capacidade;
   rotas/métodos conferidos também no HTML, pois Markdown omite componentes de referência.
 - [Fixtures e casos negativos](./fixtures/README.md): exemplos fictícios, não dados reais.

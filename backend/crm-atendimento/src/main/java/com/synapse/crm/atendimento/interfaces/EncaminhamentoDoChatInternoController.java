@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -53,6 +54,7 @@ import com.synapse.crm.equipe.application.chat.MensagemDoChatNaoEncaminhavelExce
  * já está gravada e na outbox, e a entrega ao provedor é assíncrona.
  */
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1")
 @Tag(name = "Encaminhar do Chat Interno ao cliente", description = "Prévia, envio e acompanhamento do encaminhamento.")
 @SecurityRequirement(name = "bearerAuth")

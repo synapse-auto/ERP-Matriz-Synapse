@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -54,6 +55,7 @@ import com.synapse.crm.sharedkernel.identidade.ContextoDeAgenda;
  * recusar o que nao reconhece; o recorte por papel continua acontecendo no repositorio.
  */
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/leads/filtrar")
 @Tag(name = "Filtro de leads", description = "Consultas de leads por árvores E/OU de critérios.")
 @SecurityRequirement(name = "bearerAuth")
