@@ -15,6 +15,18 @@ preexistentes do checkout principal preservadas. Branch `codex/z-api-auditoria-p
 
 ## Fase 1: entregas e fontes
 
+### Integração sequencial autorizada em 25/10/2026
+
+A missão mais recente autoriza corrigir e integrar #320 → #321 → #322 → #323 → #324,
+um merge por vez após CI do último SHA. #320 foi integrada em `ba381ab`, com runs
+PR **40169686971** e push **40169684615** SUCCESS no SHA `b68e73c`.
+Zod 4.6.7 corrigido foi incorporado da main nesta #321; auditoria não foi removida.
+Frontend local da correção: 168 arquivos / 1.400 testes, typecheck/lint/build/audit
+aprovados (quatro avisos preexistentes de lint). O CI da revisão #321 será conferido
+separadamente e registrado na PR. Isso não conclui homologação ou integração Z-API.
+Sem deploy; provedor continua OFF e segurança de callbacks permanece bloqueadora
+da entrada de produção. Nenhuma autenticação permissiva será registrada.
+
 - [Contrato verificado](./contrato-verificado.md): matriz com fontes oficiais por capacidade;
   rotas/métodos conferidos também no HTML, pois Markdown omite componentes de referência.
 - [Fixtures e casos negativos](./fixtures/README.md): exemplos fictícios, não dados reais.
