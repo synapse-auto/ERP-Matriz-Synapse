@@ -5,6 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CartaoAtendimento } from "./types";
 
+const acesso = vi.hoisted(() => ({ clientes: true }));
+vi.mock("@/lib/gestao/use-capacidades", () => ({
+  useCapacidades: () => ({ pode: () => acesso.clientes }),
+}));
+
 vi.mock("./api", () => ({
   listarInboxUnificada: vi.fn(),
   listarAtendimentos: vi.fn(),
@@ -42,7 +47,19 @@ function wrapper(cache: QueryClient) {
 }
 
 describe("useAtendimentos — paginação da inbox", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); acesso.clientes = true; });
+
+  it("sem acesso a clientes nao apresenta cartoes externos retornados antes da revogacao", async () => {
+    acesso.clientes = false;
+    vi.mocked(api.listarInboxUnificada).mockResolvedValue({
+      itens: [cliente("antigo", "2026-08-26T12:00:00Z")], proximoCursor: null,
+    });
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useAtendimentos("ATIVOS"), { wrapper: wrapper(cache) });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual([]);
+    expect(result.current.atendentesConhecidos).toEqual([]);
+  });
 
   it("consome o cursor e concatena páginas sem reordenar nem duplicar", async () => {
     vi.mocked(api.listarInboxUnificada)

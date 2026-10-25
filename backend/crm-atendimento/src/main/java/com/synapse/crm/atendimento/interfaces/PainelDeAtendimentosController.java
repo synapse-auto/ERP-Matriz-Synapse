@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,6 +36,7 @@ import com.synapse.crm.atendimento.application.painel.VisaoAtendimento;
  * aqui — este controller so pede a visao e devolve o que veio.
  */
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/atendimentos")
 @Tag(name = "Painel de atendimentos", description = "Conversas visíveis agrupadas pela visão operacional.")
 @SecurityRequirement(name = "bearerAuth")

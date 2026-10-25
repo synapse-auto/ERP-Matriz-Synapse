@@ -37,6 +37,16 @@ afterEach(() => {
 });
 
 describe("configuração raiz tolerante a versões desalinhadas", () => {
+  it("rejeita configuração inválida sem registrar seu conteúdo privado", async () => {
+    const erro = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const tema = carregarJson("tema.json");
+    tema.fonteBase = { privado: "sentinela-nao-deve-aparecer-no-log" };
+    responderCom(tema);
+    await expect(buscarTema()).rejects.toThrow();
+    expect(erro).toHaveBeenCalled();
+    expect(JSON.stringify(erro.mock.calls)).not.toContain("sentinela-nao-deve-aparecer-no-log");
+  });
+
   it("publica o token de texto do status lido no CSS runtime", () => {
     const tema = TemaSchema.parse(carregarJson("tema.json"));
 

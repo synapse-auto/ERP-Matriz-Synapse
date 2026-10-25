@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,6 +20,7 @@ import com.synapse.crm.atendimento.application.painel.operacional.ObterPainelOpe
 import com.synapse.crm.atendimento.application.painel.operacional.PainelOperacional;
 
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/atendimentos/painel-operacional")
 @SecurityRequirement(name = "bearerAuth")
 class PainelOperacionalController {

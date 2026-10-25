@@ -426,7 +426,8 @@ class NonoDigitoMigrationIT extends PostgresIT {
 
     private UUID abertoDoLead(UUID leadId) {
         return jdbc.queryForObject(
-                "SELECT app_atendimento_aberto_do_lead(?)", UUID.class, leadId);
+                "WITH contexto AS MATERIALIZED (SELECT set_config('app.papel', 'SERVICO', TRUE)) "
+                        + "SELECT app_atendimento_aberto_do_lead(?) FROM contexto", UUID.class, leadId);
     }
 
     private String statusDoAtendimento(UUID atendimentoId) {

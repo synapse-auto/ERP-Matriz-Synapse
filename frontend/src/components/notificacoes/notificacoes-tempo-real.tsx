@@ -28,6 +28,8 @@ import { tocarSomDeNotificacao, registrarDesbloqueioDeAudio } from "@/lib/atendi
 import type { NotificacaoTempoReal } from "@/lib/atendimento/types";
 import { renovarAccessToken } from "@/lib/api/http-client";
 import { ehAvisoDeAcessoAlterado } from "@/lib/gestao/aviso-de-acesso";
+import { revogarCacheDeClientes } from "@/lib/gestao/revogar-cache-clientes";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { ehAvisoDePresencaAlterada } from "@/lib/equipe/aviso-de-presenca";
 import type { MeuUsuario } from "@/lib/equipe/types";
 import {
@@ -46,6 +48,7 @@ export function NotificacoesTempoReal() {
   const textos = catalogo.notificacoes;
   const textosAtendimentos = catalogo.atendimentos;
   const cache = useQueryClient();
+  const acessoClientes = useCapacidades().pode("clientes.acessar");
   const pathname = usePathname();
   const router = useRouter();
   const usuarioId = useAuthStoreId();
@@ -62,6 +65,8 @@ export function NotificacoesTempoReal() {
 
   const aoReceber = useCallback((notificacao: NotificacaoTempoReal) => {
     const bruto: unknown = notificacao;
+    if (!acessoClientes && !ehAvisoDeAcessoAlterado(bruto) && !ehAvisoDePresencaAlterada(bruto)
+      && !notificacao.tipo.startsWith("CHAT_INTERNO_")) return;
     if (ehAvisoDeCancelamentos(bruto)) {
       void cache.invalidateQueries({ queryKey: ["cancelamentos"] }, { cancelRefetch: false });
       return; // Invalidacao sem conteudo, sem som/toast ou alteracao de mensagens.
@@ -91,6 +96,9 @@ export function NotificacoesTempoReal() {
       return;
     }
     if (ehAvisoDeAcessoAlterado(bruto)) {
+      revogarCacheDeClientes(cache);
+      setAvisos([]);
+      setAvisosDeFinalizacao([]);
       // Gestão (docs/47): o backend já aplica a mudança; aqui só refletimos sem F5. Sessão
       // invalidada (papel mudou/desativado) renova o token antes de recarregar; se a renovação
       // falhar, o próximo 401 leva ao login pelo cliente HTTP.
@@ -130,7 +138,7 @@ export function NotificacoesTempoReal() {
         ...atuais.filter((atual) => chaveTecnicaDaNotificacao(atual) !== decisao.chave),
       ].slice(0, MAXIMO_DE_AVISOS_VISUAIS));
     }
-  }, [cache, chatInternoHabilitado, pathname, somHabilitado, usuarioId, visualHabilitado]);
+  }, [acessoClientes, cache, chatInternoHabilitado, pathname, somHabilitado, usuarioId, visualHabilitado]);
 
   const { ciclo } = useConexaoTempoReal(() => accessToken, undefined, aoReceber);
 

@@ -291,7 +291,7 @@ export const TextosSchema = z.object({
     contatoCompartilhado: z.object({
       compartilhar: z.string(), titulo: z.string(), descricao: z.string(), interno: z.string(), externo: z.string(),
       nome: z.string(), telefones: z.string(), abrir: z.string(),
-    }).default({ compartilhar: "Compartilhar contato", titulo: "Compartilhar contato", descricao: "Escolha um usuário interno ou informe um contato externo.", interno: "Usuário interno", externo: "Contato externo", nome: "Nome", telefones: "Telefones (um por linha)", abrir: "Abrir conversa interna" }),
+    }).prefault({ compartilhar: "Compartilhar contato", titulo: "Compartilhar contato", descricao: "Escolha um usuário interno ou informe um contato externo.", interno: "Usuário interno", externo: "Contato externo", nome: "Nome", telefones: "Telefones (um por linha)", abrir: "Abrir conversa interna" }),
     titulo: z.string(),
     novaConversa: z.string(),
     novoGrupo: z.string(),
@@ -697,7 +697,7 @@ export const TextosSchema = z.object({
         verMais: z.string(),
         verMenos: z.string(),
       })
-      .default({
+      .prefault({
         titulo: "Resumo da IA para o atendimento",
         origem: "Transferência para atendimento humano",
         verMais: "Ver tudo",
@@ -1188,7 +1188,7 @@ export const TextosSchema = z.object({
         exclusaoRecusada: z.string().default("A Meta recusou a exclusão. Confira o estado e as restrições do template na conta WhatsApp."),
         exclusaoIncerta: z.string().default("A exclusão não foi confirmada. Atualize a lista e confira o estado na Meta antes de tentar novamente."),
       })
-      .default({
+      .prefault({
         semPermissao: "Você não tem permissão para esta ação em templates. Peça acesso à gestão.",
         naoEncontrado: "Este template não existe mais na conta WhatsApp. Atualize a lista.",
         invalido: "Pedido inválido: {motivo}",
@@ -1266,7 +1266,7 @@ export const TextosSchema = z.object({
   dashboard: z.object({
     titulo: z.string(), descricao: z.string(), carregando: z.string(), erro: z.string(), semDado: z.string(),
     abas: z.object({ rotulo: z.string(), visaoGeral: z.string(), operacional: z.string(), comercial: z.string(), iaAutomacao: z.string(), depois: z.string() }),
-    modos: z.object({ rotulo: z.string(), compacta: z.string(), expandida: z.string(), serieIndisponivel: z.string() }).default({ rotulo: "Modo de visualização", compacta: "Compacta", expandida: "Expandida", serieIndisponivel: "Série mensal indisponível" }),
+    modos: z.object({ rotulo: z.string(), compacta: z.string(), expandida: z.string(), serieIndisponivel: z.string() }).prefault({ rotulo: "Modo de visualização", compacta: "Compacta", expandida: "Expandida", serieIndisponivel: "Série mensal indisponível" }),
     periodos: z.object({ rotulo: z.string(), hoje: z.string(), seteDias: z.string(), mes: z.string(), ano: z.string() }),
     somenteComputador: z.string(),
     avisoComputador: z.string(),
@@ -1327,7 +1327,7 @@ export const TextosSchema = z.object({
       bom: z.string().default("Bom 7–8"),
       ruim: z.string().default("Ruim 0–6"),
       vazio: z.string().default("Nenhuma avaliação no período."),
-    }).default({
+    }).prefault({
       titulo: "Satisfação no período",
       apoio: "Escala de 0 a 10 · {total} avaliações",
       media: "média",
@@ -1371,7 +1371,7 @@ export const TextosSchema = z.object({
       erro: z.string(),
       erroImportar: z.string(),
       modeloArquivo: z.string(),
-    }).default({
+    }).prefault({
       titulo: "Importar leads (CSV)",
       descricao: "Adicione contatos em lote à base",
       arraste: "Arraste um arquivo .csv aqui",
@@ -1391,7 +1391,7 @@ export const TextosSchema = z.object({
       erroImportar: "Não foi possível importar os leads.",
       modeloArquivo: "modelo-leads.csv",
     }),
-    exportacao: z.object({ arquivo: z.string(), erro: z.string() }).default({
+    exportacao: z.object({ arquivo: z.string(), erro: z.string() }).prefault({
       arquivo: "leads.csv",
       erro: "Não foi possível exportar a agenda.",
     }),
@@ -1534,7 +1534,7 @@ export const TextosSchema = z.object({
     erro: z.string().default("Não foi possível salvar a classificação. Nenhuma relação foi alterada."),
     comVinculos: z.string().default("Classificação bloqueada: a conta possui vínculos operacionais ou históricos. Revise os identificadores técnicos, sem apagar ou reatribuir registros para contornar a proteção."),
     salvo: z.string().default("Classificação salva."),
-  }).default({}),
+  }).prefault({}),
 });
 
 export type Textos = z.infer<typeof TextosSchema>;
