@@ -4,6 +4,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
@@ -30,6 +32,25 @@ final class DetectorDePacoteOoxml {
             "application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml";
 
     private DetectorDePacoteOoxml() {}
+
+    static Optional<String> detectar(Path arquivo) {
+        // Nao carregar um diretorio central com milhoes de entradas no heap. O mesmo orcamento
+        // de metadados tambem limita bytes descomprimidos/nomes antes de Content_Types (zip bomb).
+        try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(arquivo))) {
+            int restante = LIMITE_CONTENT_TYPES;
+            ZipEntry entrada;
+            while (restante > 0 && (entrada = zip.getNextEntry()) != null) {
+                restante -= Math.max(1, entrada.getName().length());
+                if (restante <= 0) return Optional.empty();
+                byte[] bytes = zip.readNBytes(restante + 1);
+                if (bytes.length > restante) return Optional.empty();
+                if ("[Content_Types].xml".equals(entrada.getName()))
+                    return tipoDoContentTypes(new String(bytes, StandardCharsets.UTF_8));
+                restante -= bytes.length;
+            }
+            return Optional.empty();
+        } catch (IOException | IllegalArgumentException ignorada) { return Optional.empty(); }
+    }
 
     static Optional<String> detectar(byte[] conteudo) {
         if (conteudo == null || conteudo.length < 4) {

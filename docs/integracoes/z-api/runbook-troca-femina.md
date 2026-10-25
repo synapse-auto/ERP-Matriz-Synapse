@@ -1,5 +1,20 @@
 # Z-API — runbook de preparação, corte e rollback da Femina
 
+## Roteiro vigente — 25/10/2026
+
+O complemento de codigo autoriza/implementa protecao propria por segredo exclusivo em URL,
+prepara header nativo sem inventar seu nome e conecta entrada/midia/correlacao/repasse.
+**Para configurar e homologar, seguir [homologacao-protegida.md, B/C](./homologacao-protegida.md).**
+Para corte/rollback, seguir D e o inventario somente leitura da secao 6 abaixo, incluindo
+agora outbox `automacao.webhook.repassar` e `webhook_entrada` por provedor. Origem divergente
+e bloqueada sem HTTP; nao reativar bloqueios/ambiguos nem migrar payload de provedor.
+
+As proibicoes historicas de implementar segredo proprio/entrada abaixo foram superadas pela
+autorizacao explicita; nao sao bloqueios de codigo atuais. Continuam nao autorizados deploy,
+troca de producao ou qualquer operacao real pelo agente. Nenhum numero/callback foi registrado.
+
+## Historico e inventario operacional
+
 24/10/2026. **STATUS: BLOQUEADO / NÃO EXECUTAR CORTE.** Existe saída experimental de texto/mídia,
 mas não entrada segura/status/correlação operacional. Nenhuma sequência de variáveis conclui
 a integração. As verificações abaixo são

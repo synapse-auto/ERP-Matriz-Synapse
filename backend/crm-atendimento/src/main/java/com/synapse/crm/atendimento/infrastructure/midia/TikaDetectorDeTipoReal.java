@@ -1,5 +1,9 @@
 package com.synapse.crm.atendimento.infrastructure.midia;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Set;
 
 import org.apache.tika.Tika;
@@ -20,6 +24,15 @@ class TikaDetectorDeTipoReal implements DetectorDeTipoReal {
             Set.of("application/x-tika-ooxml", "application/zip");
 
     private final Tika tika = new Tika();
+
+    @Override
+    public String detectar(Path arquivo) {
+        try (var entrada = Files.newInputStream(arquivo)) {
+            String tipo = tika.detect(entrada);
+            return TIPOS_DE_CONTAINER_AMBIGUOS.contains(tipo)
+                    ? DetectorDePacoteOoxml.detectar(arquivo).orElse(tipo) : tipo;
+        } catch (IOException e) { throw new UncheckedIOException("falha ao detectar midia", e); }
+    }
 
     @Override
     public String detectar(byte[] conteudo) {

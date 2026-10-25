@@ -46,6 +46,8 @@
     <!-- Storage de midia do chat (E11b): cliente S3-compativel (MinIO/AWS S3) e
          deteccao de tipo real por magic bytes. -->
     <minio.version>8.5.17</minio.version>
+    <!-- Mesma versao ja trazida pelo MinIO; DNS fixado no transporte de midia Z-API. -->
+    <okhttp.version>4.12.0</okhttp.version>
     <tika.version>2.9.2</tika.version>
 
     <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
@@ -101,6 +103,11 @@
         <groupId>org.apache.tika</groupId>
         <artifactId>tika-core</artifactId>
         <version>${tika.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.squareup.okhttp3</groupId>
+        <artifactId>okhttp</artifactId>
+        <version>${okhttp.version}</version>
       </dependency>
 
       <!-- Modulos internos: versao gerenciada em um lugar so. -->

@@ -7,6 +7,13 @@ ausente, incompatibilidade arquitetural ou ampliação de escopo. Reler este arq
 
 ## Restrições permanentes
 
+**Complemento vigente de 25/10/2026:** autorizada protecao propria com segredo exclusivo
+na URL, validado antes do corpo/fila; preparar modo de header nativo sem presumir seu nome.
+O suporte afirmou existir header, mas falta nome/configuracao. Preferir nativo quando
+confirmado. G1 nao bloqueia mais o codigo independente. Continuam proibidas operacoes reais.
+Entregas anteriores #321–#324 ja mergeadas; complemento em PR unica sobre main, sem repetir
+diffs das fases. [Contrato/roteiro vigente](./homologacao-protegida.md).
+
 **Autorização de 25/10/2026:** corrigir o CI de todas as PRs abertas e fazer merge
 sequencial após aprovação do último SHA. Esta autorização substitui somente a
 proibição anterior de merge e a pendência de autorização para migrar Zod.

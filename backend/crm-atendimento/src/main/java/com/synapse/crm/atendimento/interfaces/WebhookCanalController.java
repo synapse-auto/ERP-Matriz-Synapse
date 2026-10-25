@@ -243,7 +243,7 @@ public class WebhookCanalController {
      */
     private void agendarRepasseSemGrupos(String payloadCru, String assinatura, Instant recebidoEm) {
         tradutor.repasseSemGrupos(payloadCru, assinatura).ifPresentOrElse(
-                repasse -> agendarRepasse.executar(repasse.payloadCru(), repasse.assinatura(), recebidoEm),
+                repasse -> agendarRepasse.executar(repasse.payloadCru(), repasse.assinatura(), recebidoEm, tradutor.provedor()),
                 () -> log.debug("POST so com mensagens de grupo: repasse a Automacao suprimido."));
     }
 }

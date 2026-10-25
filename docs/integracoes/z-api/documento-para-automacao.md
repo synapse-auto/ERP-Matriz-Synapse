@@ -1,5 +1,35 @@
 # Z-API — documento para automação
 
+## Complemento vigente — entrada protegida (25/10/2026)
+
+1. CRM recebe `POST /webhook/z-api`, autentica antes do corpo, confirma `instanceId`, grava
+   fila idempotente e responde sem baixar midia nem esperar o n8n. Segredo de callback nunca
+   acompanha o repasse. A equipe nao precisa/nem deve fabricar assinatura Meta para Z-API.
+2. Opt-in `Z_API_REPASSE_AUTOMACAO_HABILITADO=true` exige destino HTTPS configurado e
+   `AUTOMACAO_WEBHOOK_REPASSE_TOKEN` exclusivo. Contrato **proprio CRM→n8n**:
+   `X-Synapse-Webhook-Token`, `X-Synapse-Evento-Id` estavel e `X-Synapse-Tentativa`.
+   Validar token no Webhook n8n antes de iniciar o fluxo; deduplicar pelo ID de evento antes
+   de efeitos. Nao e o header nativo da Z-API (nome ainda pendente), nem token interno/API.
+3. Recebidos suportados preservam envelope JSON Z-API; status, eco/fromMe, grupos, LID-only
+   e tipos recusados nao disparam IA. Parser usa `text.message`, `image.imageUrl`,
+   `audio.audioUrl`, `video.videoUrl`, `document.documentUrl`/`fileName`/`mimeType`.
+   JPG/PNG em `document` continuam DOCUMENTO; nao procurar mediaId Uzapi. CRM persiste
+   bytes no storage privado pelo worker; nao substituir pela URL temporaria no historico.
+4. Preferir resposta via `/internal/v1/atendimentos/{id}/responder`, com autenticacao e
+   idempotencia existentes, para usar outbox/correlacao do CRM. Nos diretos ao provedor,
+   migrar explicitamente os nos: URL, `Client-Token` de SAIDA, payload, reservas e registro.
+   Trocar configuracao do CRM nao muda esses nos e nao os audita automaticamente.
+5. Guardar `zaapId` e `messageId` distintos. HTTP 200 com IDs fecha despacho, nao prova
+   entrega. Nao reenviar mensagem PENDENTE aceita. `ids[]` so aplica apos confirmar namespace;
+   default `NAO_CONFIRMADO` conserva diagnostico. Callback precoce fica duravel sem vinculo.
+6. Outbox de repasse ganha origem aditiva. Origem divergente ou legado sem origem ao entrar
+   na Z-API e bloqueado sem HTTP; nao editar payload nem reativar esgotados em massa.
+   Drenar/conferir legado no provedor original e combinar filas/timers externos antes do corte.
+
+Devolver inventario e evidencias sanitizadas dos fluxos reais abaixo. Nenhum workflow publicado
+foi alterado nesta entrega. O restante deste documento conserva o historico da preparacao;
+o [roteiro vigente](./homologacao-protegida.md) prevalece sobre bloqueios de codigo ja superados.
+
 24/10/2026. Destinatária: equipe responsável pelo n8n (Dylan).
 **Preparação, não liberação de troca.** Saída experimental de texto/mídia existe desligada; callbacks não autenticados
 não serão habilitados. Este documento não autoriza editar workflow publicado ou enviar ao cliente.

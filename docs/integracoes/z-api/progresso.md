@@ -1,18 +1,52 @@
 # Z-API — progresso e gates
 
 Atualizado: 25/10/2026. Planejamento: [planejamento.md](./planejamento.md).
-Estado operacional: **saída experimental desativada; entrada/correlação implementadas para
-teste local, sem bean/verificador de produção e sem downloader externo de mídia**.
-Base da auditoria atual: origin/main 61a7c6f. Worktree isolado reutilizado; alterações
-preexistentes do checkout principal preservadas. Branch `codex/z-api-auditoria-preparacao`.
+Estado operacional: **Z-API OFF; complemento de entrada protegida/midia/correlacao implementado
+para homologacao, nao executado em conta real**. [Roteiro vigente A–D](./homologacao-protegida.md).
+Base do complemento: origin/main `4c8955c`, apos integrar #321–#324 com CI aprovado.
+Worktree isolada reutilizada; checkout principal e producao preservados.
+Branch atual `codex/z-api-homologacao-protegida`; fechamento/CI registrados abaixo.
 
 | Fase | Estado | Entrega / pendência | PR/base |
 |---|---|---|---|
-| 1 | Incorporada em 13/10; G1 continua bloqueando passagem | Documentação/fixtures, não adaptador; revalidação de 24/10 corrigiu contrato de citação | [PR #301](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/301), codex/z-api-fase-1 / main |
+| 1 | Contrato/desenho incorporados; nova decisao explicita de seguranca | Segredo URL aprovado; header nativo ainda sem nome/configuracao, nao presumido | [PR #301](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/301), complemento atual |
 | 2 | Saída/texto integrados, sem liberação operacional | CI corrigido/aprovado; entrada bloqueada por G1 | [PR #322](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/322), integrada em main |
-| 3 | Parcial local autorizada; produção fechada | Tradução/correlação/status antecipado/eco/LID com fixtures; G1/namespace/repasse pendentes | [PR #324](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/324), base main após #323 |
-| 4 | Parcial: saída integrada, recebimento pendente | Imagem/áudio/vídeo/documento; recebimento/SSRF bloqueados G1 | [PR #323](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/323), integrada em main |
-| 5 | Preparação documental/regressão parcial; não concluída | Runbook/passagem; nenhuma homologação/corte | depende F3/F4 e CI |
+| 3 | ACL anterior integrada; complemento de producao protegido OFF | Rota HTTP autentica antes do corpo/fila; namespace real ainda exige coleta | [PR #324](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/324) + complemento |
+| 4 | Saida integrada; recebimento implementado no complemento | URLs documentadas, SSRF/DNS/bulkhead/spool/storage privado; CDN/codecs reais pendentes | [PR #323](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/323) + complemento |
+| 5 | Fechamento de codigo/CI em verificacao; operacao nao executada | Handoff, coleta sanitizada e checklist real/corte/rollback separados | complemento atual |
+
+## Complemento de homologacao protegida — 25/10/2026
+
+- Autorizacao de segredo proprio URL substitui espera exclusiva pelo suporte. Header nativo
+  preparado com nome vazio e teste sintetico; nome/prefixo/configuracao reais ainda pendentes.
+- Recebimento/instancia/JSON/teto/dedup, status/correlacao/eco, download por URL com IP publico
+  fixado no transporte, MIME real e streaming ao MinIO implementados, todos opt-in/OFF.
+- Documento PNG/JPEG permanece DOCUMENTO. Sem resolvedor mediaId, proxy/redirect/credencial
+  API para CDN. Compensacao de storage em rollback; nenhuma migration nova.
+- Repasse n8n opt-in com token proprio e origem persistida; origem divergente/legado na Z-API
+  bloqueados sem HTTP. A assinatura Meta continua preservada; Z-API nao recebe HMAC ficticio.
+- Rodada dirigida aprovada antes do fechamento: 150 unidades e 64 integracoes
+  (entrada protegida 9, entrada local 41, saida 9 e repasse Meta 5), sem falhas/erros.
+  Depois foram acrescentados coletor/HTTP sem TLS/limite sem Content-Length e streaming/OOXML;
+  resultados finais devem vir do clean verify completo, nao desses numeros anteriores.
+- Frontend inalterado: 168 arquivos/1.400 testes, typecheck/lint/build aprovados, quatro
+  avisos preexistentes; audit de producao total 0. Arvore dev tem 16 alertas preexistentes
+  (6 moderate/9 high/1 critical), nao chamados de resolvidos nem removidos da auditoria.
+- Primeiro clean verify parou no teste WebhookCanalControllerTest: mock esperava overload
+  antigo sem origem. Fixture atualizada para exigir meta-cloud e conservar corpo/assinatura;
+  nova execucao completa Java 21 em andamento. Nao e flake nem CI aprovado.
+- Uma fixture Ogg/Opus sintetica completa revelou `application/ogg` no tika-core, recusado
+  pela allowlist de audio. O downloader normaliza para audio/ogg somente apos validar
+  estrutura Opus/EOS/duracao; Ogg truncado continua recusado. Dirigidos de midia 27/27 e
+  controller Meta 2/2 aprovados; fixtures de audio/PDF agora completas, nao de cliente.
+- Encontrada limitacao operacional preexistente: provisionador padrao e Meta/numerico;
+  ciclos antigos preservam credencial original. Novo ciclo Z-API pode ser homologado, mas
+  continuidade de ciclos antigos nao foi migrada silenciosamente. Detalhes no roteiro B/D.
+- Ambiente: Docker estava fechado numa rodada dirigida, foi iniciado sem parar processo
+  alheio. A rodada repetida usou Postgres/Redis/MinIO reais. Sem VPS, callbacks/numeros reais,
+  envio a cliente, workflow publicado, troca de provedor ou deploy.
+
+Fechamento: registrar SHA/push/PR, resultados finais e CI do ultimo SHA antes de encerrar.
 
 ## Fase 1: entregas e fontes
 

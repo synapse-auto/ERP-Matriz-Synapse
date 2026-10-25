@@ -1,5 +1,25 @@
 # Z-API — checklist para troca (bloqueada)
 
+## Checklist vigente — complemento de homologacao protegida (25/10/2026)
+
+- Codigo: entrada protegida opt-in, tradutor registrado, midia por URL com SSRF/DNS/limites,
+  storage privado, correlacao duravel e repasse autenticado implementados; resultados finais
+  de testes/CI constam na PR do complemento. Nao confundir com os checklists historicos abaixo.
+- [ ] Operador: confirmar preservacao da query no cadastro/entrega OU header nativo com nome e
+  configuracao fornecidos pelo suporte. Client-Token nao foi presumido.
+- [ ] Operador: proxy/APM sem query/header sensivel, HTTPS/forwarded confiavel/backend privado.
+- [ ] Homologacao: CDN exata, codecs/bytes/download e namespace real de ids[] comprovados.
+- [ ] Automacao: parser/token CRM→n8n/dedup e nos diretos/filas/programadas migrados explicitamente.
+- [ ] Corte: inventario/pausa comprovada/drenagem de legado/eventos em voo/rollback por provedor,
+  sem replay ou redisparo de aceites PENDENTE/ambiguos.
+- [ ] CI do SHA final do complemento e release/GHCR aprovados; nao usar CI antigo para esse fim.
+
+O suporte **nao e o unico caminho**: segredo URL proprio foi aprovado. Os itens acima
+sao verificacoes concretas da conta/infra/workflows, nao motivos para interromper codigo
+independente. [Roteiro e configuracao A–D](./homologacao-protegida.md).
+
+## Historico anterior ao complemento
+
 25/10/2026. **Não trocar provedor nem executar em produção.**
 
 - [ ] **G1 / fornecedor:** “Como nosso receptor comprova a origem de ReceivedCallback,

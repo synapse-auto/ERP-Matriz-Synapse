@@ -28,9 +28,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
-import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaInvalidaException;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
+import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 
 /**
  * Saida experimental e desligada. Sem tradutor de entrada nao e selecionavel em uma instancia.
@@ -48,11 +49,12 @@ class ZApiAdapter implements CanalGateway {
     private final Bulkhead limite;
     private final String instanciaEsperada;
     private final ZApiMidiaSaida midias;
+    private final ZApiMidiaEntrada entrada;
 
     @Autowired
     ZApiAdapter(ZApiProperties propriedades, CanalProperties canal, ObjectMapper json, CircuitBreakerRegistry breakers,
-            ZApiMidiaSaida midias) {
-        this(clienteIsolado(propriedades), propriedades, json, breakers, canal.numeroPrincipal(), midias);
+            ZApiMidiaSaida midias, ZApiMidiaEntrada entrada) {
+        this(clienteIsolado(propriedades), propriedades, json, breakers, canal.numeroPrincipal(), midias, entrada);
     }
 
     /** Builder nao gerenciado; testes substituem somente o transporte, nunca o contrato. */
@@ -68,10 +70,16 @@ class ZApiAdapter implements CanalGateway {
 
     ZApiAdapter(RestClient.Builder cliente, ZApiProperties propriedades,
             ObjectMapper json, CircuitBreakerRegistry breakers, String instanciaEsperada, ZApiMidiaSaida midias) {
+        this(cliente, propriedades, json, breakers, instanciaEsperada, midias, null);
+    }
+
+    ZApiAdapter(RestClient.Builder cliente, ZApiProperties propriedades,
+            ObjectMapper json, CircuitBreakerRegistry breakers, String instanciaEsperada, ZApiMidiaSaida midias, ZApiMidiaEntrada entrada) {
         this.propriedades = propriedades;
         this.instanciaEsperada = instanciaEsperada;
         this.json = json;
         this.midias = midias;
+        this.entrada = entrada;
         // Nao herda interceptadores, tracing ou metricas com URI contendo segredo.
         this.http = cliente.observationRegistry(ObservationRegistry.NOOP).build();
         this.envioBreaker = breakers.circuitBreaker("canal-z-api");
@@ -241,7 +249,19 @@ class ZApiAdapter implements CanalGateway {
 
     @Override
     public MidiaRecebida baixarMidiaRecebida(String idExterno) {
-        throw new CanalIndisponivelException("Z_API_ENTRADA_NAO_IMPLEMENTADA");
+        // Compatibilidade da porta antiga; o worker usa o recurso em fluxo para nao materializar documentos.
+        try (var midia = recurso(idExterno, TipoMensagem.DOCUMENTO)) {
+            return new MidiaRecebida(midia.conteudo().readAllBytes(), midia.mimetype());
+        } catch (IOException e) { throw new MidiaRecebidaInvalidaException(); }
+    }
+
+    @Override public Optional<MidiaRecebidaEmFluxo> abrirMidiaRecebida(String referencia, TipoMensagem tipo) {
+        return Optional.of(recurso(referencia, tipo));
+    }
+
+    private MidiaRecebidaEmFluxo recurso(String referencia, TipoMensagem tipo) {
+        if (entrada == null || !configurada()) throw new MidiaRecebidaInvalidaException();
+        return entrada.abrir(referencia, tipo);
     }
 
     private static final class RespostaNaoConfirmada extends RuntimeException {
