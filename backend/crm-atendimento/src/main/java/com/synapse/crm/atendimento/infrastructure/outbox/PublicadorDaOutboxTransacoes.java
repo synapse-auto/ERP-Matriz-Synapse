@@ -104,6 +104,24 @@ class PublicadorDaOutboxTransacoes {
     public void registrarResultado(
             Outbox.EnvioPendente pendente, ResultadoDeEnvio resultado, Instant quando) {
         switch (resultado) {
+            case ResultadoDeEnvio.Enfileirado fila -> {
+                boolean registrado = outbox.marcarEnfileirado(pendente.outboxId(), quando,
+                        canal.provedor(), fila.instancia(), fila.idDoProcessamento(), fila.idDaMensagem());
+                // PENDENTE continua sendo o ultimo estado comprovado; callback autenticado e
+                // correlacao isolada por instancia pertencem a fase de entrada, nao a este aceite.
+                log.debug("Aceite em fila registrado={}, outbox={}", registrado, pendente.outboxId());
+            }
+            case ResultadoDeEnvio.Ambiguo ambiguo -> {
+                if (!outbox.marcarAmbiguo(pendente.outboxId(), quando, ambiguo.motivo())) {
+                    return;
+                }
+                mensagens.atualizarStatusEntrega(pendente.mensagemId(), pendente.enviadoEm(),
+                        StatusEntrega.FALHOU, MOTIVO_ENVIO_NAO_CONFIRMADO);
+                eventos.publishEvent(new MudancaDeStatusDeEntrega(pendente.mensagemId(),
+                        pendente.atendimentoId(), pendente.leadId(), StatusEntrega.FALHOU.name(), quando));
+                log.error("{} resultado de envio nao confirmado; outbox={}; conferir antes de reenviar",
+                        PublicadorDaOutboxOperacoes.MARCADOR_ALARME, pendente.outboxId());
+            }
             case ResultadoDeEnvio.Aceito aceito -> {
                 if (!outbox.marcarPublicado(pendente.outboxId(), quando)) {
                     log.warn(

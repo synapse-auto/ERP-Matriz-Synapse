@@ -58,8 +58,10 @@ reanalisar o contrato e os gates antes de retomar a implementação.
 
 ## Estado operacional
 
-Somente pesquisa e documentação. Z-API sem adaptador/ativação; nenhum número conectado,
-webhook registrado, chamada à API de negócio, VPS/Dokploy, n8n de produção, merge ou deploy.
+Este arquivo registra a pendência de **entrada**. A continuação implementou somente
+[saída experimental/texto](./fase-2-saida.md), desativada e sem homologação real. Nenhum
+número conectado, webhook registrado, chamada à API de negócio, VPS/Dokploy, alteração de
+n8n de produção, merge ou deploy. A existência da saída não resolve G1.
 
 ## Revalidação de 24/10/2026
 

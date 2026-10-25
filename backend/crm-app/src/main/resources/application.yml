@@ -90,6 +90,16 @@ resilience4j:
         minimum-number-of-calls: ${CHAT_INTERNO_DOWNLOAD_CB_MINIMO:5}
         failure-rate-threshold: ${CHAT_INTERNO_DOWNLOAD_CB_LIMIAR:50}
         wait-duration-in-open-state: ${CHAT_INTERNO_DOWNLOAD_CB_ESPERA:30s}
+      canal-z-api:
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+      canal-z-api-saude:
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
       canal-meta-cloud:
         sliding-window-type: COUNT_BASED
         sliding-window-size: ${CANAL_CB_JANELA:20}
@@ -188,6 +198,16 @@ synapse:
     timezone: ${SYNAPSE_TIMEZONE:America/Sao_Paulo}
 
   canal:
+    # Somente saida experimental. Nao alterar WHATSAPP_PROVEDOR: ainda sem entrada autenticada.
+    z-api:
+      habilitado: ${Z_API_HABILITADO:false}
+      instancia-id: ${Z_API_INSTANCIA_ID:}
+      token: ${Z_API_TOKEN:}
+      client-token: ${Z_API_CLIENT_TOKEN:}
+      credencial-id: ${Z_API_CREDENCIAL_ID:}
+      timeout: ${WHATSAPP_TIMEOUT:10s}
+      limite-resposta-bytes: ${Z_API_LIMITE_RESPOSTA_BYTES:4096}
+      concorrencia: ${OUTBOX_CONCORRENCIA:4}
     whatsapp:
       # A UNICA chave que decide qual adaptador de canal roda. Trocar de provedor
       # para um filho e mudar esta variavel — nao ha `if` em lugar nenhum do codigo.

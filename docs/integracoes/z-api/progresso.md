@@ -1,14 +1,14 @@
 # Z-API — progresso e gates
 
 Atualizado: 24/10/2026. Planejamento: [planejamento.md](./planejamento.md).
-Estado operacional: **nenhum código de adaptador, desativado em todas as instâncias**.
+Estado operacional: **adaptador experimental de saída/texto, desativado; entrada não implementada**.
 Base da auditoria atual: origin/main 61a7c6f. Worktree isolado reutilizado; alterações
 preexistentes do checkout principal preservadas. Branch `codex/z-api-auditoria-preparacao`.
 
 | Fase | Estado | Entrega / pendência | PR/base |
 |---|---|---|---|
 | 1 | Incorporada em 13/10; G1 continua bloqueando passagem | Documentação/fixtures, não adaptador; revalidação de 24/10 corrigiu contrato de citação | [PR #301](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/301), codex/z-api-fase-1 / main |
-| 2 | Não iniciada | Gate essencial de autenticação + decisões arquiteturais da Fase 1 | futuramente base fase-1 se PR aberta |
+| 2 | Saída/texto implementados nesta revisão, ainda sem liberação operacional | Testes HTTP e outbox; entrada bloqueada por G1, CI frontend bloqueado por Zod | [PR #322](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/322), base #321 |
 | 3 | Não iniciada | Autenticação/correlação/eco/status antecipado e identidade LID | futuramente base fase-2 |
 | 4 | Não iniciada | Mídia/capacidades/SSRF/limites e fontes completas | futuramente base fase-3 |
 | 5 | Não iniciada | Regressão/runbook, nenhuma homologação real nesta task | futuramente base fase-4 |
@@ -27,6 +27,12 @@ separadamente e registrado na PR. Isso não conclui homologação ou integraçã
 Sem deploy; provedor continua OFF e segurança de callbacks permanece bloqueadora
 da entrada de produção. Nenhuma autenticação permissiva será registrada.
 
+#321 integrada em `5ceccf6`, após PR **40170618025** e push **40170615484** SUCCESS
+no SHA `ad45d65`. #322 incorpora essa main por merge, sem rebase destrutivo;
+sua base passa a main após a integração da predecessora. A validação do novo SHA
+da #322 é independente e será registrada na PR antes do merge. O código de saída
+continua experimental/OFF; HTTP 200 não confirma entrega e não reabre a outbox.
+
 - [Contrato verificado](./contrato-verificado.md): matriz com fontes oficiais por capacidade;
   rotas/métodos conferidos também no HTML, pois Markdown omite componentes de referência.
 - [Fixtures e casos negativos](./fixtures/README.md): exemplos fictícios, não dados reais.
@@ -36,7 +42,7 @@ da entrada de produção. Nenhuma autenticação permissiva será registrada.
 - Não há skill de clean-code/architecture-patterns/api-design-principles disponível no catálogo
   desta sessão. Nenhuma skill disponível se aplica à pesquisa documental/fixtures desta fase.
 
-## Gates — parar antes de escrever o adaptador
+## Gates — não ativar; entrada bloqueada antes de implementação
 
 - **G1 essencial:** autenticação/origem do callback não documentada nas páginas verificadas.
   Decisão de 12/10: **aguardar contrato oficial antes de implementar entrada**, sem fallback
@@ -50,6 +56,8 @@ da entrada de produção. Nenhuma autenticação permissiva será registrada.
   suspende retry de timeout pós-POST sem afirmar falsa falha/entrega e sem alterar outros canais.
   A main auditada em 24/10 já possui persistência E209 para interrupção após despacho;
   reutilizá-la. Não confundir essa proteção com cobertura dos retornos timeout/5xx do adaptador.
+  Nesta revisão `ResultadoDeEnvio.Ambiguo` suspende retry, usando E209 e diagnóstico explícito
+  de envio não confirmado; Meta/Uzapi não passaram a produzir essa variante.
 - Confirmar namespace de ids[] do status, garantias de evento/reentrega e domínios/segurança
   de URL de mídia antes de depender dessas propriedades. Sem confirmação, registrar lacuna.
 
@@ -111,3 +119,38 @@ branch parte de main; não há dependência de PR aberta nem razão para repetir
 **Pronto no código: não. Homologado real: não. Pode trocar hoje: não nesta revisão.**
 Próxima ação material: obter contrato oficial G1; concluir F2–F4/correlação/ambiguidade e validar
 automação. Snapshot da outbox é proteção parcial útil, não substituto dessas fases.
+
+## Continuação autorizada — saída experimental (Fase 2)
+
+Pedido “pode seguir para concluir a integração” permite avançar na saída independente, não
+revoga a decisão de obter autenticação oficial antes da entrada. [Entrega detalhada](./fase-2-saida.md).
+O título antigo de gates dava a entender que toda saída dependeria de G1: agora o bloqueio
+está explicitamente na entrada/ativação. F3–F5 não avançam com contrato essencial ausente
+nem com CI vermelho ignorado.
+
+- `ZApiAdapter` implementa texto sem citação e saúde; bean ausente por padrão.
+- Seleção real continua falhando fechada: não há tradutor Z-API fictício em produção.
+- `Enfileirado` preserva instância/zaapId/messageId na mesma outbox e mantém PENDENTE;
+  não grava aliases no índice global nem confirma envio/entrega pelo HTTP 200.
+- `Ambiguo`/E209 suspende retry de POST incerto; somente breaker/bulkhead antes da rede
+  devolvem recusa temporária. Resultados tardios não sobrescrevem uma linha encerrada.
+- Timeout/concurrency isolados, resposta limitada, redirects proibidos, observação HTTP
+  desabilitada e erro sanitizado **antes** dos listeners do circuit breaker.
+- Configuração opcional em .env.example/README/stack; nenhum valor novo obrigatório,
+  migration, frontend, callback real ou mudança em n8n/produção.
+- Dirigidos iniciais: adaptadores 161/161 (Z-API 34, configuração/seleção 3, Meta 59,
+  Uzapi 65); fluxo genérico PostgreSQL 52/52. Teste específico de saída, clean verify
+  completo e CI final são registrados no fechamento desta revisão.
+- Revisão final: 164/164 nos adaptadores (Z-API 37, seleção 3, Meta 59, Uzapi 65) e
+  55/55 integrações PostgreSQL (`CanalWhatsAppIT` 52, `ZApiSaidaIT` 3). Novos negativos
+  provaram o drain no close antes da correção e bloqueio de instância HTTP divergente.
+  `clean verify` completo foi reiniciado depois desses ajustes, sem contar a execução
+  interrompida como sucesso. Resultado final e CI do último SHA no fechamento da PR.
+- PR #321 continua draft/aberta. Ordem de merge: #321 → PR de `codex/z-api-fase-2-saida`.
+  PR de saída: [#322](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/322), também draft.
+  O diff da segunda PR usa a branch #321 como base, não main.
+- CI da predecessora (SHA 1990dbe): PR 40071927205 e push 40071925667 com backend e
+  Stack aprovados, frontend bloqueado em auditoria Zod, GHCR skipped. Decisão explícita:
+  registrar pendência, **não** migrar Zod nem ignorar auditoria. Não chamar esse CI de verde.
+
+**Integração completa: não. Troca da Femina: não liberada. Homologação real: não executada.**

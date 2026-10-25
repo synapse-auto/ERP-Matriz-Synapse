@@ -231,6 +231,13 @@ services:
       # {phone_number_id}. Nao participa da URL nem da validacao de credencial.
       WHATSAPP_USUARIO_API: ${WHATSAPP_USUARIO_API:-}
       WHATSAPP_VERSAO_API: ${WHATSAPP_VERSAO_API:-}
+      # Preparacao somente; nao ativar antes dos gates de entrada/homologacao.
+      Z_API_HABILITADO: ${Z_API_HABILITADO:-false}
+      Z_API_INSTANCIA_ID: ${Z_API_INSTANCIA_ID:-}
+      Z_API_TOKEN: ${Z_API_TOKEN:-}
+      Z_API_CLIENT_TOKEN: ${Z_API_CLIENT_TOKEN:-}
+      Z_API_CREDENCIAL_ID: ${Z_API_CREDENCIAL_ID:-}
+      Z_API_LIMITE_RESPOSTA_BYTES: ${Z_API_LIMITE_RESPOSTA_BYTES:-4096}
       # Fila de entrada. Default seguro; ausencia no painel nao derruba o deploy.
       WEBHOOK_MAX_TENTATIVAS: ${WEBHOOK_MAX_TENTATIVAS:-5}
       WEBHOOK_PRAZO_ABSOLUTO: ${WEBHOOK_PRAZO_ABSOLUTO:-2h}
