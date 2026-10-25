@@ -186,6 +186,7 @@ class RlsIsolamentoIT extends PostgresIT {
                 donoOriginal = valor(comando, "SELECT current_user");
                 comando.execute("SET LOCAL ROLE synapse_app");
                 comando.execute("SELECT set_config('app.papel', 'GESTOR', TRUE)");
+                comando.execute("SELECT set_config('app.acesso_clientes', 'true', TRUE)");
 
                 assertThat(valor(comando, "SELECT current_setting('app.papel', TRUE)"))
                         .isEqualTo("GESTOR");
@@ -212,6 +213,7 @@ class RlsIsolamentoIT extends PostgresIT {
                         .isNullOrEmpty();
 
                 // Assume a role de novo, agora sem publicar contexto nenhum.
+                assertThat(valor(comando, "SELECT current_setting('app.acesso_clientes', TRUE)")).isNullOrEmpty();
                 comando.execute("SET LOCAL ROLE synapse_app");
                 assertThat(valor(comando, contagemDeLeads()))
                         .as("sem contexto, a politica precisa negar tudo")
@@ -438,6 +440,22 @@ class RlsIsolamentoIT extends PostgresIT {
             resultado.next();
             return resultado.getString(1);
         }
+    }
+
+    @Test
+    void negacaoDeClientesCompoeCarteiraIaAgendaEHelpers() {
+        ApoioRls.entrarComo(ana, PapelUsuario.ATENDENTE);
+        transacao.executeWithoutResult(status -> {
+            assertThat(jdbc.queryForObject("SELECT current_user", String.class)).isEqualTo("synapse_app");
+            assertThat(idsVisiveis()).isNotEmpty();
+            jdbc.execute("SELECT set_config('app.acesso_clientes', 'false', true)");
+            jdbc.execute("SELECT set_config('app.contexto_agenda', 'true', true)");
+            assertThat(idsVisiveis()).isEmpty();
+            assertThat(jdbc.queryForList("SELECT id FROM app_buscar_lead_para_entrada(?, ?)", UUID.class,
+                    marcador, ana)).isEmpty();
+            assertThat(jdbc.queryForObject("SELECT app_pode_acessar_clientes()", Boolean.class)).isFalse();
+        });
+        assertThat(emTransacao()).isNotEmpty();
     }
 
     // --- apoio ---------------------------------------------------------------

@@ -33,6 +33,6 @@ export const ErrosTextosSchema = z.object({
   descricaoOffline: z.string().default(TEXTOS_DE_ERRO.descricaoOffline),
   tentarNovamente: z.string().default(TEXTOS_DE_ERRO.tentarNovamente),
   tentando: z.string().default(TEXTOS_DE_ERRO.tentando),
-}).default({});
+}).prefault({});
 
 export type TextosDeErro = z.infer<typeof ErrosTextosSchema>;

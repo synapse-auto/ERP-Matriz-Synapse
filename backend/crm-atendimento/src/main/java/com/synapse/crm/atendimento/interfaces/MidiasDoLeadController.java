@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,6 +38,7 @@ import com.synapse.crm.atendimento.infrastructure.midia.MidiaProperties;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/leads/{leadId}/midias")
 @Tag(name = "Mídias do lead", description = "Anexos dos atendimentos visíveis do lead.")
 @SecurityRequirement(name = "bearerAuth")

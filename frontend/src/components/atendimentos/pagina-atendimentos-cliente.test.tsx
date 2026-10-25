@@ -860,12 +860,22 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.queryByText(/Atendimento transferido/)).not.toBeInTheDocument();
   });
 
-  it("enquanto as permissões carregam, o composer fica montado porém sem envio", async () => {
+  it("enquanto as permissões carregam, nao abre dados de cliente nem composer", async () => {
     definirCapacidadesDeTeste({ estado: "carregando" });
     renderPagina("atendimento-1");
 
-    const composer = await screen.findByTestId("composer");
-    expect(composer).toHaveAttribute("data-pode-enviar", "false");
+    await waitFor(() => expect(callbacks.abrir).toBeDefined());
+    expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("responsavel-cabecalho")).not.toBeInTheDocument();
+  });
+
+  it("acesso a clientes desligado bloqueia selecao externa mas permite abrir o chat interno", async () => {
+    definirCapacidadesDeTeste({ negadas: ["clientes.acessar"] });
+    renderPagina();
+    act(() => callbacks.abrir?.(cartaoInicial));
+    expect(screen.queryByTestId("responsavel-cabecalho")).not.toBeInTheDocument();
+    act(() => callbacks.abrir?.({ tipo: "EQUIPE_INTERNA", conversaId: "equipe", atendimentoId: null } as ItemInbox));
+    expect(await screen.findByTestId("conversa-interna")).toBeInTheDocument();
   });
 
   it("abre pelo atendimento retornado mesmo quando ele não pertence à visão atual", async () => {

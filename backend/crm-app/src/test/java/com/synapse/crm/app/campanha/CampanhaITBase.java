@@ -8,6 +8,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -46,7 +47,9 @@ import com.synapse.crm.campanhas.domain.FiltroDePublico;
 import com.synapse.crm.campanhas.domain.JanelaDeEnvio;
 import com.synapse.crm.campanhas.domain.MapeamentoDeVariaveis;
 import com.synapse.crm.campanhas.infrastructure.AgendadorDeCampanhas;
+import com.synapse.crm.equipe.application.permissao.ResolvedorDePermissoesEfetivas;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
+import com.synapse.crm.sharedkernel.permissao.AcessoDeUsuariosAlterado;
 
 /**
  * Base dos testes de integracao de campanhas (E220): Postgres real, o {@link CanalFake} como provedor e os
@@ -118,11 +121,14 @@ abstract class CampanhaITBase extends PostgresIT {
 
     protected UUID adminId;
 
+    @Autowired
+    protected ResolvedorDePermissoesEfetivas permissoes;
+
     @BeforeEach
     void prepararCampanhas() {
         limparCampanhas();
         restaurarConfiguracao();
-        jdbc.update("UPDATE feature_flag SET habilitado = TRUE WHERE chave = 'campanhas'");
+        definirFlagDeCampanhas(true);
         canal.limpar();
         registrarTemplateAprovado(TEMPLATE);
         adminId = jdbc.queryForObject("SELECT id FROM usuario WHERE email = 'admin@dev.local'", UUID.class);
@@ -138,7 +144,13 @@ abstract class CampanhaITBase extends PostgresIT {
         templates.descartarCache();
         limparCampanhas();
         restaurarConfiguracao();
-        jdbc.update("UPDATE feature_flag SET habilitado = FALSE WHERE chave = 'campanhas'");
+        definirFlagDeCampanhas(false);
+    }
+
+    /** O SQL da fixture nao publica o evento de acesso do fluxo real; sincroniza o cache explicitamente. */
+    protected void definirFlagDeCampanhas(boolean habilitada) {
+        jdbc.update("UPDATE feature_flag SET habilitado = ? WHERE chave = 'campanhas'", habilitada);
+        permissoes.aoAlterarAcesso(new AcessoDeUsuariosAlterado(Set.of(), false, 0));
     }
 
     // --- cenario --------------------------------------------------------------------------------------

@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,6 +43,7 @@ import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 /** Historico paginado e reconciliacao incremental da conversa. */
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/atendimentos")
 @Tag(name = "Mensagens dos atendimentos", description = "Histórico paginado e reconciliação após lacunas do WebSocket.")
 @SecurityRequirement(name = "bearerAuth")

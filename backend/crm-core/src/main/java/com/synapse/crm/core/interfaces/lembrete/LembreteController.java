@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,6 +39,7 @@ import com.synapse.crm.core.domain.lembrete.Lembrete;
 import com.synapse.crm.core.domain.lembrete.StatusLembrete;
 
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/lembretes")
 @Tag(name = "Lembretes", description = "Agenda paginada de lembretes vinculados aos leads visíveis.")
 @SecurityRequirement(name = "bearerAuth")

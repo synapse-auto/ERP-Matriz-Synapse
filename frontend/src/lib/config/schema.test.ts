@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { TemaSchema, TextosSchema } from "./schema";
+import { GestaoTextosSchema } from "./schema-gestao";
 
 function carregarJson(caminho: string): Record<string, unknown> {
   return JSON.parse(readFileSync(resolve(process.cwd(), caminho), "utf8")) as Record<
@@ -13,6 +14,35 @@ function carregarJson(caminho: string): Record<string, unknown> {
 }
 
 describe("TextosSchema", () => {
+  it.each(["gestao", "erros", "painelOperacional", "cancelamentos", "setores"] as const)(
+    "completa catálogo inteiro ausente: %s, preservando os defaults internos",
+    (secao) => {
+      const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
+      const esperado = catalogo[secao];
+      expect(esperado).toBeDefined();
+      delete catalogo[secao];
+      expect(TextosSchema.parse(catalogo)[secao]).toEqual(esperado);
+    },
+  );
+
+  it("completa os blocos opcionais de Campanhas sem tornar o catálogo obrigatório opcional", () => {
+    const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
+    const campanhas = catalogo.campanhas as Record<string, unknown>;
+    const esperado = campanhas.configuracaoDaInstancia;
+    expect(esperado).toBeDefined();
+    delete campanhas.configuracaoDaInstancia;
+    expect(TextosSchema.parse(catalogo).campanhas.configuracaoDaInstancia).toEqual(esperado);
+    delete catalogo.campanhas;
+    expect(TextosSchema.safeParse(catalogo).success).toBe(false);
+  });
+
+  it("mantém parses independentes dos objetos padrão de Gestão", () => {
+    const primeiro = GestaoTextosSchema.parse(undefined);
+    primeiro.modulos.atendimentos.rotulo = "mutação só deste teste";
+    const segundo = GestaoTextosSchema.parse(undefined);
+    expect(segundo.modulos.atendimentos.rotulo).not.toBe("mutação só deste teste");
+  });
+
   it("completa exclusão de templates em catálogo antigo sem perder personalização", () => {
     const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
     const templates = catalogo.templatesWhatsApp as Record<string, Record<string, unknown>>;
