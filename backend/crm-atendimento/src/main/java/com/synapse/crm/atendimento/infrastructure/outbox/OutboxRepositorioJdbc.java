@@ -332,6 +332,10 @@ class OutboxRepositorioJdbc implements Outbox {
     @Override
     public void enfileirarRepasseWebhook(
             String payloadCru, String assinatura, Instant recebidoEm) {
+        enfileirarRepasseWebhook(payloadCru, assinatura, recebidoEm, null);
+    }
+
+    @Override public void enfileirarRepasseWebhook(String payloadCru, String assinatura, Instant recebidoEm, String provedorOrigem) {
         TransacaoObrigatoria.exigir("enfileirarRepasseWebhook");
         UUID idempotencia = UUID.nameUUIDFromBytes(
                 (TIPO_REPASSE_WEBHOOK + "\n" + assinatura + "\n" + payloadCru)
@@ -340,7 +344,7 @@ class OutboxRepositorioJdbc implements Outbox {
                 SQL_ENFILEIRAR_IDEMPOTENTE,
                 idempotencia,
                 TIPO_REPASSE_WEBHOOK,
-                serializarRepasseWebhook(payloadCru, assinatura),
+                serializarRepasseWebhook(payloadCru, assinatura, provedorOrigem),
                 Timestamp.from(recebidoEm),
                 Timestamp.from(recebidoEm));
     }
@@ -532,10 +536,11 @@ class OutboxRepositorioJdbc implements Outbox {
         return raiz.toString();
     }
 
-    private String serializarRepasseWebhook(String payloadCru, String assinatura) {
+    private String serializarRepasseWebhook(String payloadCru, String assinatura, String provedorOrigem) {
         ObjectNode raiz = json.createObjectNode();
         raiz.put("payloadCru", payloadCru);
         raiz.put("assinatura", assinatura);
+        raiz.put("provedorOrigem", provedorOrigem);
         return raiz.toString();
     }
 
@@ -576,8 +581,8 @@ class OutboxRepositorioJdbc implements Outbox {
         return new RepasseWebhookPendente(
                 linha.getObject("id", UUID.class),
                 payload.get("payloadCru").asText(),
-                payload.get("assinatura").asText(),
-                linha.getInt("tentativas"));
+                payload.path("assinatura").asText(null),
+                linha.getInt("tentativas"), payload.path("provedorOrigem").asText(null));
     }
 
     private SolicitacaoResumoIaPendente desserializarSolicitacaoResumoIa(ResultSet linha, int indice)

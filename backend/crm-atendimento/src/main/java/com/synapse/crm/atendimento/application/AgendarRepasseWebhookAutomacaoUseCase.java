@@ -22,4 +22,8 @@ public class AgendarRepasseWebhookAutomacaoUseCase {
             outbox.enfileirarRepasseWebhook(payloadCru, assinatura, recebidoEm);
         }
     }
+
+    public void executar(String payloadCru, String assinatura, Instant recebidoEm, String provedorOrigem) {
+        if (automacao.configurado()) outbox.enfileirarRepasseWebhook(payloadCru, assinatura, recebidoEm, provedorOrigem);
+    }
 }

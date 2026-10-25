@@ -65,6 +65,17 @@ class MinioArmazenamentoDeMidiaIT {
         MINIO.stop();
     }
 
+    @Test void escritaEmFluxoNaoChamaLeituraIntegralEPreservaBytes() {
+        String endpoint="http://"+MINIO.getHost()+":"+MINIO.getMappedPort(9000);
+        var storage=new MinioArmazenamentoDeMidia(new MidiaProperties(endpoint,endpoint,"zapi-fluxo-"+UUID.randomUUID(),ACCESS_KEY,SECRET_KEY,Duration.ofMinutes(1)));
+        byte[] bytes="%PDF-1.4\nsintetico\n%%EOF".getBytes(StandardCharsets.US_ASCII);
+        var fonte=new java.io.ByteArrayInputStream(bytes) {
+            @Override public byte[] readAllBytes(){throw new AssertionError("nao materializar fluxo");}
+        };
+        String ref=storage.salvar(fonte,bytes.length,"teste.pdf","application/pdf");
+        assertThat(storage.baixar(ref)).isEqualTo(bytes);
+    }
+
     @ParameterizedTest(name = "armazena {0} no MinIO real")
     @MethodSource("anexosNaoAudio")
     void enviarMidiaUseCaseArmazenaAnexosNaoAudioNoMinioReal(

@@ -53,6 +53,23 @@ class TikaDetectorDeTipoRealIT {
         assertThat(new TikaDetectorDeTipoReal().detectar(pacote)).isEqualTo(mimetype);
     }
 
+    @ParameterizedTest @MethodSource("pacotesOoxml")
+    void spoolDetectaTipoRealSemRebaixarMacros(String extensao, String mimetype, byte[] pacote,
+            @org.junit.jupiter.api.io.TempDir java.nio.file.Path pasta) throws IOException {
+        var arquivo=java.nio.file.Files.write(pasta.resolve("sem-extensao"),pacote);
+        assertThat(new TikaDetectorDeTipoReal().detectar(arquivo)).isEqualTo(mimetype);
+    }
+
+    @Test void spoolNaoDescomprimeZipBombParaProcurarContentTypes(
+            @org.junit.jupiter.api.io.TempDir java.nio.file.Path pasta) throws IOException {
+        var arquivo=pasta.resolve("pacote");
+        try(var zip=new ZipOutputStream(java.nio.file.Files.newOutputStream(arquivo))) {
+            adicionar(zip,"antes.txt","a".repeat(1024*1024+1));
+            adicionar(zip,"[Content_Types].xml",XLSM_CONTENT_TYPE);
+        }
+        assertThat(DetectorDePacoteOoxml.detectar(arquivo)).isEmpty();
+    }
+
     @ParameterizedTest(name = "aceita pacote {0} no caso de uso real")
     @MethodSource("pacotesOoxmlPadrao")
     void casoDeUsoAceitaPacoteOoxmlComDetectorReal(String extensao, String mimetype, byte[] pacote) {

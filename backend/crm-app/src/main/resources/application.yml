@@ -69,6 +69,12 @@ springdoc:
 server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
+  # NATIVE somente atras de proxy confiavel, backend sem porta publica. Ver roteiro Z-API.
+  forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:NONE}
+  tomcat:
+    accesslog:
+      # Nunca %r/%q: podem conter o segredo do callback. O access log segue desativado por padrao.
+      pattern: '%a %t %m %U %H %s %b %D'
 
 # ---------------------------------------------------------------------------
 # Circuit breaker de toda chamada de saida (CLAUDE.md).
@@ -96,6 +102,11 @@ resilience4j:
         failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
         wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
       canal-z-api-saude:
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+      canal-z-api-midia-entrada:
         sliding-window-size: ${CANAL_CB_JANELA:20}
         minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
         failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
@@ -198,7 +209,7 @@ synapse:
     timezone: ${SYNAPSE_TIMEZONE:America/Sao_Paulo}
 
   canal:
-    # Somente saida experimental. Nao alterar WHATSAPP_PROVEDOR: ainda sem entrada autenticada.
+    # Opt-in exclusivo; nao habilitar antes do roteiro de homologacao protegida.
     z-api:
       habilitado: ${Z_API_HABILITADO:false}
       instancia-id: ${Z_API_INSTANCIA_ID:}
@@ -208,6 +219,17 @@ synapse:
       timeout: ${WHATSAPP_TIMEOUT:10s}
       limite-resposta-bytes: ${Z_API_LIMITE_RESPOSTA_BYTES:4096}
       concorrencia: ${OUTBOX_CONCORRENCIA:4}
+      webhook:
+        habilitado: ${Z_API_WEBHOOK_HABILITADO:false}
+        autenticacao: ${Z_API_WEBHOOK_AUTENTICACAO:DESATIVADO}
+        segredo: ${Z_API_WEBHOOK_SEGREDO:}
+        header-nome: ${Z_API_WEBHOOK_HEADER_NOME:}
+        limite-corpo-bytes: ${Z_API_WEBHOOK_LIMITE_CORPO_BYTES:1048576}
+        namespace-status: ${Z_API_WEBHOOK_NAMESPACE_STATUS:NAO_CONFIRMADO}
+        repasse-automacao-habilitado: ${Z_API_REPASSE_AUTOMACAO_HABILITADO:false}
+      midia-entrada:
+        hosts-permitidos: ${Z_API_MIDIA_HOSTS_PERMITIDOS:}
+        concorrencia: ${Z_API_MIDIA_ENTRADA_CONCORRENCIA:1}
     whatsapp:
       # A UNICA chave que decide qual adaptador de canal roda. Trocar de provedor
       # para um filho e mudar esta variavel — nao ha `if` em lugar nenhum do codigo.
@@ -374,6 +396,7 @@ synapse:
       intervalo-ms: ${AUTOMACAO_RESUMO_IA_INTERVALO_MS:1000}
     repasse-webhook:
       url: ${AUTOMACAO_WEBHOOK_EVENTOS_URL:}
+      token: ${AUTOMACAO_WEBHOOK_REPASSE_TOKEN:}
       timeout: ${AUTOMACAO_WEBHOOK_TIMEOUT:5s}
       intervalo-ms: ${AUTOMACAO_WEBHOOK_INTERVALO_MS:1000}
 

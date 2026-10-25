@@ -431,12 +431,23 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `WHATSAPP_CONTA_NEGOCIO` | vazio | WABA ID, necessário para listar/criar templates. Não é o Phone Number ID; vazio desabilita somente a administração de templates. |
 | `WHATSAPP_USUARIO_API` | vazio (legada) | Mantida por compatibilidade com E152; a Uzapi/Autotic atual não usa username, nem exige esta variável. |
 | `WHATSAPP_VERSAO_API` | vazio | `{version}` das rotas da Uzapi/Autotic (E152, provedor `uzapi-autotic`). Só esse adaptador usa; vazio não afeta `meta-cloud`. |
-| `Z_API_HABILITADO` | `false` | Somente adaptador de saída experimental; **manter OFF**. Não há entrada autenticada; não selecionar `WHATSAPP_PROVEDOR=z-api`. |
+| `Z_API_HABILITADO` | `false` | Opt-in do adaptador; manter OFF até o [roteiro de homologação protegida](docs/integracoes/z-api/homologacao-protegida.md). |
 | `Z_API_INSTANCIA_ID` | vazio | ID da instância Z-API; não é telefone/token. Deve coincidir com `WHATSAPP_NUMERO` (identidade capturada pela outbox); divergência bloqueia sem HTTP. Manter OFF nesta fase. |
 | `Z_API_TOKEN` | vazio | Segredo da instância Z-API, usado no path HTTPS; nunca expor ao navegador/logs/tracing. |
 | `Z_API_CLIENT_TOKEN` | vazio | Segredo de saída no header `Client-Token`; não autentica callbacks recebidos. |
 | `Z_API_CREDENCIAL_ID` | vazio | UUID da credencial do CRM que deve coincidir com a referência da outbox. Ausente/divergente bloqueia sem HTTP. |
 | `Z_API_LIMITE_RESPOSTA_BYTES` | `4096` | Teto configurável para JSON de IDs/saúde. Resposta maior não é aceite; sem retry cego do POST. Timeout e concorrência reutilizam `WHATSAPP_TIMEOUT`/`OUTBOX_CONCORRENCIA`. |
+| `Z_API_WEBHOOK_HABILITADO` | `false` | Registro do tradutor/rota protegida; requer opt-in do adaptador, instância/credencial consistentes e segredo exclusivo. |
+| `Z_API_WEBHOOK_AUTENTICACAO` | `DESATIVADO` | `SEGREDO_URL` aprovado ou `HEADER_NATIVO` somente após confirmação oficial do nome/configuração. Não há fallback entre modos. |
+| `Z_API_WEBHOOK_SEGREDO` | vazio | Segredo exclusivo aleatório base64url de 43–256 caracteres. Não reutilizar tokens da API, interno ou automação. |
+| `Z_API_WEBHOOK_HEADER_NOME` | vazio | Nome real confirmado do header nativo; não é presumido `Client-Token`. Sem nome o modo nativo não sobe. |
+| `Z_API_WEBHOOK_LIMITE_CORPO_BYTES` | `1048576` | Orçamento configurável do CRM para o JSON, inclusive sem Content-Length. Não é limite declarado pelo fornecedor. |
+| `Z_API_WEBHOOK_NAMESPACE_STATUS` | `NAO_CONFIRMADO` | `ids[]` fica diagnosticável sem aplicar status até confirmar `WHATSAPP`/`PROCESSAMENTO` com IDs reais preservados. |
+| `Z_API_MIDIA_HOSTS_PERMITIDOS` | vazio | Hosts CDN exatos separados por vírgula, verificados na homologação. Sem wildcard/IP/redirect, DNS público fixado na conexão. Vazio recusa download. |
+| `Z_API_MIDIA_ENTRADA_CONCORRENCIA` | `1` | Bulkhead separado de download; limites de tamanho reutilizam os tetos/configurações de anexos existentes. |
+| `Z_API_REPASSE_AUTOMACAO_HABILITADO` | `false` | Repasse assíncrono de recebidos suportados; não migra workflows que chamam a Uzapi diretamente. |
+| `AUTOMACAO_WEBHOOK_REPASSE_TOKEN` | vazio | Autenticação CRM→n8n pelo contrato próprio `X-Synapse-Webhook-Token`; para repasse Z-API é obrigatório/exclusivo. Não é header do fornecedor. Meta/Uzapi mantêm compatibilidade. |
+| `SERVER_FORWARD_HEADERS_STRATEGY` | `NONE` | `NATIVE` só com proxy confiável e backend privado; necessário para reconhecer HTTPS encerrado no proxy. Rota Z-API recusa HTTP. |
 | `CANAL_FOTO_PERFIL_HABILITADO` | `true` | Habilita a captura assíncrona de foto quando o adaptador do canal oferece essa capacidade; desligar não afeta mensagens. |
 | `CANAL_FOTO_PERFIL_CACHE_TTL` | `6h` | Janela de cache por lead para evitar consultas repetidas ao provedor. |
 | `CANAL_FOTO_PERFIL_CONCORRENCIA` / `CANAL_FOTO_PERFIL_FILA` | `2` / `100` | Bulkhead da captura assíncrona; não compartilha threads com o chat. |

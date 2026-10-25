@@ -128,6 +128,20 @@ class MinioArmazenamentoDeMidia implements ArmazenamentoDeMidia {
     }
 
     @Override
+    public String salvar(InputStream conteudo, long tamanho, String nome, String mimetype) {
+        garantirBucket();
+        String chave = "midia/" + UUID.randomUUID() + extensaoDe(nome);
+        try {
+            io.putObject(PutObjectArgs.builder().bucket(propriedades.bucket()).object(chave)
+                    .stream(conteudo, tamanho, -1).contentType(mimetype).build());
+            log.info("midia persistida em fluxo: referencia={}, tamanho={}, mimetype={}", chave, tamanho, mimetype);
+            return chave;
+        } catch (MinioException | IOException | java.security.GeneralSecurityException e) {
+            throw new IllegalStateException("falha ao salvar midia no storage: " + chave, e);
+        }
+    }
+
+    @Override
     public InputStream abrirLeitura(String referencia) {
         try {
             return io.getObject(GetObjectArgs.builder()

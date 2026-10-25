@@ -75,6 +75,7 @@ class WebhookCanalControllerTest {
     @Test
     void segredoOpcionalDaQueryERepassadoSemAlterarOContratoDaMeta() {
         TradutorDeCanal tradutor = mock(TradutorDeCanal.class);
+        when(tradutor.provedor()).thenReturn("meta-cloud");
         WebhookEntrada entrada = mock(WebhookEntrada.class);
         AgendarRepasseWebhookAutomacaoUseCase repasse = mock(AgendarRepasseWebhookAutomacaoUseCase.class);
         ValidarDestinoWebhookUseCase validar = mock(ValidarDestinoWebhookUseCase.class);
@@ -107,6 +108,6 @@ class WebhookCanalControllerTest {
 
         assertThat(resposta.getStatusCode().value()).isEqualTo(200);
         verify(tradutor).assinaturaValida(payload, "sha256=assinatura", null);
-        verify(repasse).executar(payload, "sha256=assinatura", Instant.parse("2026-09-09T12:00:00Z"));
+        verify(repasse).executar(payload, "sha256=assinatura", Instant.parse("2026-09-09T12:00:00Z"), "meta-cloud");
     }
 }

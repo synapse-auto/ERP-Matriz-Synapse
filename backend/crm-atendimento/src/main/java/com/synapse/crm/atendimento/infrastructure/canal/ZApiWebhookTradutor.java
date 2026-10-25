@@ -15,17 +15,22 @@ import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
 
 /**
- * ACL testavel, deliberadamente SEM Component/Bean em producao. Nenhuma autenticacao presumida.
- * O namespace de ids[] so e informado explicitamente nos testes ate confirmacao do fornecedor.
+ * ACL registrada por opt-in em ZApiEntradaConfig. Autenticacao fica antes do MVC/fila,
+ * no filtro dedicado, nunca nos verificadores HMAC do endpoint Meta/Uzapi.
  */
 public final class ZApiWebhookTradutor implements TradutorDeCanal {
     private final ObjectMapper json;
     private final String instancia;
     private final String namespaceStatus;
+    private final boolean repasseHabilitado;
 
     public ZApiWebhookTradutor(ObjectMapper json, String instancia) { this(json, instancia, null); }
 
     public ZApiWebhookTradutor(ObjectMapper json, String instancia, String namespaceStatus) {
+        this(json, instancia, namespaceStatus, false);
+    }
+
+    public ZApiWebhookTradutor(ObjectMapper json, String instancia, String namespaceStatus, boolean repasseHabilitado) {
         this.json = json;
         if (instancia == null || instancia.isBlank()) throw new IllegalArgumentException("INSTANCIA_OBRIGATORIA");
         if (namespaceStatus != null && !List.of("WHATSAPP", "PROCESSAMENTO").contains(namespaceStatus)) {
@@ -33,12 +38,17 @@ public final class ZApiWebhookTradutor implements TradutorDeCanal {
         }
         this.instancia = instancia;
         this.namespaceStatus = namespaceStatus;
+        this.repasseHabilitado = repasseHabilitado;
     }
 
     @Override public String provedor() { return "z-api"; }
     @Override public boolean tokenDeVerificacaoValido(String token) { return false; }
     @Override public boolean assinaturaValida(String payload, String assinatura, String segredo) { return false; }
-    @Override public Optional<RepasseParaAutomacao> repasseSemGrupos(String payload, String assinatura) { return Optional.empty(); }
+    @Override public Optional<RepasseParaAutomacao> repasseSemGrupos(String payload, String assinatura) {
+        // So mensagens suportadas de cliente. Nao encaminha status, eco, grupo ou LID-only.
+        return repasseHabilitado && !traduzirComDescartes(payload).mensagens().isEmpty()
+                ? Optional.of(new RepasseParaAutomacao(payload, null)) : Optional.empty();
+    }
     @Override public List<StatusDeEntregaDoCanal> statusDeEntrega(String payload) { return List.of(); }
 
     @Override public DestinosDoWebhook destinos(String payload) {

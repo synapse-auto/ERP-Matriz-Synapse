@@ -125,6 +125,10 @@ public interface Outbox {
      */
     void enfileirarRepasseWebhook(String payloadCru, String assinatura, Instant recebidoEm);
 
+    default void enfileirarRepasseWebhook(String payloadCru, String assinatura, Instant recebidoEm, String provedorOrigem) {
+        enfileirarRepasseWebhook(payloadCru, assinatura, recebidoEm);
+    }
+
     /** Enfileira o pedido leve que dispara a execução assíncrona de resumo no n8n. */
     void enfileirarSolicitacaoResumoIa(
             UUID solicitacaoId, UUID leadId, UUID atendimentoId, Instant solicitadoEm);
@@ -296,7 +300,9 @@ public interface Outbox {
     }
 
     record RepasseWebhookPendente(
-            UUID outboxId, String payloadCru, String assinatura, int tentativas) {}
+            UUID outboxId, String payloadCru, String assinatura, int tentativas, String provedorOrigem) {
+        public RepasseWebhookPendente(UUID id, String payload, String assinatura, int tentativas) { this(id, payload, assinatura, tentativas, null); }
+    }
 
     record SolicitacaoResumoIaPendente(
             UUID outboxId,

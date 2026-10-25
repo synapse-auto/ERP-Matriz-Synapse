@@ -57,7 +57,10 @@ class RepasseWebhookAutomacaoHttpAdapter implements RepasseWebhookAutomacaoGatew
             breaker.executeRunnable(() -> http.post()
                     .uri(propriedades.url())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .header("X-Hub-Signature-256", repasse.assinatura())
+                    .headers(headers -> {
+                        if (repasse.assinatura() != null && !repasse.assinatura().isBlank()) headers.set("X-Hub-Signature-256", repasse.assinatura());
+                        if (propriedades.temToken()) headers.set("X-Synapse-Webhook-Token", propriedades.token());
+                    })
                     .header(CABECALHO_EVENTO_ID, repasse.eventoId().toString())
                     .header(CABECALHO_TENTATIVA, Integer.toString(repasse.tentativa()))
                     .body(repasse.payloadCru())
@@ -79,7 +82,7 @@ class RepasseWebhookAutomacaoHttpAdapter implements RepasseWebhookAutomacaoGatew
             }
             log.warn(
                     "Repasse do webhook para a Automacao falhou; a outbox tentara novamente: {}",
-                    e.toString());
+                    e.getClass().getSimpleName());
             return ResultadoRepasse.TENTAR_NOVAMENTE;
         }
     }

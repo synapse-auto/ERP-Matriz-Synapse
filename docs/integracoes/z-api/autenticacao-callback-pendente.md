@@ -1,5 +1,18 @@
 # Z-API — autenticação dos callbacks: pendência oficial
 
+## Decisao vigente — 25/10/2026
+
+O responsavel aprovou segredo aleatorio exclusivo na URL como alternativa propria.
+O novo receptor valida em tempo constante antes de ler/processar/persistir o corpo,
+exige HTTPS, limita bytes e verifica a instancia. Nao e assinatura nativa nem garante
+integridade criptografica do corpo; posse do segredo e a autenticacao.
+
+O suporte informou existir token em header, **sem confirmar nome/configuracao**.
+Modo `HEADER_NATIVO` esta preparado/testado com header sintetico, vazio/desativado por
+padrao. Nao configurar `Client-Token` por suposicao. Confirmado o contrato e sua entrega,
+preferir nativo sem fallback silencioso para query. [Implementacao e limites](./homologacao-protegida.md).
+As decisoes abaixo sao historicas, nao revogam essa autorizacao posterior.
+
 **Atualização de autorização — 24/10/2026:** o responsável permite implementar/testar tradução,
 entrada, status e correlação localmente antes da confirmação de G1. As decisões históricas
 abaixo não impedem mais a ACL local. **Entrada de produção continua bloqueada**: sem bean

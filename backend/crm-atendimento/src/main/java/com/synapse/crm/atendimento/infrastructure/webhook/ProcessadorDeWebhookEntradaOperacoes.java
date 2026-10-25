@@ -36,6 +36,7 @@ import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepos
 import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaInvalidaException;
 import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaRemovidaNoProvedorException;
 import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
@@ -250,6 +251,10 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                             MARCADOR_MIDIA_NAO_RECEBIDA,
                             pendente.idExterno(),
                             e.comTipo(mensagem.tipo()).getMessage());
+                } catch (MidiaRecebidaInvalidaException e) {
+                    requisicao = mensagemRecebidaSemArquivo(leadId, mensagem, canalEntrada, referencia);
+                    log.warn("{} entrada={} tipo={} motivo={}", MARCADOR_MIDIA_NAO_RECEBIDA,
+                            pendente.idExterno(), mensagem.tipo(), e.getMessage());
                 } catch (MidiaRecebidaRemovidaNoProvedorException e) {
                     // E218 (Bloco 1): o provedor declarou o arquivo removido (410 no resolvedor).
                     // Esperar o prazo de midia so atrasaria em ~10 min a mesma conclusao; a
@@ -400,17 +405,42 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             TradutorDeCanal.MensagemRecebidaDoCanal mensagem,
             CanalEntradaAtiva canalEntrada,
             ReferenciaDeMensagem referenciaDaMensagem) {
-        CanalGateway.MidiaRecebida baixada = canal.baixarMidiaRecebida(mensagem.midiaIdExterno());
         TipoMensagem tipo = TipoMensagem.valueOf(mensagem.tipo());
+        var recurso = canal.abrirMidiaRecebida(mensagem.midiaIdExterno(), tipo);
+        if (recurso.isPresent()) {
+            try (var fluxo = recurso.get()) {
+                String referenciaStorage = armazenamento.salvar(fluxo.conteudo(), fluxo.tamanho(), mensagem.nomeArquivo(), fluxo.mimetype());
+                compensarStorageEmRollback(referenciaStorage);
+                return midiaPersistida(leadId, mensagem, canalEntrada, referenciaDaMensagem, tipo, referenciaStorage, fluxo.mimetype(), fluxo.tamanho());
+            } catch (java.io.IOException e) { throw new IllegalStateException("falha ao fechar midia recebida"); }
+        }
+        CanalGateway.MidiaRecebida baixada = canal.baixarMidiaRecebida(mensagem.midiaIdExterno());
         String referenciaStorage = armazenamento.salvar(
                 baixada.conteudo(), mensagem.nomeArquivo(), baixada.mimetype());
+        return midiaPersistida(leadId, mensagem, canalEntrada, referenciaDaMensagem, tipo, referenciaStorage, baixada.mimetype(), baixada.conteudo().length);
+    }
 
+    private void compensarStorageEmRollback(String referencia) {
+        if (!org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) return;
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override public void afterCompletion(int status) {
+                        if (status == STATUS_COMMITTED) return;
+                        try { armazenamento.remover(referencia); }
+                        catch (RuntimeException e) { log.error("Falha na compensacao de midia recebida apos rollback; referencia={}", referencia); }
+                    }
+                });
+    }
+
+    private RegistrarMensagemRecebidaUseCase.MensagemRecebida midiaPersistida(UUID leadId,
+            TradutorDeCanal.MensagemRecebidaDoCanal mensagem, CanalEntradaAtiva canalEntrada,
+            ReferenciaDeMensagem referenciaDaMensagem, TipoMensagem tipo, String referenciaStorage, String mime, long tamanho) {
         ObjectNode metadados = json.createObjectNode();
         if (mensagem.nomeArquivo() != null) {
             metadados.put("nome", mensagem.nomeArquivo());
         }
-        metadados.put("mimetype", baixada.mimetype());
-        metadados.put("tamanho", baixada.conteudo().length);
+        metadados.put("mimetype", mime);
+        metadados.put("tamanho", tamanho);
         if (mensagem.legenda() != null && !mensagem.legenda().isBlank()) {
             metadados.put("legenda", mensagem.legenda());
         }

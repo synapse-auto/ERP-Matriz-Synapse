@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.synapse.crm.atendimento.application.Outbox;
 import com.synapse.crm.atendimento.application.RepasseWebhookAutomacaoGateway;
 import com.synapse.crm.atendimento.application.RepasseWebhookAutomacaoGateway.ResultadoRepasse;
+import com.synapse.crm.atendimento.infrastructure.canal.CanalProperties;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /** Drena somente eventos de repasse; nunca ocupa o publisher do canal de saida. */
@@ -27,16 +28,18 @@ public class PublicadorDeRepasseWebhookOperacoes {
     private final RepasseWebhookAutomacaoGateway automacao;
     private final OutboxProperties propriedades;
     private final Clock relogio;
+    private final String provedorAtivo;
 
     public PublicadorDeRepasseWebhookOperacoes(
             Outbox outbox,
             RepasseWebhookAutomacaoGateway automacao,
             OutboxProperties propriedades,
-            Clock relogio) {
+            Clock relogio, CanalProperties canal) {
         this.outbox = outbox;
         this.automacao = automacao;
         this.propriedades = propriedades;
         this.relogio = relogio;
+        this.provedorAtivo = canal.provedor();
     }
 
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
@@ -52,6 +55,12 @@ public class PublicadorDeRepasseWebhookOperacoes {
     }
 
     private void entregar(Outbox.RepasseWebhookPendente pendente, Instant agora) {
+        if ((pendente.provedorOrigem() != null && !pendente.provedorOrigem().equals(provedorAtivo))
+                || (pendente.provedorOrigem() == null && "z-api".equals(provedorAtivo))) {
+            outbox.esgotar(pendente.outboxId(), agora, "REPASSE_PROVEDOR_DIVERGENTE_OU_LEGADO; reconciliar sem redisparo automatico");
+            log.error("{} repasse={} bloqueado por origem divergente/legada; nenhuma chamada HTTP", MARCADOR_ALARME, pendente.outboxId());
+            return;
+        }
         int tentativasFeitas = pendente.tentativas() + 1;
         ResultadoRepasse resultado = automacao.repassar(new RepasseWebhookAutomacaoGateway.Repasse(
                 pendente.outboxId(), tentativasFeitas, pendente.payloadCru(), pendente.assinatura()));

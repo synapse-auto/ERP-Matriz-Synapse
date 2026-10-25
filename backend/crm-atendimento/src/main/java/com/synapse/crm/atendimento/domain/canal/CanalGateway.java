@@ -1,9 +1,13 @@
 package com.synapse.crm.atendimento.domain.canal;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
+import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 
 /**
  * A porta de saida para o canal externo. O unico lugar por onde mensagem deixa o CRM.
@@ -74,6 +78,11 @@ public interface CanalGateway {
      */
     MidiaRecebida baixarMidiaRecebida(String midiaIdExterno);
 
+    /** Recurso limitado e fechavel. Provedores antigos preservam seu comportamento. */
+    default Optional<MidiaRecebidaEmFluxo> abrirMidiaRecebida(String referencia, TipoMensagem tipo) {
+        return Optional.empty();
+    }
+
     /**
      * Consulta a foto de perfil de um contato, quando o provedor oferece essa capacidade.
      *
@@ -136,6 +145,10 @@ public interface CanalGateway {
 
     /** Os bytes de uma midia recebida, prontos para o storage proprio. */
     record MidiaRecebida(byte[] conteudo, String mimetype) {}
+
+    record MidiaRecebidaEmFluxo(InputStream conteudo, long tamanho, String mimetype) implements AutoCloseable {
+        @Override public void close() throws IOException { conteudo.close(); }
+    }
 
     /** Resultado sanitizado: o diagnostico nunca carrega token nem corpo devolvido pelo provedor. */
     record AutenticacaoDoCanal(boolean autenticada, String detalhe) {

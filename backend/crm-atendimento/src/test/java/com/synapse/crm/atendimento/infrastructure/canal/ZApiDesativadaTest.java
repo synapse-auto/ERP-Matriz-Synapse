@@ -29,6 +29,7 @@ class ZApiDesativadaTest {
                 .withBean(ObjectMapper.class, ObjectMapper::new)
                 .withBean(CircuitBreakerRegistry.class, CircuitBreakerRegistry::ofDefaults)
                 .withBean(ZApiMidiaSaida.class, () -> mock(ZApiMidiaSaida.class))
+                .withBean(ZApiMidiaEntrada.class, () -> mock(ZApiMidiaEntrada.class))
                 .withBean(CanalProperties.class, () -> new CanalProperties(ativo, null, null, null,
                         null, null, null, null, null, null, null))
                 .withBean("meta", CanalGateway.class, () -> meta)
