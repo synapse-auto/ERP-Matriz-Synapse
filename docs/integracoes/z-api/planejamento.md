@@ -53,6 +53,11 @@ de configuração e regressão Meta/Uzapi com HTTP simulado. Nenhuma ativação 
 
 ## Fase 3 — entrada e correlação
 
+**Complemento autorizado em 24/10:** implementar tradução/recebimento/status/correlação com
+fixtures oficiais sanitizadas e testes locais, mantendo entrada de produção bloqueada. G1
+passa a bloquear registro/ativação do verificador real, não a implementação da ACL testável.
+Não inventar assinatura nem abrir rota pública permissiva. [Escopo local](./fase-3-entrada-local.md).
+
 Tradutor no webhook real, texto, identificação de instância/canal, deduplicação, processamento
 e status repetidos/fora de ordem/anteriores ao POST, eco fromMe sem duplicação, filtros de
 grupos/Status/Story/tipos não suportados, persistência/WebSocket. Delivery não é entregue ao

@@ -30,6 +30,11 @@ public interface WebhookEntrada {
     /** Pendentes reservados para este processador. */
     List<Pendente> reservarPendentes(int limite);
 
+    /** Reserva aditiva para um provedor; nao entregar backlog de outro canal ao novo tradutor. */
+    default List<Pendente> reservarPendentes(int limite, String provedor) {
+        throw new UnsupportedOperationException("RESERVA_POR_PROVEDOR_NAO_IMPLEMENTADA");
+    }
+
     /**
      * Conclui a linha.
      *

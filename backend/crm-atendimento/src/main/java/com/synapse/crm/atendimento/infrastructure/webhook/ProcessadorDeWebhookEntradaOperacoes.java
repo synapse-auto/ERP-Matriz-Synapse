@@ -30,6 +30,8 @@ import com.synapse.crm.atendimento.application.WebhookEntrada;
 import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaRepositorio;
 import com.synapse.crm.atendimento.application.canal.CanalEntradaAtiva;
 import com.synapse.crm.atendimento.application.reacao.RegistrarReacaoDoClienteUseCase;
+import com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase;
+import com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase.Vinculo;
 import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio;
 import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
@@ -107,8 +109,10 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final Duration prazoAbsoluto;
     private final Duration prazoMidia;
     private final TransactionTemplate transacoes;
+    private final CorrelacionarMensagemDoCanalUseCase correlacionar;
 
     public ProcessadorDeWebhookEntradaOperacoes(
+            CorrelacionarMensagemDoCanalUseCase correlacionar,
             WebhookEntrada entrada,
             TradutorDeCanal tradutor,
             IdempotenciaDeMensagemRecebidaRepositorio idempotencia,
@@ -135,6 +139,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             @Value("${synapse.canal.webhook.backoff-maximo:30m}") Duration backoffMaximo,
             @Value("${synapse.canal.webhook.prazo-midia:10m}") Duration prazoMidia) {
         this.entrada = entrada;
+        this.correlacionar = correlacionar;
         this.tradutor = tradutor;
         this.idempotencia = idempotencia;
         this.registrar = registrar;
@@ -163,7 +168,8 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     }
 
     public int rodada() {
-        List<WebhookEntrada.Pendente> pendentes = transacoes.execute(status -> entrada.reservarPendentes(lote));
+        List<WebhookEntrada.Pendente> pendentes = transacoes.execute(status ->
+                "z-api".equals(tradutor.provedor()) ? entrada.reservarPendentes(lote, tradutor.provedor()) : entrada.reservarPendentes(lote));
         for (WebhookEntrada.Pendente pendente : pendentes) {
             processar(pendente);
         }
@@ -186,6 +192,8 @@ public class ProcessadorDeWebhookEntradaOperacoes {
 
     private void processarEmTransacao(
             WebhookEntrada.Pendente pendente, Instant agora, boolean ultimaChanceDaMidia) {
+        var statuses = tradutor.statusComIdentidade(pendente.payloadCru());
+        if (!statuses.isEmpty()) correlacionar.executar(List.of(), statuses);
         TradutorDeCanal.Traducao traducao = tradutor.traduzirComDescartes(pendente.payloadCru());
         List<TradutorDeCanal.ItemDescartado> descartes = new ArrayList<>(traducao.descartes());
         String comandoReset = configuracaoDoReset.valor().orElse("");
@@ -286,6 +294,9 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                     resultado.mensagem().id(),
                     resultado.mensagem().enviadoEm(),
                     resultado.atendimento().id());
+            tradutor.identidadeDaMensagem(pendente.payloadCru(), mensagem.idExterno()).ifPresent(identidade ->
+                    correlacionar.executar(List.of(new Vinculo(
+                            identidade, resultado.mensagem().id(), resultado.mensagem().enviadoEm(), resultado.atendimento().id())), List.of()));
 
             // A mensagem fica gravada e seus eventos de mensagem seguem normalmente. So depois
             // disso o CRM aplica a metade que lhe cabe do #reset: devolver um atendimento humano

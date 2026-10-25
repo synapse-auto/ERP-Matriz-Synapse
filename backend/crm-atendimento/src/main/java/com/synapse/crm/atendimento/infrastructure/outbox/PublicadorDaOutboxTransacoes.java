@@ -11,8 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.MensagemRepositorio;
 import com.synapse.crm.atendimento.application.Outbox;
+import com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase;
+import com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase.Vinculo;
 import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.atendimento.domain.canal.IdentidadeDeMensagemDoCanal;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.evento.MudancaDeStatusDeEntrega;
 import com.synapse.crm.atendimento.domain.mensagem.MotivosDeFalhaDeEntrega;
@@ -35,8 +38,10 @@ class PublicadorDaOutboxTransacoes {
     private final CanalGateway canal;
     private final OutboxProperties propriedades;
     private final ApplicationEventPublisher eventos;
+    private final CorrelacionarMensagemDoCanalUseCase correlacionar;
 
     PublicadorDaOutboxTransacoes(
+            CorrelacionarMensagemDoCanalUseCase correlacionar,
             Outbox outbox,
             MensagemRepositorio mensagens,
             MensagemIdExternoRepositorio idsExternos,
@@ -45,6 +50,7 @@ class PublicadorDaOutboxTransacoes {
             OutboxProperties propriedades,
             ApplicationEventPublisher eventos) {
         this.outbox = outbox;
+        this.correlacionar = correlacionar;
         this.mensagens = mensagens;
         this.idsExternos = idsExternos;
         this.leads = leads;
@@ -107,6 +113,15 @@ class PublicadorDaOutboxTransacoes {
             case ResultadoDeEnvio.Enfileirado fila -> {
                 boolean registrado = outbox.marcarEnfileirado(pendente.outboxId(), quando,
                         canal.provedor(), fila.instancia(), fila.idDoProcessamento(), fila.idDaMensagem());
+                if (registrado) {
+                    var mensagem = new Vinculo(
+                            new IdentidadeDeMensagemDoCanal(canal.provedor(), fila.instancia(), "WHATSAPP", fila.idDaMensagem()),
+                            pendente.mensagemId(), pendente.enviadoEm(), pendente.atendimentoId());
+                    var processamento = new Vinculo(
+                            new IdentidadeDeMensagemDoCanal(canal.provedor(), fila.instancia(), "PROCESSAMENTO", fila.idDoProcessamento()),
+                            pendente.mensagemId(), pendente.enviadoEm(), pendente.atendimentoId());
+                    correlacionar.executar(List.of(mensagem, processamento), List.of());
+                }
                 // PENDENTE continua sendo o ultimo estado comprovado; callback autenticado e
                 // correlacao isolada por instancia pertencem a fase de entrada, nao a este aceite.
                 log.debug("Aceite em fila registrado={}, outbox={}", registrado, pendente.outboxId());

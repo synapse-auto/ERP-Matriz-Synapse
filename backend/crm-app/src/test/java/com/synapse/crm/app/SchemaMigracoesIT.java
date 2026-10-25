@@ -124,6 +124,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     "mensagem_automacao_idempotencia",
                     "mensagem_envio_idempotencia",
                     "mensagem_id_externo",
+                    // V112: aliases por provedor/instancia/namespace e status antecipado.
+                    "mensagem_correlacao_canal",
                     "mensagem_recebida_idempotencia",
                     "comando_automacao_idempotencia",
                     // E196 (V80): mesma reserva de Idempotency-Key, escopada por lead.

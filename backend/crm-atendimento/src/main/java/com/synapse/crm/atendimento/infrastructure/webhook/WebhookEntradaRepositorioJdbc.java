@@ -109,6 +109,18 @@ class WebhookEntradaRepositorioJdbc implements WebhookEntrada {
     }
 
     @Override
+    public List<Pendente> reservarPendentes(int limite, String provedor) {
+        TransacaoObrigatoria.exigir("reservar entrada por provedor");
+        return chat.query("""
+                SELECT id_externo, payload, tentativas, recebido_em FROM webhook_entrada
+                 WHERE provedor = ? AND processado_em IS NULL AND esgotado_em IS NULL
+                   AND proxima_tentativa_em <= CURRENT_TIMESTAMP
+                 ORDER BY recebido_em LIMIT ? FOR UPDATE SKIP LOCKED
+                """, (linha, i) -> new Pendente(linha.getString("id_externo"), linha.getString("payload"),
+                    linha.getInt("tentativas"), linha.getTimestamp("recebido_em").toInstant()), provedor, limite);
+    }
+
+    @Override
     public void marcarProcessado(
             String idExterno, Instant quando, List<TradutorDeCanal.ItemDescartado> descartes) {
         TransacaoObrigatoria.exigir("marcarProcessado");

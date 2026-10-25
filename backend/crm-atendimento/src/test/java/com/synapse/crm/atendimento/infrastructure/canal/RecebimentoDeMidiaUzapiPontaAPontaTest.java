@@ -138,6 +138,7 @@ class RecebimentoDeMidiaUzapiPontaAPontaTest {
                 mock(ArmazenamentoDeMidia.class),
                 mock(ConversorDeAudio.class));
         processador = new ProcessadorDeWebhookEntradaOperacoes(
+                mock(com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase.class),
                 entrada,
                 new UzapiAutoticWebhookTradutor(propriedades, json),
                 idempotencia,

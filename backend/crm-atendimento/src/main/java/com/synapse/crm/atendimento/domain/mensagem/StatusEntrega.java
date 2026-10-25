@@ -17,7 +17,10 @@ package com.synapse.crm.atendimento.domain.mensagem;
  */
 public enum StatusEntrega {
 
-    /** Gravada no CRM, ainda na outbox. Nenhum provedor viu esta mensagem. */
+    /**
+     * Gravada no CRM, sem confirmacao de envio. Pode ja estar aceita na fila do provedor;
+     * a outbox publicada, nao este status, determina se ainda cabe despacho.
+     */
     PENDENTE,
 
     /** O provedor aceitou. A partir daqui a entrega e problema dele. */
