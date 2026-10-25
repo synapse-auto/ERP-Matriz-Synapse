@@ -60,3 +60,21 @@ reanalisar o contrato e os gates antes de retomar a implementação.
 
 Somente pesquisa e documentação. Z-API sem adaptador/ativação; nenhum número conectado,
 webhook registrado, chamada à API de negócio, VPS/Dokploy, n8n de produção, merge ou deploy.
+
+## Revalidação de 24/10/2026
+
+O índice oficial foi acessado também como texto, e as páginas técnicas de callback/configuração
+continuam sem especificar o mecanismo de autenticação de entrada. Foi localizada uma afirmação
+mais ampla no [blog oficial sobre segurança](https://z-api.io/blog/como-garantir-seguranca-e-estabilidade/):
+o artigo menciona assinatura e validação de webhooks, mas não fornece header, algoritmo,
+canonicalização, chave/configuração, timestamp nem exemplo verificável. A referência de boas
+práticas aponta para OWASP, não para um contrato Z-API executável.
+
+**Não concluir que a Z-API não assina callbacks.** Há menção oficial, porém falta o contrato
+necessário para implementar um verificador correto. Enviar essa página ao suporte junto das
+quatro perguntas acima e pedir a especificação aplicável à conta/produto contratado. Não copiar
+HMAC Meta nem o protocolo de outro produto Z-API (por exemplo, Omni).
+
+O Checker foi usado novamente com POST `/send-text` e seus campos explícitos e retornou zero
+endpoints: resultado não avaliativo. G1 permanece aberto. Nenhuma solicitação ao suporte foi
+enviada automaticamente e nenhum callback foi implementado.

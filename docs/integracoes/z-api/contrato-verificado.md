@@ -1,6 +1,6 @@
 # Z-API — contrato verificado e desenho (Fase 1)
 
-Verificado em 12/10/2026; código auditado na base `origin/main` e6bc480.
+Revalidado em 24/10/2026; código auditado na base `origin/main` 61a7c6f.
 **Não implementado, não ativado e não homologado.** Este documento planeja a integração;
 não registra endpoints do CRM como se já existissem. Fontes são exclusivamente oficiais,
 descobertas pelo [índice principal](https://developer.z-api.io/llms.txt) e
@@ -21,7 +21,7 @@ Fontes: [base/autenticação](https://developer.z-api.io/api-reference/introduct
 
 | Capacidade CRM | Contrato oficial | Fonte | Estado |
 |---|---|---|---|
-| Texto | POST `/send-text`; `phone`, `message`; opcionais delayMessage/delayTyping/editMessageId | [texto](https://developer.z-api.io/message/send-text) | Comprovado documentalmente; não testado em conta |
+| Texto | POST `/send-text`; `phone`, `message`; citação adiciona `messageId` conforme página específica | [texto](https://developer.z-api.io/message/send-text), [resposta](https://developer.z-api.io/message/reply-message) | Comprovado documentalmente; não testado em conta |
 | Imagem | POST `/send-image`; `phone`, `image` link/Base64; caption/messageId/viewOnce opcionais | [imagem](https://developer.z-api.io/message/send-message-image) | Comprovado |
 | Áudio | POST `/send-audio`; `phone`, `audio` link/Base64; async/viewOnce/waveform opcionais; sem caption documentado | [áudio](https://developer.z-api.io/message/send-message-audio) | Comprovado |
 | Vídeo | POST `/send-video`; `phone`, `video` link/Base64; caption/messageId/async opcionais | [vídeo](https://developer.z-api.io/message/send-message-video) | Comprovado; H.264 recomendado, limite documentado 100 MB |
@@ -69,8 +69,15 @@ que transforma data inválida no horário atual.
   antes da resposta de envio. **Não há prova de colisão real**, mas o modelo não satisfaz a
   correlação explícita canal/instância exigida por este planejamento (**G3**).
 - `ResultadoDeEnvio` só tem Aceito/Recusado. `PublicadorDaOutboxTransacoes` grava ENVIADO ao
-  aceitar, e retenta recusas temporárias. Não representa envio de resultado desconhecido (**G4**).
-  Marcar timeout pós-POST como temporário causaria retry com risco de duplicação.
+  aceitar, e retenta recusas temporárias. A main atual já possui proteção E209 para **processo
+  interrompido após despacho** (`despachado_em`/`despacho_ambiguo_em`): desvia para conferência
+  sem reenvio automático. Isso não cobre uma resposta de timeout/5xx classificada pelo adaptador
+  como recusa temporária (**G4**). Reutilizar essa persistência, não duplicar infraestrutura.
+- A outbox preserva `credencialId`, mas os adaptadores ativos usam configuração global de
+  saída: guardar o UUID não prova que a credencial histórica foi efetivamente resolvida.
+  A proteção incremental desta auditoria registra provedor/identificador de origem nos novos
+  payloads e recusa divergência antes da chamada. Linhas antigas sem snapshot, rotação de
+  segredo com mesmo identificador e agendamentos não materializados continuam gates de corte.
 - Repasse para automação preserva o envelope do provedor; n8n não passa a compreender um JSON
   Z-API só porque o CRM o aceitou. Contrato a alinhar com Dylan, sem tradução Meta fictícia.
 
@@ -115,8 +122,9 @@ Não editar V16/V46 aplicadas. Não criar migration na Fase 1.
 ## 5. Capacidades adicionais: não habilitadas
 
 Citação: [reply-message](https://developer.z-api.io/message/reply-message) documenta
-phone/message/messageId; página send-text não lista messageId entre seus campos, portanto
-não misturar os contratos. Reação: [send-message-reaction](https://developer.z-api.io/message/send-message-reaction)
+**POST `/send-text`** com phone/message/messageId. `reply-message` é o slug da documentação,
+não uma rota de API. A página específica explica o campo opcional de citação do envio de texto;
+não inventar POST `/reply-message`. Reação: [send-message-reaction](https://developer.z-api.io/message/send-message-reaction)
 documenta phone/reaction/messageId. Contato: [send-message-contact](https://developer.z-api.io/message/send-message-contact)
 documenta phone/contactName/contactPhone. Localização: [send-message-location](https://developer.z-api.io/message/send-message-location)
 documenta phone/title/address/latitude/longitude (coordenadas como strings).
@@ -146,3 +154,12 @@ Resultados e limites do API Documentation Checker e perguntas para o fornecedor 
 Não substituir por HMAC inventado, cabeçalho Client-Token presumido ou acesso público sem proteção.
 
 Nenhuma ação no Dokploy agora. Nenhuma chamada a api.z-api.io, número conectado ou callback registrado.
+
+## 7. Auditoria de prontidão de 24/10/2026
+
+A PR #301 foi incorporada; não foram encontradas PRs/branches de fases 2–5. Não há adaptador,
+tradutor, configuração Z-API nem teste ponta a ponta Z-API. As fixtures não constituem simulador.
+O [relatório de prontidão](./auditoria-2026-10-24.md), o
+[runbook bloqueado](./runbook-troca-femina.md) e a
+[passagem para automação](./documento-para-automacao.md) detalham evidências e gates.
+Nenhuma conclusão de prontidão é inferida do funcionamento dos canais Meta/Uzapi.

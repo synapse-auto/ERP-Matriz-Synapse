@@ -7,6 +7,11 @@ ausente, incompatibilidade arquitetural ou ampliação de escopo. Reler este arq
 
 ## Restrições permanentes
 
+**Autorização de 25/10/2026:** corrigir o CI de todas as PRs abertas e fazer merge
+sequencial após aprovação do último SHA. Esta autorização substitui somente a
+proibição anterior de merge e a pendência de autorização para migrar Zod.
+Não autoriza deploy, habilitar Z-API, conectar números ou abrir entrada insegura.
+
 - Provedor planejado `z-api`, desativado em todas as instâncias.
 - Não substituir Meta/Uzapi, conectar números, registrar callbacks reais, enviar mensagens,
   fazer merge/deploy, acessar VPS/Dokploy ou alterar n8n de produção.
