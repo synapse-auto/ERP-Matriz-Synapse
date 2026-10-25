@@ -118,7 +118,9 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isZero();
     }
     @Test void coletorSomenteLeituraNaoExportaConteudoTelefoneOuUrl() throws Exception {
-        assertThat(post(recebido().toString(),SEGREDO)).isEqualTo(HttpStatus.OK);
+        var eventoColeta=recebido();
+        eventoColeta.putObject("document").put("documentUrl","https://cdn.exemplo.test/privado?token=segredo-nao-exportar");
+        assertThat(post(eventoColeta.toString(),SEGREDO)).isEqualTo(HttpStatus.OK);
         String script=java.nio.file.Files.readString(java.nio.file.Path.of("../../docs/diagnosticos/coletar-z-api-homologacao.sql"))
                 .replace(":'instancia'","'ZAPI-PROTEGIDA'").replace(":'inicio'","'2000-01-01T00:00:00Z'").replace(":'fim'","'2100-01-01T00:00:00Z'");
         try(var conexao=jdbc.getDataSource().getConnection();var comando=conexao.createStatement()) {
@@ -129,11 +131,11 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
                     var metadados=linhas.getMetaData();
                     for(int c=1;c<=metadados.getColumnCount();c++) assertThat(metadados.getColumnLabel(c)).doesNotContain("payload","phone","url","token","conteudo");
                     while(linhas.next())for(int c=1;c<=metadados.getColumnCount();c++)if(linhas.getObject(c)!=null)
-                        assertThat(linhas.getObject(c).toString()).doesNotContain(SEGREDO,"5561999990000","Unicode","https://");
+                        assertThat(linhas.getObject(c).toString()).doesNotContain(SEGREDO,"5561999990000","Unicode","https://","segredo-nao-exportar","/privado");
                 }
                 resultado=comando.getMoreResults();
             }
-            assertThat(conjuntos).isEqualTo(2);
+            assertThat(conjuntos).isEqualTo(3);
         }
         assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isEqualTo(1);
     }

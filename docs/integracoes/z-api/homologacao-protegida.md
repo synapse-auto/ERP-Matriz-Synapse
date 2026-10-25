@@ -67,13 +67,21 @@ timeout existente limitam ocupacao. Carga representativa e codecs reais ainda pr
 
 ## B. Configuracao/comandos a cargo do operador
 
+**Roteiro executavel vigente:** [roteiro-operacional.md](./roteiro-operacional.md),
+com cadastro SQL separado/inativo, ativacao exclusiva HML vazia, envs completas,
+conferencia Traefik/Dokploy, campos de callbacks, testes e plano de ciclos/filas/agendas.
+O complemento abaixo conserva contexto; a lacuna de cadastro foi resolvida pelos
+scripts operacionais, nao por reuso do provisionador Meta ou de UUID Uzapi.
+
 ### Cadastro da credencial e limite dos ciclos antigos
 
 O provisionador generico atual ainda exige Phone Number ID numerico da Meta e usa
 `env://WHATSAPP_TOKEN`: **nao reexecuta-lo com ID Z-API**. Na base isolada de homologacao,
-o cadastro precisa de `canal.tipo=WHATSAPP`, credencial ativa/versionada com
+usar `docker/provisionamento/cadastrar-canal-z-api.sql`, que cria inicialmente
+canal/credencial INATIVOS, com `canal.tipo=WHATSAPP` e
 `identificador_externo=Z_API_INSTANCIA_ID`, `token_ref=env://Z_API_TOKEN` e UUID igual a
-`Z_API_CREDENCIAL_ID`. A coluna `numero` guarda o telefone controlado (ate 30 caracteres),
+`Z_API_CREDENCIAL_ID`. A ativacao e uma segunda operacao exclusiva HML vazia, nunca automatica.
+A coluna `numero` guarda o telefone controlado (ate 30 caracteres),
 nao o ID de instancia de 32 caracteres. Nunca gravar o token real no banco.
 
 Atendimentos ja abertos conservam a credencial original. O envio novo ainda usa essa

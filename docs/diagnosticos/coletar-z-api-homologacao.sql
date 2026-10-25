@@ -34,10 +34,28 @@ WHERE provedor='z-api' AND instancia=:'instancia'
       WHERE w.provedor='z-api' AND w.recebido_em >= :'inicio'::timestamptz AND w.recebido_em < :'fim'::timestamptz
         AND w.payload::jsonb->>'instanceId'=:'instancia'
       UNION ALL
+      SELECT w.payload::jsonb->>'zaapId' FROM webhook_entrada w
+      WHERE w.provedor='z-api' AND w.recebido_em >= :'inicio'::timestamptz AND w.recebido_em < :'fim'::timestamptz
+        AND w.payload::jsonb->>'instanceId'=:'instancia'
+      UNION ALL
       SELECT i #>> '{}' FROM webhook_entrada w
       CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(w.payload::jsonb->'ids')='array'
                          THEN w.payload::jsonb->'ids' ELSE '[]'::jsonb END) i
       WHERE w.provedor='z-api' AND w.recebido_em >= :'inicio'::timestamptz AND w.recebido_em < :'fim'::timestamptz
         AND w.payload::jsonb->>'instanceId'=:'instancia')
 ORDER BY namespace, id_externo LIMIT 100;
+
+-- Somente host HTTPS; nunca URL/caminho/query. Serve para revisar a allowlist com o operador,
+-- nao para autorizar automaticamente qualquer host presente em um payload.
+SELECT DISTINCT tipo, substring(url FROM '^https://([A-Za-z0-9.-]+)(?::443)?/') AS host_https
+FROM webhook_entrada w
+CROSS JOIN LATERAL (VALUES
+    ('IMAGEM', w.payload::jsonb->'image'->>'imageUrl'),
+    ('AUDIO', w.payload::jsonb->'audio'->>'audioUrl'),
+    ('VIDEO', w.payload::jsonb->'video'->>'videoUrl'),
+    ('DOCUMENTO', w.payload::jsonb->'document'->>'documentUrl')) midia(tipo, url)
+WHERE w.provedor='z-api' AND w.payload::jsonb->>'instanceId'=:'instancia'
+  AND w.recebido_em >= :'inicio'::timestamptz AND w.recebido_em < :'fim'::timestamptz
+  AND url IS NOT NULL
+LIMIT 100;
 ROLLBACK;

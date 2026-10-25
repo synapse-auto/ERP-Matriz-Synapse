@@ -2,6 +2,11 @@
 
 ## Roteiro vigente — 25/10/2026
 
+**Para executar preparacao/homologacao:** [roteiro-operacional.md](./roteiro-operacional.md).
+Inclui comandos completos de cadastro inativo/UUID, envs, proxy e painel, nao apenas links.
+Inventario sanitizado atualizado: `docs/diagnosticos/inventario-corte-z-api.sql`.
+O historico abaixo nao e autorizacao de corte nem substitui o roteiro atual.
+
 O complemento de codigo autoriza/implementa protecao propria por segredo exclusivo em URL,
 prepara header nativo sem inventar seu nome e conecta entrada/midia/correlacao/repasse.
 **Para configurar e homologar, seguir [homologacao-protegida.md, B/C](./homologacao-protegida.md).**
