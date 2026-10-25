@@ -33,6 +33,12 @@ sua base passa a main após a integração da predecessora. A validação do nov
 da #322 é independente e será registrada na PR antes do merge. O código de saída
 continua experimental/OFF; HTTP 200 não confirma entrega e não reabre a outbox.
 
+#322 integrada em `ecec625`, após PR **40171435859** e push **40171431231** SUCCESS
+no SHA `f6c8e74`. Repetição local dirigida: 54/54 testes Java 21, sem ignorados.
+#323 incorpora a main e passa a tê-la como base, mantendo o diff apenas de mídia.
+O CI próprio do novo SHA será conferido antes do merge. Não há ativação,
+homologação do fornecedor ou liberação do recebimento de mídia em produção.
+
 - [Contrato verificado](./contrato-verificado.md): matriz com fontes oficiais por capacidade;
   rotas/métodos conferidos também no HTML, pois Markdown omite componentes de referência.
 - [Fixtures e casos negativos](./fixtures/README.md): exemplos fictícios, não dados reais.
