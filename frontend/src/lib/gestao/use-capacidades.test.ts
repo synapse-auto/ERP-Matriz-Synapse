@@ -16,6 +16,16 @@ function minhas(capacidades: MinhasPermissoes["capacidades"]): MinhasPermissoes 
 }
 
 describe("capacidadesDe", () => {
+  it("escopo TODOS nao concede acesso quando a leitura foi negada", () => {
+    const bloqueada = capacidadesDe(minhas({
+      "atendimentos.ver": { permitido: false, motivo: "DEPENDENCIA", alcance: "TODOS" },
+      "clientes.acessar": { permitido: false, motivo: "DESLIGADO", alcance: null },
+      "chat_interno.usar": { permitido: true, motivo: "PERMITIDO", alcance: null },
+    }), false, vi.fn());
+    expect(bloqueada.alcancaTodos).toBe(false);
+    expect(bloqueada.pode("clientes.acessar")).toBe(false);
+    expect(bloqueada.pode("chat_interno.usar")).toBe(true);
+  });
   it("sem resposta do backend, nada é permitido (carregando)", () => {
     const capacidades = capacidadesDe(undefined, false, vi.fn());
     expect(capacidades.estado).toBe("carregando");

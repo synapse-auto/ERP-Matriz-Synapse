@@ -160,6 +160,33 @@ class GestaoTempoRealIT extends PostgresIT {
         }
     }
 
+    @Test
+    void revogarClientesInterrompeFramesExternosMasPreservaNotificacaoInterna() throws Exception {
+        String g = login(ApoioAutenticacao.EMAIL_GESTOR, ApoioAutenticacao.SENHA_GESTOR);
+        String a = login(ApoioAutenticacao.EMAIL_ANA, ApoioAutenticacao.SENHA_ATENDENTE);
+        UUID atendimento = abrirAtendimentoComoAna();
+        StompSession sessao = conectar(a);
+        Captura avisos = assinar(sessao, "/user/queue/notificacoes");
+        Captura conversa = assinar(sessao, "/user/queue/atendimento." + atendimento);
+        publicarMensagem(atendimento, "antes-bloqueio-clientes");
+        assertThat(conversa.aguardarContendo("antes-bloqueio-clientes")).isTrue();
+        long revisao = jdbc.queryForObject("SELECT revisao FROM permissao_perfil WHERE papel = 'ATENDENTE'", Long.class);
+        var salvar = chamar(g, HttpMethod.PUT, "/api/v1/gestao/permissoes/perfis/ATENDENTE",
+                Map.of("revisaoEsperada", revisao, "niveis", Map.of(), "acoes", Map.of("clientes.acessar", false)));
+        assertThat(salvar.getStatusCode()).as(salvar.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat(avisos.aguardarContendo("ACESSO_ALTERADO")).isTrue();
+        publicarMensagem(atendimento, "depois-bloqueio-clientes");
+        assertThat(conversa.nadaContendo("depois-bloqueio-clientes", Duration.ofSeconds(2))).isTrue();
+        // O listener Redis e o socket reais continuam entregando o canal interno, independente do gate externo.
+        UUID interna = UUID.randomUUID();
+        redis.convertAndSend("synapse:chat-interno:" + interna,
+                "{\"tipo\":\"CHAT_INTERNO_MENSAGEM\",\"destinatarios\":[\"" + ana
+                        + "\"],\"conversaId\":\"" + interna + "\",\"mensagemId\":\"" + UUID.randomUUID()
+                        + "\",\"conteudo\":\"equipe-continua\",\"enviadoEm\":\"2026-10-23T12:00:00Z\"}");
+        assertThat(avisos.aguardarContendo("equipe-continua")).isTrue();
+        assertThat(chamar(a, HttpMethod.GET, "/api/v1/leads/" + leadDaAna, null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
     // --- apoio -------------------------------------------------------------------------------------
 
     private UUID criarSubgestor(String tokenGestor) {

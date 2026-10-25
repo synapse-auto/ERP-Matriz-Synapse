@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,6 +28,7 @@ import com.synapse.crm.atendimento.domain.informacoeschatbot.InformacoesDoChatbo
 
 /** Leitura dos cards do historico; o navegador so le, quem escreve e o contrato interno do n8n. */
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/atendimentos/{atendimentoId}/informacoes-do-chatbot")
 @Tag(name = "Informações do chatbot", description = "Cards internos com o que o chatbot coletou antes da transferência.")
 @SecurityRequirement(name = "bearerAuth")

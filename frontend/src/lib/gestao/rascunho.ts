@@ -99,7 +99,8 @@ export function aplicarNivel(
   if (perfil && perfil.niveis[moduloId] === nivel) delete niveis[moduloId];
   else niveis[moduloId] = nivel;
   catalogo.capacidades
-    .filter((c) => c.modulo === moduloId && configuravel(c, papel))
+    // A porta de entrada so muda pelo proprio controle, nunca como efeito de um preset de escrita.
+    .filter((c) => c.modulo === moduloId && c.id !== "clientes.acessar" && configuravel(c, papel))
     .forEach((c) => {
       const desejado = ordem(c.nivelMinimo) <= ordem(nivel);
       if (perfil && (perfil.acoes[c.id] ?? false) === desejado) delete acoes[c.id];
@@ -151,7 +152,8 @@ export function simular(catalogo: Catalogo, papel: Papel, perfil: Rascunho, exce
       continue;
     }
     if (c.tipo === "ALCANCE_ESTRUTURAL") {
-      estados[c.id] = { permitido: true, motivo: "PERMITIDO", origem: "ESTRUTURAL" };
+      const negada = c.dependencias.some((d) => !estados[d]?.permitido);
+      estados[c.id] = { permitido: !negada, motivo: negada ? "DEPENDENCIA" : "PERMITIDO", origem: "ESTRUTURAL" };
       continue;
     }
     const origem: Origem = fixo

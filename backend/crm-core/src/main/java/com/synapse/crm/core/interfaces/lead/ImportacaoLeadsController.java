@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.synapse.crm.core.application.lead.importacao.ImportarLeadsCsvUseCase;
 /** Preview e confirmacao da importacao de leads, somente para gestao. */
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/leads/importacao")
 @Tag(name = "Importacao de leads", description = "Importacao em lote com preview e confirmacao.")
 @SecurityRequirement(name = "bearerAuth")

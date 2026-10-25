@@ -391,7 +391,8 @@ class AjustesDoVinculoE231IT extends PostgresIT {
     // --- apoio ---------------------------------------------------------------------------------------------------
 
     private void publicarEmTransacao(Object evento) {
-        new TransactionTemplate(transacao).executeWithoutResult(status -> eventos.publishEvent(evento));
+        com.synapse.crm.sharedkernel.identidade.ContextoDeServico.executarComo("fixture-evento-automacao",
+                () -> new TransactionTemplate(transacao).executeWithoutResult(status -> eventos.publishEvent(evento)));
     }
 
     private void desligarTudo() {

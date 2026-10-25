@@ -33,6 +33,9 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
  */
 public enum Capacidade {
 
+    CLIENTES_ACESSAR("clientes.acessar", Modulo.ATENDIMENTOS, NivelDeAcesso.VER, Tipo.ACAO,
+            true, todos(), nenhum(), false),
+
     // --- Atendimentos -----------------------------------------------------------------------
     /** Recorte de conversas. Estrutural: vem de RN-CRM-01/Specification/RLS, nunca do catalogo. */
     ATENDIMENTOS_VER("atendimentos.ver", Modulo.ATENDIMENTOS, NivelDeAcesso.VER, Tipo.ALCANCE_ESTRUTURAL,
@@ -248,7 +251,19 @@ public enum Capacidade {
     }
 
     public List<Capacidade> dependencias() {
-        return dependencias.stream().map(d -> porId(d).orElseThrow()).toList();
+        var declaradas = dependencias.stream().map(d -> porId(d).orElseThrow());
+        return exigeAcessoAClientes()
+                ? java.util.stream.Stream.concat(java.util.stream.Stream.of(CLIENTES_ACESSAR), declaradas).toList()
+                : declaradas.toList();
+    }
+
+    private boolean exigeAcessoAClientes() {
+        if (this == CLIENTES_ACESSAR) return false;
+        return switch (modulo) {
+            case ATENDIMENTOS, CONTATOS, RESUMO_IA, DASHBOARD, MENSAGENS_PROGRAMADAS, LEMBRETES,
+                    CAMPANHAS, CANCELAMENTOS -> true;
+            default -> this == TAGS_APLICAR;
+        };
     }
 
     /** So para {@link Tipo#ALCANCE_ESTRUTURAL}: atendente fica em Meus (RN-CRM-01), gestao em Todos. */
@@ -285,11 +300,9 @@ public enum Capacidade {
         // Garante no carregamento da classe que ATENDENTE nunca recebe alcance alem de Meus e que
         // dependencia sempre aponta para constante declarada antes (o calculo percorre em ordem).
         for (Capacidade c : values()) {
-            for (String dependencia : c.dependencias) {
-                Capacidade alvo = porId(dependencia)
-                        .orElseThrow(() -> new IllegalStateException("dependencia desconhecida: " + dependencia));
+            for (Capacidade alvo : c.dependencias()) {
                 if (alvo.ordinal() >= c.ordinal()) {
-                    throw new IllegalStateException(c.id + " depende de " + dependencia + " declarada depois");
+                    throw new IllegalStateException(c.id + " depende de " + alvo.id + " declarada depois");
                 }
             }
         }

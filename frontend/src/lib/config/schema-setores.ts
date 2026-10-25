@@ -32,6 +32,6 @@ export const SetoresTextosSchema = z
     nomeEmUso: z.string().default("Já existe um setor com este nome."),
     setorInativo: z.string().default("Este setor está inativo e não aceita novos integrantes."),
   })
-  .default({});
+  .prefault({});
 
 export type SetoresTextos = z.infer<typeof SetoresTextosSchema>;

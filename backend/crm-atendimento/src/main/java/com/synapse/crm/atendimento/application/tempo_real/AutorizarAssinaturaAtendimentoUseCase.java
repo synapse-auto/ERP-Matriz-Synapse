@@ -35,7 +35,7 @@ public class AutorizarAssinaturaAtendimentoUseCase {
         this.atendimentos = atendimentos; this.participacoes = participacoes; this.usuarioContext = usuarioContext;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('clientes.acessar')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public boolean autorizar(UUID atendimentoId) {
         return atendimentos.porId(atendimentoId).isPresent()
