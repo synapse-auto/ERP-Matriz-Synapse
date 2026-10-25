@@ -1,7 +1,7 @@
 # Z-API — documento para automação
 
 24/10/2026. Destinatária: equipe responsável pelo n8n (Dylan).
-**Preparação, não liberação de troca.** Código Z-API ainda ausente; callbacks não autenticados
+**Preparação, não liberação de troca.** Saída experimental de texto/mídia existe desligada; callbacks não autenticados
 não serão habilitados. Este documento não autoriza editar workflow publicado ou enviar ao cliente.
 
 ## Inventário a devolver
@@ -69,7 +69,9 @@ Armazenar em Credentials/segredos backend; não logar URL completa de chamada ou
 Esses dados **não** comprovam autenticação dos callbacks. Obter confirmação oficial sobre
 assinatura/header suportado, escopo e rotação antes de implementar a entrada.
 
-Não há novos nomes de variáveis Z-API implementados nesta revisão. Não reutilizar
+Variáveis opcionais implementadas na F2: Z_API_HABILITADO (manter false), Z_API_INSTANCIA_ID,
+Z_API_TOKEN, Z_API_CLIENT_TOKEN, Z_API_CREDENCIAL_ID e Z_API_LIMITE_RESPOSTA_BYTES;
+ver [fase-2-saida.md](./fase-2-saida.md). Mídia não adiciona variável. Não reutilizar
 `WHATSAPP_WEBHOOK_SECRET`/HMAC Meta por analogia nem registrar webhook real agora.
 
 ## Homologação conjunta pendente
@@ -85,3 +87,18 @@ resultados sanitizados. Nenhum teste simulado local comprova o workflow publicad
 
 **Bloqueio operacional:** a troca não pode ocorrer enquanto o inventário e estes fluxos não
 forem validados pela equipe de automação, mesmo que a PR do CRM esteja com CI aprovado.
+
+## Passagem incremental para a equipe
+
+- Saída CRM experimental: texto/imagem/áudio/vídeo/documento pelo storage/worker.
+  PNG/JPG como DOCUMENTO preservado. Áudio não recebe caption; não perder texto silenciosamente.
+- 200 com zaapId/messageId fecha **despacho** da outbox e mantém PENDENTE na mensagem.
+  Não adicionar retry/consulta periódica por esse estado; timeout após POST exige conciliação.
+- Preparar, sem publicar, parser Z-API e inventário de chamadas/filas/reservas/registros.
+  Não chamar /responder para apenas registrar um envio direto: isso criaria nova saída.
+- Entrada/status/correlação operacional ainda não existem; não preencher wamid com zaapId
+  nem registrar webhook até G1/G3 implementados/testados. Não mudar o contrato interno.
+- Encaminhar ao fornecedor a [pergunta oficial](./autenticacao-callback-pendente.md) e
+  devolver resposta sanitizada. Não enviar token, conversa ou URL privada.
+- [Checklist e responsabilidades](./bloqueios-troca.md). Nenhum workflow real foi alterado;
+  passagem não é homologação e não autoriza produção.

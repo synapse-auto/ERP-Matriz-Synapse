@@ -2,6 +2,9 @@
 
 Retrato da base 61a7c6f e PR #321. Continuação de saída em
 [Fase 2](./fase-2-saida.md); não transforma esta matriz histórica em homologação.
+Avanço posterior: [F4 parcial de saída](./fase-4-midia-saida.md) e
+[checklist atual](./bloqueios-troca.md). Linhas abaixo são o retrato histórico #321, não a
+matriz atual de capacidades nem evidência da ausência de código nas PRs encadeadas.
 
 **Pode trocar a Uzapi na Femina nesta revisão: não.** Pronto no código: não.
 Homologado na conta Z-API real: não. Nenhum acesso à VPS/Dokploy, conexão de número,
