@@ -27,6 +27,12 @@ separadamente e registrado na PR. Isso não conclui homologação ou integraçã
 Sem deploy; provedor continua OFF e segurança de callbacks permanece bloqueadora
 da entrada de produção. Nenhuma autenticação permissiva será registrada.
 
+#321 integrada em `5ceccf6`, após PR **40170618025** e push **40170615484** SUCCESS
+no SHA `ad45d65`. #322 incorpora essa main por merge, sem rebase destrutivo;
+sua base passa a main após a integração da predecessora. A validação do novo SHA
+da #322 é independente e será registrada na PR antes do merge. O código de saída
+continua experimental/OFF; HTTP 200 não confirma entrega e não reabre a outbox.
+
 - [Contrato verificado](./contrato-verificado.md): matriz com fontes oficiais por capacidade;
   rotas/métodos conferidos também no HTML, pois Markdown omite componentes de referência.
 - [Fixtures e casos negativos](./fixtures/README.md): exemplos fictícios, não dados reais.
