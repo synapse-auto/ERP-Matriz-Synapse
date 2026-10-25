@@ -3,7 +3,9 @@
 24/10/2026. Branch `codex/z-api-entrada-local`, base `codex/z-api-midia-saida` (#323).
 Complemento autorizado: implementar/testar entrada local antes da confirmação de G1.
 **Não autoriza ativação, autenticação presumida, endpoint permissivo ou homologação real.**
-Ordem de merge: #321 → #322 → #323 → PR desta branch. Todas continuam draft; sem merge/deploy.
+Ordem de merge: #321 → #322 → #323 → #324. Em 25/10 as predecessoras foram integradas
+após CI aprovado, sob nova autorização expressa. Esta entrega exige sua própria validação;
+nenhum merge autoriza deploy ou ativação Z-API.
 
 ## Contratos e fixtures
 
@@ -50,10 +52,12 @@ inferir equivalência com zaapId. Confirmação da relação/namespace continua 
 
 ## Correlação aditiva e persistência
 
-V111 cria `mensagem_correlacao_canal`: chave composta provedor/instância/namespace/ID bruto,
+V112 cria `mensagem_correlacao_canal`: chave composta provedor/instância/namespace/ID bruto,
 referência composta de mensagem particionada e status comprovado. Não reescreve tabelas/IDs
 históricos. RLS FORCE, exclusiva de SERVICO; nenhum endpoint de usuário dá acesso aos aliases.
-Numeração conferida em origin/main (V110 maior) e nas predecessoras; reconferir no rebase.
+Numeração reconferida em origin/main em 25/10: V111 pertence a acesso a clientes (#320).
+A migration de correlação, ainda não integrada, foi renomeada de V111 para V112,
+sem mudar um byte do SQL. A V111 já integrada permanece intacta. Não há versões repetidas.
 
 Hash interno com separadores serve apenas à deduplicação legada; os IDs brutos são preservados
 separadamente, sem serem apresentados como IDs nativos do fornecedor. Sem consulta por telefone
@@ -71,7 +75,7 @@ A mensagem não confirmada continua PENDENTE; não existe retry automático dess
 publicada. Falha real de banco/commit depois de efeito externo continua ambiguidade, não
 promessa de exactly-once. Não há reconciliação automática por telefone/payload aproximado.
 
-Revisão de colisão: V111 (ainda não incorporada/aplicada em instância real) também guarda
+Revisão de colisão: V112 (originalmente V111, ainda não aplicada em instância real) também guarda
 `conflitante`. Se duas mensagens disputam o mesmo alias, o vínculo bruto anterior permanece
 para auditoria, mas **nenhum status futuro desse alias** pode confirmar qualquer mensagem.
 Não basta conservar o primeiro vínculo: isso ainda produziria confirmação na mensagem errada.
@@ -113,8 +117,8 @@ alias para não transformar aceite em redisparo. Não chamar isso de falha do pr
 
 Antes de ativar: G1 oficial; namespace/reentrega/eventos; downloader seguro; retenção de status
 órfãos e reconciliação operacional; repasse n8n/capacidades; carga/reconexão/homologação real;
-CI final incluindo bloqueio Zod. Não foi adicionada expiração arbitrária que apague status
+CI final do SHA atual (Zod corrigido na #320). Não foi adicionada expiração arbitrária que apague status
 antecipado nem polling que tente conciliá-lo por toda a outbox.
 
 **Dokploy: nenhuma ação agora. Z-API OFF.** Nenhuma variável nova, credencial alterada,
-produção acessada, número conectado, webhook registrado, mensagem real, merge ou deploy.
+produção acessada, número conectado, webhook registrado, mensagem real ou deploy.

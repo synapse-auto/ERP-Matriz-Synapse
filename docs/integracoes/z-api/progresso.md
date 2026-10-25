@@ -1,6 +1,6 @@
 # Z-API — progresso e gates
 
-Atualizado: 24/10/2026. Planejamento: [planejamento.md](./planejamento.md).
+Atualizado: 25/10/2026. Planejamento: [planejamento.md](./planejamento.md).
 Estado operacional: **saída experimental desativada; entrada/correlação implementadas para
 teste local, sem bean/verificador de produção e sem downloader externo de mídia**.
 Base da auditoria atual: origin/main 61a7c6f. Worktree isolado reutilizado; alterações
@@ -9,9 +9,9 @@ preexistentes do checkout principal preservadas. Branch `codex/z-api-auditoria-p
 | Fase | Estado | Entrega / pendência | PR/base |
 |---|---|---|---|
 | 1 | Incorporada em 13/10; G1 continua bloqueando passagem | Documentação/fixtures, não adaptador; revalidação de 24/10 corrigiu contrato de citação | [PR #301](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/301), codex/z-api-fase-1 / main |
-| 2 | Saída/texto implementados nesta revisão, ainda sem liberação operacional | Testes HTTP e outbox; entrada bloqueada por G1, CI frontend bloqueado por Zod | [PR #322](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/322), base #321 |
-| 3 | Parcial local autorizada; produção fechada | Tradução/correlação/status antecipado/eco/LID com fixtures; G1/namespace/repasse pendentes | codex/z-api-entrada-local, base #323 |
-| 4 | Parcial: saída em avanço independente autorizado | Imagem/áudio/vídeo/documento; recebimento/SSRF bloqueados G1 | codex/z-api-midia-saida, base #322 |
+| 2 | Saída/texto integrados, sem liberação operacional | CI corrigido/aprovado; entrada bloqueada por G1 | [PR #322](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/322), integrada em main |
+| 3 | Parcial local autorizada; produção fechada | Tradução/correlação/status antecipado/eco/LID com fixtures; G1/namespace/repasse pendentes | [PR #324](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/324), base main após #323 |
+| 4 | Parcial: saída integrada, recebimento pendente | Imagem/áudio/vídeo/documento; recebimento/SSRF bloqueados G1 | [PR #323](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/323), integrada em main |
 | 5 | Preparação documental/regressão parcial; não concluída | Runbook/passagem; nenhuma homologação/corte | depende F3/F4 e CI |
 
 ## Fase 1: entregas e fontes
@@ -39,6 +39,16 @@ no SHA `f6c8e74`. Repetição local dirigida: 54/54 testes Java 21, sem ignorado
 #323 incorpora a main e passa a tê-la como base, mantendo o diff apenas de mídia.
 O CI próprio do novo SHA será conferido antes do merge. Não há ativação,
 homologação do fornecedor ou liberação do recebimento de mídia em produção.
+
+#323 integrada em `832847d`, após PR **40172391861** e push **40172388439** SUCCESS
+no SHA `bb5ec82`. Repetição local: mídia 32/32 + saída integrada 9/9, sem ignorados.
+#324 incorpora essa main, preservando as permissões e a proteção de origem da outbox.
+Ao combinar as branches, a verificação encontrou duas V111: a de acesso a clientes e
+a de correlação. Renomeada somente a de correlação ainda não integrada para **V112**,
+com SQL/hash preservados; schema existente não foi reescrito. Referências V111 nas
+anotações históricas abaixo designam o nome anterior dessa migration de correlação.
+O clean verify combinado e o CI do SHA final da #324 são registrados na própria PR;
+resultado de predecessora não os substitui. Z-API permanece OFF e produção fechada.
 
 - [Contrato verificado](./contrato-verificado.md): matriz com fontes oficiais por capacidade;
   rotas/métodos conferidos também no HTML, pois Markdown omite componentes de referência.

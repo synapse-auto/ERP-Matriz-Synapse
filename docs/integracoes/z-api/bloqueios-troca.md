@@ -1,6 +1,6 @@
 # Z-API — checklist para troca (bloqueada)
 
-24/10/2026. **Não trocar provedor nem executar em produção.**
+25/10/2026. **Não trocar provedor nem executar em produção.**
 
 - [ ] **G1 / fornecedor:** “Como nosso receptor comprova a origem de ReceivedCallback,
   DeliveryCallback e MessageStatusCallback? Quais headers/assinaturas são enviados e como
@@ -19,12 +19,12 @@
 - [ ] **F4 recebimento:** origens de mídia comprovadas, downloader assíncrono SSRF/DNS/
   redirect-safe com teto/timeout/MIME real. Saída desta branch não implementa recebimento
   nem recupera JPG/PNG indisponível da Uzapi.
-- [ ] **Frontend / dependência separada:** Zod 3.25.76 vulnerável a GHSA-mrhx-c7xc-m3w5 /
-  CVE-2023-54404 (alto, exaustão de memória), faixa <4.6.6. Correção oferecida 4.6.7 é major.
-  Decisão mantida: não migrar major, não remover audit, não declarar CI verde.
-- [ ] **CI final:** conferir Backend/Frontend/Stack do último SHA. Run #40100071811 (#322,
-  fd12a3f) terminou FAILURE: backend/stack SUCCESS, frontend FAILURE em “Auditar dependencias
-  de producao”, GHCR SKIPPED. Não herdar resultado local/predecessora para esta PR.
+- [x] **Frontend / Zod:** nova autorização de 25/10 permitiu migrar para 4.6.7 na #320,
+  preservando defaults dos catálogos com prefault. Auditoria de produção mantida/aprovada;
+  testes/typecheck/lint/build passaram. Não equivale a eliminar alertas da árvore dev.
+- [ ] **CI final de integração:** conferir Backend/Frontend/Stack do último SHA da #324
+  e publicação GHCR da main. #320–#323 já passaram antes dos respectivos merges; resultados
+  históricos vermelhos abaixo não aprovam nem reprovam por si sós o SHA final.
 - [ ] **Operação:** credenciais históricas, inventário/drenagem de legado e destino das
   programadas não materializadas, sem redirecionamento silencioso.
 - [ ] **Automação:** inventário de chamadas diretas/reservas/registros/callbacks/filas no
