@@ -14,7 +14,7 @@ import type {
 
 const BASE = "/api/v1/gestao/permissoes";
 
-export const obterMinhasPermissoes = () => apiFetch<MinhasPermissoes>(`${BASE}/minhas`);
+export const obterMinhasPermissoes = (signal?: AbortSignal) => apiFetch<MinhasPermissoes>(`${BASE}/minhas`, { signal });
 export const obterCatalogo = () => apiFetch<Catalogo>(`${BASE}/catalogo`);
 export const listarPerfis = () => apiFetch<Perfil[]>(`${BASE}/perfis`);
 export const listarPermissoesDaEquipe = () => apiFetch<ResumoDeUsuario[]>(`${BASE}/usuarios`);

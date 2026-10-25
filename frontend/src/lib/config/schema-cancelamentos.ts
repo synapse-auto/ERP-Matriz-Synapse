@@ -70,4 +70,4 @@ export const CancelamentosTextosSchema = z.object(
   Object.fromEntries(Object.entries(TEXTOS_CANCELAMENTOS).map(([chave, valor]) => [chave, z.string().default(valor)])) as {
     [K in keyof typeof TEXTOS_CANCELAMENTOS]: z.ZodDefault<z.ZodString>
   },
-).default({});
+).prefault({});

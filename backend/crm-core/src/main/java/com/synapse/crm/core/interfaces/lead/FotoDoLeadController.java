@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,6 +26,7 @@ import com.synapse.crm.core.application.lead.foto.ObterFotoDoLeadUseCase;
  * {@code ContextoDeServico} nao entra — esta e requisicao de usuario.
  */
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/leads")
 @Tag(name = "Foto do lead", description = "Entrega autenticada da foto de perfil do lead.")
 @SecurityRequirement(name = "bearerAuth")

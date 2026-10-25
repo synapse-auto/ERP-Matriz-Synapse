@@ -6,6 +6,7 @@ import type { MinhasPermissoes } from "@/lib/gestao/types";
  * tudo que a tela carrega — o item some em vez de virar controle fantasma.
  */
 const CAPACIDADE_DO_ITEM: Record<string, string> = {
+  agenda: "clientes.acessar",
   dashboard: "dashboard.ver",
   campanhas: "campanhas.ver",
   cancelamentos: "cancelamentos.ver",

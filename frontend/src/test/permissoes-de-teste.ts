@@ -1,6 +1,6 @@
 import type { MinhasPermissoes, Papel } from "@/lib/gestao/types";
 
-const LEITURAS_DE_TODOS = ["templates.ver", "mensagens_rapidas.usar", "mensagens_programadas.ver", "lembretes.ver"];
+const LEITURAS_DE_TODOS = ["clientes.acessar", "templates.ver", "mensagens_rapidas.usar", "mensagens_programadas.ver", "lembretes.ver"];
 const LEITURAS_DA_GESTAO = ["dashboard.ver", "automacao.ver", "campanhas.ver", "equipe.ver"];
 
 /**

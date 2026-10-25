@@ -43,7 +43,8 @@ export function capacidadesDe(
   return {
     estado: "pronto",
     pode: (capacidade) => minhas.capacidades[capacidade]?.permitido === true,
-    alcancaTodos: minhas.capacidades["atendimentos.ver"]?.alcance === "TODOS",
+    alcancaTodos: minhas.capacidades["atendimentos.ver"]?.permitido === true
+      && minhas.capacidades["atendimentos.ver"]?.alcance === "TODOS",
     recarregar,
   };
 }

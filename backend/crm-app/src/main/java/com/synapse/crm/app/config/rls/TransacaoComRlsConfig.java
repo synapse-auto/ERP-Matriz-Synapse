@@ -1,5 +1,7 @@
 package com.synapse.crm.app.config.rls;
 
+import java.util.function.Consumer;
+
 import javax.sql.DataSource;
 
 import jakarta.persistence.EntityManagerFactory;
@@ -12,6 +14,7 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.DefaultTransactionStatus;
 
 import com.synapse.crm.app.config.DataSourceConfig;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -72,8 +75,14 @@ public class TransacaoComRlsConfig {
 
         @Override
         protected void doBegin(Object transacao, TransactionDefinition definicao) {
+            AplicadorDeContextoRls.Contexto contexto = aplicador.preparar();
             super.doBegin(transacao, definicao);
-            aplicador.aplicar(getDataSource());
+            try {
+                aplicador.aplicar(getDataSource(), contexto);
+            } catch (RuntimeException | Error falha) {
+                limparInicioFalho(transacao, definicao, falha, super::doRollback, super::doCleanupAfterCompletion);
+                throw falha;
+            }
         }
     }
 
@@ -91,8 +100,35 @@ public class TransacaoComRlsConfig {
 
         @Override
         protected void doBegin(Object transacao, TransactionDefinition definicao) {
+            AplicadorDeContextoRls.Contexto contexto = aplicador.preparar();
             super.doBegin(transacao, definicao);
-            aplicador.aplicar(obtainDataSource());
+            try {
+                aplicador.aplicar(obtainDataSource(), contexto);
+            } catch (RuntimeException | Error falha) {
+                limparInicioFalho(transacao, definicao, falha, super::doRollback, super::doCleanupAfterCompletion);
+                throw falha;
+            }
+        }
+    }
+
+    /**
+     * O Spring so conhece um begin concluido quando doBegin retorna. Se nosso SQL posterior
+     * falhar, cabe a este gancho desfazer o begin ja feito pelo super e devolver seus recursos.
+     * Nao publica sincronizacoes nem callbacks de commit para uma transacao que nao comecou.
+     */
+    private static void limparInicioFalho(Object transacao, TransactionDefinition definicao, Throwable falha,
+            Consumer<DefaultTransactionStatus> rollback, Consumer<Object> limpeza) {
+        try {
+            rollback.accept(new DefaultTransactionStatus(
+                    definicao.getName(), transacao, true, false, false, definicao.isReadOnly(), false, null));
+        } catch (RuntimeException | Error erroDeRollback) {
+            falha.addSuppressed(erroDeRollback);
+        } finally {
+            try {
+                limpeza.accept(transacao);
+            } catch (RuntimeException | Error erroDeLimpeza) {
+                falha.addSuppressed(erroDeLimpeza);
+            }
         }
     }
 }

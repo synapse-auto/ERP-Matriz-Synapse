@@ -270,6 +270,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
         var consulta = new JdbcTemplate(chatDs);
         new TransactionTemplate(manager).executeWithoutResult(tx -> {
             consulta.execute("SET LOCAL ROLE synapse_app");
+            consulta.execute("SELECT set_config('app.acesso_clientes', 'true', TRUE)");
             consulta.queryForObject("SELECT set_config('app.usuario_id', ?, true)", String.class, bruno.toString());
             consulta.queryForObject("SELECT set_config('app.papel', 'ATENDENTE', true)", String.class);
             assertThat(consulta.queryForObject("SELECT count(*) FROM atendimento WHERE id = ?", Integer.class, id)).isZero();

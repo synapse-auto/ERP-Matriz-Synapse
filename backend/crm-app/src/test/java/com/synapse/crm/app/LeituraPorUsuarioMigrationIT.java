@@ -115,6 +115,7 @@ class LeituraPorUsuarioMigrationIT {
                 Statement comando = conexao.createStatement()) {
             conexao.setAutoCommit(false);
             comando.execute("SET LOCAL ROLE synapse_app");
+            comando.execute("SET LOCAL app.acesso_clientes = 'true'");
             comando.execute("SET LOCAL app.usuario_id = '" + ana + "'");
             try (PreparedStatement consulta = conexao.prepareStatement(
                             "SELECT count(*) FROM atendimento_leitura")) {
@@ -127,6 +128,7 @@ class LeituraPorUsuarioMigrationIT {
 
             conexao.setAutoCommit(false);
             comando.execute("SET LOCAL ROLE synapse_app");
+            comando.execute("SET LOCAL app.acesso_clientes = 'true'");
             comando.execute("SET LOCAL app.usuario_id = '" + ana + "'");
             comando.execute("SET LOCAL app.papel = 'GESTOR'");
             try (PreparedStatement consulta = conexao.prepareStatement(

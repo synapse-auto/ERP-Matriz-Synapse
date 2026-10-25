@@ -15,6 +15,7 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,6 +29,7 @@ import com.synapse.crm.sharedkernel.identidade.ContextoDeAgenda;
 
 /** Exportacao da Agenda com o filtro modular serializado na query string. */
 @RestController
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/leads")
 @Tag(name = "Exportacao de leads", description = "Download CSV da Agenda.")
 @SecurityRequirement(name = "bearerAuth")

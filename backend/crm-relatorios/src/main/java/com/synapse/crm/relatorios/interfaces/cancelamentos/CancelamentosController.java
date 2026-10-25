@@ -20,6 +20,7 @@ import com.synapse.crm.relatorios.application.cancelamentos.PoliticaConsultaCanc
 import com.synapse.crm.relatorios.domain.cancelamentos.*;
 
 @RestController
+@org.springframework.security.access.prepost.PreAuthorize("@capacidades.permite('clientes.acessar')")
 @RequestMapping("/api/v1/cancelamentos")
 @Tag(name = "Cancelamentos", description = "Consulta de agendamentos cancelados; nao altera agendamentos.")
 @SecurityRequirement(name = "bearerAuth")

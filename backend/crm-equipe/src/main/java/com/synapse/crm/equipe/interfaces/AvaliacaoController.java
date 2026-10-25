@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.synapse.crm.equipe.application.usuario.ResumirAvaliacoesUseCase;
 import com.synapse.crm.equipe.domain.avaliacao.ResumoAvaliacoes;
 @RestController @RequestMapping("/api/v1/equipe/avaliacoes")
+@PreAuthorize("@capacidades.permite('clientes.acessar')")
 @Tag(name = "Avaliações da equipe", description = "Médias agregadas das avaliações de atendimento.")
 @SecurityRequirement(name = "bearerAuth")
 class AvaliacaoController{private final ResumirAvaliacoesUseCase resumir;AvaliacaoController(ResumirAvaliacoesUseCase r){resumir=r;}

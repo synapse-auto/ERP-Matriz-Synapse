@@ -18,14 +18,14 @@ def zod(valor, ind=2):
     if isinstance(valor, str):
         return f"z.string().default({json.dumps(valor, ensure_ascii=False)})"
     campos = ",\n".join(f"{pad}  {json.dumps(k)}: {zod(v, ind + 2)}" for k, v in valor.items())
-    return f"z.object({{\n{campos},\n{pad}}}).default({{}})"
+    return f"z.object({{\n{campos},\n{pad}}}).prefault({{}})"
 
 
 def main():
     # Encoding e fim de linha explicitos: o padrao do Windows (cp1252, CRLF) corrompe o catalogo.
     gestao = json.loads(TEXTOS.read_text(encoding="utf-8"), object_pairs_hook=collections.OrderedDict)["gestao"]
     fixos = collections.OrderedDict((k, v) for k, v in gestao.items() if k not in ("capacidades", "modulos"))
-    corpo = zod(fixos)[: -len(".default({})")]
+    corpo = zod(fixos)[: -len(".prefault({})")]
     modulos = json.dumps(gestao["modulos"], ensure_ascii=False, indent=2)
     capacidades = json.dumps(gestao["capacidades"], ensure_ascii=False, indent=2)
     SAIDA.write_text(f'''/*
@@ -42,9 +42,9 @@ const MODULOS_PADRAO: Record<string, {{ rotulo: string; descricao: string }}> = 
 const CAPACIDADES_PADRAO: Record<string, string> = {capacidades};
 
 export const GestaoTextosSchema = {corpo}.extend({{
-  modulos: z.record(z.string(), z.object({{ rotulo: z.string(), descricao: z.string() }})).default(MODULOS_PADRAO).transform(v => ({{ ...MODULOS_PADRAO, ...v }})),
-  capacidades: z.record(z.string(), z.string()).default(CAPACIDADES_PADRAO).transform(v => ({{ ...CAPACIDADES_PADRAO, ...v }})),
-}}).default({{}});
+  modulos: z.record(z.string(), z.object({{ rotulo: z.string(), descricao: z.string() }})).prefault(MODULOS_PADRAO).transform(v => ({{ ...MODULOS_PADRAO, ...v }})),
+  capacidades: z.record(z.string(), z.string()).prefault(CAPACIDADES_PADRAO).transform(v => ({{ ...CAPACIDADES_PADRAO, ...v }})),
+}}).prefault({{}});
 ''', encoding="utf-8", newline="\n")
 
 

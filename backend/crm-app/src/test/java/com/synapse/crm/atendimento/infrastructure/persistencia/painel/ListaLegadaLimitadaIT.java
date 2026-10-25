@@ -173,6 +173,7 @@ class ListaLegadaLimitadaIT extends PostgresIT {
         JdbcTemplate consulta = new JdbcTemplate(chat);
         return new TransactionTemplate(new DataSourceTransactionManager(chat)).execute(status -> {
             consulta.execute("SET LOCAL ROLE synapse_app");
+            consulta.execute("SELECT set_config('app.acesso_clientes', 'true', TRUE)");
             consulta.queryForList("SELECT set_config('app.papel', ?, TRUE)", papel);
             consulta.queryForList("SELECT set_config('app.usuario_id', ?, TRUE)", usuario.toString());
             return consulta.query(sql, (linha, i) -> linha.getString("atendimento_id"), argumentos);

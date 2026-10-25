@@ -83,4 +83,4 @@ export const PainelOperacionalTextosSchema = z.object(
   Object.fromEntries(Object.entries(TEXTOS_PAINEL_OPERACIONAL).map(([chave, valor]) => [chave, z.string().default(valor)])) as {
     [K in keyof typeof TEXTOS_PAINEL_OPERACIONAL]: z.ZodDefault<z.ZodString>
   },
-).default({});
+).prefault({});

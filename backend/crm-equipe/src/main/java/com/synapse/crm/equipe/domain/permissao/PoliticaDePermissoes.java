@@ -138,7 +138,7 @@ public final class PoliticaDePermissoes {
             return new EstadoDaCapacidade(c, false, Motivo.FLAG_DESLIGADA, origemBase(papel));
         }
         if (c.estrutural()) {
-            return new EstadoDaCapacidade(c, true, Motivo.PERMITIDO, Origem.ESTRUTURAL);
+            return comDependencias(c, new EstadoDaCapacidade(c, true, Motivo.PERMITIDO, Origem.ESTRUTURAL), jaDecididos);
         }
         if (perfilFixo(papel)) {
             return comDependencias(c, new EstadoDaCapacidade(c, true, Motivo.PERMITIDO, Origem.FIXO), jaDecididos);
