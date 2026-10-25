@@ -13,7 +13,7 @@ Branch atual `codex/z-api-homologacao-protegida`; fechamento/CI registrados abai
 | 2 | Saída/texto integrados, sem liberação operacional | CI corrigido/aprovado; entrada bloqueada por G1 | [PR #322](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/322), integrada em main |
 | 3 | ACL anterior integrada; complemento de producao protegido OFF | Rota HTTP autentica antes do corpo/fila; namespace real ainda exige coleta | [PR #324](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/324) + complemento |
 | 4 | Saida integrada; recebimento implementado no complemento | URLs documentadas, SSRF/DNS/bulkhead/spool/storage privado; CDN/codecs reais pendentes | [PR #323](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/323) + complemento |
-| 5 | Fechamento de codigo/CI em verificacao; operacao nao executada | Handoff, coleta sanitizada e checklist real/corte/rollback separados | complemento atual |
+| 5 | Codigo validado para homologacao de novos ciclos; operacao nao executada | Handoff/coleta/checklist; CI funcional aprovado, fechamento documental na PR #325 | [PR #325](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/325) |
 
 ## Complemento de homologacao protegida — 25/10/2026
 
@@ -46,7 +46,31 @@ Branch atual `codex/z-api-homologacao-protegida`; fechamento/CI registrados abai
   alheio. A rodada repetida usou Postgres/Redis/MinIO reais. Sem VPS, callbacks/numeros reais,
   envio a cliente, workflow publicado, troca de provedor ou deploy.
 
-Fechamento: registrar SHA/push/PR, resultados finais e CI do ultimo SHA antes de encerrar.
+### Fechamento de codigo e evidencias
+
+- Commit funcional `e4f3fcd320012bdd5f2d3cfdc6f4c34ad140422e`, push confirmado ao origin,
+  PR [#325](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/325), base main `4c8955c`.
+  As PRs anteriores ja estavam integradas; nenhum diff foi duplicado por encadeamento indevido.
+- `clean verify` completo Java 21 local: **BUILD SUCCESS, 27m47s**, 405 relatorios,
+  **2.700 casos, zero falhas/erros, 3 ignorados por ausencia de FFmpeg** (2 em
+  `FfmpegConversorDeAudioTest`, 1 em `MinioArmazenamentoDeMidiaIT`). Nao chamados de resolvidos.
+  A rodada local iniciou antes do ajuste final do retorno RFC 7807; o CI funcional abaixo
+  recompilou/executou o codigo desse ajuste. Nao confundir execucao local com CI.
+- No fechamento: HTTP protegido **11/11**, downloader **27/27**, filtro **9/9**, segredo
+  **2/2**, DNS **2/2**, origem do repasse **9/9**, repasse autenticado **1/1**, entrada local
+  **41/41**, saida **9/9**, detector OOXML **17/17**. MinIO **6 executados + 1 condicionado
+  a FFmpeg**, incluindo escrita em fluxo sem leitura integral.
+- Frontend **1.400/1.400 em 168 arquivos**, typecheck/build aprovados; lint sem erros e
+  quatro avisos preexistentes. Audit de producao **0**. Sem alteracoes em arquivos frontend.
+- Stack + overlay validados com `docker compose ... config --quiet`, ambiente sintetico.
+  Nao comprova versao/configuracao do proxy real nem ausencia de captura por APM externo.
+- CI funcional e4f3fcd: PR [40213592039](https://github.com/synapse-auto/ERP-Matriz-Synapse/actions/runs/40213592039)
+  e push [40213271747](https://github.com/synapse-auto/ERP-Matriz-Synapse/actions/runs/40213271747)
+  **SUCCESS**: Backend, Frontend e Stack aprovados; GHCR skipped conforme workflow de branch/PR.
+  O complemento documental final tem seu proprio SHA/CI, registrados no fechamento da PR
+  e em seus [checks atuais](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/325/checks).
+- Zero deploy/merge/ativacao real. Homologacao real, header nativo, CDN/namespace, workflows e
+  tratamento dos ciclos antigos continuam explicitamente separados do codigo aprovado.
 
 ## Fase 1: entregas e fontes
 

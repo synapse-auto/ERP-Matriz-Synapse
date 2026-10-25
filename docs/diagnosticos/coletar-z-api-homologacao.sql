@@ -10,7 +10,7 @@ SELECT w.id_externo AS entrada_crm,
             WHEN w.processado_em IS NOT NULL THEN 'PROCESSADO' ELSE 'PENDENTE' END AS estado_crm,
        CASE WHEN w.payload::jsonb->>'type' IN ('ReceivedCallback','DeliveryCallback','MessageStatusCallback')
             THEN w.payload::jsonb->>'type' ELSE 'NAO_SUPORTADO' END AS tipo_evento,
-       CASE WHEN w.payload::jsonb->>'status' IN ('SENT','RECEIVED','READ','READ_BY_ME','PLAYED')
+       CASE WHEN w.payload::jsonb->>'status' IN ('PENDING','SENT','RECEIVED','READ','READ_BY_ME','PLAYED')
             THEN w.payload::jsonb->>'status' ELSE 'AUSENTE_OU_DESCONHECIDO' END AS status_evento,
        ARRAY(SELECT campo FROM unnest(ARRAY['instanceId','messageId','zaapId','ids','momment','fromMe','image','audio','video','document']) campo
              WHERE w.payload::jsonb ? campo) AS campos_relevantes_presentes,

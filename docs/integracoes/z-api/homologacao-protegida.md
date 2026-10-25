@@ -52,6 +52,8 @@ Não adicionar chamadas, grupos externos ou outros recursos fora do chat.
   Spool privado limitado pelos tetos/configuracoes existentes, MIME por bytes, trilhas de
   audio/video verificadas. Documento conserva DOCUMENTO inclusive PNG/JPEG. HTML/ZIP/executavel
   disfarcados recusados. Bytes vao em fluxo ao MinIO privado; sem Base64 na entrada.
+  Opus identificado como application/ogg so normaliza para audio/ogg apos validar a
+  estrutura pelo validador existente; Ogg truncado continua recusado, sem ampliar allowlist.
   Os caminhos antigos Meta/Uzapi continuam usando sua porta anterior; default aditivo.
 - Falha temporaria conserva backoff existente; 410 e removido; tipo/URL invalido vira anexo
   indisponivel, nunca download falso. Spool fechado/removido e compensacao do storage em rollback.
