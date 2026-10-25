@@ -37,6 +37,13 @@ GHCR são ignoradas nas PRs por regra do workflow e só publicadas no push de ma
 O histórico remoto/run e os SHAs efetivos serão registrados nas respectivas PRs.
 Não usar o resultado de um SHA anterior como aprovação do próximo.
 
+A primeira run desta correção (#320, 40169534280) expôs um defeito adicional:
+o npm local removeu entradas opcionais @emnapi do lockfile. `npm ci` no Linux
+recusou a instalação por falta de @emnapi/core e @emnapi/runtime 1.11.3.
+Restauradas as quatro entradas opcionais preexistentes, inclusive as empacotadas
+do Tailwind, sem mudar versões nem ignorar a verificação de consistência do npm.
+Essa run reprovada não conta como aprovação da correção seguinte.
+
 ## Ambiente e limites das evidências locais
 
 - Java 21; Testcontainers exige Docker Desktop disponível.
