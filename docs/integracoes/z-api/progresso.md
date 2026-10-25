@@ -17,6 +17,41 @@ Branch atual `codex/z-api-homologacao-protegida`; fechamento/CI registrados abai
 
 ## Complemento de homologacao protegida — 25/10/2026
 
+### Preparacao operacional B–D apos merge da #325
+
+- Branch `codex/z-api-roteiro-operacional`, baseada em `origin/main` merge `944536c`.
+  Checkout principal e alteracoes alheias preservados. Nenhum merge/deploy nesta entrega.
+- [Roteiro executavel](./roteiro-operacional.md): preflight, cadastro/UUID, envs, proxy,
+  painel/callbacks, testes reais e plano separado de ciclos/filas/programadas da Femina.
+- Cadastro separado simula por padrao e confirma apenas canal/credencial INATIVOS; UUID
+  gerado no PostgreSQL, referencia `env://Z_API_TOKEN`, nenhuma credencial antiga alterada.
+  Ativacao HML e explicita, exige banco vazio/visibilidade integral e nao serve para producao.
+- Repositorio oficial fornecido pelo usuario auditado estaticamente no snapshot
+  `0b8d420f1f592a7b5e55d28f3e9412ed785880d6`; confirma campos/painel, mas nao informa
+  nome/configuracao de header de autenticacao de callbacks. Client-Token e de SAIDA.
+  Typos receive/received e instanceId duplicado em exemplos antigos registrados no roteiro.
+- Coleta somente leitura ampliada com host HTTPS sem caminho/query. Inventario separado
+  de corte exige BYPASSRLS para nao apresentar filas/ciclos falsamente zerados por RLS.
+- Testes dirigidos exercitam arquivos reais pelo psql em PostgreSQL migrado, nao copia
+  da logica. Primeira rodada revelou incompatibilidade preexistente commons-compress/
+  commons-io no empacotador TAR do harness; fixture transferida por execucao local com
+  argumentos separados, sem TAR, em validacao. Positivos e existencia do arquivo evitam
+  confundir falha do harness com rejeicao de seguranca.
+  Nao foi escondida nem resolvida com upgrade de dependencias fora de escopo.
+- Dirigidos finais: `CadastroCanalZApiIT` **19/19** (psql real, idempotencia/concorrencia,
+  simulacao, preservacao integral Uzapi, conflitos, injecao, banco errado, ativacao HML
+  com dados/sem BYPASSRLS recusada, inventario sem conteudo/segredo) e
+  `ZApiWebhookProtegidoIT` **11/11**, incluindo coletor com host sem URL/path/query.
+  Encontrado e corrigido cast JSONB ausente na ampliacao do coletor antes do fechamento;
+  nova rodada completa dirigida BUILD SUCCESS, 2m23s. Nao tratado como flake.
+- Stack+overlay `docker compose ... config --quiet` aprovados com valores sinteticos;
+  isso nao valida versao/schema Traefik instalado. `git diff --check` aprovado.
+- Release de aplicacao `944536c` confirmada na main: run **40216865849 SUCCESS**, inclusive
+  publicacoes GHCR backend/frontend. Nao confundir com CI desta PR ou digest implantado.
+- Clean verify Java 21 completo em execucao; resultado e CI do SHA final na PR/relatorio.
+  Nenhum acesso VPS/Dokploy/Z-API, numero conectado, callback real, mensagem ou dado de
+  producao alterado. Homologacao real e tratamento de ciclos antigos continuam pendentes.
+
 - Autorizacao de segredo proprio URL substitui espera exclusiva pelo suporte. Header nativo
   preparado com nome vazio e teste sintetico; nome/prefixo/configuracao reais ainda pendentes.
 - Recebimento/instancia/JSON/teto/dedup, status/correlacao/eco, download por URL com IP publico

@@ -1,5 +1,25 @@
 # Provisionamento de instancia
 
+## Cadastro Z-API (separado, inicialmente inativo)
+
+**Nao usar `provisionar-instancia.sql` para Z-API.** O cadastro suportado e
+`cadastrar-canal-z-api.sql`: valida banco/nome/identidade/telefone, gera os UUIDs no
+PostgreSQL, grava somente `env://Z_API_TOKEN`, preserva canais/credenciais anteriores
+e registra auditoria tecnica. Simula por padrao; `-v confirmar=CADASTRAR` confirma
+somente o cadastro inativo. Reexecucao identica retorna o UUID persistido, sem duplicar.
+Colisao/divergencia aborta sem adotar ou reescrever identidade anterior.
+
+`ativar-canal-z-api-homologacao.sql` e uma segunda operacao, exclusivamente para
+**banco isolado vazio de operacao**, com confirmacao `HOMOLOGACAO_ISOLADA`. Exige
+BYPASSRLS, bloqueia brevemente as tabelas conferidas, recusa qualquer lead/ciclo/fila/
+programada e nao deve ser executado em producao. Desativa apenas outros **canais**
+nesse banco HML; conserva integralmente suas credenciais. Audita o estado anterior.
+
+Comandos completos, preflight, envs, Dokploy/Traefik, callbacks, homologacao e plano
+separado para os ciclos antigos estao em
+[`roteiro-operacional.md`](../../docs/integracoes/z-api/roteiro-operacional.md).
+Nao ha migration, token em SQL, ativacao ou troca de provedor automatica.
+
 `provisionar-instancia.sql` reconcilia, sem duplicar: um administrador, o canal
 de WhatsApp e sua credencial ativa, etapas, tags, a feature flag da Dashboard e
 configuracoes da Automacao. Ele nao cria dados de um cliente especifico.
