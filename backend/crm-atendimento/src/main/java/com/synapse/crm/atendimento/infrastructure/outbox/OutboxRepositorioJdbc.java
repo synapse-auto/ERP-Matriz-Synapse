@@ -514,7 +514,7 @@ class OutboxRepositorioJdbc implements Outbox {
             boolean possuiSnapshotDoContato) {
 
         var rota=roteamento.resolver(atendimentoId,credencialId,contextoWamid);
-        if("z-api".equals(canal.provedor()) && contextoWamid!=null && !contextoWamid.isBlank()
+        if(("z-api".equals(canal.provedor()) || rota.transicaoId()!=null) && contextoWamid!=null && !contextoWamid.isBlank()
                 && correlacoes.resolverCitacao(mensagemId,enviadoEm,atendimentoId,canal.provedor(),canal.numeroPrincipal()).isEmpty())
             throw new com.synapse.crm.atendimento.application.canal.SaidaSuspensaParaTransicaoException("REFERENCIA_DE_OUTRO_CANAL");
         if("z-api".equals(canal.provedor()) && contextoWamid!=null && !contextoWamid.isBlank()
