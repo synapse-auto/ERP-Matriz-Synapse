@@ -83,6 +83,9 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
     @Autowired JdbcTemplate jdbc; @Autowired TestRestTemplate http; @Autowired ObjectMapper json;
     @Autowired ProcessadorDeWebhookEntrada processador; @Autowired PublicadorDaOutbox publicador;
     @Autowired OkHttpClient cdn; @Autowired ApplicationEvents eventos;
+    @Autowired com.synapse.crm.atendimento.interfaces.WebhookZApiController webhook;
+    @Autowired ZApiWebhookTradutor tradutor;
+    @org.springframework.boot.test.mock.mockito.SpyBean com.synapse.crm.atendimento.application.AgendarRepasseWebhookAutomacaoUseCase repasseColeta;
     UUID lead, atendimento; HttpHeaders headers;
     @BeforeEach void preparar() {
         limpar(); reset(cdn); lead=UUID.randomUUID(); atendimento=UUID.randomUUID(); UUID canal=UUID.randomUUID();
@@ -117,6 +120,28 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
         assertThat(post(recebido().toString(),SEGREDO)).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isZero();
     }
+    @Test void payloadVazioAutenticadoTem400Nao403ESemPersistencia() {
+        assertThat(post("{}",SEGREDO)).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(post("{}","incorreto")).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isZero();
+        verifyNoInteractions(cdn);
+    }
+    @Test void somenteColetaTambemImpedeRepasseParaAutomacaoMesmoQuandoHabilitado() {
+        org.springframework.test.util.ReflectionTestUtils.setField(webhook,"somenteColeta",true);
+        org.springframework.test.util.ReflectionTestUtils.setField(tradutor,"repasseHabilitado",true);
+        clearInvocations(repasseColeta);
+        try {
+            assertThat(post(recebido().toString(),SEGREDO)).isEqualTo(HttpStatus.OK);
+            verify(repasseColeta,never()).executar(any(),any(),any(),any());
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isEqualTo(1);
+            org.springframework.test.util.ReflectionTestUtils.setField(webhook,"somenteColeta",false);
+            assertThat(post(recebido().put("messageId","coleta-controle-"+lead).toString(),SEGREDO)).isEqualTo(HttpStatus.OK);
+            verify(repasseColeta,times(1)).executar(any(),any(),any(),eq("z-api"));
+        } finally {
+            org.springframework.test.util.ReflectionTestUtils.setField(webhook,"somenteColeta",false);
+            org.springframework.test.util.ReflectionTestUtils.setField(tradutor,"repasseHabilitado",false);
+        }
+    }
     @Test void coletorSomenteLeituraNaoExportaConteudoTelefoneOuUrl() throws Exception {
         var eventoColeta=recebido();
         eventoColeta.putObject("document").put("documentUrl","https://cdn.exemplo.test/privado?token=segredo-nao-exportar");
@@ -139,14 +164,14 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
         }
         assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isEqualTo(1);
     }
-    @ParameterizedTest @ValueSource(strings={"image","audio","video","document","document-jpeg","document-pdf"})
+    @ParameterizedTest @ValueSource(strings={"image","image-jpeg","audio","video","document","document-jpeg","document-pdf"})
     void midiaPelaRotaRealVaiAoStoragePrivadoComDownloadAutorizado(String caso) throws Exception {
-        String tipo=caso.startsWith("document")?"document":caso;
+        String tipo=caso.startsWith("document")?"document":caso.startsWith("image")?"image":caso;
         byte[] bytes;
         if(caso.equals("video")) try(var f=getClass().getResourceAsStream("/midia/chat-interno/video-validacao.mp4")){bytes=f.readAllBytes();}
         else if(caso.equals("audio")) try(var f=getClass().getResourceAsStream("/z-api/audio-sintetico.ogg")){bytes=f.readAllBytes();}
         else if(caso.equals("document-pdf")) try(var f=getClass().getResourceAsStream("/z-api/documento-sintetico.pdf")){bytes=f.readAllBytes();}
-        else if(caso.equals("document-jpeg")){var s=new java.io.ByteArrayOutputStream();javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(2,2,java.awt.image.BufferedImage.TYPE_INT_RGB),"jpg",s);bytes=s.toByteArray();}
+        else if(caso.endsWith("jpeg")){var s=new java.io.ByteArrayOutputStream();javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(2,2,java.awt.image.BufferedImage.TYPE_INT_RGB),"jpg",s);bytes=s.toByteArray();}
         else bytes=Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+juxkAAAAASUVORK5CYII=");
         String url="https://cdn.exemplo.test/arquivo?assinatura=nao-persistir-na-mensagem";
         Call chamada=mock(Call.class);when(cdn.newCall(any())).thenReturn(chamada);
@@ -162,6 +187,20 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
         assertThat(download.getHeaders().getFirst("Content-Disposition")).startsWith("attachment");
         headers.setBearerAuth(ApoioAutenticacao.login(http,"bruno@dev.local",ApoioAutenticacao.SENHA_ATENDENTE).accessToken());
         assertThat(http.exchange("/api/v1/leads/"+lead+"/midias/"+id+"/download",HttpMethod.GET,new HttpEntity<>(headers),String.class).getStatusCode()).isIn(HttpStatus.FORBIDDEN,HttpStatus.NOT_FOUND);
+    }
+    @Test void deliverySemTimestampPelaRotaRealReconciliaCallbackAntecipadoEDuplicado() {
+        UUID mensagem=UUID.randomUUID();
+        jdbc.update("INSERT INTO mensagem(id,atendimento_id,remetente_tipo,tipo,conteudo,status_entrega,enviado_em) VALUES (?,?,'ATENDENTE','TEXTO','sintetico','PENDENTE',now())",mensagem,atendimento);
+        String payload="{\"type\":\"DeliveryCallback\",\"instanceId\":\"ZAPI-PROTEGIDA\",\"zaapId\":\"z-"+mensagem+"\",\"messageId\":\"w-"+mensagem+"\"}";
+        assertThat(post(payload,SEGREDO)).isEqualTo(HttpStatus.OK);
+        assertThat(post(payload,SEGREDO)).isEqualTo(HttpStatus.OK);
+        processador.processarPendentes();
+        var identidade=new com.synapse.crm.atendimento.domain.canal.IdentidadeDeMensagemDoCanal("z-api","ZAPI-PROTEGIDA","WHATSAPP","w-"+mensagem);
+        Instant enviadoEm=jdbc.queryForObject("SELECT enviado_em FROM mensagem WHERE id=?",java.sql.Timestamp.class,mensagem).toInstant();
+        com.synapse.crm.sharedkernel.identidade.ContextoDeServico.executarComo("teste-delivery",()->correlacionar.executar(List.of(new com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase.Vinculo(identidade,mensagem,enviadoEm,atendimento)),List.of()));
+        assertThat(jdbc.queryForObject("SELECT status_entrega::text FROM mensagem WHERE id=?",String.class,mensagem)).isEqualTo("ENVIADO");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT itens_descartados FROM webhook_entrada",Integer.class)).isZero();
     }
     @Test void callbackPrecoceReconciliaSomenteIdentidadeExataESemRegredir() {
         UUID mensagem=UUID.randomUUID();

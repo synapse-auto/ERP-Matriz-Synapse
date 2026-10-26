@@ -25,6 +25,7 @@ import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 import com.synapse.crm.sharedkernel.midia.CategoriaDeMidia;
 import com.synapse.crm.sharedkernel.midia.LimiteDeAnexoRepositorio;
 import com.synapse.crm.sharedkernel.midia.RegrasDeAnexoBase;
+import com.synapse.crm.sharedkernel.midia.ValidadorDeOggOpus;
 
 /** ACL de saida; recebe somente objetos ja validados e persistidos pelo upload/encaminhamento. */
 @Component
@@ -93,6 +94,11 @@ class ZApiMidiaSaida {
                 }
             }
             if (lidos != esperado) throw new MidiaInvalida();
+            if (metadados.path("gravacaoDoComposer").asBoolean(false)
+                    && (midia.tipo() != TipoMensagem.AUDIO || !mime.equals("audio/ogg")
+                    || !ValidadorDeOggOpus.ehValido(Files.readAllBytes(temporario)))) {
+                throw new MidiaInvalida();
+            }
             return new Preparada(temporario, midia.tipo(), mime, nome, midia.legenda());
         } catch (RuntimeException | IOException e) {
             remover(temporario);

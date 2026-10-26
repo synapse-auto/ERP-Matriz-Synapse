@@ -139,6 +139,31 @@ class ZApiMidiaSaidaTest {
         servidor.verify();
     }
 
+    @Test void gravacaoDoComposerCorrompidaNoStorageNaoIniciaPost() throws Exception {
+        try (var arquivo = getClass().getResourceAsStream("/midia/audio-sintetico.ogg")) {
+            byte[] completo = arquivo.readAllBytes();
+            byte[] truncado = java.util.Arrays.copyOf(completo, completo.length - 1);
+            when(storage.abrirLeitura(any())).thenReturn(new ByteArrayInputStream(truncado));
+            var midia = (ConteudoDeEnvio.MensagemMidia) envio(TipoMensagem.AUDIO, "audio/ogg", "gravacao.ogg", truncado.length, null).conteudo();
+            var metadados = (com.fasterxml.jackson.databind.node.ObjectNode) json.readTree(midia.metadados());
+            metadados.put("gravacaoDoComposer", true);
+            var pedido = new CanalGateway.Envio(UUID.randomUUID(), "5561999999999",
+                    new ConteudoDeEnvio.MensagemMidia(TipoMensagem.AUDIO, midia.referenciaStorage(), metadados.toString(), null), CREDENCIAL);
+            assertThat(adapter.enviar(pedido)).isEqualTo(ResultadoDeEnvio.Recusado.permanente("Z_API_MIDIA_INVALIDA"));
+            servidor.verify();
+        }
+    }
+
+    @Test void oggGenericoSoEPermitidoDepoisDeValidarContainerOpusCompleto() throws Exception {
+        try (var arquivo = getClass().getResourceAsStream("/midia/audio-sintetico.ogg")) {
+            byte[] completo = arquivo.readAllBytes();
+            var tipos = com.synapse.crm.atendimento.domain.midia.TiposDeMidiaPermitidos.classificar("application/ogg", completo);
+            assertThat(tipos).contains(new com.synapse.crm.atendimento.domain.midia.TiposDeMidiaPermitidos.Classificacao(TipoMensagem.AUDIO,"audio/ogg"));
+            assertThat(com.synapse.crm.atendimento.domain.midia.TiposDeMidiaPermitidos.classificar("application/ogg",
+                    java.util.Arrays.copyOf(completo, completo.length - 1))).isEmpty();
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"application/zip", "application/x-msdownload", "image/png;evil=1", "", "application/octet-stream"})
     void mimeNaoComprovadoNaoAbreStorageNemRede(String mime) throws Exception {

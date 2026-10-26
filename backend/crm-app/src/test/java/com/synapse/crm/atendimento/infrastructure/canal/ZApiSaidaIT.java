@@ -8,7 +8,6 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -188,6 +187,18 @@ class ZApiSaidaIT extends PostgresIT {
                 .isEqualTo("Não foi possível confirmar o envio");
     }
 
+    @Test void clientTokenRecusado400EsgotaSemAmbiguidadeNemRedisparo() {
+        transporte.servidor().expect(requestTo(URL)).andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                .body("{\"error\":\"your client-token is not configured\"}"));
+        UUID mensagem = enviar();
+        publicador.publicarPendentes();
+        assertThat(jdbc.queryForObject("SELECT esgotado_em IS NOT NULL AND despacho_ambiguo_em IS NULL FROM outbox_evento WHERE payload->>'mensagemId'=?",
+                Boolean.class,mensagem.toString())).isTrue();
+        assertThat(jdbc.queryForObject("SELECT status_entrega::text FROM mensagem WHERE id=?",String.class,mensagem)).isEqualTo("FALHOU");
+        publicador.publicarPendentes();
+        publicador.publicarPendentes();
+    }
+
     @Test
     void usuarioSemAcessoNaoEnfileiraNemChamaFornecedor() {
         headers.setBearerAuth(ApoioAutenticacao.login(http, ApoioAutenticacao.EMAIL_BRUNO, ApoioAutenticacao.SENHA_ATENDENTE).accessToken());
@@ -198,28 +209,24 @@ class ZApiSaidaIT extends PostgresIT {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"imagem", "audio", "video", "documento"})
+    @ValueSource(strings = {"imagem", "imagem-jpeg", "audio", "video", "documento"})
     void uploadAutorizadoPersisteNoMinioDespachaEBaixaSemPerderBytes(String tipo) throws Exception {
         byte[] bytes = switch (tipo) {
             case "imagem" -> png();
-            case "audio" -> new byte[] {
-                    0, 0, 0, 24, 'f', 't', 'y', 'p', 'M', '4', 'A', ' ',
-                    0, 0, 0, 0, 'M', '4', 'A', ' ', 'i', 's', 'o', 'm',
-                    0, 0, 0, 8, 'm', 'o', 'o', 'v',
-                    0, 0, 0, 20, 'm', 'd', 'a', 't',
-                    (byte) 0xff, (byte) 0xf1, 0x50, (byte) 0x80, 0x02, 0x3f, (byte) 0xfc,
-                    0x21, 0x10, 0x04, 0x60, (byte) 0x8c};
+            case "imagem-jpeg" -> jpeg();
+            case "audio" -> getClass().getResourceAsStream("/z-api/audio-sintetico.ogg").readAllBytes();
             case "video" -> getClass().getResourceAsStream("/midia/chat-interno/video-validacao.mp4").readAllBytes();
-            default -> "%PDF-1.4\nDocumento sintetico\n%%EOF".getBytes(StandardCharsets.US_ASCII);
+            default -> getClass().getResourceAsStream("/z-api/documento-sintetico.pdf").readAllBytes();
         };
         String mime = switch (tipo) {
             case "imagem" -> "image/png";
-            case "audio" -> "audio/mp4";
+            case "imagem-jpeg" -> "image/jpeg";
+            case "audio" -> "audio/ogg";
             case "video" -> "video/mp4";
             default -> "application/pdf";
         };
-        String extensao = switch (tipo) { case "imagem" -> "png"; case "audio" -> "m4a"; case "video" -> "mp4"; default -> "pdf"; };
-        String campo = switch (tipo) { case "imagem" -> "image"; case "audio" -> "audio"; case "video" -> "video"; default -> "document"; };
+        String extensao = switch (tipo) { case "imagem" -> "png"; case "imagem-jpeg" -> "jpg"; case "audio" -> "ogg"; case "video" -> "mp4"; default -> "pdf"; };
+        String campo = switch (tipo) { case "imagem", "imagem-jpeg" -> "image"; case "audio" -> "audio"; case "video" -> "video"; default -> "document"; };
         String rota = tipo.equals("documento") ? "send-document/pdf" : "send-" + campo;
         esperarMidia(rota, campo, mime, bytes);
         HttpHeaders uploadHeaders = new HttpHeaders();
@@ -245,7 +252,7 @@ class ZApiSaidaIT extends PostgresIT {
     @ParameterizedTest
     @ValueSource(strings = {"image/png", "image/jpeg"})
     void imagemRecebidaComoDocumentoSegueDocumentoAoEncaminhar(String mime) throws Exception {
-        byte[] bytes = mime.equals("image/png") ? png() : new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff, (byte) 0xe0, 0, 16, 'J', 'F', 'I', 'F', 0};
+        byte[] bytes = mime.equals("image/png") ? png() : jpeg();
         String extensao = mime.equals("image/png") ? "png" : "jpg";
         String nome = "documento." + extensao;
         String referencia = storage.salvar(bytes, nome, mime);
@@ -270,6 +277,34 @@ class ZApiSaidaIT extends PostgresIT {
         assertThat(jdbc.queryForObject("SELECT tipo::text FROM mensagem WHERE id = ?", String.class, mensagem)).isEqualTo("DOCUMENTO");
         publicador.publicarPendentes();
         conferirDownload(mensagem, bytes, mime, nome);
+    }
+
+    @Test void gravacaoDoComposerConverteComFfmpegRealEDespachaOggDoStorage() throws Exception {
+        boolean disponivel;
+        try {
+            Process versao = new ProcessBuilder("ffmpeg", "-version").redirectErrorStream(true).start();
+            versao.getInputStream().transferTo(java.io.OutputStream.nullOutputStream());
+            disponivel = versao.waitFor() == 0;
+        } catch (IOException ausente) { disponivel = false; }
+        org.junit.jupiter.api.Assumptions.assumeTrue(disponivel, "FFmpeg ausente: conversao real do composer nao executada");
+        byte[] original;
+        try (var fixture = getClass().getResourceAsStream("/z-api/audio-sintetico.ogg")) { original = fixture.readAllBytes(); }
+        var partes = new LinkedMultiValueMap<String,Object>();
+        partes.add("arquivo",new ByteArrayResource(original){@Override public String getFilename(){return "gravacao.ogg";}});
+        partes.add("gravacaoDoComposer","true");
+        var upload = new HttpHeaders(); upload.setBearerAuth(headers.getFirst(HttpHeaders.AUTHORIZATION).substring(7));
+        upload.setContentType(MediaType.MULTIPART_FORM_DATA); upload.set("Idempotency-Key",UUID.randomUUID().toString());
+        var resposta = http.postForEntity("/api/v1/atendimentos/"+atendimento+"/mensagens/midia",new HttpEntity<>(partes,upload),Map.class);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        UUID mensagem = UUID.fromString(resposta.getBody().get("mensagemId").toString());
+        String referencia = jdbc.queryForObject("SELECT midia_url FROM mensagem WHERE id=?",String.class,mensagem);
+        byte[] convertido;
+        try (var leitura=storage.abrirLeitura(referencia)){convertido=leitura.readAllBytes();}
+        assertThat(com.synapse.crm.sharedkernel.midia.ValidadorDeOggOpus.ehValido(convertido)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT midia_metadados->>'gravacaoDoComposer' FROM mensagem WHERE id=?",String.class,mensagem)).isEqualTo("true");
+        esperarMidia("send-audio","audio","audio/ogg",convertido);
+        publicador.publicarPendentes();
+        conferirDownload(mensagem,convertido,"audio/ogg","gravacao.ogg");
     }
 
     private void esperarMidia(String rota, String campo, String mime, byte[] bytes) {
@@ -298,6 +333,12 @@ class ZApiSaidaIT extends PostgresIT {
 
     private static byte[] png() {
         return Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+juxkAAAAASUVORK5CYII=");
+    }
+
+    private static byte[] jpeg() throws IOException {
+        var saida = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(2,2,java.awt.image.BufferedImage.TYPE_INT_RGB),"jpg",saida);
+        return saida.toByteArray();
     }
 
     private UUID enviar() {

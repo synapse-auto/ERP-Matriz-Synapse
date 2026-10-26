@@ -98,7 +98,8 @@ class ZApiAdapterTest {
                 .andExpect(headerDoesNotExist("Client-Token"))
                 .andRespond(withStatus(HttpStatus.valueOf(status)).body("rejeitado"));
 
-        assertThat(semToken.enviar(envio(CREDENCIAL, null))).isInstanceOf(ResultadoDeEnvio.Ambiguo.class);
+        assertThat(semToken.enviar(envio(CREDENCIAL, null)))
+                .isEqualTo(ResultadoDeEnvio.Recusado.permanente("Z_API_REJEITADO_HTTP_" + status + "_FORNECEDOR_SEM_CODIGO"));
         servidor.verify();
     }
 
@@ -127,8 +128,22 @@ class ZApiAdapterTest {
         servidor.expect(requestTo(BASE + "/send-text"))
                 .andRespond(withStatus(HttpStatus.valueOf(status)).body("segredo-instancia segredo-cliente mensagem privada"));
         ResultadoDeEnvio resultado = adapter.enviar(envio(CREDENCIAL, null));
-        assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Ambiguo.class);
+        assertThat(resultado).isInstanceOf(status == 401 || status == 403
+                ? ResultadoDeEnvio.Recusado.class : ResultadoDeEnvio.Ambiguo.class);
         assertThat(resultado.toString()).doesNotContain("segredo", "privada", "https:");
+        servidor.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"your client-token is not configured", "null not allowed"})
+    void recusaExplicitaDeTokenNaoViraEnvioAmbiguoNemGeraRetry(String erro) {
+        servidor.expect(requestTo(BASE + "/send-text"))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST).body("{\"error\":\"" + erro + "\"}"));
+        var resultado = adapter.enviar(envio(CREDENCIAL, null));
+        assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Recusado.class);
+        assertThat(((ResultadoDeEnvio.Recusado) resultado).permanente()).isTrue();
+        assertThat(((ResultadoDeEnvio.Recusado) resultado).motivo()).startsWith("Z_API_REJEITADO_HTTP_400_CLIENT_TOKEN_");
+        assertThat(resultado.toString()).doesNotContain(erro, "segredo", "https:");
         servidor.verify();
     }
 
@@ -170,8 +185,57 @@ class ZApiAdapterTest {
                     }
                 });
         assertThat(adapter.enviar(envio(CREDENCIAL, null))).isInstanceOf(ResultadoDeEnvio.Ambiguo.class);
-        assertThat(lidos.get()).isLessThanOrEqualTo(status == 200 ? 4097 : 0);
+        assertThat(lidos.get()).isLessThanOrEqualTo(4097);
         servidor.verify();
+    }
+
+    @Test
+    void respostaSemClientTokenNoStatusNaoProvaResultadoDoPostERegistraDiagnosticoSanitizado() {
+        var semToken = new ZApiAdapter(cliente.clone(),
+                new ZApiProperties(true, "instancia-teste", "segredo-instancia", "", false,
+                        CREDENCIAL, Duration.ofSeconds(10), 4096, 1),
+                new ObjectMapper(), breakers);
+        Logger raiz = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+        Level anterior = raiz.getLevel();
+        ListAppender<ILoggingEvent> capturado = new ListAppender<>();
+        capturado.start(); raiz.addAppender(capturado); raiz.setLevel(Level.WARN);
+        try {
+            servidor.expect(requestTo(BASE + "/status")).andExpect(headerDoesNotExist("Client-Token"))
+                    .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                            .body("{\"error\":\"your client-token is not configured\"}"));
+            servidor.expect(requestTo(BASE + "/send-text")).andExpect(headerDoesNotExist("Client-Token"))
+                    .andRespond(withSuccess("{\"zaapId\":\"z-1\",\"messageId\":\"w-1\"}", MediaType.APPLICATION_JSON));
+            assertThat(semToken.verificarAutenticacao().autenticada()).isFalse();
+            assertThat(semToken.enviar(envio(CREDENCIAL, null))).isInstanceOf(ResultadoDeEnvio.Enfileirado.class);
+            var mensagens = capturado.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
+            assertThat(mensagens).anyMatch(m -> m.equals("Z_API_FALHA etapa=GET_STATUS http=400 codigo=CLIENT_TOKEN_NOT_CONFIGURED"));
+            assertThat(mensagens.toString()).doesNotContain("segredo-instancia", "segredo-cliente", "not configured", "api.z-api.io");
+            servidor.verify();
+        } finally {
+            raiz.setLevel(anterior); raiz.detachAppender(capturado); capturado.stop();
+        }
+    }
+
+    @Test
+    void erroHttpDeEnvioRegistraEtapaStatusECodigoSemRepetirPost() {
+        Logger raiz = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+        Level anterior = raiz.getLevel();
+        ListAppender<ILoggingEvent> capturado = new ListAppender<>();
+        capturado.start(); raiz.addAppender(capturado); raiz.setLevel(Level.WARN);
+        try {
+            servidor.expect(requestTo(BASE + "/send-text"))
+                    .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                            .body("{\"code\":\"INVALID_REQUEST\",\"error\":\"mensagem privada\"}"));
+            assertThat(adapter.enviar(envio(CREDENCIAL, null)))
+                    .isEqualTo(new ResultadoDeEnvio.Ambiguo("Z_API_RESPOSTA_NAO_CONFIRMADA"));
+            assertThat(capturado.list.stream().map(ILoggingEvent::getFormattedMessage).toList())
+                    .contains("Z_API_FALHA etapa=POST_SEND_TEXT http=400 codigo=INVALID_REQUEST");
+            assertThat(capturado.list.stream().map(ILoggingEvent::getFormattedMessage).toList().toString())
+                    .doesNotContain("mensagem privada", "segredo-instancia", "segredo-cliente", "api.z-api.io");
+            servidor.verify();
+        } finally {
+            raiz.setLevel(anterior); raiz.detachAppender(capturado); capturado.stop();
+        }
     }
 
     @Test

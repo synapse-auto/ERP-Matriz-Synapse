@@ -1,5 +1,21 @@
 # Z-API — progresso e gates
 
+## Auditoria de mensagens e midias — 26/10/2026
+
+- Base `origin/main` 810647e, branch `codex/z-api-message-media-audit`, worktree isolada.
+  A task anterior foi cancelada; seu trabalho local foi preservado em stash antes desta
+  auditoria. Somente alteracoes pertinentes foram reaproveitadas e verificadas.
+- [Contrato, matriz, diagnostico e roteiro curto](./auditoria-fluxo-mensagens-midias-2026-10-26.md).
+  Fontes oficiais conferidas no commit 0b8d420f1f592a7b5e55d28f3e9412ed785880d6 e site atual.
+- Corrigidos: recusa explicita de Client-Token versus envio ambiguo; diagnostico seguro por
+  etapa/HTTP/codigo; repasse indevido durante somente-coleta; Ogg/Opus valido recusado pelo
+  upload; validacao do container gravado antes do POST; delivery sem timestamp documentado.
+- Nenhuma migration, identidade, env nova, ativacao, envio real ou operacao produtiva.
+  A conta ainda recusa /status e /send-text sem Client-Token (evidencia do operador).
+  O ponto exato do 403 produtivo precisa do novo diagnostico; nao declarado corrigido.
+- Resultados completos e CI do ultimo SHA registrados na PR e no documento de auditoria.
+  Homologacao de codec/dispositivo, CDN, proxy e namespace na conta real permanece separada.
+
 ## Complemento em validacao — transicao no banco existente, 26/10/2026
 
 - Base origin/main 7ceee5e (#326), worktree isolada reutilizada; branch

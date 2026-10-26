@@ -5,9 +5,11 @@ import java.io.InputStream;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -19,6 +21,8 @@ import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.observation.ObservationRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
@@ -40,6 +44,8 @@ import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 @Component
 @ConditionalOnProperty(prefix = "synapse.canal.z-api", name = "habilitado", havingValue = "true")
 class ZApiAdapter implements CanalGateway {
+    private static final Logger log = LoggerFactory.getLogger(ZApiAdapter.class);
+    private static final Pattern CODIGO_FORNECEDOR = Pattern.compile("[A-Z][A-Z0-9_]{0,63}");
     private static final String URL_BASE = "https://api.z-api.io";
     private final ZApiProperties propriedades;
     private final ObjectMapper json;
@@ -138,8 +144,15 @@ class ZApiAdapter implements CanalGateway {
             return ResultadoDeEnvio.Recusado.permanente("Z_API_MIDIA_INVALIDA");
         } catch (ZApiMidiaSaida.StorageIndisponivel e) {
             return ResultadoDeEnvio.Recusado.temporario("Z_API_STORAGE_INDISPONIVEL");
+        } catch (RespostaNaoConfirmada e) {
+            registrarFalha(e);
+            if (e.recusaComprovada()) {
+                return ResultadoDeEnvio.Recusado.permanente(e.motivoDaRecusa());
+            }
+            return new ResultadoDeEnvio.Ambiguo("Z_API_RESPOSTA_NAO_CONFIRMADA");
         } catch (RuntimeException e) {
             // Inclusive timeout/5xx: a ausencia de resposta nao prova ausencia de efeito do POST.
+            log.warn("Z_API_FALHA etapa=POST_ENVIO http=indisponivel codigo=ERRO_NAO_CLASSIFICADO");
             return new ResultadoDeEnvio.Ambiguo("Z_API_RESPOSTA_NAO_CONFIRMADA");
         }
     }
@@ -153,16 +166,8 @@ class ZApiAdapter implements CanalGateway {
         } else {
             resposta = requisitarTexto(envio, (ConteudoDeEnvio.MensagemLivre) envio.conteudo());
         }
-        if (resposta.hasNonNull("error") && (!resposta.path("error").isTextual()
-                || !resposta.path("error").asText().isBlank())) {
-            throw new RespostaNaoConfirmada();
-        }
         String processamento = identificador(resposta, "zaapId");
         String mensagem = identificador(resposta, "messageId");
-        String alias = identificador(resposta, "id");
-        if (processamento == null || mensagem == null || (resposta.has("id") && !mensagem.equals(alias))) {
-            throw new RespostaNaoConfirmada();
-        }
         return new ResultadoDeEnvio.Enfileirado(propriedades.instanciaId(), processamento, mensagem);
     }
 
@@ -173,9 +178,11 @@ class ZApiAdapter implements CanalGateway {
             return pedido
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(saida -> preparada.escrever(saida, json, envio.telefoneDestino()))
-                    .exchange((requisicao, retorno) -> lerResposta(retorno));
+                    .exchange((requisicao, retorno) -> lerResposta(retorno, "POST_MIDIA"));
+        } catch (RespostaNaoConfirmada e) {
+            throw e;
         } catch (RuntimeException e) {
-            throw new RespostaNaoConfirmada();
+            throw new RespostaNaoConfirmada("POST_MIDIA", null, "FALHA_DE_TRANSPORTE");
         }
     }
 
@@ -187,27 +194,89 @@ class ZApiAdapter implements CanalGateway {
                 .contentType(MediaType.APPLICATION_JSON)
                 // Streaming evita logBody do RestClient, que em DEBUG imprimiria telefone/texto.
                 .body(saida -> json.writeValue(saida, Map.of("phone", envio.telefoneDestino(), "message", texto.texto())))
-                .exchange((requisicao, retorno) -> lerResposta(retorno));
+                .exchange((requisicao, retorno) -> lerResposta(retorno, "POST_SEND_TEXT"));
+        } catch (RespostaNaoConfirmada e) {
+            throw e;
         } catch (RuntimeException e) {
             // Antes do circuit breaker: seus listeners/logs tambem nao podem receber URI/causa bruta.
-            throw new RespostaNaoConfirmada();
+            throw new RespostaNaoConfirmada("POST_SEND_TEXT", null, "FALHA_DE_TRANSPORTE");
         }
     }
 
-    private JsonNode lerResposta(ClientHttpResponse retorno) throws IOException {
+    private JsonNode lerResposta(ClientHttpResponse retorno, String etapa) {
         // Fechar o stream ANTES do auto-close do RestClient impede o drain sem limite
         // do JdkClientHttpResponse. Vale tambem para corpos de erro/redirecionamento.
-        byte[] corpo;
-        try (InputStream entrada = retorno.getBody()) {
-            if (!retorno.getStatusCode().is2xxSuccessful()) { throw new RespostaNaoConfirmada(); }
-            corpo = entrada.readNBytes(propriedades.limiteRespostaBytes() + 1);
+        Integer status = null;
+        try {
+            status = retorno.getStatusCode().value();
+            try (InputStream entrada = retorno.getBody()) {
+                byte[] corpo = entrada.readNBytes(propriedades.limiteRespostaBytes() + 1);
+                if (corpo.length > propriedades.limiteRespostaBytes()) {
+                    throw new RespostaNaoConfirmada(etapa, status, "RESPOSTA_EXCEDE_LIMITE");
+                }
+                if (!retorno.getStatusCode().is2xxSuccessful()) {
+                    throw new RespostaNaoConfirmada(etapa, status, codigoFornecedor(corpo));
+                }
+                JsonNode resposta = json.reader().with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(corpo);
+                if (resposta == null || !resposta.isObject()) {
+                    throw new RespostaNaoConfirmada(etapa, status, "RESPOSTA_2XX_INVALIDA");
+                }
+                if (!etapa.equals("GET_STATUS")) validarRespostaDeEnvio(resposta, etapa, status);
+                return resposta;
+            }
+        } catch (RespostaNaoConfirmada e) {
+            throw e;
+        } catch (IOException | RuntimeException e) {
+            throw new RespostaNaoConfirmada(etapa, status, "RESPOSTA_NAO_INTERPRETAVEL");
         }
-        if (corpo.length > propriedades.limiteRespostaBytes()) { throw new RespostaNaoConfirmada(); }
-        JsonNode resposta = json.reader().with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(corpo);
-        if (resposta == null || !resposta.isObject()) {
-            throw new RespostaNaoConfirmada();
+    }
+
+    private String codigoFornecedor(byte[] corpo) {
+        try {
+            JsonNode erro = json.readTree(corpo);
+            for (String campo : new String[] {"code", "errorCode", "error_code"}) {
+                JsonNode valor = erro.path(campo);
+                if (valor.isTextual()) {
+                    String codigo = valor.asText().trim().toUpperCase(Locale.ROOT);
+                    if (CODIGO_FORNECEDOR.matcher(codigo).matches()
+                            && !contemCredencial(codigo)) {
+                        return codigo;
+                    }
+                }
+            }
+            String mensagem = erro.path("error").isTextual()
+                    ? erro.path("error").asText().toLowerCase(Locale.ROOT) : "";
+            if (mensagem.contains("client-token") && mensagem.contains("not configured")) {
+                return "CLIENT_TOKEN_NOT_CONFIGURED";
+            }
+            if (mensagem.equals("null not allowed")) return "CLIENT_TOKEN_REQUIRED";
+        } catch (IOException | RuntimeException ignorado) {
+            // O corpo e deliberadamente descartado: nunca registrar mensagem bruta do fornecedor.
         }
-        return resposta;
+        return "FORNECEDOR_SEM_CODIGO";
+    }
+
+    private boolean contemCredencial(String codigo) {
+        return java.util.stream.Stream.of(propriedades.token(), propriedades.clientToken(), propriedades.instanciaId())
+                .filter(valor -> valor != null && !valor.isBlank())
+                .map(valor -> valor.toUpperCase(Locale.ROOT)).anyMatch(codigo::contains);
+    }
+
+    private static void validarRespostaDeEnvio(JsonNode resposta, String etapa, int status) {
+        if (resposta.hasNonNull("error") && (!resposta.path("error").isTextual()
+                || !resposta.path("error").asText().isBlank())) {
+            throw new RespostaNaoConfirmada(etapa, status, "RESPOSTA_2XX_COM_ERRO");
+        }
+        String mensagem = identificador(resposta, "messageId");
+        if (identificador(resposta, "zaapId") == null || mensagem == null
+                || (resposta.has("id") && !mensagem.equals(identificador(resposta, "id")))) {
+            throw new RespostaNaoConfirmada(etapa, status, "RESPOSTA_2XX_SEM_IDS_VALIDOS");
+        }
+    }
+
+    private static void registrarFalha(RespostaNaoConfirmada falha) {
+        log.warn("Z_API_FALHA etapa={} http={} codigo={}", falha.etapa,
+                falha.status == null ? "indisponivel" : falha.status, falha.codigoFornecedor);
     }
 
     private static String identificador(JsonNode resposta, String campo) {
@@ -225,7 +294,11 @@ class ZApiAdapter implements CanalGateway {
             JsonNode estado = limite.executeSupplier(() -> saudeBreaker.executeSupplier(this::consultarEstado));
             return estado.path("connected").isBoolean() && estado.path("connected").booleanValue()
                     ? AutenticacaoDoCanal.aceita() : AutenticacaoDoCanal.recusada("Z_API_NAO_CONECTADA");
+        } catch (RespostaNaoConfirmada e) {
+            registrarFalha(e);
+            return AutenticacaoDoCanal.recusada("Z_API_SAUDE_NAO_CONFIRMADA");
         } catch (RuntimeException e) {
+            log.warn("Z_API_FALHA etapa=GET_STATUS http=indisponivel codigo=ERRO_NAO_CLASSIFICADO");
             return AutenticacaoDoCanal.recusada("Z_API_SAUDE_NAO_CONFIRMADA");
         }
     }
@@ -240,9 +313,11 @@ class ZApiAdapter implements CanalGateway {
         try {
             var pedido = http.get().uri(url("status"));
             if (propriedades.enviarClientToken()) pedido.header("Client-Token", propriedades.clientToken());
-            return pedido.exchange((requisicao, retorno) -> lerResposta(retorno));
+            return pedido.exchange((requisicao, retorno) -> lerResposta(retorno, "GET_STATUS"));
+        } catch (RespostaNaoConfirmada e) {
+            throw e;
         } catch (RuntimeException e) {
-            throw new RespostaNaoConfirmada();
+            throw new RespostaNaoConfirmada("GET_STATUS", null, "FALHA_DE_TRANSPORTE");
         }
     }
 
@@ -269,6 +344,26 @@ class ZApiAdapter implements CanalGateway {
 
     private static final class RespostaNaoConfirmada extends RuntimeException {
         private static final long serialVersionUID = 1L;
-        private RespostaNaoConfirmada() { super("Z_API_RESPOSTA_NAO_CONFIRMADA"); }
+        private final String etapa;
+        private final Integer status;
+        private final String codigoFornecedor;
+
+        private RespostaNaoConfirmada(String etapa, Integer status, String codigoFornecedor) {
+            super("Z_API_RESPOSTA_NAO_CONFIRMADA");
+            this.etapa = etapa;
+            this.status = status;
+            this.codigoFornecedor = codigoFornecedor;
+        }
+
+        boolean recusaComprovada() {
+            // Nao inferir que um 429/5xx/timeout ou 2xx malformado deixou de produzir efeito.
+            return status != null && (status == 401 || status == 403 || status == 405 || status == 415
+                    || (status == 400 && (codigoFornecedor.equals("CLIENT_TOKEN_NOT_CONFIGURED")
+                    || codigoFornecedor.equals("CLIENT_TOKEN_REQUIRED"))));
+        }
+
+        String motivoDaRecusa() {
+            return "Z_API_REJEITADO_HTTP_" + status + "_" + codigoFornecedor;
+        }
     }
 }

@@ -101,6 +101,26 @@ class ZApiWebhookTradutorTest {
         assertThat(tradutor.statusComIdentidade(payload.replace("\"momment\"", "\"error\":{},\"momment\""))).isEmpty();
     }
 
+    @Test void deliveryDoRepositorioOficialSemMommentUsaIngressoPersistidoSemInventarHorarioDoProvedor() {
+        String payload = "{\"type\":\"DeliveryCallback\",\"instanceId\":\"SINTETICA-A\",\"zaapId\":\"z-1\",\"messageId\":\"w-1\"}";
+        var ingresso = java.time.Instant.parse("2026-10-26T12:00:00Z");
+        assertThat(tradutor.statusComIdentidade(payload, ingresso)).singleElement().satisfies(status -> {
+            assertThat(status.ocorridoEm()).isEqualTo(ingresso);
+            assertThat(status.status().name()).isEqualTo("ENVIADO");
+        });
+        assertThat(tradutor.traduzirComDescartes(payload).descartes()).isEmpty();
+        assertThat(tradutor.statusComIdentidade(payload.replace("\"type\"", "\"momment\":null,\"type\""), ingresso)).isEmpty();
+        assertThat(tradutor.statusComIdentidade(status("READ").replace(
+                "\"momment\":1791800002000,", ""), ingresso)).isEmpty();
+    }
+
+    @Test void downloadErrorVazioNaoDescartaMidiaMasErroRealContinuaBloqueado() {
+        String documento = recebido().replace("\"text\":{\"message\":\"Teste\\nUnicode 🙂\"}",
+                "\"document\":{\"documentUrl\":\"https://midia.invalid/foto.png\",\"downloadError\":\"\"}");
+        assertThat(tradutor.traduzir(documento)).hasSize(1);
+        assertThat(tradutor.traduzir(documento.replace("\"downloadError\":\"\"", "\"downloadError\":\"indisponivel\""))).isEmpty();
+    }
+
     @ParameterizedTest @ValueSource(strings = {"\"false\"", "null", "0"})
     void flagMalformadaNaoPassaComoFalsa(String valor) {
         assertThat(tradutor.traduzir(recebido().replace("\"fromMe\":false", "\"fromMe\":" + valor))).isEmpty();
