@@ -1,5 +1,21 @@
 # Z-API — documento para automação
 
+## Transicao produtiva no banco existente — 26/10/2026
+
+- O operador informou numero ja conectado, 95 ciclos abertos (14 sem ancora), 80 envios
+  e 6.866 repasses esgotados, zero programadas. Confirmar inventario atual privadamente.
+- [Transicao produtiva](./transicao-produtiva.md) preserva ciclos, participantes, responsaveis
+  e FKs historicas. Rota auditada vale so para novas outboxes; nao migrar IDs/reativar filas.
+- Equipe deve devolver inventario dos NOS REAIS que usam Uzapi diretamente, inclusive
+  timers, follow-ups, reservas, registro e callbacks paralelos. Nomes/IDs publicados nao
+  podem ser deduzidos deste repositorio, nem presumidos como chamadas a /responder.
+- Coordenar pausa desses produtores antes da janela. HTTP409 SAIDA_SUSPENSA_TRANSICAO_CANAL
+  significa nao enviado pelo CRM, nao autoriza disparo direto/retry agressivo. Timeout externo
+  exige conciliacao. Resposta por /responder mantem autenticacao/idempotencia/contrato existente.
+- Repasse Z-API permanece OFF ate parser/token/dedup/workflow homologados. Nao reenviar
+  eventos encerrados. Status Uzapi tardio usa URL/segredo antigos, somente para mensagens
+  anteriores ao corte da identidade original; nao importa mensagens nem dispara IA.
+
 ## Complemento vigente — entrada protegida (25/10/2026)
 
 1. CRM recebe `POST /webhook/z-api`, autentica antes do corpo, confirma `instanceId`, grava

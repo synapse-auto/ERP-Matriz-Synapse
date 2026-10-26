@@ -1,5 +1,9 @@
 # Z-API — roteiro executavel de cadastro, homologacao e preparacao do corte
 
+> Cenario atualizado: o numero produtivo ja foi conectado pelo operador. Para continuidade
+> no banco existente, usar [transicao-produtiva.md](./transicao-produtiva.md). As instrucoes
+> de HML vazia abaixo permanecem somente para esse ambiente, nao para a FMNA.
+
 25/10/2026. Substitui as instrucoes operacionais incompletas de B–D de
 `homologacao-protegida.md`; conserva seu contrato e suas restricoes.
 **O agente nao executou nenhum comando na VPS/Dokploy/Z-API.** Os comandos abaixo

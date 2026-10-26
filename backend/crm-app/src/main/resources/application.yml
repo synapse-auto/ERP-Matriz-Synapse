@@ -210,6 +210,9 @@ synapse:
 
   canal:
     # Opt-in exclusivo; nao habilitar antes do roteiro de homologacao protegida.
+    transicao:
+      saidas-suspensas: ${CANAL_TRANSICAO_SAIDAS_SUSPENSAS:false}
+      status-uzapi-legado: ${CANAL_TRANSICAO_STATUS_UZAPI_LEGADO:false}
     z-api:
       habilitado: ${Z_API_HABILITADO:false}
       instancia-id: ${Z_API_INSTANCIA_ID:}
@@ -221,6 +224,7 @@ synapse:
       concorrencia: ${OUTBOX_CONCORRENCIA:4}
       webhook:
         habilitado: ${Z_API_WEBHOOK_HABILITADO:false}
+        somente-coleta: ${Z_API_WEBHOOK_SOMENTE_COLETA:false}
         autenticacao: ${Z_API_WEBHOOK_AUTENTICACAO:DESATIVADO}
         segredo: ${Z_API_WEBHOOK_SEGREDO:}
         header-nome: ${Z_API_WEBHOOK_HEADER_NOME:}

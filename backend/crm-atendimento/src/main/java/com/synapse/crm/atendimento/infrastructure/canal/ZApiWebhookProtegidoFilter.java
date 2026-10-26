@@ -69,12 +69,12 @@ public class ZApiWebhookProtegidoFilter extends OncePerRequestFilter {
         if (tipo == null || !tipo.split(";", 2)[0].trim().equalsIgnoreCase("application/json")) { recusar(response, 415); return; }
         byte[] corpo = request.getInputStream().readNBytes(propriedades.limiteCorpoBytes() + 1);
         if (corpo.length > propriedades.limiteCorpoBytes()) { recusar(response, 413); return; }
-        HttpServletRequest seguro = semCredenciais(request, corpo);
+        HttpServletRequest seguro = semCredenciais(request, corpo, propriedades.headerNome());
         seguro.setAttribute(AUTENTICADO, Boolean.TRUE);
         chain.doFilter(seguro, response);
     }
 
-    private HttpServletRequest semCredenciais(HttpServletRequest original, byte[] corpo) {
+    public static HttpServletRequest semCredenciais(HttpServletRequest original, byte[] corpo, String headerSensivel) {
         return new HttpServletRequestWrapper(original) {
             @Override public String getQueryString() { return null; }
             @Override public String getParameter(String nome) { return null; }
@@ -82,7 +82,7 @@ public class ZApiWebhookProtegidoFilter extends OncePerRequestFilter {
             @Override public Map<String, String[]> getParameterMap() { return Map.of(); }
             @Override public Enumeration<String> getParameterNames() { return Collections.emptyEnumeration(); }
             private boolean sensivel(String nome) {
-                return nome.equalsIgnoreCase(propriedades.headerNome()) || List.of("authorization", "client-token", "x-synapse-token")
+                return nome.equalsIgnoreCase(headerSensivel) || List.of("authorization", "client-token", "x-synapse-token")
                         .contains(nome.toLowerCase(java.util.Locale.ROOT));
             }
             @Override public String getHeader(String nome) { return sensivel(nome) ? null : super.getHeader(nome); }

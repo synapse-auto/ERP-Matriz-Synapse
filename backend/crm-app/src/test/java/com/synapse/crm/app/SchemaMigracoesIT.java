@@ -70,6 +70,9 @@ class SchemaMigracoesIT extends PostgresIT {
             List<String> esperadas = List.of(
                     "arquivo_banco",
                     "atendimento",
+                    "atendimento_rota_canal",
+                    "canal_transicao",
+                    "canal_transicao_programada",
                     "atendimento_leitura",
                     // V101: card interno com o que o chatbot coletou na transferencia (nao e mensagem).
                     "atendimento_informacao_chatbot",

@@ -16,10 +16,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.atendimento.application.Outbox;
+import com.synapse.crm.atendimento.application.canal.RoteamentoDeSaida;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.infrastructure.canal.CanalProperties;
 import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
@@ -179,13 +181,24 @@ class OutboxRepositorioJdbc implements Outbox {
     private final JdbcTemplate chat;
     private final ObjectMapper json;
     private final CanalProperties canal;
+    private final RoteamentoDeSaida roteamento;
+    @Value("${synapse.canal.transicao.saidas-suspensas:false}") private boolean suspensas;
+
+    private static final String FILTRO_TRANSICAO = """
+            AND (NOT EXISTS(SELECT 1 FROM canal_transicao) OR EXISTS(
+              SELECT 1 FROM canal_transicao t WHERE t.estado='ATIVA'
+                AND t.provedor_destino=? AND t.identificador_destino=?
+                AND payload->>'provedorOrigem'=t.provedor_destino
+                AND payload->>'identificadorCanalOrigem'=t.identificador_destino))
+            """;
 
     OutboxRepositorioJdbc(
             @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource, ObjectMapper json,
-            CanalProperties canal) {
+            CanalProperties canal, RoteamentoDeSaida roteamento) {
         this.chat = new JdbcTemplate(chatDataSource);
         this.json = json;
         this.canal = canal;
+        this.roteamento = roteamento;
     }
 
     @Override
@@ -370,10 +383,12 @@ class OutboxRepositorioJdbc implements Outbox {
     @Override
     public List<EnvioPendente> reservarPendentes(int limite, Instant agora, Instant reservaAte) {
         TransacaoObrigatoria.exigir("reservarPendentes");
+        if(suspensas) return List.of();
         return chat.query(
-                SQL_RESERVAR_ENVIO,
+                SQL_RESERVAR_ENVIO.replace("WHERE tipo = ?", "WHERE tipo = ? " + FILTRO_TRANSICAO),
                 this::desserializar,
                 TIPO_ENVIO,
+                canal.provedor(), canal.numeroPrincipal(),
                 Timestamp.from(agora),
                 limite,
                 Timestamp.from(reservaAte));
@@ -431,16 +446,21 @@ class OutboxRepositorioJdbc implements Outbox {
     @Override
     public boolean marcarDespachando(UUID outboxId, Instant quando) {
         TransacaoObrigatoria.exigir("marcarDespachando");
-        return chat.update(SQL_DESPACHANDO, Timestamp.from(quando), outboxId, TIPO_ENVIO) == 1;
+        if(suspensas || !Boolean.TRUE.equals(chat.queryForObject(
+                "SELECT pg_try_advisory_xact_lock_shared(hashtextextended('synapse:transicao-canal',0))",Boolean.class))) return false;
+        return chat.update(SQL_DESPACHANDO + " " + FILTRO_TRANSICAO, Timestamp.from(quando), outboxId, TIPO_ENVIO,
+                canal.provedor(),canal.numeroPrincipal()) == 1;
     }
 
     @Override
     public List<EnvioPendente> conciliarDespachosSemResultado(int limite, Instant agora) {
         TransacaoObrigatoria.exigir("conciliarDespachosSemResultado");
+        if(suspensas) return List.of();
         return chat.query(
-                SQL_CONCILIAR_DESPACHOS,
+                SQL_CONCILIAR_DESPACHOS.replace("WHERE tipo = ?", "WHERE tipo = ? " + FILTRO_TRANSICAO),
                 this::desserializar,
                 TIPO_ENVIO,
+                canal.provedor(), canal.numeroPrincipal(),
                 Timestamp.from(agora),
                 limite,
                 Timestamp.from(agora),
@@ -490,13 +510,18 @@ class OutboxRepositorioJdbc implements Outbox {
             String telefoneProvedorObservado,
             boolean possuiSnapshotDoContato) {
 
+        var rota=roteamento.resolver(atendimentoId,credencialId,contextoWamid);
         ObjectNode raiz = json.createObjectNode();
+        if(rota.transicaoId()!=null) {
+            raiz.put("transicaoCanalId",rota.transicaoId().toString());
+            raiz.put("credencialHistoricaId",credencialId==null?null:credencialId.toString());
+        }
         raiz.put("mensagemId", mensagemId.toString());
         raiz.put("enviadoEm", enviadoEm.toString());
         raiz.put("atendimentoId", atendimentoId.toString());
         raiz.put("leadId", leadId.toString());
         raiz.put("telefoneDestino", telefoneDestino);
-        raiz.put("credencialId", credencialId == null ? null : credencialId.toString());
+        raiz.put("credencialId", rota.credencialId() == null ? null : rota.credencialId().toString());
         // Somente identidade de roteamento, nunca tokens, URL ou headers do provedor.
         raiz.put("provedorOrigem", canal.provedor());
         raiz.put("identificadorCanalOrigem", canal.numeroPrincipal() == null ? "" : canal.numeroPrincipal());

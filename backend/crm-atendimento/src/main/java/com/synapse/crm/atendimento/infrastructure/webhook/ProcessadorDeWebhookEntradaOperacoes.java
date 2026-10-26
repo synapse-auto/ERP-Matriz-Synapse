@@ -111,6 +111,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final Duration prazoMidia;
     private final TransactionTemplate transacoes;
     private final CorrelacionarMensagemDoCanalUseCase correlacionar;
+    @Value("${synapse.canal.z-api.webhook.somente-coleta:false}") private boolean zApiSomenteColeta;
 
     public ProcessadorDeWebhookEntradaOperacoes(
             CorrelacionarMensagemDoCanalUseCase correlacionar,
@@ -169,6 +170,9 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     }
 
     public int rodada() {
+        // Coleta inicial autenticada: conserva a fila nova enquanto o operador confirma CDN.
+        // Nao reserva, incrementa tentativas, baixa bytes ou mistura a fila Uzapi anterior.
+        if(zApiSomenteColeta && "z-api".equals(tradutor.provedor())) return 0;
         List<WebhookEntrada.Pendente> pendentes = transacoes.execute(status ->
                 "z-api".equals(tradutor.provedor()) ? entrada.reservarPendentes(lote, tradutor.provedor()) : entrada.reservarPendentes(lote));
         for (WebhookEntrada.Pendente pendente : pendentes) {

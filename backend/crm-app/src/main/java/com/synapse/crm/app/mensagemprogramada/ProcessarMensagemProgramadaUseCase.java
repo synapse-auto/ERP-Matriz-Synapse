@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,7 @@ public class ProcessarMensagemProgramadaUseCase {
     private final Clock relogio;
     private final ClassificacaoDeTesteRepositorio classificacao;
     private final AuditarBloqueioContaTesteUseCase auditoria;
+    @Value("${synapse.canal.transicao.saidas-suspensas:false}") private boolean saidasSuspensas;
 
     public ProcessarMensagemProgramadaUseCase(
             MensagemProgramadaRepositorio mensagens,
@@ -48,12 +50,14 @@ public class ProcessarMensagemProgramadaUseCase {
 
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public List<UUID> idsVencidos(int limite) {
+        if(saidasSuspensas) return List.of();
         return mensagens.idsVencidos(Instant.now(relogio), limite);
     }
 
     /** Reserva por atualização condicional e materializa a mensagem/outbox na mesma transação. */
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public void processar(UUID id) {
+        if(saidasSuspensas) return;
         Instant agora = Instant.now(relogio);
         MensagemProgramada programada = mensagens.reservarVencida(id, agora).orElse(null);
         if (programada == null) {

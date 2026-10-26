@@ -1,5 +1,59 @@
 # Z-API — progresso e gates
 
+## Complemento em validacao — transicao no banco existente, 26/10/2026
+
+- Base origin/main 7ceee5e (#326), worktree isolada reutilizada; branch
+  codex/z-api-transicao-produtiva. Novo cenario autorizado: numero produtivo conectado pelo
+  operador; nao exigir banco vazio/fechar atendimentos. Nenhuma operacao produtiva do agente.
+- V113 aditiva (numeração novamente conferida em origin/main): controle de transicao,
+  rota auditada por ciclo aberto, retencao individual de agenda. FKs historicas preservadas,
+  incluindo ciclos sem canal/credencial; somente novas outboxes recebem destino novo.
+- Pausa opt-in de saida/publisher/programadas, try-lock local nao bloqueante, nenhum lock
+  durante HTTP. Fila velha nao e reescrita/reservada pelo provedor novo. AceitePENDENTE nao
+  autoriza novo despacho. Defaults false nas demais instancias.
+- Coleta inicial Z-API autenticada/duravel sem reservar eventos/baixar bytes; permite confirmar
+  CDN real antes de consumir o trafego produtivo, sem descartar midias com allowlist vazia.
+- URL/segredo Uzapi preservados exclusivamente para status antigos da identidade original;
+  HTTPS/limite/tempo constante/JSON estrito/redacao, sem mensagem/repasse/IA nessa entrada.
+- [Roteiro produtivo incremental](./transicao-produtiva.md), cadastro inativo existente,
+  override persistente para AMBAS as URLs de webhook, envs/ativacao/agenda/recuperacao e
+  [passagem para automacao](./documento-para-automacao.md). Nenhuma identidade/token real
+  versionado. Cadastros/ativacao HML anteriores mantem suas protecoes.
+- Primeira rodada apontou composicao SQL sem separador no novo guard de despacho: corrigida.
+  Fixtures ajustadas para precisao de timestamp PostgreSQL, FK composta e limpeza de auditoria.
+  Rodada seguinte nao executou integracoes porque Docker local estava fechado apos interrupcao;
+  Docker iniciado sem reiniciar processo alheio, nova rodada com Postgres/MinIO em andamento.
+  Nao tratado como flake nem CI verde. Resultados finais serao registrados na PR/relatorio.
+- Teste negativo SQL real identificou heranca de escrita por DEFAULT PRIVILEGES: GRANT SELECT
+  sozinho nao bastava. V113 revoga ALL antes de conceder leitura, e a suite viola a protecao
+  de proposito com papel synapse_app (nao superusuario). Banco da transicao isolado dos
+  ciclos deixados por outras suites, sem alterar a validacao do script de producao.
+- Na primeira revisao, frontend nao alterado. Node Windows24.12.0 encerrou subprocessos com codigo3221226505;
+  suite afetada aplicar-marca18/18 no runtime24.22.1. Execucao completa local repetida nesse
+  runtime, com pool threads para contornar travamento dos forks Windows; nenhuma auditoria
+  ou teste removido. Resultado final/CI ainda pendentes desta anotacao.
+- Dirigidos finais: TransicaoProdutivaZApiIT **22/22**, incluindo os dois tipos de ciclo,
+  participacao consentida/negativo, aceitePENDENTE sem novo despacho, fila antiga intacta,
+  agenda individual, status legado HTTP real, RLS real/negacao de escrita, coleta sem efeitos,
+  seis tipos de midia em storage privado e download autorizado. BUILD SUCCESS, 5m05s.
+  SchemaMigracoesIT21/21, ZApiSaidaIT9/9 e StatusDeEntregaUzapiWebhookIT8/8 tambem passaram
+  na rodada anterior; o clean verify integral recompila/exercita o conjunto final.
+- Stack+override produtivo validados localmente por docker compose config --quiet com envs
+  sinteticas; isso nao prova o router instalado nem a redacao na cadeia real. git diff --check
+  aprovado. clean verify integral Java21 iniciado; resultado/CI do SHA final na PR/relatorio.
+  Nenhuma ativacao, envio, workflow publicado, merge/deploy ou operacao VPS executados.
+- Revisao do composer encontrou limpeza imediata do texto antes da recusaHTTP. Complemento
+  restrito aos dois codigos409 da transicao recupera texto na conversa/sessao atual, preserva
+  o digitado durante a espera e retira a bolha otimista sem mensagem real; nao reenvia nem
+  muda tratamento de outros4xx/timeouts. Sem texto/cor/fonte nova. Skills frontend-patterns
+  e de seguranca aplicadas; testes especificos e CI do SHA posterior a da28ce5 conferidos
+  separadamente. Runs40267013011 e40266962551 aprovaram o primeiro SHA, nao o complemento.
+- Complemento do rascunho: testes focados63/63 (composer e hook), incluindo nao misturar
+  conversas/sessoes e nao duplicar envio. Typecheck/lint aprovados, build e conjunto completo
+  repetidos no fonte final. A rodada anterior local teve1399/1400, com um teste do modal de
+  encaminhamento do Chat Interno que passou isolado23/23 e no CI1400/1400; divergencia nao
+  chamada de corrigida. Nenhum componente do Chat Interno foi alterado para mascara-la.
+
 Atualizado: 25/10/2026. Planejamento: [planejamento.md](./planejamento.md).
 Estado operacional: **Z-API OFF; complemento de entrada protegida/midia/correlacao implementado
 para homologacao, nao executado em conta real**. [Roteiro vigente A–D](./homologacao-protegida.md).

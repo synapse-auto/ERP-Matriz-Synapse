@@ -171,6 +171,17 @@ describe("useEnviarMensagem", () => {
     expect(mensagensDoHistorico(queryClient, "at-resposta")).toEqual([]);
   });
 
+  it.each(["SAIDA_SUSPENSA_TRANSICAO_CANAL", "REFERENCIA_DE_OUTRO_CANAL"])("retira a bolha recusada por %s sem conciliar ou reenviar", async (codigo) => {
+    vi.mocked(api.enviarMensagem).mockRejectedValue(new ErroDeApi(409, { codigo }, "Pausa"));
+    const { queryClient, Wrapper } = criarWrapper();
+    prepararHistorico(queryClient, "at-transicao");
+    const { result } = renderHook(() => useEnviarMensagem(), { wrapper: Wrapper });
+    result.current.mutate({ atendimentoId: "at-transicao", leadId: "lead-1", conteudo: "sintetico" });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(mensagensDoHistorico(queryClient, "at-transicao")).toEqual([]);
+    expect(api.enviarMensagem).toHaveBeenCalledTimes(1);
+  });
+
   it("marca 4xx definitivo sem atribuir a recusa ao provedor", async () => {
     vi.mocked(api.enviarMensagem).mockRejectedValue(
       new ErroDeApi(404, null, "Atendimento não está disponível para este usuário"),

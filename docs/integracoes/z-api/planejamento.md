@@ -7,6 +7,12 @@ ausente, incompatibilidade arquitetural ou ampliação de escopo. Reler este arq
 
 ## Restrições permanentes
 
+**Cenario vigente de 26/10/2026:** numero produtivo ja conectado pelo operador. Autorizado
+implementar transicao explicita no banco existente, com continuidade de ciclos abertos,
+sem reescrever historico ou retargetar filas antigas. Procedimento manual em
+[transicao-produtiva.md](./transicao-produtiva.md). HML vazia nao e requisito dessa transicao.
+Agente continua sem executar VPS/deploy/callbacks/envios ou workflows produtivos.
+
 **Complemento vigente de 25/10/2026:** autorizada protecao propria com segredo exclusivo
 na URL, validado antes do corpo/fila; preparar modo de header nativo sem presumir seu nome.
 O suporte afirmou existir header, mas falta nome/configuracao. Preferir nativo quando
