@@ -438,6 +438,7 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `Z_API_INSTANCIA_ID` | vazio | ID da instância Z-API; não é telefone/token. Deve coincidir com `WHATSAPP_NUMERO` (identidade capturada pela outbox); divergência bloqueia sem HTTP. Manter OFF nesta fase. |
 | `Z_API_TOKEN` | vazio | Segredo da instância Z-API, usado no path HTTPS; nunca expor ao navegador/logs/tracing. |
 | `Z_API_CLIENT_TOKEN` | vazio | Segredo de saída no header `Client-Token`; não autentica callbacks recebidos. |
+| `Z_API_ENVIAR_CLIENT_TOKEN` | `true` | `true` exige/envia o `Z_API_CLIENT_TOKEN`; `false` exige o segredo vazio e omite o header (conta Z-API sem Token de Segurança ativo). |
 | `Z_API_CREDENCIAL_ID` | vazio | UUID da credencial do CRM que deve coincidir com a referência da outbox. Ausente/divergente bloqueia sem HTTP. |
 | `Z_API_LIMITE_RESPOSTA_BYTES` | `4096` | Teto configurável para JSON de IDs/saúde. Resposta maior não é aceite; sem retry cego do POST. Timeout e concorrência reutilizam `WHATSAPP_TIMEOUT`/`OUTBOX_CONCORRENCIA`. |
 | `Z_API_WEBHOOK_HABILITADO` | `false` | Registro do tradutor/rota protegida; requer opt-in do adaptador, instância/credencial consistentes e segredo exclusivo. |

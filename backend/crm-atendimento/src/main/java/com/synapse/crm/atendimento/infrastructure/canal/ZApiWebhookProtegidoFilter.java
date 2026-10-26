@@ -38,8 +38,8 @@ public class ZApiWebhookProtegidoFilter extends OncePerRequestFilter {
         if (ativo) {
             propriedades.validar();
             // O segredo desta entrada nao pode ser nenhuma das credenciais existentes.
-            if (List.of(nulo(api.token()), nulo(api.clientToken()), nulo(tokenInterno), nulo(canal.webhookSecret()))
-                    .contains(propriedades.segredo())) {
+            if (java.util.stream.Stream.of(api.token(), api.clientToken(), tokenInterno, canal.webhookSecret())
+                    .filter(valor -> valor != null && !valor.isBlank()).anyMatch(propriedades.segredo()::equals)) {
                 throw new IllegalArgumentException("Z_API_WEBHOOK_SEGREDO_REUTILIZADO");
             }
         }
@@ -123,5 +123,4 @@ public class ZApiWebhookProtegidoFilter extends OncePerRequestFilter {
         response.setHeader("Cache-Control", "no-store");
         response.getWriter().write("{\"type\":\"about:blank\",\"title\":\"Webhook recusado\",\"status\":" + status + "}");
     }
-    private static String nulo(String valor) { return valor == null ? "" : valor; }
 }
