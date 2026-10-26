@@ -8,9 +8,14 @@ import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
@@ -94,6 +99,33 @@ class ZApiWebhookProtegidoFilterTest {
         req = pedido(); req.setQueryString("secret=" + SEGREDO); req.setContent(new byte[129]); resposta = new MockHttpServletResponse();
         filtro(ZApiWebhookProperties.Modo.SEGREDO_URL).doFilter(req, resposta, (a, b) -> { throw new AssertionError(); });
         assertThat(resposta.getStatus()).isEqualTo(413);
+    }
+
+    @Test void registraSeparadamenteFalhaDeHttpsEDeSegredoSemRegistrarSegredoOuQuery() throws Exception {
+        Logger raiz = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+        Level anterior = raiz.getLevel();
+        ListAppender<ILoggingEvent> capturado = new ListAppender<>();
+        capturado.start(); raiz.addAppender(capturado); raiz.setLevel(Level.WARN);
+        try {
+            var inseguro = pedido(); inseguro.setSecure(false); inseguro.setQueryString("secret=" + SEGREDO);
+            var respostaHttps = new MockHttpServletResponse();
+            filtro(ZApiWebhookProperties.Modo.SEGREDO_URL).doFilter(inseguro, respostaHttps,
+                    (a, b) -> { throw new AssertionError("HTTP inseguro nao deve chegar ao controller"); });
+            assertThat(respostaHttps.getStatus()).isEqualTo(403);
+
+            var segredoIncorreto = pedido(); segredoIncorreto.setQueryString("secret=valor-invalido");
+            var respostaSegredo = new MockHttpServletResponse();
+            filtro(ZApiWebhookProperties.Modo.SEGREDO_URL).doFilter(segredoIncorreto, respostaSegredo,
+                    (a, b) -> { throw new AssertionError("segredo incorreto nao deve chegar ao controller"); });
+            assertThat(respostaSegredo.getStatus()).isEqualTo(403);
+
+            var linhas = capturado.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
+            assertThat(linhas).contains("Z_API_WEBHOOK_REJEITADO etapa=FILTER http=403 codigo=HTTPS_NAO_RECONHECIDO",
+                    "Z_API_WEBHOOK_REJEITADO etapa=AUTH http=403 codigo=SEGREDO_INVALIDO");
+            assertThat(linhas.toString()).doesNotContain(SEGREDO, "valor-invalido", "secret=");
+        } finally {
+            raiz.setLevel(anterior); raiz.detachAppender(capturado); capturado.stop();
+        }
     }
 
     @Test void impedeReutilizarCredencialDaApi() {

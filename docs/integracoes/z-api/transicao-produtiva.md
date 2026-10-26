@@ -5,6 +5,61 @@ explicitamente autorizada. O numero ja foi conectado pelo operador; o agente nao
 configura callbacks, envia mensagens, faz merge ou deploy. Testar somente com contato proprio.
 Instrucoes Bash na VPS, nao PowerShell. Segredos nunca devem ser enviados ao chat.
 
+## Diagnostico urgente de Client-Token e callback (26/10/2026)
+
+A referência oficial de [POST /send-text](https://developer.z-api.io/message/send-text) e
+[GET /status](https://developer.z-api.io/instance/status) mostra `Client-Token` nos exemplos
+de ambas as operações. A página oficial de [Token de Segurança da conta](https://developer.z-api.io/security/client-token)
+explica que, depois de ativado, todas as instâncias só aceitam chamadas com esse header.
+Não documenta uma exceção de autenticação por endpoint. O adaptador do CRM aplica
+`Z_API_ENVIAR_CLIENT_TOKEN` tanto a `GET /status` quanto a `POST /send-text`.
+
+O operador confirmou posteriormente o mesmo HTTP 400 tanto no GET quanto no POST sem
+header (`your client-token is not configured`). A opção false omite o header corretamente,
+mas não superou essa exigência da conta. Não usar token fictício nem fallback após 401/403.
+Essa recusa explícita de token no HTTP 400, assim como 401/403 e os erros de contrato 405/415,
+agora encerra a tentativa como recusa permanente, não como aceite ou ambiguidade.
+Timeout, 429, 5xx, 400 desconhecido e 2xx inválido continuam sem retry automático após POST.
+Após atualizar o
+backend, o log seguro `Z_API_FALHA` registra somente etapa, HTTP e código sanitizado, por
+exemplo `GET_STATUS / 400 / CLIENT_TOKEN_NOT_CONFIGURED` ou
+`POST_SEND_TEXT / 400 / FORNECEDOR_SEM_CODIGO`; nunca registra texto de erro, corpo, token,
+telefone ou URL do fornecedor.
+
+O 403 do callback agora é diagnosticado sem reduzir a proteção. `Z_API_WEBHOOK_REJEITADO`
+registra apenas etapa, HTTP e motivo enumerado. `FILTER / HTTPS_NAO_RECONHECIDO` indica que
+o servlet não reconheceu TLS (proxy/forwarded headers); `AUTH / SEGREDO_INVALIDO` indica que
+TLS foi aceito, mas o segredo recebido não corresponde; `PAYLOAD / INSTANCIA_DIVERGENTE` ou
+outros códigos `PAYLOAD` indicam que filtro e segredo passaram, mas a validação do evento
+falhou. `CONTROLLER / AUTENTICACAO_AUSENTE` indica divergência de cadeia/configuração.
+O filtro continua fail-closed, precede MVC, remove query e headers sensíveis antes dos
+próximos filtros e só confia em `request.isSecure()` configurado pelo container. Não aceite
+`X-Forwarded-Proto` cru no filtro nem desligue HTTPS/segredo para obter 200.
+
+**VPS, somente leitura, depois do deploy do SHA revisado:**
+
+```bash
+docker service logs --since 15m fmnaprod-uzapi-36acu4_backend 2>&1 \
+  | grep -E 'Z_API_FALHA|Z_API_WEBHOOK_REJEITADO' | tail -n 40
+```
+
+Interprete apenas as linhas enumeradas; não use `--raw`, não colete o ambiente completo e
+não compartilhe URL de callback. Para o callback, um `403` acompanhado por
+`FILTER/HTTPS_NAO_RECONHECIDO` pede revisar se o tráfego chega ao backend pela rota TLS
+persistente do Traefik e se o container está reconhecendo o forwarded proto com
+`SERVER_FORWARD_HEADERS_STRATEGY=NATIVE`. `AUTH/SEGREDO_INVALIDO` pede conferir o segredo
+armazenado no Dokploy e o valor cadastrado no painel, sem imprimi-los. Ausência de uma linha
+não prova que a requisição chegou a esse serviço.
+
+O teste de integração existente exercita Tomcat embutido com forwarded proto HTTPS e prova
+que o filtro aceita TLS reconhecido e recusa HTTP/forwarded ausente. Isso não confirma a
+configuração real da rede Docker/Traefik da Fêmina; a linha enumerada do serviço após o novo
+deploy é a evidência necessária para distinguir os dois 403. Nenhum comando abaixo altera
+produção ou envia mensagem.
+
+Auditoria completa, matriz por tipo/direção e limites da evidência:
+[auditoria do fluxo de mensagens e mídias](./auditoria-fluxo-mensagens-midias-2026-10-26.md).
+
 ## A. Proximo passo, somente leitura
 
 **VPS**, depois do deploy anunciado pelo operador, conferir imagem efetiva:

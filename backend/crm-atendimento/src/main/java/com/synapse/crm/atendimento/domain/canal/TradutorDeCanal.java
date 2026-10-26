@@ -66,6 +66,11 @@ public interface TradutorDeCanal {
     /** Caminho aditivo com identidade composta; adaptadores legados mantem seu contrato. */
     default List<StatusComIdentidade> statusComIdentidade(String payloadCru) { return List.of(); }
 
+    /** Horario de ingresso duravel, para contratos de callback que nao fornecem timestamp. */
+    default List<StatusComIdentidade> statusComIdentidade(String payloadCru, Instant recebidoEm) {
+        return statusComIdentidade(payloadCru);
+    }
+
     default java.util.Optional<IdentidadeDeMensagemDoCanal> identidadeDaMensagem(String payloadCru, String idInterno) {
         return java.util.Optional.empty();
     }

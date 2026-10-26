@@ -7,6 +7,7 @@ import java.util.Set;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.midia.IsoBmffAudioOnly;
 import com.synapse.crm.sharedkernel.midia.RegrasDeAnexoBase;
+import com.synapse.crm.sharedkernel.midia.ValidadorDeOggOpus;
 
 /**
  * Mapeador local de mimetypes para TipoMensagem do atendimento, e os tetos de tamanho da Meta Cloud API
@@ -47,6 +48,12 @@ public final class TiposDeMidiaPermitidos {
      * (.mov, que a Meta nao aceita). Conteiner sem trilha de video segue o caminho de audio de antes.
      */
     public static Optional<Classificacao> classificar(String mimetypeDetectado, byte[] conteudo) {
+        // Tika reconhece o container Ogg genericamente. Nao ampliar a allowlist de containers:
+        // somente Opus completo no perfil ja permitido pode ser normalizado para audio/ogg.
+        if (mimetypeDetectado != null && Set.of("application/ogg", "audio/opus", "audio/x-opus+ogg").contains(mimetypeDetectado)) {
+            if (!ValidadorDeOggOpus.ehValido(conteudo)) return Optional.empty();
+            mimetypeDetectado = "audio/ogg";
+        }
         String mimetype = IsoBmffAudioOnly.mimetypeDeAudioSeCamuflado(mimetypeDetectado, conteudo);
         if (CONTEINER_ISO_BMFF.contains(mimetype) && IsoBmffAudioOnly.temTrilhaDeVideo(conteudo)) {
             return mimetypeDeVideo(IsoBmffAudioOnly.marcaPrincipal(conteudo))

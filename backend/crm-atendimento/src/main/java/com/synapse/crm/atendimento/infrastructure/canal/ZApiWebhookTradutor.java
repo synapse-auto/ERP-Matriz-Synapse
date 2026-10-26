@@ -77,13 +77,19 @@ public final class ZApiWebhookTradutor implements TradutorDeCanal {
     }
 
     @Override public List<StatusComIdentidade> statusComIdentidade(String payload) {
+        return statusComIdentidade(payload, null);
+    }
+
+    @Override public List<StatusComIdentidade> statusComIdentidade(String payload, Instant recebidoEm) {
         JsonNode no = raiz(payload);
         Instant horario = horario(no);
+        // O exemplo do repositorio oficial de DeliveryCallback omite momment. Nao inventar
+        // horario do fornecedor nem usar o momento de retry: reutilizar o ingresso persistido.
+        if (!no.has("momment") && "DeliveryCallback".equals(texto(no, "type"))) horario = recebidoEm;
         if (!daInstancia(no) || horario == null || !flagsValidas(no) || flag(no, "isGroup") || flag(no, "isNewsletter")) return List.of();
         if ("DeliveryCallback".equals(texto(no, "type"))) {
             String id = texto(no, "messageId");
-            if (id == null || texto(no, "zaapId") == null || (no.hasNonNull("error") && !no.path("error").isTextual())
-                    || (no.hasNonNull("errorCode") && !no.path("errorCode").isTextual())) return List.of();
+            if (!deliveryValido(no)) return List.of();
             StatusEntrega estado = temErro(no) ? StatusEntrega.FALHOU : StatusEntrega.ENVIADO;
             return List.of(new StatusComIdentidade(identidade("WHATSAPP", id), estado, horario));
         }
@@ -113,7 +119,9 @@ public final class ZApiWebhookTradutor implements TradutorDeCanal {
                     : statusComIdentidade(payload).isEmpty() ? descarte("status", MotivoDeDescarte.TIPO_NAO_SUPORTADO)
                     : Traducao.semDescartes(List.of());
         }
-        if ("DeliveryCallback".equals(evento) && statusComIdentidade(payload).isEmpty()) return descarte("delivery", MotivoDeDescarte.ITEM_MALFORMADO);
+        if ("DeliveryCallback".equals(evento)
+                && (!deliveryValido(no) || (no.has("momment") && horario(no) == null)))
+            return descarte("delivery", MotivoDeDescarte.ITEM_MALFORMADO);
         if (!"ReceivedCallback".equals(evento)) return Traducao.semDescartes(List.of());
         if (!no.path("fromMe").isBoolean()) return descarte("outro", MotivoDeDescarte.ITEM_MALFORMADO);
         if (flag(no, "fromMe")) return Traducao.semDescartes(List.of());
@@ -136,7 +144,9 @@ public final class ZApiWebhookTradutor implements TradutorDeCanal {
             JsonNode midia = no.path(tipo);
             if (!midia.isObject()) continue;
             String url = texto(midia, tipo + "Url");
-            if (!urlHttps(url) || midia.hasNonNull("downloadError")) return descarte(tipo, MotivoDeDescarte.CONTEUDO_INVALIDO);
+            if (!urlHttps(url) || (midia.hasNonNull("downloadError")
+                    && (!midia.path("downloadError").isTextual() || !midia.path("downloadError").asText().isBlank())))
+                return descarte(tipo, MotivoDeDescarte.CONTEUDO_INVALIDO);
             String tipoCrm = switch (tipo) { case "document" -> "DOCUMENTO"; case "image" -> "IMAGEM"; case "audio" -> "AUDIO"; default -> "VIDEO"; };
             return Traducao.semDescartes(List.of(new MensagemRecebidaDoCanal(
                     identidade("WHATSAPP", id).chaveInterna(), telefone, nome, null, tipoCrm, url,
@@ -150,6 +160,11 @@ public final class ZApiWebhookTradutor implements TradutorDeCanal {
     }
 
     private boolean daInstancia(JsonNode no) { return instancia.equals(texto(no, "instanceId")); }
+    private static boolean deliveryValido(JsonNode no) {
+        return texto(no, "messageId") != null && texto(no, "zaapId") != null
+                && (!no.hasNonNull("error") || no.path("error").isTextual())
+                && (!no.hasNonNull("errorCode") || no.path("errorCode").isTextual());
+    }
     private static boolean temErro(JsonNode no) {
         return (no.path("error").isTextual() && !no.path("error").asText().isBlank())
                 || (no.path("errorCode").isTextual() && !no.path("errorCode").asText().isBlank());

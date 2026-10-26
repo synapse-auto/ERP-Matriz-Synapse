@@ -16,6 +16,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -26,6 +28,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class ZApiWebhookProtegidoFilter extends OncePerRequestFilter {
+    private static final Logger log = LoggerFactory.getLogger(ZApiWebhookProtegidoFilter.class);
     public static final String ROTA = "/webhook/z-api";
     public static final String AUTENTICADO = ZApiWebhookProtegidoFilter.class.getName() + ".autenticado";
     private final ZApiWebhookProperties propriedades;
@@ -53,8 +56,15 @@ public class ZApiWebhookProtegidoFilter extends OncePerRequestFilter {
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         // isSecure e definido pelo TLS/container. Nunca confiar em X-Forwarded-Proto cru.
-        if (!request.getRequestURI().equals(request.getContextPath() + ROTA)
-                || !request.isSecure() || !"POST".equals(request.getMethod())) { recusar(response, 403); return; }
+        if (!request.getRequestURI().equals(request.getContextPath() + ROTA)) {
+            recusar(response, 403, "FILTER", "ROTA_INVALIDA"); return;
+        }
+        if (!request.isSecure()) {
+            recusar(response, 403, "FILTER", "HTTPS_NAO_RECONHECIDO"); return;
+        }
+        if (!"POST".equals(request.getMethod())) {
+            recusar(response, 403, "FILTER", "METODO_INVALIDO"); return;
+        }
         String recebido = null;
         if (propriedades.autenticacao() == ZApiWebhookProperties.Modo.SEGREDO_URL) {
             // Nao usar getParameter: num POST form isso leria o corpo antes da autenticacao.
@@ -63,12 +73,12 @@ public class ZApiWebhookProtegidoFilter extends OncePerRequestFilter {
             List<String> valores = Collections.list(request.getHeaders(propriedades.headerNome()));
             if (valores.size() == 1) recebido = valores.getFirst();
         }
-        if (!autenticacao.confere(recebido)) { recusar(response, 403); return; }
-        if (request.getContentLengthLong() > propriedades.limiteCorpoBytes()) { recusar(response, 413); return; }
+        if (!autenticacao.confere(recebido)) { recusar(response, 403, "AUTH", "SEGREDO_INVALIDO"); return; }
+        if (request.getContentLengthLong() > propriedades.limiteCorpoBytes()) { recusar(response, 413, "BODY", "CORPO_EXCEDE_LIMITE"); return; }
         String tipo = request.getContentType();
-        if (tipo == null || !tipo.split(";", 2)[0].trim().equalsIgnoreCase("application/json")) { recusar(response, 415); return; }
+        if (tipo == null || !tipo.split(";", 2)[0].trim().equalsIgnoreCase("application/json")) { recusar(response, 415, "BODY", "CONTENT_TYPE_INVALIDO"); return; }
         byte[] corpo = request.getInputStream().readNBytes(propriedades.limiteCorpoBytes() + 1);
-        if (corpo.length > propriedades.limiteCorpoBytes()) { recusar(response, 413); return; }
+        if (corpo.length > propriedades.limiteCorpoBytes()) { recusar(response, 413, "BODY", "CORPO_EXCEDE_LIMITE"); return; }
         HttpServletRequest seguro = semCredenciais(request, corpo, propriedades.headerNome());
         seguro.setAttribute(AUTENTICADO, Boolean.TRUE);
         chain.doFilter(seguro, response);
@@ -117,7 +127,8 @@ public class ZApiWebhookProtegidoFilter extends OncePerRequestFilter {
         return valor;
     }
 
-    private static void recusar(HttpServletResponse response, int status) throws IOException {
+    private static void recusar(HttpServletResponse response, int status, String etapa, String codigo) throws IOException {
+        log.warn("Z_API_WEBHOOK_REJEITADO etapa={} http={} codigo={}", etapa, status, codigo);
         response.setStatus(status);
         response.setContentType("application/problem+json");
         response.setHeader("Cache-Control", "no-store");

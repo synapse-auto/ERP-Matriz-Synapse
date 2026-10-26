@@ -197,7 +197,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
 
     private void processarEmTransacao(
             WebhookEntrada.Pendente pendente, Instant agora, boolean ultimaChanceDaMidia) {
-        var statuses = tradutor.statusComIdentidade(pendente.payloadCru());
+        var statuses = tradutor.statusComIdentidade(pendente.payloadCru(), pendente.recebidoEm());
         if (!statuses.isEmpty()) correlacionar.executar(List.of(), statuses);
         TradutorDeCanal.Traducao traducao = tradutor.traduzirComDescartes(pendente.payloadCru());
         List<TradutorDeCanal.ItemDescartado> descartes = new ArrayList<>(traducao.descartes());
