@@ -85,6 +85,7 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
     @Autowired OkHttpClient cdn; @Autowired ApplicationEvents eventos;
     @Autowired com.synapse.crm.atendimento.interfaces.WebhookZApiController webhook;
     @Autowired ZApiWebhookTradutor tradutor;
+    @org.springframework.boot.test.web.server.LocalServerPort int portaHttp;
     @org.springframework.boot.test.mock.mockito.SpyBean com.synapse.crm.atendimento.application.AgendarRepasseWebhookAutomacaoUseCase repasseColeta;
     UUID lead, atendimento; HttpHeaders headers;
     @BeforeEach void preparar() {
@@ -97,6 +98,65 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
         headers=new HttpHeaders(); headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON); headers.set("X-Forwarded-Proto","https");
     }
     @AfterEach void depois(){limpar();}
+    @Test void proxyProdutivoRemoveOriginSomenteDosWebhooksSemAfrouxarSegredoOuCors() throws Exception {
+        headers.setOrigin("https://origem-externa.example.test");
+        assertThat(post(recebido().toString(),SEGREDO)).isEqualTo(HttpStatus.FORBIDDEN);
+        headers.remove(HttpHeaders.ORIGIN);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isZero();
+        try (var proxy = ProxyZApiParaTeste.criar(portaHttp)) {
+            proxy.start();
+            var cliente = clienteTlsDoProxy();
+            String base = "https://" + proxy.getHost() + ":" + proxy.getMappedPort(8443);
+            org.awaitility.Awaitility.await().atMost(java.time.Duration.ofSeconds(10)).untilAsserted(() -> {
+                try (var resposta = cliente.newCall(new Request.Builder().url(base + "/health/liveness")
+                    .header("Host", ProxyZApiParaTeste.DOMINIO).build()).execute()) {
+                    assertThat(resposta.code()).as("router real aceito e backend acessivel").isEqualTo(200);
+                }
+            });
+            String corpo = recebido().toString();
+            for (String segredo : List.of("", "?secret=incorreto", "?secret=" + SEGREDO)) {
+                try (var resposta = cliente.newCall(new Request.Builder().url(base + "/webhook/z-api" + segredo)
+                    .header("Host", ProxyZApiParaTeste.DOMINIO).header("Origin", "https://origem-externa.example.test")
+                    .post(RequestBody.create(corpo, okhttp3.MediaType.get("application/json"))).build()).execute()) {
+                    assertThat(resposta.code()).isEqualTo(segredo.endsWith(SEGREDO) ? 200 : 403);
+                    assertThat(resposta.body().string()).doesNotContain("Invalid CORS request");
+                }
+            }
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isEqualTo(1);
+            try (var resposta = cliente.newCall(new Request.Builder().url(base + "/webhook/canal?secret=incorreto")
+                .header("Host", ProxyZApiParaTeste.DOMINIO).header("Origin", "https://origem-externa.example.test")
+                .post(RequestBody.create("{}", okhttp3.MediaType.get("application/json"))).build()).execute()) {
+                assertThat(resposta.code()).isEqualTo(403);
+                assertThat(resposta.body().string()).doesNotContain("Invalid CORS request");
+            }
+            try (var resposta = cliente.newCall(new Request.Builder().url(base + "/api/v1/config/features")
+                .header("Host", ProxyZApiParaTeste.DOMINIO).header("Origin", "https://origem-externa.example.test")
+                .build()).execute()) {
+                assertThat(resposta.code()).isEqualTo(403);
+                assertThat(resposta.body().string()).contains("Invalid CORS request");
+                assertThat(resposta.header("Access-Control-Allow-Origin")).isNull();
+            }
+            org.awaitility.Awaitility.await().atMost(java.time.Duration.ofSeconds(10))
+                .untilAsserted(() -> assertThat(proxy.getLogs()).contains("/api/v1/config/features"));
+            assertThat(proxy.getLogs()).doesNotContain(SEGREDO, "/webhook/z-api", "/webhook/canal", "field not found");
+            verifyNoInteractions(cdn);
+        }
+    }
+
+    /** Apenas a fixture aceita o certificado TLS local; clientes da aplicacao nao mudam. */
+    private static OkHttpClient clienteTlsDoProxy() throws Exception {
+        var confianca = new javax.net.ssl.X509TrustManager() {
+            @Override public java.security.cert.X509Certificate[] getAcceptedIssuers() { return new java.security.cert.X509Certificate[0]; }
+            @Override public void checkClientTrusted(java.security.cert.X509Certificate[] cadeia,String tipo) { }
+            @Override public void checkServerTrusted(java.security.cert.X509Certificate[] cadeia,String tipo) { }
+        };
+        var tls = javax.net.ssl.SSLContext.getInstance("TLS");
+        tls.init(null, new javax.net.ssl.TrustManager[]{confianca}, new java.security.SecureRandom());
+        return new OkHttpClient.Builder().sslSocketFactory(tls.getSocketFactory(),confianca)
+            .hostnameVerifier((host,sessao)->true).protocols(List.of(Protocol.HTTP_1_1))
+            .followRedirects(false).callTimeout(java.time.Duration.ofSeconds(15)).build();
+    }
+
     @Test void segredoInvalidoInstanciaDivergenteJsonDuplicadoEExcessoNaoPersistem() {
         var recebido=recebido();
         for(String segredo:List.of("","errado")) assertThat(post(recebido.toString(),segredo)).isEqualTo(HttpStatus.FORBIDDEN);

@@ -1,5 +1,17 @@
 # Z-API — progresso e gates
 
+## Proxy produtivo persistente — 26/10/2026
+
+- Causa informada pelo operador: `403 Invalid CORS request` nos callbacks com Origin externo.
+- Override de transicao existente complementado com middleware que remove Origin somente
+  nos dois webhooks; access logs/tracing OFF preservados. Base e CORS global nao mudam.
+- [Passos exatos no Dokploy](./webhooks-no-dokploy.md): Compose Path permanece; Command Stack
+  deve carregar base+override em todo deploy. Nao criar compose/routers concorrentes.
+- Prova com composicao real, Traefik 3.6.7/TLS e Spring/PostgreSQL; resultados do clean verify
+  e CI no fechamento da PR. Nenhuma env, migration, deploy ou operacao na VPS do agente.
+- Configuracao salva/ativa no Dokploy e logs de outros saltos exigem conferencia operacional;
+  testes locais nao sao homologacao da conta real.
+
 ## Resposta citada — 26/10/2026
 
 - Branch `codex/z-api-citacao`, baseada na main653a66b apos merge da #329; worktree isolada.
