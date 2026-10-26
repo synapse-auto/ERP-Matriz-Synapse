@@ -4,12 +4,16 @@ import java.time.Duration;
 import java.util.UUID;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 /** Configuracao opcional de saida. Nao autentica callbacks nem habilita entrada. */
 @ConfigurationProperties("synapse.canal.z-api")
 public record ZApiProperties(
         boolean habilitado, String instanciaId, String token, String clientToken, boolean enviarClientToken,
         UUID credencialId, Duration timeout, int limiteRespostaBytes, int concorrencia) {
+
+    @ConstructorBinding
+    public ZApiProperties { }
 
     /** Mantem o contrato anterior para testes e composicoes que usam o modo protegido da conta. */
     public ZApiProperties(boolean habilitado, String instanciaId, String token, String clientToken,
