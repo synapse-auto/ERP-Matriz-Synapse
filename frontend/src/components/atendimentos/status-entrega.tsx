@@ -18,8 +18,12 @@ export function StatusEntregaIcone({ status, erroEntrega = null, onReenviar }: P
 
   if (status === "FALHOU") {
     const motivosConhecidos: Record<string, string> = textos.motivosFalhaEntrega;
+    const citacaoIncompativel = ["Z_API_CITACAO_SEM_CORRELACAO", "REFERENCIA_DE_OUTRO_CANAL", "CITACAO_NAO_SUPORTADA_PELO_CANAL"]
+      .includes(erroEntrega?.titulo ?? "");
     const motivo =
-      erroEntrega?.codigo === -1
+      citacaoIncompativel
+        ? motivosConhecidos[erroEntrega!.titulo!] ?? textos.motivoFalhaNaoInformado
+        : erroEntrega?.codigo === -1
         ? textos.envioNaoConfirmado ?? textos.motivoFalhaNaoInformado
         : erroEntrega?.codigo === null || erroEntrega?.codigo === undefined
         ? erroEntrega?.titulo ?? textos.motivoFalhaNaoInformado

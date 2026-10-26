@@ -940,6 +940,24 @@ describe("Composer — anexo", () => {
     expect(screen.getByPlaceholderText("Digite uma mensagem...")).toBeEnabled();
   });
 
+  it("remover citacao preserva texto e anexos sem disparar envio", () => {
+    const origem = { id: "citada", remetenteTipo: "LEAD", remetenteNome: "Sintetico", tipo: "TEXTO",
+      conteudo: "origem sintetica", enviadoEm: "2026-10-26T13:36:00Z" } as MensagemResposta;
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const tela = (resposta: MensagemResposta | null) => <TooltipProvider><QueryClientProvider client={cliente}>
+      <Composer conversa={conversa} resposta={resposta} onCancelarResposta={onCancelarResposta} />
+    </QueryClientProvider></TooltipProvider>;
+    const { rerender } = render(tela(origem));
+    fireEvent.change(screen.getByPlaceholderText("Digite uma mensagem..."), { target: { value: "rascunho preservado" } });
+    fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [arquivoFake("rascunho.pdf", "application/pdf")] } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar resposta" }));
+    expect(onCancelarResposta).toHaveBeenCalledTimes(1);
+    rerender(tela(null));
+    expect(screen.getByPlaceholderText("Adicionar legenda (opcional)")).toHaveValue("rascunho preservado");
+    expect(screen.getByText("rascunho.pdf")).toBeInTheDocument();
+    expect(mutateTexto).not.toHaveBeenCalled();expect(mutateMidia).not.toHaveBeenCalled();
+  });
+
   it("grava, exige pre-visualizacao e envia um arquivo de audio mp4", async () => {
     habilitarGravacao();
     renderizar();

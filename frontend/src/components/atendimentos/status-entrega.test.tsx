@@ -183,4 +183,10 @@ describe("StatusEntregaIcone", () => {
       "text-mensagem-falha-texto",
     );
   });
+
+  it("catalogo antigo nao expoe codigo tecnico de citacao", () => {
+    renderComTextos(<StatusEntregaIcone status="FALHOU" erroEntrega={{ codigo: null, titulo: "Z_API_CITACAO_SEM_CORRELACAO" }} />);
+    expect(screen.queryByText(/Z_API_CITACAO/)).not.toBeInTheDocument();
+    expect(screen.getByText("O provedor não informou o motivo da falha")).toBeInTheDocument();
+  });
 });

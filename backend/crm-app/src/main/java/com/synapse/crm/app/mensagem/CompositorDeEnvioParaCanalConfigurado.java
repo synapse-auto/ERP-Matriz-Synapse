@@ -9,11 +9,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.synapse.crm.atendimento.application.CompositorDeEnvioParaCanal;
 import com.synapse.crm.atendimento.application.ContaDeTesteSomenteLeituraException;
 import com.synapse.crm.atendimento.application.Outbox;
+import com.synapse.crm.atendimento.application.referencia.CorrelacaoDeMensagemDoCanalRepositorio;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.IdentidadeDeMensagemDoCanal;
 import com.synapse.crm.atendimento.domain.mensagem.RemetenteTipo;
+import com.synapse.crm.atendimento.infrastructure.canal.CanalProperties;
 import com.synapse.crm.automacaoconfig.infrastructure.ConfiguracaoDeInstanciaResources;
 import com.synapse.crm.equipe.application.usuario.AuditarBloqueioContaTesteUseCase;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -32,12 +35,17 @@ public class CompositorDeEnvioParaCanalConfigurado implements CompositorDeEnvioP
     private final OrigemDeMensagemRepositorio origens;
     private final ConfiguracaoDeInstanciaResources recursos;
     private final AuditarBloqueioContaTesteUseCase auditoria;
+    private final CorrelacaoDeMensagemDoCanalRepositorio correlacoes;
+    private final CanalProperties canal;
 
     public CompositorDeEnvioParaCanalConfigurado(
-            OrigemDeMensagemRepositorio origens, ConfiguracaoDeInstanciaResources recursos,AuditarBloqueioContaTesteUseCase auditoria) {
+            OrigemDeMensagemRepositorio origens, ConfiguracaoDeInstanciaResources recursos,AuditarBloqueioContaTesteUseCase auditoria,
+            CorrelacaoDeMensagemDoCanalRepositorio correlacoes, CanalProperties canal) {
         this.origens = origens;
         this.recursos = recursos;
         this.auditoria=auditoria;
+        this.correlacoes=correlacoes;
+        this.canal=canal;
     }
 
     /**
@@ -48,12 +56,16 @@ public class CompositorDeEnvioParaCanalConfigurado implements CompositorDeEnvioP
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public CanalGateway.Envio montar(Outbox.EnvioPendente pendente) {
         ConteudoDeEnvio conteudo = prefixarSeNecessario(pendente);
+        IdentidadeDeMensagemDoCanal citacao = "z-api".equals(canal.provedor())
+                && pendente.contextoWamid()!=null && !pendente.contextoWamid().isBlank()
+                ? correlacoes.resolverCitacao(pendente.mensagemId(),pendente.enviadoEm(),pendente.atendimentoId(),canal.provedor(),canal.numeroPrincipal()).orElse(null)
+                : null;
         return new CanalGateway.Envio(
                 pendente.mensagemId(),
                 pendente.telefoneDestino(),
                 conteudo,
                 pendente.credencialId(),
-                pendente.contextoWamid());
+                citacao == null ? pendente.contextoWamid() : citacao.valor(), citacao);
     }
 
     private ConteudoDeEnvio prefixarSeNecessario(Outbox.EnvioPendente pendente) {

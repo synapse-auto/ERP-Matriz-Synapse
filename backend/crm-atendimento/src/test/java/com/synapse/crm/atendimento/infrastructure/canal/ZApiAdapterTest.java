@@ -268,6 +268,31 @@ class ZApiAdapterTest {
         servidor.verify();
     }
 
+    @Test void citacaoComIdentidadeComprovadaUsaMessageIdOriginal() {
+        var identidade=new com.synapse.crm.atendimento.domain.canal.IdentidadeDeMensagemDoCanal("z-api",propriedades(true,"segredo-instancia",CREDENCIAL).instanciaId(),"WHATSAPP","original-recebida");
+        var original=envio(CREDENCIAL,null);
+        servidor.expect(requestTo(org.hamcrest.Matchers.endsWith("/send-text")))
+                .andExpect(jsonPath("$.messageId").value("original-recebida"))
+                .andRespond(withSuccess("{\"zaapId\":\"processo\",\"messageId\":\"resposta\"}",MediaType.APPLICATION_JSON));
+        assertThat(adapter.enviar(new CanalGateway.Envio(original.mensagemId(),original.telefoneDestino(),original.conteudo(),CREDENCIAL,identidade.valor(),identidade)))
+                .isInstanceOf(ResultadoDeEnvio.Enfileirado.class);
+        servidor.verify();
+    }
+
+    @Test void citacaoDeOutraInstanciaProvedorNamespaceOuValorNuncaFazHttp() {
+        var original=envio(CREDENCIAL,null);
+        String instancia=propriedades(true,"segredo-instancia",CREDENCIAL).instanciaId();
+        for(var identidade:java.util.List.of(
+                new com.synapse.crm.atendimento.domain.canal.IdentidadeDeMensagemDoCanal("uzapi-autotic",instancia,"WHATSAPP","id"),
+                new com.synapse.crm.atendimento.domain.canal.IdentidadeDeMensagemDoCanal("z-api","outra","WHATSAPP","id"),
+                new com.synapse.crm.atendimento.domain.canal.IdentidadeDeMensagemDoCanal("z-api",instancia,"PROCESSAMENTO","id"),
+                new com.synapse.crm.atendimento.domain.canal.IdentidadeDeMensagemDoCanal("z-api",instancia,"WHATSAPP","diferente"))) {
+            assertThat(adapter.enviar(new CanalGateway.Envio(original.mensagemId(),original.telefoneDestino(),original.conteudo(),CREDENCIAL,"id",identidade)))
+                    .isEqualTo(ResultadoDeEnvio.Recusado.permanente("Z_API_CITACAO_SEM_CORRELACAO"));
+        }
+        servidor.verify();
+    }
+
     @Test
     void templateNaoSuportadoNaoChamaOutroEndpoint() {
         assertThat(adapter.enviar(new CanalGateway.Envio(UUID.randomUUID(), "5561999999999",

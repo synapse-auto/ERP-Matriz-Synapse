@@ -6,7 +6,6 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -128,9 +127,16 @@ class ZApiAdapter implements CanalGateway {
                 && !(envio.conteudo() instanceof ConteudoDeEnvio.MensagemMidia && midias != null)) {
             return ResultadoDeEnvio.Recusado.permanente("Z_API_CONTEUDO_NAO_SUPORTADO");
         }
-        if (envio.contextoWamid() != null && !envio.contextoWamid().isBlank()) {
+        if ((envio.identidadeDaCitacao()!=null || (envio.contextoWamid() != null && !envio.contextoWamid().isBlank()))
+                && (envio.identidadeDaCitacao()==null || !"z-api".equals(envio.identidadeDaCitacao().provedor())
+                || !propriedades.instanciaId().equals(envio.identidadeDaCitacao().instancia())
+                || !"WHATSAPP".equals(envio.identidadeDaCitacao().namespace())
+                || !Objects.equals(envio.contextoWamid(),envio.identidadeDaCitacao().valor()))) {
             return ResultadoDeEnvio.Recusado.permanente("Z_API_CITACAO_SEM_CORRELACAO");
         }
+        if(envio.identidadeDaCitacao()!=null && envio.conteudo() instanceof ConteudoDeEnvio.MensagemMidia midia
+                && midia.tipo()==TipoMensagem.AUDIO)
+            return ResultadoDeEnvio.Recusado.permanente("CITACAO_NAO_SUPORTADA_PELO_CANAL");
         if (envio.telefoneDestino() == null || !envio.telefoneDestino().matches("[1-9][0-9]{7,14}")) {
             return ResultadoDeEnvio.Recusado.permanente("Z_API_DESTINO_INVALIDO");
         }
@@ -177,7 +183,7 @@ class ZApiAdapter implements CanalGateway {
             if (propriedades.enviarClientToken()) pedido.header("Client-Token", propriedades.clientToken());
             return pedido
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(saida -> preparada.escrever(saida, json, envio.telefoneDestino()))
+                    .body(saida -> preparada.escrever(saida, json, envio.telefoneDestino(), envio.contextoWamid()))
                     .exchange((requisicao, retorno) -> lerResposta(retorno, "POST_MIDIA"));
         } catch (RespostaNaoConfirmada e) {
             throw e;
@@ -193,7 +199,11 @@ class ZApiAdapter implements CanalGateway {
             return pedido
                 .contentType(MediaType.APPLICATION_JSON)
                 // Streaming evita logBody do RestClient, que em DEBUG imprimiria telefone/texto.
-                .body(saida -> json.writeValue(saida, Map.of("phone", envio.telefoneDestino(), "message", texto.texto())))
+                .body(saida -> {
+                    var corpo=json.createObjectNode().put("phone",envio.telefoneDestino()).put("message",texto.texto());
+                    if(envio.identidadeDaCitacao()!=null) corpo.put("messageId",envio.identidadeDaCitacao().valor());
+                    json.writeValue(saida,corpo);
+                })
                 .exchange((requisicao, retorno) -> lerResposta(retorno, "POST_SEND_TEXT"));
         } catch (RespostaNaoConfirmada e) {
             throw e;

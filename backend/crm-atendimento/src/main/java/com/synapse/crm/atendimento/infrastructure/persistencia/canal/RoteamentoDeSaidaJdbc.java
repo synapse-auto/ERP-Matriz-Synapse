@@ -54,14 +54,6 @@ class RoteamentoDeSaidaJdbc implements RoteamentoDeSaida {
         if(!transicoes.isEmpty() && rotas.isEmpty() && historica!=null
                 && !Boolean.TRUE.equals(chat.queryForObject("SELECT EXISTS(SELECT 1 FROM canal_transicao WHERE destino_credencial_id=?)",Boolean.class,historica)))
             throw new SaidaSuspensaParaTransicaoException();
-        if(rota.transicaoId()!=null && contextoExterno!=null && !contextoExterno.isBlank()) {
-            // Nao converter uma citacao Uzapi em ID Z-API. Citacao Z-API exige alias comprovado.
-            boolean conhecida=Boolean.TRUE.equals(chat.queryForObject("""
-                    SELECT EXISTS(SELECT 1 FROM mensagem_correlacao_canal
-                    WHERE provedor=? AND instancia=? AND namespace='WHATSAPP' AND id_externo=? AND NOT conflitante)
-                    """,Boolean.class,canal.provedor(),canal.numeroPrincipal(),contextoExterno));
-            if(!conhecida) throw new SaidaSuspensaParaTransicaoException("REFERENCIA_DE_OUTRO_CANAL");
-        }
         // Ciclos novos que o fluxo manual ainda abre sem ancora recebem somente um snapshot
         // da credencial ativa; a entidade/historico nao e reescrita.
         if(rota.credencialId()==null && "z-api".equals(canal.provedor())) {

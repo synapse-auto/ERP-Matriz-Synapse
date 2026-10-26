@@ -10,6 +10,9 @@ import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.StatusComIdentid
 
 /** Porta aditiva; nao reescreve IDs ou referencias legadas. */
 public interface CorrelacaoDeMensagemDoCanalRepositorio {
+    /** Resolve a chave persistida, nunca inferindo alias; exige mesma carteira/conversa e namespace. */
+    Optional<IdentidadeDeMensagemDoCanal> resolverCitacao(UUID mensagemResposta, Instant enviadaEm, UUID atendimentoDestino,
+            String provedor, String instancia);
     /** False preserva o vinculo anterior; conflito nao deve desfazer um aceite externo. */
     boolean registrar(IdentidadeDeMensagemDoCanal identidade, UUID mensagemId, Instant enviadoEm, UUID atendimentoId);
     void observar(StatusComIdentidade status);

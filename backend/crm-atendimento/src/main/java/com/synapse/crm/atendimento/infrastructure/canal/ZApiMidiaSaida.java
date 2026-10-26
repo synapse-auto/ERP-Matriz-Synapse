@@ -162,12 +162,13 @@ class ZApiMidiaSaida {
             return tipo == TipoMensagem.DOCUMENTO ? "send-document/" + EXTENSOES.get(mime) : "send-" + campo();
         }
 
-        void escrever(OutputStream saida, ObjectMapper json, String telefone) throws IOException {
+        void escrever(OutputStream saida, ObjectMapper json, String telefone, String citacao) throws IOException {
             try (JsonGenerator gerador = json.getFactory().createGenerator(saida);
                     InputStream entrada = Files.newInputStream(arquivo)) {
                 gerador.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
                 gerador.writeStartObject();
                 gerador.writeStringField("phone", telefone);
+                if(citacao!=null && !citacao.isBlank()) gerador.writeStringField("messageId",citacao);
                 if (tipo == TipoMensagem.DOCUMENTO) gerador.writeStringField("fileName", nome);
                 if (tipo != TipoMensagem.AUDIO && legenda != null && !legenda.isBlank()) gerador.writeStringField("caption", legenda);
                 gerador.writeFieldName(campo());
