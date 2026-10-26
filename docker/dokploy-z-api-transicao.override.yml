@@ -1,0 +1,15 @@
+# Aplicacao manual SOMENTE na instancia em transicao, Traefik 3.3+ da serie 3.
+# Protege tambem a query da URL antiga, mantida exclusivamente para status Uzapi.
+# Nenhum segredo ou identificador externo aparece em labels.
+services:
+  backend:
+    deploy:
+      labels:
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && (PathPrefix(`/webhook/z-api`) || PathPrefix(`/webhook/canal`))'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.entrypoints=websecure'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.tls=true'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.tls.certresolver=letsencrypt'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.priority=150'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.service=${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.observability.accessLogs=false'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.observability.tracing=false'

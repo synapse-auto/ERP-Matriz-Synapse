@@ -432,6 +432,9 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `WHATSAPP_USUARIO_API` | vazio (legada) | Mantida por compatibilidade com E152; a Uzapi/Autotic atual não usa username, nem exige esta variável. |
 | `WHATSAPP_VERSAO_API` | vazio | `{version}` das rotas da Uzapi/Autotic (E152, provedor `uzapi-autotic`). Só esse adaptador usa; vazio não afeta `meta-cloud`. |
 | `Z_API_HABILITADO` | `false` | Opt-in do adaptador; manter OFF até o [roteiro de homologação protegida](docs/integracoes/z-api/homologacao-protegida.md). |
+| `CANAL_TRANSICAO_SAIDAS_SUSPENSAS` | `false` | Pausa novas saidas/dispatcher/programadas sem derrubar leitura de Atendimentos. Usar `true` no primeiro deploy da transicao produtiva. Ver [roteiro](docs/integracoes/z-api/transicao-produtiva.md). |
+| `CANAL_TRANSICAO_STATUS_UZAPI_LEGADO` | `false` | Com Z-API ativa, conserva somente status autenticados na URL Uzapi antiga; exige segredo original e metadados de transicao. Nao recebe mensagens nem repassa ao n8n. |
+| `Z_API_WEBHOOK_SOMENTE_COLETA` | `false` | Coleta inicial Z-API autenticada e duravel, sem reservar/processar eventos ou baixar midia ate o operador confirmar CDN. Somente Z-API; nao e pausa global de Atendimentos. |
 | `Z_API_INSTANCIA_ID` | vazio | ID da instância Z-API; não é telefone/token. Deve coincidir com `WHATSAPP_NUMERO` (identidade capturada pela outbox); divergência bloqueia sem HTTP. Manter OFF nesta fase. |
 | `Z_API_TOKEN` | vazio | Segredo da instância Z-API, usado no path HTTPS; nunca expor ao navegador/logs/tracing. |
 | `Z_API_CLIENT_TOKEN` | vazio | Segredo de saída no header `Client-Token`; não autentica callbacks recebidos. |

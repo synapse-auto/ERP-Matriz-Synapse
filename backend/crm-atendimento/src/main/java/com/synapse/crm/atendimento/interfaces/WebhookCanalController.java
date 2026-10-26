@@ -65,6 +65,10 @@ public class WebhookCanalController {
     private final AplicarStatusDeEntregaDoCanalUseCase aplicarStatus;
     private final RegistrarPrecificacaoMetaUseCase registrarPrecificacao;
     private final Clock relogio;
+    private StatusUzapiLegado legado;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void configurarStatusLegado(StatusUzapiLegado legado) { this.legado=legado; }
 
     public WebhookCanalController(
             TradutorDeCanal tradutor,
@@ -139,6 +143,8 @@ public class WebhookCanalController {
                     @RequestHeader(name = "X-Hub-Signature-256", required = false) String assinatura,
             @Parameter(description = "Segredo de webhook em query string, usado pelo provedor Uzapi/Autotic.")
                     @RequestParam(name = "secret", required = false) String segredoConsulta) {
+
+        if(legado!=null && legado.ativo()) return legado.receber(payloadCru);
 
         if (!tradutor.assinaturaValida(payloadCru, assinatura, segredoConsulta)) {
             // Nem uma linha gravada, nem um log com o corpo: a rota e publica.

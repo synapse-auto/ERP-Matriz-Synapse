@@ -25,6 +25,11 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 @Repository
 class MensagemProgramadaRepositorioJdbc implements MensagemProgramadaRepositorio {
+    private static final String PERMITIDA = """
+            AND NOT EXISTS(SELECT 1 FROM canal_transicao WHERE estado<>'ATIVA')
+            AND NOT EXISTS(SELECT 1 FROM canal_transicao_programada b
+              WHERE b.programada_id=mensagem_programada.id AND b.liberada_em IS NULL)
+            """;
     private final JdbcTemplate jdbc;
     private final JdbcTemplate chat;
     MensagemProgramadaRepositorioJdbc(
@@ -75,7 +80,7 @@ class MensagemProgramadaRepositorioJdbc implements MensagemProgramadaRepositorio
     public List<UUID> idsVencidos(Instant agora, int limite) {
         TransacaoObrigatoria.exigir("listar mensagens programadas vencidas");
         return chat.query(
-                "SELECT id FROM mensagem_programada WHERE status='AGENDADA' AND data_envio<=? ORDER BY data_envio,id LIMIT ?",
+                "SELECT id FROM mensagem_programada WHERE status='AGENDADA' AND data_envio<=? " + PERMITIDA + " ORDER BY data_envio,id LIMIT ?",
                 (r, i) -> r.getObject(1, UUID.class), Timestamp.from(agora), limite);
     }
 
@@ -87,8 +92,7 @@ class MensagemProgramadaRepositorioJdbc implements MensagemProgramadaRepositorio
                         UPDATE mensagem_programada
                            SET status='ENVIADA'
                          WHERE id=? AND status='AGENDADA' AND data_envio<=?
-                        RETURNING id,lead_id,atendente_id,conteudo,data_envio,status::text
-                        """,
+                        """ + PERMITIDA + " RETURNING id,lead_id,atendente_id,conteudo,data_envio,status::text",
                         MensagemProgramadaRepositorioJdbc::mapearReservada,
                         id,
                         Timestamp.from(agora))
