@@ -41,12 +41,13 @@ class ZApiAdapterTest {
     private static final UUID CREDENCIAL = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final String BASE = "https://api.z-api.io/instances/instancia-teste/token/segredo-instancia";
     private MockRestServiceServer servidor;
+    private RestClient.Builder cliente;
     private ZApiAdapter adapter;
     private CircuitBreakerRegistry breakers;
 
     @BeforeEach
     void preparar() {
-        RestClient.Builder cliente = RestClient.builder();
+        cliente = RestClient.builder();
         servidor = MockRestServiceServer.bindTo(cliente).build();
         breakers = CircuitBreakerRegistry.ofDefaults();
         adapter = criar(cliente, propriedades(true, "segredo-instancia", CREDENCIAL));
@@ -65,6 +66,51 @@ class ZApiAdapterTest {
         assertThat(adapter.enviar(envio(CREDENCIAL, null)))
                 .isEqualTo(new ResultadoDeEnvio.Enfileirado("instancia-teste", "z-1", "w-1"));
         servidor.verify();
+    }
+
+    @Test
+    void modoSemTokenDeSegurancaOmiteHeaderEmEnvioEConsultaExplicitaDeSaude() {
+        var semToken = new ZApiAdapter(cliente.clone(),
+                new ZApiProperties(true, "instancia-teste", "segredo-instancia", "", false,
+                        CREDENCIAL, Duration.ofSeconds(10), 4096, 1),
+                new ObjectMapper(), breakers);
+        servidor.expect(requestTo(BASE + "/send-text"))
+                .andExpect(headerDoesNotExist("Client-Token"))
+                .andRespond(withSuccess("{\"zaapId\":\"z-1\",\"messageId\":\"w-1\"}", MediaType.APPLICATION_JSON));
+        servidor.expect(requestTo(BASE + "/status"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(headerDoesNotExist("Client-Token"))
+                .andRespond(withSuccess("{\"connected\":true}", MediaType.APPLICATION_JSON));
+
+        assertThat(semToken.enviar(envio(CREDENCIAL, null))).isInstanceOf(ResultadoDeEnvio.Enfileirado.class);
+        assertThat(semToken.verificarAutenticacao().autenticada()).isTrue();
+        servidor.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {401, 403})
+    void semTokenNaoFazFallbackAoReceber401Ou403(int status) {
+        var semToken = new ZApiAdapter(cliente.clone(),
+                new ZApiProperties(true, "instancia-teste", "segredo-instancia", "", false,
+                        CREDENCIAL, Duration.ofSeconds(10), 4096, 1),
+                new ObjectMapper(), breakers);
+        servidor.expect(requestTo(BASE + "/send-text"))
+                .andExpect(headerDoesNotExist("Client-Token"))
+                .andRespond(withStatus(HttpStatus.valueOf(status)).body("rejeitado"));
+
+        assertThat(semToken.enviar(envio(CREDENCIAL, null))).isInstanceOf(ResultadoDeEnvio.Ambiguo.class);
+        servidor.verify();
+    }
+
+    @Test
+    void modoSemTokenExigeQueCredencialEsteVazia() {
+        var semTokenComCredencial = new ZApiProperties(true, "instancia-teste", "segredo-instancia",
+                "token-nao-usado", false, CREDENCIAL, Duration.ofSeconds(10), 4096, 1);
+        var tokenAusenteMasModoProtegido = new ZApiProperties(true, "instancia-teste", "segredo-instancia",
+                "", true, CREDENCIAL, Duration.ofSeconds(10), 4096, 1);
+
+        assertThat(semTokenComCredencial.configurada()).isFalse();
+        assertThat(tokenAusenteMasModoProtegido.configurada()).isFalse();
     }
 
     @ParameterizedTest

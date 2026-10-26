@@ -57,6 +57,25 @@ class ZApiWebhookProtegidoFilterTest {
         assertThat(chamadas).hasValue(1);
     }
 
+    @Test void segredoExclusivoDoWebhookContinuaObrigatorioSemClientTokenDeConta() throws Exception {
+        var semClientToken = new ZApiProperties(true, "instancia-local", "token-api", "", false,
+                UUID.randomUUID(), Duration.ofSeconds(1), 4096, 1);
+        var propriedadesWebhook = new ZApiWebhookProperties(true, ZApiWebhookProperties.Modo.SEGREDO_URL,
+                SEGREDO, "", 128, ZApiWebhookProperties.Namespace.NAO_CONFIRMADO, false);
+        var filtroSemClientToken = new ZApiWebhookProtegidoFilter(propriedadesWebhook, semClientToken,
+                canal, "token-interno-outro");
+
+        var errado = pedido(); errado.setQueryString("secret=incorreto");
+        var negada = new MockHttpServletResponse();
+        filtroSemClientToken.doFilter(errado, negada, (a, b) -> { throw new AssertionError(); });
+        assertThat(negada.getStatus()).isEqualTo(403);
+
+        var correto = pedido(); correto.setQueryString("secret=" + SEGREDO);
+        var aceito = new AtomicInteger();
+        filtroSemClientToken.doFilter(correto, new MockHttpServletResponse(), (a, b) -> aceito.incrementAndGet());
+        assertThat(aceito).hasValue(1);
+    }
+
     @Test void modoHeaderSoAceitaNomeConfiguradoNaoClientTokenNemFallbackQuery() throws Exception {
         var req = pedido(); req.setQueryString("secret=" + SEGREDO); req.addHeader("Client-Token", SEGREDO);
         var negada = new MockHttpServletResponse();

@@ -168,11 +168,12 @@ class ZApiAdapter implements CanalGateway {
 
     private JsonNode requisitarMidia(Envio envio, ZApiMidiaSaida.Preparada preparada) {
         try {
-            return http.post().uri(url(preparada.rota()))
-                    .header("Client-Token", propriedades.clientToken())
+            var pedido = http.post().uri(url(preparada.rota()));
+            if (propriedades.enviarClientToken()) pedido.header("Client-Token", propriedades.clientToken());
+            return pedido
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(saida -> preparada.escrever(saida, json, envio.telefoneDestino()))
-                    .exchange((pedido, retorno) -> lerResposta(retorno));
+                    .exchange((requisicao, retorno) -> lerResposta(retorno));
         } catch (RuntimeException e) {
             throw new RespostaNaoConfirmada();
         }
@@ -180,12 +181,13 @@ class ZApiAdapter implements CanalGateway {
 
     private JsonNode requisitarTexto(Envio envio, ConteudoDeEnvio.MensagemLivre texto) {
         try {
-            return http.post().uri(url("send-text"))
-                .header("Client-Token", propriedades.clientToken())
+            var pedido = http.post().uri(url("send-text"));
+            if (propriedades.enviarClientToken()) pedido.header("Client-Token", propriedades.clientToken());
+            return pedido
                 .contentType(MediaType.APPLICATION_JSON)
                 // Streaming evita logBody do RestClient, que em DEBUG imprimiria telefone/texto.
                 .body(saida -> json.writeValue(saida, Map.of("phone", envio.telefoneDestino(), "message", texto.texto())))
-                .exchange((pedido, retorno) -> lerResposta(retorno));
+                .exchange((requisicao, retorno) -> lerResposta(retorno));
         } catch (RuntimeException e) {
             // Antes do circuit breaker: seus listeners/logs tambem nao podem receber URI/causa bruta.
             throw new RespostaNaoConfirmada();
@@ -236,8 +238,9 @@ class ZApiAdapter implements CanalGateway {
 
     private JsonNode consultarEstado() {
         try {
-            return http.get().uri(url("status")).header("Client-Token", propriedades.clientToken())
-                    .exchange((pedido, retorno) -> lerResposta(retorno));
+            var pedido = http.get().uri(url("status"));
+            if (propriedades.enviarClientToken()) pedido.header("Client-Token", propriedades.clientToken());
+            return pedido.exchange((requisicao, retorno) -> lerResposta(retorno));
         } catch (RuntimeException e) {
             throw new RespostaNaoConfirmada();
         }

@@ -134,7 +134,9 @@ Z_API_HABILITADO=true
 Z_API_INSTANCIA_ID=<MESMO_INSTANCE_ID>
 Z_API_CREDENCIAL_ID=<UUID_PERSISTIDO_NO_PASSO_B>
 Z_API_TOKEN=<TOKEN_REAL_DA_INSTANCIA_Z_API>
-Z_API_CLIENT_TOKEN=<CLIENT_TOKEN_REAL_DA_CONTA>
+# Conta com Token de Segurança INATIVO: deixar vazio e omitir Client-Token explicitamente.
+Z_API_CLIENT_TOKEN=
+Z_API_ENVIAR_CLIENT_TOKEN=false
 CANAL_TRANSICAO_SAIDAS_SUSPENSAS=true
 CANAL_TRANSICAO_STATUS_UZAPI_LEGADO=true
 Z_API_WEBHOOK_HABILITADO=true
@@ -153,8 +155,12 @@ Z_API_MIDIA_ENTRADA_CONCORRENCIA=1
 
 Ultimos tres sao defaults existentes. WHATSAPP_NUMERO e instanceId, nao telefone.
 WHATSAPP_WEBHOOK_SECRET continua com segredo Uzapi original, usado so por status antigos
-na mesma /webhook/canal; nao substituir pelo novo. Token/API e Client-Token sao reais do
-painel. Novas envs CANAL_TRANSICAO_* com default false nao exigem mudanca nas outras instancias.
+na mesma /webhook/canal; nao substituir pelo novo. Z_API_TOKEN de instancia continua obrigatorio.
+Com Token de Segurança da conta ativo, usar Z_API_CLIENT_TOKEN real e
+Z_API_ENVIAR_CLIENT_TOKEN=true. Se inativo, somente apos confirmar esse estado no painel,
+usar client token vazio e false. Nao ha fallback/retry por 401/403. Esta chave nao altera
+autenticacao do webhook (segredo URL exclusivo). Ver [contrato oficial](https://developer.z-api.io/security/client-token).
+Novas envs CANAL_TRANSICAO_* com default false nao exigem mudanca nas outras instancias.
 
 **VPS**, gerar somente segredo do callback, sem imprimir:
 

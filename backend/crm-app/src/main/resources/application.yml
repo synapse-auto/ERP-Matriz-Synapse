@@ -218,6 +218,7 @@ synapse:
       instancia-id: ${Z_API_INSTANCIA_ID:}
       token: ${Z_API_TOKEN:}
       client-token: ${Z_API_CLIENT_TOKEN:}
+      enviar-client-token: ${Z_API_ENVIAR_CLIENT_TOKEN:true}
       credencial-id: ${Z_API_CREDENCIAL_ID:}
       timeout: ${WHATSAPP_TIMEOUT:10s}
       limite-resposta-bytes: ${Z_API_LIMITE_RESPOSTA_BYTES:4096}
