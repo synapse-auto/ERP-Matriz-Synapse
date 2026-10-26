@@ -9,6 +9,7 @@ import { enviarMensagem, enviarTemplate } from "./api";
 import { atualizarPaginaRecente, identidadeAutenticada } from "./cache-mensagens";
 import { confirmarEnvioNoHistorico } from "./confirmar-envio";
 import { reconciliarEnvioAmbiguo } from "./reconciliar-envio";
+import { envioRecusadoNaTransicao } from "./recusa-de-transicao";
 import type { EnvioResposta, MensagemResposta } from "./types";
 
 interface VariaveisEnvio {
@@ -136,7 +137,7 @@ export function useEnviarMensagem(onMensagemEnviada?: () => void) {
         return;
       }
       if (variaveis.idempotencyKey) contextos.current.delete(variaveis.idempotencyKey);
-      if (variaveis.resposta) {
+      if (variaveis.resposta || envioRecusadoNaTransicao(erro)) {
         // Respostas/citações mantêm o comportamento existente: sem confirmação da API, a
         // referência otimista é retirada para não deixar um vínculo local que nunca foi aceito.
         atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>

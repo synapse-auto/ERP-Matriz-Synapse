@@ -322,6 +322,63 @@ describe("Composer — anexo", () => {
     });
   });
 
+  it.each(["SAIDA_SUSPENSA_TRANSICAO_CANAL", "REFERENCIA_DE_OUTRO_CANAL"])("recupera texto recusado por %s sem novo envio", async (codigo) => {
+    renderizar();
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+    fireEvent.change(campo, { target: { value: "Mensagem sintética 🧪\nsegunda linha" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
+    await waitFor(() => expect(mutateTexto).toHaveBeenCalledTimes(1));
+    expect(campo).toHaveValue("");
+    act(() => mutateTexto.mock.calls[0][1].onError(new ErroDeApi(409, { codigo }, "Pausa")));
+    expect(campo).toHaveValue("Mensagem sintética 🧪\nsegunda linha");
+    expect(mutateTexto).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserva também o texto digitado enquanto aguardava a recusa de transição", async () => {
+    renderizar();
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+    fireEvent.change(campo, { target: { value: "Original" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
+    await waitFor(() => expect(mutateTexto).toHaveBeenCalledTimes(1));
+    fireEvent.change(campo, { target: { value: "Novo rascunho" } });
+    act(() => mutateTexto.mock.calls[0][1].onError(new ErroDeApi(409, { codigo: "SAIDA_SUSPENSA_TRANSICAO_CANAL" }, "Pausa")));
+    expect(campo).toHaveValue("Original\nNovo rascunho");
+    expect(mutateTexto).toHaveBeenCalledTimes(1);
+  });
+
+  it("não restaura texto de uma sessão anterior nem de erro ambíguo", async () => {
+    useAuthStore.setState({ usuarioId: "usuario-antes" });
+    renderizar();
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+    fireEvent.change(campo, { target: { value: "Nao misturar" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
+    await waitFor(() => expect(mutateTexto).toHaveBeenCalledTimes(1));
+    act(() => mutateTexto.mock.calls[0][1].onError(new ErroDeApi(500, { codigo: "SAIDA_SUSPENSA_TRANSICAO_CANAL" }, "Ambiguo")));
+    expect(campo).toHaveValue("");
+    useAuthStore.setState({ usuarioId: "usuario-depois" });
+    act(() => mutateTexto.mock.calls[0][1].onError(new ErroDeApi(409, { codigo: "SAIDA_SUSPENSA_TRANSICAO_CANAL" }, "Pausa")));
+    expect(campo).toHaveValue("");
+    useAuthStore.getState().limparSessao();
+  });
+
+  it("não recupera a recusa de A dentro do rascunho da conversa B", async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const elemento = (cartao: CartaoAtendimento) => <TooltipProvider><QueryClientProvider client={cliente}>
+      <Composer conversa={cartao} />
+    </QueryClientProvider></TooltipProvider>;
+    const tela = render(elemento(conversa));
+    fireEvent.change(screen.getByPlaceholderText("Digite uma mensagem..."), { target: { value: "Texto de A" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
+    await waitFor(() => expect(mutateTexto).toHaveBeenCalledTimes(1));
+    const recusar = mutateTexto.mock.calls[0][1].onError;
+    tela.rerender(elemento({ ...conversa, atendimentoId: "at-outro", leadId: "lead-outro" }));
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+    fireEvent.change(campo, { target: { value: "Texto de B" } });
+    act(() => recusar(new ErroDeApi(409, { codigo: "SAIDA_SUSPENSA_TRANSICAO_CANAL" }, "Pausa")));
+    expect(campo).toHaveValue("Texto de B");
+    expect(mutateTexto).toHaveBeenCalledTimes(1);
+  });
+
   it("recupera texto e arquivo após remontagem da mesma conversa sem reenviar", () => {
     useAuthStore.setState({ usuarioId: "usuario-sintetico-recuperacao" });
     const primeira = renderizar();

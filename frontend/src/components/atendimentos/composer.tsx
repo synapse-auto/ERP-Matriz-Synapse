@@ -40,6 +40,7 @@ import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/
 import { interpolarCorpoDoTemplate } from "@/lib/atendimento/variaveis-do-template";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
+import { envioRecusadoNaTransicao } from "@/lib/atendimento/recusa-de-transicao";
 import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
 import type { CartaoAtendimento, MensagemResposta } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -416,6 +417,8 @@ export function Composer({
       }
       return;
     }
+    const textoDoEnvio = texto;
+    const usuarioDoEnvio = useAuthStore.getState().usuarioId;
     const conteudo = texto.trim();
     if (!conteudo) {
       return;
@@ -431,7 +434,17 @@ export function Composer({
         resposta: alvoDeResposta(),
         citacao: citacaoResposta,
       },
-      { onSuccess: () => limparAposEnvio(atendimentoIdDoEnvio) },
+      {
+        onSuccess: () => limparAposEnvio(atendimentoIdDoEnvio),
+        onError: (erro) => {
+          if (!envioRecusadoNaTransicao(erro) || resposta
+            || atendimentoAtualRef.current !== atendimentoIdDoEnvio
+            || useAuthStore.getState().usuarioId !== usuarioDoEnvio) return;
+          // So os conflitos que comprovam nao-envio restauram o texto; nao redespachar
+          // timeouts/aceites ambiguos nem sobrescrever o que foi digitado enquanto esperava.
+          setTexto((atual) => !atual || atual === textoDoEnvio ? textoDoEnvio : `${textoDoEnvio}\n${atual}`);
+        },
+      },
     );
   }
 

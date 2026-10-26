@@ -100,7 +100,9 @@ task antiga rodando, health saudavel. Boot normal aplica V111/V112/V113 porque V
 esta aplicada; runner V73 nao serve para esta transicao. Conferir historico Flyway.
 
 Pausa recusa novo envio com HTTP 409/RFC7807 e rollback inteiro, inclusive eventual assuncao;
-nao reenviar rascunho automaticamente. Publisher e job de programadas param. Leitura/login/
+o composer recupera o texto recusado na conversa/sessao atual, sem reenviar automaticamente
+nem sobrescrever texto novo digitado durante a espera. Falhas ambiguas nao entram nessa regra.
+Publisher e job de programadas param. Leitura/login/
 recebimento continuam. Pausa nao desfaz HTTP em voo. Coordenar janela/equipe e suspender
 produtores externos no n8n pelo mecanismo deles; nao desligar workflows aleatoriamente.
 

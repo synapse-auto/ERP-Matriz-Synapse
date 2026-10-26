@@ -25,7 +25,7 @@ class RoteamentoDeSaidaJdbc implements RoteamentoDeSaida {
     }
     @Override public Rota resolver(UUID atendimentoId, UUID historica, String contextoExterno) {
         // Lock compartilhado somente durante a transacao local, nunca durante HTTP. Nao espera
-        // manutencao exclusiva: a mensagem/transferencia faz rollback e o rascunho permanece.
+        // manutencao exclusiva: mensagem/transferencia fazem rollback, sem intencao de envio.
         if(suspensas || !Boolean.TRUE.equals(chat.queryForObject(
                 "SELECT pg_try_advisory_xact_lock_shared(hashtextextended('synapse:transicao-canal',0))",Boolean.class)))
             throw new SaidaSuspensaParaTransicaoException();
