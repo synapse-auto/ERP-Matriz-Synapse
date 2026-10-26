@@ -720,6 +720,9 @@ export const TextosSchema = z.object({
       }),
       reenviar: z.string(),
       motivosFalhaEntrega: z.object({
+        Z_API_CITACAO_SEM_CORRELACAO: z.string().default("Não é possível citar esta mensagem no canal atual. Remova a citação e envie novamente; seu rascunho é preservado."),
+        REFERENCIA_DE_OUTRO_CANAL: z.string().default("Não é possível citar esta mensagem no canal atual. Remova a citação e envie novamente; seu rascunho é preservado."),
+        CITACAO_NAO_SUPORTADA_PELO_CANAL: z.string().default("Este formato não permite resposta citada neste canal. Remova a citação para enviar; seu rascunho é preservado."),
         "131026": z.string(),
         "131047": z.string(),
         "131053": z.string(),

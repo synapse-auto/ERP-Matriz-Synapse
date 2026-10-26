@@ -24,6 +24,23 @@ class CorrelacaoDeMensagemDoCanalRepositorioJdbc implements CorrelacaoDeMensagem
     private final JdbcTemplate chat;
     CorrelacaoDeMensagemDoCanalRepositorioJdbc(@Qualifier(Pools.CHAT_DATA_SOURCE) DataSource fonte) { chat = new JdbcTemplate(fonte); }
 
+    @Override public Optional<IdentidadeDeMensagemDoCanal> resolverCitacao(UUID mensagemResposta, Instant enviadaEm, UUID atendimento,
+            String provedor, String instancia) {
+        TransacaoObrigatoria.exigir("resolver citacao do canal");
+        var encontrados = chat.query("""
+                SELECT c.id_externo FROM mensagem_referencia r
+                JOIN mensagem_correlacao_canal c ON c.mensagem_id=r.origem_mensagem_id
+                    AND c.mensagem_enviada_em=r.origem_enviada_em AND c.atendimento_id=r.origem_atendimento_id
+                JOIN atendimento origem ON origem.id=c.atendimento_id
+                JOIN atendimento destino ON destino.id=? AND destino.lead_id=origem.lead_id
+                JOIN lead l ON l.id=destino.lead_id
+                WHERE r.mensagem_id=? AND r.mensagem_enviada_em=? AND c.provedor=? AND c.instancia=?
+                  AND c.namespace='WHATSAPP' AND NOT c.conflitante
+                """, (rs,i)->new IdentidadeDeMensagemDoCanal(provedor,instancia,"WHATSAPP",rs.getString(1)),
+                atendimento,mensagemResposta,Timestamp.from(enviadaEm),provedor,instancia);
+        return encontrados.size()==1 ? Optional.of(encontrados.getFirst()) : Optional.empty();
+    }
+
     @Override public boolean registrar(IdentidadeDeMensagemDoCanal chave, UUID mensagemId, Instant enviadoEm, UUID atendimentoId) {
         TransacaoObrigatoria.exigir("correlacionar mensagem");
         int alterados = chat.update("""

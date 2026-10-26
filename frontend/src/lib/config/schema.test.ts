@@ -14,6 +14,15 @@ function carregarJson(caminho: string): Record<string, unknown> {
 }
 
 describe("TextosSchema", () => {
+  it("catalogo antigo recebe orientacao de citacao sem codigo tecnico", () => {
+    const catalogo = carregarJson("../backend/crm-app/src/main/resources/textos.json");
+    const mensagem = (catalogo.atendimentos as { mensagem: { motivosFalhaEntrega: Record<string, string> } }).mensagem;
+    delete mensagem.motivosFalhaEntrega.Z_API_CITACAO_SEM_CORRELACAO;
+    delete mensagem.motivosFalhaEntrega.REFERENCIA_DE_OUTRO_CANAL;
+    delete mensagem.motivosFalhaEntrega.CITACAO_NAO_SUPORTADA_PELO_CANAL;
+    expect(TextosSchema.parse(catalogo).atendimentos.mensagem.motivosFalhaEntrega.Z_API_CITACAO_SEM_CORRELACAO)
+      .toContain("Remova a citação");
+  });
   it.each(["gestao", "erros", "painelOperacional", "cancelamentos", "setores"] as const)(
     "completa catálogo inteiro ausente: %s, preservando os defaults internos",
     (secao) => {

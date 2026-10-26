@@ -42,7 +42,9 @@ class CompositorDeEnvioParaCanalConfiguradoTest {
         var textos = new ObjectMapper().readTree(
                 "{\"atendimentos\":{\"mensagem\":{\"prefixoAtendente\":\"*{nome}:*\\n\\n{mensagem}\"}}}");
         when(recursos.textos()).thenReturn(textos);
-        compositor = new CompositorDeEnvioParaCanalConfigurado(origens, recursos, auditoria);
+        compositor = new CompositorDeEnvioParaCanalConfigurado(origens, recursos, auditoria,
+                mock(com.synapse.crm.atendimento.application.referencia.CorrelacaoDeMensagemDoCanalRepositorio.class),
+                mock(com.synapse.crm.atendimento.infrastructure.canal.CanalProperties.class));
     }
 
     @Test

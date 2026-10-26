@@ -134,7 +134,13 @@ public interface CanalGateway {
             String telefoneDestino,
             ConteudoDeEnvio conteudo,
             UUID credencialId,
-            String contextoWamid) {
+            String contextoWamid,
+            IdentidadeDeMensagemDoCanal identidadeDaCitacao) {
+
+        public Envio(UUID mensagemId, String telefoneDestino, ConteudoDeEnvio conteudo,
+                UUID credencialId, String contextoWamid) {
+            this(mensagemId, telefoneDestino, conteudo, credencialId, contextoWamid, null);
+        }
 
         /** Envio sem citacao no provedor — o caso comum ate a E87. */
         public Envio(

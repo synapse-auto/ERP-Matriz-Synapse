@@ -1,5 +1,16 @@
 # Z-API — progresso e gates
 
+## Resposta citada — 26/10/2026
+
+- Branch `codex/z-api-citacao`, baseada na main653a66b apos merge da #329; worktree isolada.
+- [Causa, contrato e comportamento](./citacao-de-mensagens.md): recusa incondicional no adapter,
+  hash interno versus messageId bruto e leitura da correlacao no ciclo migrado.
+- Resolucao autorizada, revalidacao antes do HTTP e V114 somente de leitura RLS; escrita de
+  aliases continua exclusiva de servico. Sem aliases de legado, reprocessamento ou alteracao
+  de historico/participantes/responsaveis. Diagnostico produtivo exige IDs/SQL do operador.
+- Testes focados e clean verify/CI do ultimo SHA serao registrados no fechamento da PR.
+  Nenhum deploy, mensagem real ou env nova; homologacao com conta real separada.
+
 ## Auditoria de mensagens e midias — 26/10/2026
 
 - Base `origin/main` 810647e, branch `codex/z-api-message-media-audit`, worktree isolada.

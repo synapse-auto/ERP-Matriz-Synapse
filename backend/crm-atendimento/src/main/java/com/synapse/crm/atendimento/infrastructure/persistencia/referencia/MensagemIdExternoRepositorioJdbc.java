@@ -34,9 +34,12 @@ class MensagemIdExternoRepositorioJdbc implements MensagemIdExternoRepositorio {
     private static final String SQL_EXISTE = "SELECT 1 FROM mensagem_id_externo WHERE wamid = ?";
 
     private final JdbcTemplate chat;
+    private final com.synapse.crm.atendimento.infrastructure.canal.CanalProperties canal;
 
-    MensagemIdExternoRepositorioJdbc(@Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource) {
+    MensagemIdExternoRepositorioJdbc(@Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource,
+            com.synapse.crm.atendimento.infrastructure.canal.CanalProperties canal) {
         this.chat = new JdbcTemplate(chatDataSource);
+        this.canal=canal;
     }
 
     @Override
@@ -55,7 +58,16 @@ class MensagemIdExternoRepositorioJdbc implements MensagemIdExternoRepositorio {
             return Optional.ofNullable(chat.queryForObject(
                     SQL_BUSCAR, String.class, mensagemId, Timestamp.from(enviadoEm)));
         } catch (EmptyResultDataAccessException e) {
-            return Optional.empty();
+            if(!"z-api".equals(canal.provedor())) return Optional.empty();
+            // Aceites Z-API anteriores nao preenchiam o indice legado. Ler apenas alias ja
+            // comprovado, sem criar registro nem inferir ID de processamento/historico antigo.
+            var aliases=chat.query("""
+                    SELECT provedor,instancia,id_externo FROM mensagem_correlacao_canal
+                    WHERE mensagem_id=? AND mensagem_enviada_em=? AND namespace='WHATSAPP' AND NOT conflitante
+                      AND provedor=? AND instancia=?
+                    """,(rs,i)->new com.synapse.crm.atendimento.domain.canal.IdentidadeDeMensagemDoCanal(
+                        rs.getString(1),rs.getString(2),"WHATSAPP",rs.getString(3)),mensagemId,Timestamp.from(enviadoEm),canal.provedor(),canal.numeroPrincipal());
+            return aliases.size()==1 ? Optional.of(aliases.getFirst().chaveInterna()) : Optional.empty();
         }
     }
 

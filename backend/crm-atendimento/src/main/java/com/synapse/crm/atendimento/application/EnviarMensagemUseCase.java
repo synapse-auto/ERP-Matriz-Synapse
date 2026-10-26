@@ -592,7 +592,7 @@ public class EnviarMensagemUseCase {
                 .wamidDe(origem.mensagem().id(), origem.mensagem().enviadoEm())
                 .filter(id -> !id.isBlank())
                 .orElseThrow(() -> new RespostaAoCanalIndevidaException(
-                        "a origem nao tem identificador externo para responder no canal"));
+                        "Não é possível citar esta mensagem neste canal. Remova a citação para enviar; seu rascunho é preservado."));
         return MontadorDeReferenciaDeMensagem.resposta(origem, wamid);
     }
 

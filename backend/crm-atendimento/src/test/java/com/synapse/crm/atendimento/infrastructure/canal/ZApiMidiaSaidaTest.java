@@ -76,6 +76,22 @@ class ZApiMidiaSaidaTest {
                         "planilha.xlsx", "send-document/xlsx", "document"));
     }
 
+    @ParameterizedTest @MethodSource("midias")
+    void citacaoDeMidiaUsaCampoDocumentadoOuRecusaAudioSemContrato(TipoMensagem tipo,String mime,String nome,String rota,String campo) throws Exception {
+        var original=envio(tipo,mime,nome,3,null);
+        var identidade=new com.synapse.crm.atendimento.domain.canal.IdentidadeDeMensagemDoCanal("z-api","instancia-teste","WHATSAPP","original");
+        var citada=new CanalGateway.Envio(original.mensagemId(),original.telefoneDestino(),original.conteudo(),CREDENCIAL,"original",identidade);
+        if(tipo==TipoMensagem.AUDIO) {
+            assertThat(adapter.enviar(citada)).isEqualTo(ResultadoDeEnvio.Recusado.permanente("CITACAO_NAO_SUPORTADA_PELO_CANAL"));
+            verifyNoInteractions(storage);return;
+        }
+        when(storage.abrirLeitura(any())).thenReturn(new ByteArrayInputStream(new byte[]{1,2,3}));
+        servidor.expect(requestTo(BASE+rota)).andExpect(jsonPath("$.messageId").value("original"))
+                .andRespond(withSuccess("{\"zaapId\":\"processo\",\"messageId\":\"resposta\"}",MediaType.APPLICATION_JSON));
+        assertThat(adapter.enviar(citada)).isInstanceOf(ResultadoDeEnvio.Enfileirado.class);
+        servidor.verify();
+    }
+
     @ParameterizedTest
     @MethodSource("midias")
     void transmiteBytesDoStorageSemUrlPublicaPreservandoTipoNomeELegenda(

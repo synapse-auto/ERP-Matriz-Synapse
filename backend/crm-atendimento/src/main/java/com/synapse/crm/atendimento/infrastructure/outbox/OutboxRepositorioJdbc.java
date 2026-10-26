@@ -182,6 +182,7 @@ class OutboxRepositorioJdbc implements Outbox {
     private final ObjectMapper json;
     private final CanalProperties canal;
     private final RoteamentoDeSaida roteamento;
+    private final com.synapse.crm.atendimento.application.referencia.CorrelacaoDeMensagemDoCanalRepositorio correlacoes;
     @Value("${synapse.canal.transicao.saidas-suspensas:false}") private boolean suspensas;
 
     private static final String FILTRO_TRANSICAO = """
@@ -194,11 +195,13 @@ class OutboxRepositorioJdbc implements Outbox {
 
     OutboxRepositorioJdbc(
             @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource, ObjectMapper json,
-            CanalProperties canal, RoteamentoDeSaida roteamento) {
+            CanalProperties canal, RoteamentoDeSaida roteamento,
+            com.synapse.crm.atendimento.application.referencia.CorrelacaoDeMensagemDoCanalRepositorio correlacoes) {
         this.chat = new JdbcTemplate(chatDataSource);
         this.json = json;
         this.canal = canal;
         this.roteamento = roteamento;
+        this.correlacoes=correlacoes;
     }
 
     @Override
@@ -511,6 +514,13 @@ class OutboxRepositorioJdbc implements Outbox {
             boolean possuiSnapshotDoContato) {
 
         var rota=roteamento.resolver(atendimentoId,credencialId,contextoWamid);
+        if(("z-api".equals(canal.provedor()) || rota.transicaoId()!=null) && contextoWamid!=null && !contextoWamid.isBlank()
+                && correlacoes.resolverCitacao(mensagemId,enviadoEm,atendimentoId,canal.provedor(),canal.numeroPrincipal()).isEmpty())
+            throw new com.synapse.crm.atendimento.application.canal.SaidaSuspensaParaTransicaoException("REFERENCIA_DE_OUTRO_CANAL");
+        if("z-api".equals(canal.provedor()) && contextoWamid!=null && !contextoWamid.isBlank()
+                && conteudo instanceof ConteudoDeEnvio.MensagemMidia midia
+                && midia.tipo()==com.synapse.crm.atendimento.domain.mensagem.TipoMensagem.AUDIO)
+            throw new com.synapse.crm.atendimento.application.canal.SaidaSuspensaParaTransicaoException("CITACAO_NAO_SUPORTADA_PELO_CANAL");
         ObjectNode raiz = json.createObjectNode();
         if(rota.transicaoId()!=null) {
             raiz.put("transicaoCanalId",rota.transicaoId().toString());
