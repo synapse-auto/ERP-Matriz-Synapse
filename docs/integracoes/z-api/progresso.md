@@ -40,16 +40,20 @@
   foram mantidas. Não houve alteração de migration, force push ou merge da PR para main.
   Resultados do novo SHA integrado são registrados no fechamento da PR.
 
-## Proxy produtivo persistente — 26/10/2026
+## Proxy produtivo persistente — 26/10/2026, atualização 27/10
 
 - Causa informada pelo operador: `403 Invalid CORS request` nos callbacks com Origin externo.
-- Override de transicao existente complementado com middleware que remove Origin somente
-  nos dois webhooks; access logs/tracing OFF preservados. Base e CORS global nao mudam.
-- [Passos exatos no Dokploy](./webhooks-no-dokploy.md): Compose Path permanece; Command Stack
-  deve carregar base+override em todo deploy. Nao criar compose/routers concorrentes.
+- Router HTTPS dedicado cobre os dois webhooks, remove Origin somente nesses paths e desativa
+  access logs/tracing; CORS global da API permanece.
+- As labels agora estao em `docker/dokploy-stack.yml`, Compose Path unico. Os overrides produtivo
+  e de homologacao estao vazios por compatibilidade; nenhum Command customizado e necessario
+  para reaplicar as labels em novos deploys.
+- [Acao unica no Dokploy](./webhooks-no-dokploy.md): um deploy normal da branch de release apos
+  o merge. A CI valida o base isolado, stack config isolado, compatibilidade do override e
+  executa o router derivado do Compose Path base num Traefik de teste.
 - Prova com composicao real, Traefik 3.6.7/TLS e Spring/PostgreSQL; resultados do clean verify
   e CI no fechamento da PR. Nenhuma env, migration, deploy ou operacao na VPS do agente.
-- Configuracao salva/ativa no Dokploy e logs de outros saltos exigem conferencia operacional;
+- A configuracao atualmente ativa no Dokploy ainda exige conferencia operacional apos deploy;
   testes locais nao sao homologacao da conta real.
 
 ## Resposta citada — 26/10/2026
@@ -95,8 +99,8 @@
 - URL/segredo Uzapi preservados exclusivamente para status antigos da identidade original;
   HTTPS/limite/tempo constante/JSON estrito/redacao, sem mensagem/repasse/IA nessa entrada.
 - [Roteiro produtivo incremental](./transicao-produtiva.md), cadastro inativo existente,
-  override persistente para AMBAS as URLs de webhook, envs/ativacao/agenda/recuperacao e
-  [passagem para automacao](./documento-para-automacao.md). Nenhuma identidade/token real
+  router persistente no Compose Path base para ambas as URLs, envs/ativacao/agenda/recuperacao
+  e [passagem para automacao](./documento-para-automacao.md). Nenhuma identidade/token real
   versionado. Cadastros/ativacao HML anteriores mantem suas protecoes.
 - Primeira rodada apontou composicao SQL sem separador no novo guard de despacho: corrigida.
   Fixtures ajustadas para precisao de timestamp PostgreSQL, FK composta e limpeza de auditoria.

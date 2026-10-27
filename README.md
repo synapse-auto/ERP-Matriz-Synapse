@@ -318,7 +318,7 @@ O Traefik recebe as rotas pelas labels versionadas em `deploy.labels`:
 
 | Destino | Regra pública |
 |---|---|
-| Backend | `https://SYNAPSE_DOMINIO/api/v1`, `/webhook/canal`, `/ws` e `/health` |
+| Backend | `https://SYNAPSE_DOMINIO/api/v1`, `/webhook/canal`, `/webhook/z-api`, `/ws` e `/health` |
 | Frontend | Demais caminhos de `https://SYNAPSE_DOMINIO` |
 | MinIO S3 | `https://MIDIA_DOMINIO` |
 | n8n | `https://AUTOMACAO_DOMINIO` (editor e webhooks da Automação) |
@@ -496,14 +496,14 @@ Roteiro no Dokploy:
 5. Aponte os três registros DNS para a VPS e faça o deploy. Para rollback do CRM, troque apenas
    `SYNAPSE_IMAGE_TAG` pelo SHA anterior e redeploye.
 
-**Instância Z-API:** o Compose Path continua `docker/dokploy-stack.yml`, mas é obrigatório
-salvar o **Command Stack completo**, carregando também
-`docker/dokploy-z-api-transicao.override.yml` em todo deploy. Esse override protege os dois
-webhooks, remove `Origin` somente neles e desliga access logs/tracing do router. Não muda CORS
-das APIs nem autenticação. Nenhuma env nova. Siga o
-[procedimento exato no Dokploy](docs/integracoes/z-api/webhooks-no-dokploy.md), inclusive a
-substituição das labels temporárias e a conferência do App Name. Não basta adicionar o arquivo
-ao Git ou ao campo Compose Path; outras instâncias continuam usando somente o base.
+**Webhooks Z-API:** as labels de `/webhook/z-api` e `/webhook/canal` agora estão diretamente em
+`docker/dokploy-stack.yml`, o Compose Path único do Dokploy. O router dedicado remove `Origin` e
+desliga access logs/tracing somente nesses caminhos; autenticação do webhook e CORS das APIs
+permanecem intactos. A configuração é declarativa em todas as instâncias, sem env nova. Para
+aplicá-la à stack já implantada, faça um deploy normal uma vez após a mudança chegar à branch de
+release; não altere Compose Path nem Command Stack. O antigo override fica vazio, apenas para
+compatibilidade com Commands salvos anteriormente. Consulte o
+[procedimento de verificação](docs/integracoes/z-api/webhooks-no-dokploy.md).
 
 ### Extensões do PostgreSQL
 

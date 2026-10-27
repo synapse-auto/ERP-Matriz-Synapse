@@ -1,14 +1,3 @@
-# Aplicar SOMENTE manualmente na homologacao apos conferir suporte do Traefik a observability.
-# Nunca colocar segredo na rule/labels. O arquivo base nao expoe /webhook/z-api no backend.
-services:
-  backend:
-    deploy:
-      labels:
-        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && PathPrefix(`/webhook/z-api`)'
-        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.entrypoints=websecure'
-        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.tls=true'
-        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.tls.certresolver=letsencrypt'
-        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.priority=150'
-        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.service=${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend'
-        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.observability.accessLogs=false'
-        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.observability.tracing=false'
+# Compatibilidade: as labels dos webhooks foram movidas para dokploy-stack.yml, o Compose Path
+# unico. Este override vazio nao cria routers concorrentes nem deve ser usado como fonte funcional.
+services: {}
