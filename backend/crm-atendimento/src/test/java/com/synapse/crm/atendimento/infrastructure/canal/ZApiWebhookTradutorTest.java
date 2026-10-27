@@ -193,6 +193,58 @@ class ZApiWebhookTradutorTest {
         assertThat(habilitado.repasseSemGrupos(evento.toString(),null)).isPresent();
     }
 
+    @Test
+    void respostaDeListaUsaTituloQuandoMensagemRecebidaEstaVazia() throws Exception {
+        var evento = (com.fasterxml.jackson.databind.node.ObjectNode) json.readTree(recebido());
+        evento.remove("text");
+        evento.put("referenceMessageId", "lista-original-whatsapp");
+        evento.putObject("listResponseMessage")
+                .put("message", "")
+                .put("title", "Agendar retorno")
+                .put("selectedRowId", "agendar-retorno");
+
+        var habilitado = new ZApiWebhookTradutor(json, "SINTETICA-A", "WHATSAPP", true);
+        var resultado = habilitado.traduzirComDescartes(evento.toString());
+
+        assertThat(resultado.descartes()).isEmpty();
+        assertThat(resultado.mensagens()).singleElement().satisfies(mensagem -> {
+            assertThat(mensagem.texto()).isEqualTo("Agendar retorno");
+            assertThat(mensagem.contextoWamid()).isEqualTo("lista-original-whatsapp");
+            try {
+                var interacao = json.readTree(mensagem.metadados()).path("respostaInterativa");
+                assertThat(interacao.path("tipo").asText()).isEqualTo("LISTA");
+                assertThat(interacao.path("identificador").asText()).isEqualTo("agendar-retorno");
+                assertThat(interacao.path("titulo").asText()).isEqualTo("Agendar retorno");
+            } catch (Exception erro) {
+                throw new AssertionError(erro);
+            }
+        });
+        assertThat(habilitado.repasseSemGrupos(evento.toString(), null))
+                .get()
+                .extracting(TradutorDeCanal.RepasseParaAutomacao::payloadCru)
+                .isEqualTo(evento.toString());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"semTitulo", "tituloVazio"})
+    void respostaDeListaSemRotuloVisivelContinuaDescartada(String caso) throws Exception {
+        var evento = (com.fasterxml.jackson.databind.node.ObjectNode) json.readTree(recebido());
+        evento.remove("text");
+        var resposta = evento.putObject("listResponseMessage")
+                .put("message", "")
+                .put("selectedRowId", "agendar-retorno");
+        if (caso.equals("tituloVazio")) resposta.put("title", "  ");
+
+        var habilitado = new ZApiWebhookTradutor(json, "SINTETICA-A", "WHATSAPP", true);
+        var resultado = habilitado.traduzirComDescartes(evento.toString());
+
+        assertThat(resultado.mensagens()).isEmpty();
+        assertThat(resultado.descartes()).singleElement()
+                .extracting(TradutorDeCanal.ItemDescartado::motivo)
+                .isEqualTo(TradutorDeCanal.MotivoDeDescarte.ITEM_MALFORMADO);
+        assertThat(habilitado.repasseSemGrupos(evento.toString(), null)).isEmpty();
+    }
+
     @Test void votoDeEnquetePreservaIdsDistintosOpcoesOrdenadasEEnvelopeOriginal() throws Exception {
         var evento=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(recebido());
         evento.remove("text");

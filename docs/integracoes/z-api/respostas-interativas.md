@@ -61,8 +61,11 @@ ou chave interna de deduplicação.
 
 ## Persistência e interface
 
-- Botão/lista válidos sem `text.message` viram mensagem `TEXTO`, com `conteudo` igual ao
-  `message` escolhido. Não criam opções clicáveis nem executam novamente o botão.
+- Botão/lista válidos sem `text.message` viram mensagem `TEXTO`. Botões usam
+  `buttonsResponseMessage.message`; listas usam `listResponseMessage.message` e, se estiver
+  vazio, o `listResponseMessage.title` textual não vazio como rótulo da opção. O
+  `selectedRowId` e o `title` ficam preservados em metadados. Não criam opções clicáveis nem
+  executam novamente o botão.
 - `pollVote` válido sem `text.message` vira mensagem `TEXTO`, com o conteúdo legível formado
   pelos nomes selecionados na ordem recebida, separados por vírgula e espaço. O JSONB mantém
   `respostaInterativa.tipo=ENQUETE`, `pollMessageId` e a lista ordenada `opcoes`. Não tenta
