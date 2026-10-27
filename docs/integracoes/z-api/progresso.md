@@ -15,10 +15,15 @@
   revelou um estado inválido na fixture negativa; corrigida e repetida integralmente.
 - Frontend 1.417/1.417, typecheck aprovado, lint sem erros (quatro avisos preexistentes).
   Primeiro executor de testes não inicializou; a suíte completa passou com threads limitadas.
-- A primeira execução de clean verify foi interrompida junto com o ambiente local, sem
-  resultado final; nova execução integral e build estão em andamento. Não é aprovação de CI.
-  Aplicação real já exibiu as escolhas/citações com Inter carregada (1920x1080); capturas
-  finais/recarga/tela menor e CI do último SHA devem constar do fechamento.
+- Build frontend aprovado. A primeira execução de clean verify foi interrompida junto com
+  o ambiente local, sem resultado final. A execução integral posterior e o CI do último SHA
+  são registrados no fechamento da PR/relatório, separadamente dos testes dirigidos.
+- [Evidência visual e limites](../../../frontend/output/playwright/z-api-interacoes/README.md):
+  aplicação real com Inter carregada (1920×1080), escolhas/citações visíveis e origem fora
+  da página carregada por ação autorizada. Nova sessão de captura após o build recusada
+  pelo ambiente, sem contorno. Tela menor e reconexão/cancelamento com anexos não têm
+  comprovação visual completa. Aviso de chave repetida na inbox dev registrado sem causa
+  estabelecida e sem alegação de resolução; inbox não alterada.
 - Homologação da conta/Configurações Beta e execução real do workflow são separadas.
 
 ## Resposta citada — 26/10/2026

@@ -103,3 +103,13 @@ automática ou endpoint não documentado foi implementado.
 Sem replay produtivo, envio real ou garantia de entrega do fornecedor nesta implementação.
 Homologar com contato próprio: botão e lista, clique, histórico/reload, responder citando o
 clique, conferir status e execução deduplicada do n8n. Não usar pacientes para teste.
+
+## Evidências locais e limites visuais
+
+[Captura e protocolo de validação](../../../frontend/output/playwright/z-api-interacoes/README.md):
+tela real em 1920×1080, dados sintéticos e Inter confirmada como carregada. Botão/lista e
+citação visíveis; origem fora da página carregada por ação autorizada. A nova sessão de
+captura após o build foi recusada pelo ambiente e não houve contorno. Tela menor e
+reconexão/cancelamento com anexos não têm comprovação visual completa nesta rodada.
+O aviso de chave repetida da inbox dev é registrado sem causa estabelecida; não foi
+tratado como resolvido. Testes automatizados são separados de homologação real.

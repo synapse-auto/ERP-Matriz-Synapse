@@ -107,10 +107,11 @@ class ZApiInteracoesIT extends ZApiWebhookProtegidoIT {
     @Test void cliquesDistintosComMesmoRotuloNaoSaoDeduplicadosPeloButtonIdOuTexto() throws Exception {
         receber(escolha("buttonsResponseMessage","clique-A-"+lead,"1"));
         receber(escolha("buttonsResponseMessage","clique-B-"+lead,"2"));
+        receber(escolha("buttonsResponseMessage","clique-C-"+lead,"1"));
         processador.processarPendentes();
-        assertThat(totalMensagens()).isEqualTo(2);
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_evento WHERE tipo='automacao.webhook.repassar'",Integer.class)).isEqualTo(2);
-        assertThat(jdbc.queryForList("SELECT midia_metadados->'respostaInterativa'->>'identificador' FROM mensagem WHERE atendimento_id=?",String.class,atendimento)).containsExactlyInAnyOrder("1","2");
+        assertThat(totalMensagens()).isEqualTo(3);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_evento WHERE tipo='automacao.webhook.repassar'",Integer.class)).isEqualTo(3);
+        assertThat(jdbc.queryForList("SELECT midia_metadados->'respostaInterativa'->>'identificador' FROM mensagem WHERE atendimento_id=?",String.class,atendimento)).containsExactlyInAnyOrder("1","2","1");
     }
 
     @ParameterizedTest @ValueSource(booleans={false,true})
@@ -153,6 +154,15 @@ class ZApiInteracoesIT extends ZApiWebhookProtegidoIT {
         var dados=json.readTree(jdbc.queryForObject("SELECT midia_metadados::text FROM mensagem WHERE id=?",String.class,mensagem));
         assertThat(dados.path("referenciaExterna").path("valor").asText()).isEqualTo(origem.path("messageId").asText());
         assertThat(dados.path("tamanho").asInt()).isEqualTo(bytes.length);
+        // Responder a midia usa o ID WhatsApp da propria midia, nao o ID que ela citava.
+        autenticar(ApoioAutenticacao.EMAIL_ANA);
+        provedor.expect(requestTo("https://api.z-api.io/instances/ZAPI-PROTEGIDA/token/token-api-teste/send-text"))
+                .andExpect(jsonPath("$.messageId").value(evento.path("messageId").asText()))
+                .andRespond(withSuccess("{\"zaapId\":\"processamento-resposta-midia\",\"messageId\":\"resposta-midia-whatsapp\"}",MediaType.APPLICATION_JSON));
+        Instant horario=jdbc.queryForObject("SELECT enviado_em FROM mensagem WHERE id=?",java.sql.Timestamp.class,mensagem).toInstant();
+        var resposta=http.postForEntity("/api/v1/atendimentos/mensagens",new HttpEntity<>(Map.of("leadId",lead,"atendimentoId",atendimento,"conteudo","Resposta a midia sintetica","mensagemOrigemId",mensagem,"origemEnviadaEm",horario.toString()),headers),String.class);
+        assertThat(resposta.getStatusCode()).as(resposta.getBody()).isEqualTo(HttpStatus.OK);
+        publicador.publicarPendentes();publicador.publicarPendentes();
     }
 
     @ParameterizedTest @ValueSource(strings={"provedor","namespace","conflito","outroLead"})
