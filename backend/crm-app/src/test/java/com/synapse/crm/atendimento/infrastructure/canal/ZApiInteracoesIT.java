@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import okhttp3.Request;
+import okhttp3.RequestBody;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -88,6 +90,85 @@ class ZApiInteracoesIT extends ZApiWebhookProtegidoIT {
         for(int i=0;i<2;i++) assertThat(http.postForEntity("/api/v1/atendimentos/mensagens",new HttpEntity<>(corpo,headers),String.class).getStatusCode()).isEqualTo(HttpStatus.OK);
         publicador.publicarPendentes();publicador.publicarPendentes();
         assertThat(totalMensagens()).isEqualTo(2);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"buttonsResponseMessage","listResponseMessage"})
+    void escolhaSemTextoComOriginAtravessaProxyEEntregaCamposOriginaisAoDestino(String campo) throws Exception {
+        var evento=escolha(campo,"clique-origin-"+lead,"opcao-1");
+        try (var proxy=ProxyZApiParaTeste.criar(portaHttp)) {
+            proxy.start();
+            String base="https://"+proxy.getHost()+":"+proxy.getMappedPort(8443)+"/webhook/z-api";
+            String url=base+"?secret="+SEGREDO;
+            var cliente=clienteTlsDoProxy();
+            org.awaitility.Awaitility.await().atMost(java.time.Duration.ofSeconds(10)).untilAsserted(() -> {
+                var verificacao=new Request.Builder().url(base+"?secret=segredo-invalido")
+                        .header("Host",ProxyZApiParaTeste.DOMINIO)
+                        .header("Origin","https://origem-externa.example.test")
+                        .post(RequestBody.create("{}",okhttp3.MediaType.get("application/json"))).build();
+                try(var resposta=cliente.newCall(verificacao).execute()) {
+                    assertThat(resposta.code()).as("a rota do Traefik deve alcançar o filtro protegido").isEqualTo(403);
+                }
+            });
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isZero();
+            try(var resposta=cliente.newCall(new Request.Builder().url(url)
+                    .header("Host",ProxyZApiParaTeste.DOMINIO)
+                    .header("Origin","https://origem-externa.example.test")
+                    .post(RequestBody.create(evento.toString(),okhttp3.MediaType.get("application/json"))).build()).execute()) {
+                assertThat(resposta.code()).as("callback interativo %s",campo).isEqualTo(200);
+            }
+
+            processador.processarPendentes();
+            assertThat(totalMensagens()).isEqualTo(1);
+            UUID mensagem=idPorConteudo("Ótimo 🙂");
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isEqualTo(1);
+            UUID repasse=repasseId();
+            esperarRepasse(evento,repasse,1,false);
+            repasses.publicarPendentes();
+            assertThat(jdbc.queryForObject("SELECT publicado_em IS NOT NULL FROM outbox_evento WHERE id=?",Boolean.class,repasse)).isTrue();
+            assertThat(eventos.stream(MensagemParaTempoReal.class).filter(e->e.mensagemId().equals(mensagem)).count()).isEqualTo(1);
+            assertThat(proxy.getLogs()).doesNotContain(SEGREDO,"/webhook/z-api");
+        }
+    }
+
+    @Test void diagnosticoDoCliqueCorrelacionaEntradaMensagemERepasseSemConteudo() throws Exception {
+        var evento=escolha("buttonsResponseMessage","diagnostico-botao-"+lead,"opcao-sintetica")
+                .put("referenceMessageId","referencia-sintetica")
+                .put("5561999990001","valor-pessoal-nao-exportar");
+        receber(evento);
+        processador.processarPendentes();
+        UUID mensagem=idPorConteudo("Ótimo 🙂");
+        UUID repasse=repasseId();
+        esperarRepasse(evento,repasse,1,false);
+        repasses.publicarPendentes();
+
+        String script=java.nio.file.Files.readString(java.nio.file.Path.of("../../docs/diagnosticos/coletar-clique-z-api.sql"))
+                .replace("\\set ON_ERROR_STOP on", "")
+                .replace(":'instancia'", "'ZAPI-PROTEGIDA'")
+                .replace(":'inicio'", "'2000-01-01T00:00:00Z'")
+                .replace(":'fim'", "'2100-01-01T00:00:00Z'");
+        try(var conexao=jdbc.getDataSource().getConnection();var comando=conexao.createStatement()) {
+            boolean resultado=comando.execute(script);
+            int conjuntos=0;
+            while(resultado || comando.getUpdateCount()!=-1) {
+                if(resultado)try(var linhas=comando.getResultSet()) {
+                    conjuntos++;
+                    var metadados=linhas.getMetaData();
+                    var colunas=new java.util.HashSet<String>();
+                    for(int c=1;c<=metadados.getColumnCount();c++)colunas.add(metadados.getColumnLabel(c));
+                    assertThat(colunas).contains("entrada_id","message_id","nomes_campos_recebidos","mensagem_id","repasses_correlacionados");
+                    assertThat(colunas).doesNotContain("payload","conteudo","telefone","ultimo_erro");
+                    assertThat(linhas.next()).isTrue();
+                    String linha="";
+                    for(int c=1;c<=metadados.getColumnCount();c++)linha+=String.valueOf(linhas.getObject(c))+" ";
+                    assertThat(linha).contains("diagnostico-botao-"+lead,"buttonsResponseMessage","buttonId","message",mensagem.toString(),repasse.toString(),"HTTP_2XX_ACEITO");
+                    assertThat(linha).doesNotContain("Ótimo","opcao-sintetica","referencia-sintetica","5561999990000","5561999990001","valor-pessoal-nao-exportar",SEGREDO);
+                    assertThat(linha).contains("CAMPO_NAO_PADRONIZADO");
+                    assertThat(linhas.next()).isFalse();
+                }
+                resultado=comando.getMoreResults();
+            }
+            assertThat(conjuntos).isEqualTo(1);
+        }
     }
 
     @Test void votoDeEnqueteSemTextoPersisteHistoricoTempoRealERepasseComIdentidadesSeparadas() throws Exception {
@@ -285,10 +366,21 @@ class ZApiInteracoesIT extends ZApiWebhookProtegidoIT {
         jdbc.update("INSERT INTO atendimento_rota_canal(atendimento_id,transicao_id,credencial_historica_id) VALUES (?,?,?)",atendimento,transicao,credencialLegada);
     }
     private void esperarRepasse(ObjectNode evento,UUID id,int tentativa,boolean falha) {
-        servidor.expect(requestTo("https://automacao.example.test/eventos"))
+        var expectativa=servidor.expect(requestTo("https://automacao.example.test/eventos"))
                 .andExpect(method(HttpMethod.POST)).andExpect(content().json(evento.toString(),true))
+                .andExpect(jsonPath("$.type").value("ReceivedCallback"))
+                .andExpect(jsonPath("$.messageId").value(evento.path("messageId").asText()))
+                .andExpect(jsonPath("$.text").doesNotExist())
                 .andExpect(header("X-Synapse-Evento-Id",id.toString())).andExpect(header("X-Synapse-Tentativa",Integer.toString(tentativa)))
-                .andExpect(header("X-Synapse-Webhook-Token","repasse-exclusivo-sintetico"))
-                .andRespond(falha?withServerError():withSuccess());
+                .andExpect(header("X-Synapse-Webhook-Token","repasse-exclusivo-sintetico"));
+        if(evento.has("buttonsResponseMessage")) {
+            expectativa.andExpect(jsonPath("$.buttonsResponseMessage.buttonId").value(evento.path("buttonsResponseMessage").path("buttonId").asText()))
+                    .andExpect(jsonPath("$.buttonsResponseMessage.message").value(evento.path("buttonsResponseMessage").path("message").asText()));
+        }
+        if(evento.has("listResponseMessage")) {
+            expectativa.andExpect(jsonPath("$.listResponseMessage.selectedRowId").value(evento.path("listResponseMessage").path("selectedRowId").asText()))
+                    .andExpect(jsonPath("$.listResponseMessage.message").value(evento.path("listResponseMessage").path("message").asText()));
+        }
+        expectativa.andRespond(falha?withServerError():withSuccess());
     }
 }

@@ -1,0 +1,93 @@
+# Diagnóstico de um clique Z-API — botões e listas
+
+## Conclusão da revisão do código
+
+Na `main` após o merge da PR #334 (merge commit `a5be00f39a3663d8cf0642e707b9693de0bbaa1a`), `buttonsResponseMessage` e `listResponseMessage` já percorrem o caminho de entrada. A PR #334 acrescentou `pollVote`, que é uma expansão independente; enquete não é o formato de clique de botão/lista e não é evidência da causa do incidente relatado.
+
+O contrato oficial vigente exemplifica no `ReceivedCallback`:
+
+- botão: `buttonsResponseMessage.buttonId` e `buttonsResponseMessage.message`;
+- lista: `listResponseMessage.selectedRowId`, `listResponseMessage.message` e `listResponseMessage.title`;
+- identidade do evento: `messageId`; referência à mensagem original, quando fornecida: `referenceMessageId`.
+
+Ambos os objetos de escolha aparecem no nível superior do callback e os exemplos não dependem de `text.message`. O tradutor testa as interações antes do ramo de texto e não exige `text.message`. Uma referência ausente não impede a persistência nem o repasse; se presente, é preservada separadamente e não é usada como ID do clique.
+
+Fonte primária consultada em 27/10/2026: [Exemplos oficiais de ReceivedCallback](https://developer.z-api.io/webhooks/on-message-received-examples), seções “Resposta de botão de ação” e “Resposta de lista”. A mesma página documenta `pollVote` em seção própria.
+
+## Condições que impedem persistência ou repasse
+
+| Etapa | Condição observada no código | Efeito |
+|---|---|---|
+| Proxy/CORS | A rota exclusiva remove `Origin` no Traefik configurado para os webhooks. Sem esse override em uma implantação, o CORS global pode recusar antes do controller; access logs/tracing dessa rota ficam desligados para não vazar o segredo da query. | Pode haver resposta HTTP sem linha em `webhook_entrada`; consultar a tentativa no painel da Z-API. |
+| Filtro de proteção | Rota diferente da rota exata, HTTPS não reconhecido, método diferente de POST, segredo ausente/inválido, corpo acima do limite ou `Content-Type` diferente de JSON. | Recusa antes de ler/persistir o corpo; códigos registrados pelo filtro quando a requisição chega ao backend: 403, 413 ou 415. |
+| Controller | JSON inválido, chaves duplicadas/trailing tokens, objeto sem `instanceId`, instância divergente ou destino não configurado/ativo. | 400, 403 ou 503 antes da inserção. Os logs usam códigos fixos sanitizados. O guard de IDs vazios também responde 400, mas, com o tradutor atual e a instância já validada, `idsExternos` gera uma chave de deduplicação inclusive quando falta `messageId` (usa o JSON do evento); nesse caso o corpo é persistido e o worker depois registra `SEM_IDENTIFICADOR`, sem mensagem nem repasse. |
+| Idempotência de entrada | A chave do evento já existe em `webhook_entrada`. | Responde normalmente, mas não agenda novamente o repasse; retry da outbox existente é separado. Na operação normal, a inserção e o agendamento da outbox estão na mesma transação. |
+| Configuração do webhook | `somente-coleta=true`, tradutor Z-API/despacho desabilitado, ou configuração de automação ausente no momento do aceite. | O evento pode ficar persistido sem mensagem/outbox de repasse. Uma reentrega deduplicada depois que a configuração muda não agenda um novo repasse automaticamente. |
+| Worker/tradutor | `type` diferente de `ReceivedCallback`; `fromMe` ausente/malformado ou true; grupo; flags de status/newsletter/edição/espera incompatíveis; ausência de telefone numérico suportado; `messageId` ausente/inválido; `momment` ausente, inválido ou não positivo; mais de um objeto interativo; resposta não objeto; `buttonId`/`selectedRowId` ausente, vazio, não textual ou com controles; `message` ausente, vazio ou não textual; `title` presente em tipo não textual. | O evento pode estar persistido, mas fica registrado em `webhook_entrada.descartes`; não gera mensagem nem repasse interativo. LID-only sem telefone continua fora da associação automática a lead. |
+| Repasse e destino | `repasseSemGrupos` somente encaminha uma tradução reconhecida; o caso de uso grava outbox apenas se a integração estiver configurada. O publisher respeita provedor de origem, circuito, tentativas e esgotamento. | Sem outbox: configuração/eligibilidade a investigar. Com outbox pendente: tentativas/erro sanitizado. `publicado_em` significa que o destino HTTP respondeu 2xx, não que o workflow executou até o fim. |
+
+Os nomes e códigos acima vêm dos guards atuais, não são hipóteses sobre a ocorrência da Fêmina. O campo `message` dentro do objeto interativo é o texto escolhido, não o campo superior `text.message`.
+
+## Prova automatizada do fluxo local
+
+`ZApiInteracoesIT.escolhaSemTextoPersisteRecarregaPublicaUmaVezERespondeComIdDoClique` passa pela rota HTTP real, fila durável, PostgreSQL, persistência/histórico, evento de tempo real e publisher de outbox para HTTP de destino simulado. A asserção agora exige explicitamente `messageId`, ausência de `text`, e os pares `buttonId`/`message` ou `selectedRowId`/`message` no corpo HTTP de saída.
+
+`escolhaSemTextoComOriginAtravessaProxyEEntregaCamposOriginaisAoDestino` percorre também o proxy Traefik de teste com `Origin` externo e segredo válido, depois o mesmo processamento e destino HTTP. O teste parametrizado cobre botão e lista. O transporte do n8n é simulado; isso prova o que o CRM envia ao HTTP, não execução real do workflow.
+
+## Diagnóstico produtivo somente leitura
+
+Faça um único clique de teste controlado, sem mensagens de pacientes, e anote uma janela UTC de até um minuto. Não dispare cliques adicionais. Executar o SQL da raiz do repositório a partir de uma sessão `psql` já autorizada:
+
+```text
+psql -X -v ON_ERROR_STOP=1 \
+  -v inicio='AAAA-MM-DDTHH:MM:SSZ' \
+  -v fim='AAAA-MM-DDTHH:MM:SSZ' \
+  -v instancia='INSTANCE_ID' \
+  -f docs/diagnosticos/coletar-clique-z-api.sql
+```
+
+O fim é exclusivo. O script abre transação `READ ONLY`, aplica timeout de 5s e imprime somente horários, IDs técnicos, estados, nomes de campos e motivos fixos sanitizados. Não imprime payload, escolha/texto, telefone, URL, token, segredo ou erro bruto. `pollVote` é rotulado como `ENQUETE_SEPARADA` para não confundi-lo com clique.
+
+Os nomes das chaves são limitados a um catálogo conhecido; chaves não padronizadas aparecem apenas como `CAMPO_NAO_PADRONIZADO`. O teste de integração executa este mesmo SQL contra PostgreSQL real com uma chave sintética contendo um número e confirma que nem a chave nem seu valor aparecem no resultado.
+
+Para recusas que não chegaram à persistência, no host Docker e somente para a mesma janela UTC, extraia exclusivamente os marcadores fixos do backend (não compartilhe a saída bruta de `docker service logs`):
+
+```bash
+docker service logs --timestamps --since 'AAAA-MM-DDTHH:MM:SSZ' fmnaprod-uzapi-36acu4_backend 2>&1 \
+  | awk -v inicio='AAAA-MM-DDTHH:MM:SSZ' -v fim='AAAA-MM-DDTHH:MM:SSZ' '$1 >= inicio && $1 < fim' \
+  | sed -nE 's/^([^ ]+).*Z_API_WEBHOOK_REJEITADO etapa=([A-Z]+) http=([0-9]+) codigo=([A-Z_]+).*$/\1 etapa=\2 http=\3 codigo=\4/p'
+```
+
+O filtro de segredo intencionalmente não lê o corpo antes de autenticar. Portanto, para 403 de autenticação, é correto que não haja `messageId` nem nomes de campos nos logs do CRM; correlacione horário e status com a tentativa de callback da Z-API. A rota do Traefik não registra access log/tracing, então um bloqueio CORS/proxy anterior ao backend também exige a tela/log sanitizado de tentativa HTTP do fornecedor para comprovar o status. Não habilite access logs temporariamente e não copie URL de callback.
+
+### Interpretar as evidências sem misturar eventos
+
+1. Uma linha `webhook_entrada` para o `messageId` técnico do clique prova que o controller aceitou/persistiu aquela identidade; compare `tipo_recebido`, nomes de campos, processamento e descartes.
+2. `mensagem_id` preenchido na correlação `z-api` + instância + `WHATSAPP` prova que aquela mensagem do clique foi persistida. O texto foi deliberadamente excluído da saída.
+3. Só o objeto em `repasses_correlacionados` com o mesmo `messageId`, instância e objeto `buttonsResponseMessage`/`listResponseMessage` é evidência do repasse daquele clique. Não conte outbox de outros IDs.
+4. `HTTP_2XX_ACEITO` significa apenas resposta HTTP 2xx e `publicado_em`; o CRM não persiste o código HTTP exato nem a execução final do n8n. Use o `evento_id` estável para localizar a execução correspondente no n8n. Um evento publicado de outro `messageId` não prova o clique.
+5. Sem linha de entrada, a ausência sozinha não distingue “callback não enviado” de recusa pré-persistência. Confirme o status HTTP da tentativa no painel Z-API e o marcador sanitizado do backend, se houver.
+
+## Conferência da versão implantada
+
+No manager Swarm, a leitura da especificação e das tasks é somente leitura:
+
+```bash
+docker service inspect fmnaprod-uzapi-36acu4_backend --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'
+docker service ps --no-trunc fmnaprod-uzapi-36acu4_backend --format '{{.Image}} {{.CurrentState}}'
+```
+
+O workflow de publicação usa tag curta do SHA e labels OCI. Se a imagem estiver disponível no nó atual, leia apenas a revisão:
+
+```bash
+docker image inspect 'ghcr.io/synapse-auto/erp-matriz-synapse-backend:TAG_DA_TASK' \
+  --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'
+```
+
+Compare o SHA/manifest efetivamente rodando com a história que contém o merge `a5be00f39a3663d8cf0642e707b9693de0bbaa1a`. Se o service/task mostrar somente tag sem digest, label indisponível ou tasks divergentes, a versão implantada não está comprovada. A revisão local em `main` e o CI da PR #334 não comprovam o que está rodando na Fêmina.
+
+## Estado do incidente e limite operacional
+
+Até que a janela controlada produza um callback real correlacionado do painel Z-API à entrada, mensagem e outbox correspondentes, não há causa produtiva comprovada. O código e os testes locais comprovam o contrato oficial de botão/lista. Se a captura produtiva mostrar que o evento chegou com outro campo/formato, primeiro confronte esse formato com a documentação oficial e só então ajuste CRM ou contrato do n8n. Não atribuir o incidente a `pollVote` nem pedir mudança no workflow por causa de enquete sem evidência desse tipo no clique.
+
+Nenhum deploy, replay, ajuste no painel Z-API ou alteração em workflow é necessário para executar a coleta.
