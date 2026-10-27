@@ -232,6 +232,11 @@ do corpo. Header nativo nao confirmado: nao inventar nem aguardar para usar a al
 
 ## E. Proxy persistente e os tres callbacks
 
+**Atualizacao 26/10/2026:** seguir [webhooks-no-dokploy.md](webhooks-no-dokploy.md) para o
+Command persistente e a remocao restrita de Origin. O override agora possui dez labels, nao
+apenas as oito citadas no roteiro original. Nao copiar labels manualmente nem usar service
+update como fonte; preservar Compose Path base e carregar o override em TODO deploy.
+
 Traefik informado 3.6.7, Dokploy 0.29.13. Schema oficial 3.6 suporta observability por router;
 ainda conferir entrypoint/resolver/service reais e configuracao aceita. Nao reiniciar proxy.
 
@@ -251,9 +256,8 @@ substitui comando inteiro e Dokploy ja acrescenta docker. Exemplo estrutural:
 stack deploy --with-registry-auth -c docker/dokploy-stack.yml -c docker/dokploy-z-api-transicao.override.yml NOME_REAL_DA_STACK_FMNA
 ```
 
-Se nao houver esse campo para Stack, copiar oito labels do override para
-services.backend.deploy.labels no compose PERSISTENTE da FMNA, preservando existentes.
-Nao usar service update como fonte persistente. Confirmar PREFIXO-backend, websecure,
+Se o campo nao aparecer, conferir Source/Compose Type e a versao do Dokploy conforme o
+procedimento atualizado; nao improvisar outra fonte de labels. Confirmar PREFIXO-backend, websecure,
 letsencrypt e prioridade 150 maior que router geral 100. Regra cobre /webhook/z-api e
 /webhook/canal, inclusive sufixos recusados, sem segredo em labels.
 

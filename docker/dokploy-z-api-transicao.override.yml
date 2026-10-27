@@ -1,4 +1,6 @@
-# Aplicacao manual SOMENTE na instancia em transicao, Traefik 3.3+ da serie 3.
+# Carregado em TODO deploy da instancia Z-API pelo Command Stack documentado em
+# docs/integracoes/z-api/webhooks-no-dokploy.md. Compose Path base permanece igual.
+# Requer Traefik 3.3+ da serie 3 (validado com 3.6.7); nunca carregar junto ao override de homologacao.
 # Protege tambem a query da URL antiga, mantida exclusivamente para status Uzapi.
 # Nenhum segredo ou identificador externo aparece em labels.
 services:
@@ -11,5 +13,8 @@ services:
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.tls.certresolver=letsencrypt'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.priority=150'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.service=${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend'
+        # Callback servidor-servidor: apenas este router remove Origin. A API preserva CORS.
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.middlewares=${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-webhook-sem-origin'
+        - 'traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-webhook-sem-origin.headers.customrequestheaders.Origin='
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.observability.accessLogs=false'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.observability.tracing=false'
