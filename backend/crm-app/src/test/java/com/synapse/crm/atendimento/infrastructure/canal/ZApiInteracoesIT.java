@@ -97,12 +97,24 @@ class ZApiInteracoesIT extends ZApiWebhookProtegidoIT {
         var evento=escolha(campo,"clique-origin-"+lead,"opcao-1");
         try (var proxy=ProxyZApiParaTeste.criar(portaHttp)) {
             proxy.start();
-            String url="https://"+proxy.getHost()+":"+proxy.getMappedPort(8443)+"/webhook/z-api?secret="+SEGREDO;
-            try(var resposta=clienteTlsDoProxy().newCall(new Request.Builder().url(url)
+            String base="https://"+proxy.getHost()+":"+proxy.getMappedPort(8443)+"/webhook/z-api";
+            String url=base+"?secret="+SEGREDO;
+            var cliente=clienteTlsDoProxy();
+            org.awaitility.Awaitility.await().atMost(java.time.Duration.ofSeconds(10)).untilAsserted(() -> {
+                var verificacao=new Request.Builder().url(base+"?secret=segredo-invalido")
+                        .header("Host",ProxyZApiParaTeste.DOMINIO)
+                        .header("Origin","https://origem-externa.example.test")
+                        .post(RequestBody.create("{}",okhttp3.MediaType.get("application/json"))).build();
+                try(var resposta=cliente.newCall(verificacao).execute()) {
+                    assertThat(resposta.code()).as("a rota do Traefik deve alcançar o filtro protegido").isEqualTo(403);
+                }
+            });
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isZero();
+            try(var resposta=cliente.newCall(new Request.Builder().url(url)
                     .header("Host",ProxyZApiParaTeste.DOMINIO)
                     .header("Origin","https://origem-externa.example.test")
                     .post(RequestBody.create(evento.toString(),okhttp3.MediaType.get("application/json"))).build()).execute()) {
-                assertThat(resposta.code()).isEqualTo(200);
+                assertThat(resposta.code()).as("callback interativo %s",campo).isEqualTo(200);
             }
 
             processador.processarPendentes();
