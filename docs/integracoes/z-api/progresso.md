@@ -25,6 +25,12 @@
   comprovação visual completa. Aviso de chave repetida na inbox dev registrado sem causa
   estabelecida e sem alegação de resolução; inbox não alterada.
 - Homologação da conta/Configurações Beta e execução real do workflow são separadas.
+- O CI inicial 40440803480 falhou em `DashboardVisaoGeralIT`: o oráculo usava
+  `date_trunc('day', now())` da sessão PostgreSQL UTC, mas a API usa o fuso configurado
+  da instância e intervalo com fim exclusivo. A virada de dia expôs a divergência.
+  Correção restrita ao teste: recebe `synapse.tenant.timezone`, usa limites explícitos e
+  inclui fixtures imediatamente antes do início e no fim do dia para provar exclusão.
+  Nenhum código/consulta de dashboard em produção foi alterado; não é mera repetição do CI.
 
 ## Resposta citada — 26/10/2026
 
