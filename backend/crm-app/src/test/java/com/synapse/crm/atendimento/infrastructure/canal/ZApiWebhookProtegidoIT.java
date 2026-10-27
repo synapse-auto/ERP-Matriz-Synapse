@@ -224,19 +224,21 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
         }
         assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isEqualTo(1);
     }
-    @ParameterizedTest @ValueSource(strings={"image","image-jpeg","audio","video","document","document-jpeg","document-pdf"})
+    @ParameterizedTest @ValueSource(strings={"image","image-jpeg","audio","video","document","document-jpeg","document-pdf","document-doc","document-docx"})
     void midiaPelaRotaRealVaiAoStoragePrivadoComDownloadAutorizado(String caso) throws Exception {
         String tipo=caso.startsWith("document")?"document":caso.startsWith("image")?"image":caso;
         byte[] bytes;
         if(caso.equals("video")) try(var f=getClass().getResourceAsStream("/midia/chat-interno/video-validacao.mp4")){bytes=f.readAllBytes();}
         else if(caso.equals("audio")) try(var f=getClass().getResourceAsStream("/z-api/audio-sintetico.ogg")){bytes=f.readAllBytes();}
         else if(caso.equals("document-pdf")) try(var f=getClass().getResourceAsStream("/z-api/documento-sintetico.pdf")){bytes=f.readAllBytes();}
+        else if(caso.equals("document-doc") || caso.equals("document-docx")) try(var f=getClass().getResourceAsStream(caso.equals("document-doc") ? "/word/vazio.doc" : "/word/sintetico.docx")){bytes=f.readAllBytes();}
         else if(caso.endsWith("jpeg")){var s=new java.io.ByteArrayOutputStream();javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(2,2,java.awt.image.BufferedImage.TYPE_INT_RGB),"jpg",s);bytes=s.toByteArray();}
         else bytes=Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+juxkAAAAASUVORK5CYII=");
         String url="https://cdn.exemplo.test/arquivo?assinatura=nao-persistir-na-mensagem";
         Call chamada=mock(Call.class);when(cdn.newCall(any())).thenReturn(chamada);
         when(chamada.execute()).thenReturn(new Response.Builder().request(new Request.Builder().url(url).build()).protocol(Protocol.HTTP_1_1).code(200).message("teste").body(ResponseBody.create(bytes,okhttp3.MediaType.get("application/octet-stream"))).build());
-        var payload=recebido();payload.remove("text");payload.putObject(tipo).put(tipo+"Url",url).put("fileName","arquivo-do-teste");
+        String nome = caso.equals("document-doc") ? "Relatório final.DOC" : caso.equals("document-docx") ? "Relatório final.DOCX" : "arquivo-do-teste";
+        var payload=recebido();payload.remove("text");payload.putObject(tipo).put(tipo+"Url",url).put("fileName",nome);
         assertThat(post(payload.toString(),SEGREDO)).isEqualTo(HttpStatus.OK);verifyNoInteractions(cdn);
         processador.processarPendentes();
         UUID id=jdbc.queryForObject("SELECT id FROM mensagem WHERE atendimento_id=?",UUID.class,atendimento);
@@ -245,6 +247,10 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
         var download=http.exchange("/api/v1/leads/"+lead+"/midias/"+id+"/download",HttpMethod.GET,new HttpEntity<>(headers),byte[].class);
         assertThat(download.getStatusCode()).isEqualTo(HttpStatus.OK);assertThat(download.getBody()).isEqualTo(bytes);
         assertThat(download.getHeaders().getFirst("Content-Disposition")).startsWith("attachment");
+        if(caso.equals("document-doc") || caso.equals("document-docx")) {
+            assertThat(download.getHeaders().getContentDisposition().getFilename()).isEqualTo(nome);
+            assertThat(download.getHeaders().getContentType().toString()).isEqualTo(caso.equals("document-doc") ? "application/msword" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        }
         headers.setBearerAuth(ApoioAutenticacao.login(http,"bruno@dev.local",ApoioAutenticacao.SENHA_ATENDENTE).accessToken());
         assertThat(http.exchange("/api/v1/leads/"+lead+"/midias/"+id+"/download",HttpMethod.GET,new HttpEntity<>(headers),String.class).getStatusCode()).isIn(HttpStatus.FORBIDDEN,HttpStatus.NOT_FOUND);
     }

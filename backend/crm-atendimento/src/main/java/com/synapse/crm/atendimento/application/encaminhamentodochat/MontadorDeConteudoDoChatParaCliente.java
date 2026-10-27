@@ -11,6 +11,7 @@ import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.atendimento.domain.midia.TiposDeMidiaPermitidos;
 import com.synapse.crm.equipe.application.chat.MensagemDoChatParaCliente;
 import com.synapse.crm.sharedkernel.midia.CategoriaDeMidia;
+import com.synapse.crm.sharedkernel.midia.DocumentoWord;
 import com.synapse.crm.sharedkernel.midia.LimiteDeAnexoRepositorio;
 
 /**
@@ -45,7 +46,8 @@ public class MontadorDeConteudoDoChatParaCliente {
         }
         validarFormato(tipo, mensagem.mimetype());
         validarTamanho(tipo, mensagem.tamanhoBytes());
-        String nome = sanitizar(mensagem.nomeArquivo());
+        String nome = DocumentoWord.ehWord(mensagem.mimetype())
+                ? DocumentoWord.nomeSeguro(mensagem.nomeArquivo(), mensagem.mimetype()) : sanitizar(mensagem.nomeArquivo());
         // O áudio não leva legenda: as duas APIs recusam. A mensagem externa mostra só o áudio.
         String legenda = tipo == TipoMensagem.AUDIO ? null : mensagem.legenda();
         return new ConteudoDeEnvio.MensagemMidia(

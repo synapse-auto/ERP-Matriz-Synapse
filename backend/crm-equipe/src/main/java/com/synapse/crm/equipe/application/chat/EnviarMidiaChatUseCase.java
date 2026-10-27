@@ -19,6 +19,7 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 import com.synapse.crm.sharedkernel.midia.CategoriaDeMidia;
 import com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal;
+import com.synapse.crm.sharedkernel.midia.DocumentoWord;
 import com.synapse.crm.sharedkernel.midia.IsoBmffAudioOnly;
 import com.synapse.crm.sharedkernel.midia.LimiteDeAnexoRepositorio;
 
@@ -61,6 +62,9 @@ public class EnviarMidiaChatUseCase {
         if (!repositorio.participante(conversaId, remetente)) throw new ChatSemAcessoException();
 
         String detectado = detector.detectar(conteudo);
+        if (!DocumentoWord.nomeCompativel(nomeOriginal, detectado))
+            throw new TipoDeMidiaInternaNaoPermitidoException(detectado);
+        if (DocumentoWord.ehWord(detectado)) nomeOriginal = DocumentoWord.nomeSeguro(nomeOriginal, detectado);
         var classificacao = TiposDeMidiaInterna.classificar(detectado, conteudo)
                 .orElseThrow(() -> new TipoDeMidiaInternaNaoPermitidoException(detectado));
         String mimetypeReal = classificacao.mimetype();

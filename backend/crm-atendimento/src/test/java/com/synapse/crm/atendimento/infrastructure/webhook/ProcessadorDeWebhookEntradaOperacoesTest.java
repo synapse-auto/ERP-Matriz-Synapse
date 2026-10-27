@@ -404,6 +404,7 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
                 leads,
                 canal,
                 mock(ArmazenamentoDeMidia.class),
+                mock(com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal.class),
                 canaisAtivos,
                 new ObjectMapper(),
                 Clock.fixed(AGORA, ZoneOffset.UTC),

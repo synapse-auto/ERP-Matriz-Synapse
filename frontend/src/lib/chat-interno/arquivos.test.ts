@@ -3,6 +3,11 @@ import { arquivoCompativel, TIPOS_DE_ANEXO_ACEITOS as TIPOS_BASE } from "@/lib/a
 import { TIPOS_DE_ANEXO_ACEITOS } from "./arquivos";
 
 describe("arquivos do chat interno", () => {
+  it.each(["doc", "docx"])("aceita Word .%s inclusive em maiúsculas sem incluir DOCM", (extensao) => {
+    expect(arquivoCompativel(new File(["conteudo"], `Relatório final.${extensao.toUpperCase()}`,
+      { type: "application/octet-stream" }), TIPOS_DE_ANEXO_ACEITOS)).toBe(true);
+    expect(arquivoCompativel(new File([""], "macro.docm"), TIPOS_DE_ANEXO_ACEITOS)).toBe(false);
+  });
   it("aceita M4A de navegador sem modificar a lista de Atendimentos", () => {
     const audio = new File([new Uint8Array(8)], "voz.m4a", { type: "audio/x-m4a" });
     expect(arquivoCompativel(audio, TIPOS_DE_ANEXO_ACEITOS)).toBe(true);

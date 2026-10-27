@@ -65,6 +65,8 @@ class ZApiMidiaSaidaTest {
 
     static Stream<Arguments> midias() {
         return Stream.of(
+                Arguments.of(TipoMensagem.DOCUMENTO, "application/msword", "Relatório final.DOC", "send-document/doc", "document"),
+                Arguments.of(TipoMensagem.DOCUMENTO, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "Relatório final.DOCX", "send-document/docx", "document"),
                 Arguments.of(TipoMensagem.IMAGEM, "image/png", "imagem.png", "send-image", "image"),
                 Arguments.of(TipoMensagem.AUDIO, "audio/ogg", "gravacao.ogg", "send-audio", "audio"),
                 Arguments.of(TipoMensagem.VIDEO, "video/mp4", "video.mp4", "send-video", "video"),
@@ -97,6 +99,10 @@ class ZApiMidiaSaidaTest {
     void transmiteBytesDoStorageSemUrlPublicaPreservandoTipoNomeELegenda(
             TipoMensagem tipo, String mime, String nome, String rota, String campo) throws Exception {
         byte[] bytes = new byte[] {0, 1, 2, 3, 4, (byte) 255, (byte) 254};
+        if (mime.equals("application/msword") || mime.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
+            try (var recurso = getClass().getResourceAsStream(mime.equals("application/msword") ? "/word/vazio.doc" : "/word/sintetico.docx")) { bytes = recurso.readAllBytes(); }
+        }
+        final byte[] esperado = bytes;
         when(storage.abrirLeitura("objeto-privado")).thenReturn(new ByteArrayInputStream(bytes));
         String legenda = tipo == TipoMensagem.AUDIO ? null : "Legenda 🧪\ncom \"aspas\"";
         servidor.expect(requestTo(BASE + rota)).andExpect(method(HttpMethod.POST))
@@ -107,7 +113,7 @@ class ZApiMidiaSaidaTest {
                     assertThat(corpo.path("phone").asText()).isEqualTo("5561999999999");
                     String dado = corpo.path(campo).asText();
                     assertThat(dado).startsWith("data:" + mime + ";base64,");
-                    assertThat(Base64.getDecoder().decode(dado.substring(dado.indexOf(',') + 1))).isEqualTo(bytes);
+                    assertThat(Base64.getDecoder().decode(dado.substring(dado.indexOf(',') + 1))).isEqualTo(esperado);
                     if (tipo == TipoMensagem.DOCUMENTO) assertThat(corpo.path("fileName").asText()).isEqualTo(nome);
                     if (tipo == TipoMensagem.AUDIO) assertThat(corpo.has("caption")).isFalse();
                     else assertThat(corpo.path("caption").asText()).isEqualTo(legenda);

@@ -64,6 +64,8 @@ const EXTENSAO_POR_MIMETYPE: Record<string, string> = {
   "audio/wav": ".wav",
   "audio/mp4": ".m4a",
   "application/pdf": ".pdf",
+  "application/msword": ".doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
   "text/plain": ".txt",
 };
 
