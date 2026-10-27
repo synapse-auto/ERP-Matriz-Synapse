@@ -149,7 +149,7 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
     }
 
     /** Apenas a fixture aceita o certificado TLS local; clientes da aplicacao nao mudam. */
-    private static OkHttpClient clienteTlsDoProxy() throws Exception {
+    static OkHttpClient clienteTlsDoProxy() throws Exception {
         var confianca = new javax.net.ssl.X509TrustManager() {
             @Override public java.security.cert.X509Certificate[] getAcceptedIssuers() { return new java.security.cert.X509Certificate[0]; }
             @Override public void checkClientTrusted(java.security.cert.X509Certificate[] cadeia,String tipo) { }
