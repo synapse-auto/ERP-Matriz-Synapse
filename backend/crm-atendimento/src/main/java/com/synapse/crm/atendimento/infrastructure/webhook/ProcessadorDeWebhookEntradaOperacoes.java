@@ -290,7 +290,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                         mensagem.texto(),
                         TipoMensagem.valueOf(mensagem.tipo()),
                         null,
-                        null,
+                        mensagem.metadados(),
                         referencia);
             }
             RegistrarMensagemRecebidaUseCase.Resultado resultado = registrar.executar(requisicao);
@@ -439,7 +439,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private RegistrarMensagemRecebidaUseCase.MensagemRecebida midiaPersistida(UUID leadId,
             TradutorDeCanal.MensagemRecebidaDoCanal mensagem, CanalEntradaAtiva canalEntrada,
             ReferenciaDeMensagem referenciaDaMensagem, TipoMensagem tipo, String referenciaStorage, String mime, long tamanho) {
-        ObjectNode metadados = json.createObjectNode();
+        ObjectNode metadados = metadadosDoCanal(mensagem);
         if (mensagem.nomeArquivo() != null) {
             metadados.put("nome", mensagem.nomeArquivo());
         }
@@ -470,7 +470,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             TradutorDeCanal.MensagemRecebidaDoCanal mensagem,
             CanalEntradaAtiva canalEntrada,
             ReferenciaDeMensagem referenciaDaMensagem) {
-        ObjectNode metadados = json.createObjectNode();
+        ObjectNode metadados = metadadosDoCanal(mensagem);
         metadados.put("indisponivel", true);
         if (mensagem.nomeArquivo() != null) {
             metadados.put("nome", mensagem.nomeArquivo());
@@ -495,10 +495,24 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         if (contextoWamid == null || contextoWamid.isBlank()) {
             return null;
         }
-        return origens.buscarPorWamid(contextoWamid)
+        var encontrada = "z-api".equals(tradutor.provedor())
+                ? origens.buscarPorIdentidade(new com.synapse.crm.atendimento.domain.canal.IdentidadeDeMensagemDoCanal(
+                        tradutor.provedor(), mensagem.identificadorDestino(), "WHATSAPP", contextoWamid), leadId)
+                : origens.buscarPorWamid(contextoWamid);
+        return encontrada
                 .filter(origem -> leadId.equals(origem.leadId()))
                 .map(origem -> MontadorDeReferenciaDeMensagem.resposta(origem, null))
                 .orElse(null);
+    }
+
+    private ObjectNode metadadosDoCanal(TradutorDeCanal.MensagemRecebidaDoCanal mensagem) {
+        if (mensagem.metadados() == null) return json.createObjectNode();
+        try {
+            var dados = json.readTree(mensagem.metadados());
+            if (dados == null || !dados.isObject()) throw new IllegalArgumentException("METADADOS_DO_CANAL_INVALIDOS");
+            return (ObjectNode) dados;
+        }
+        catch (java.io.IOException | ClassCastException e) { throw new IllegalArgumentException("METADADOS_DO_CANAL_INVALIDOS"); }
     }
 
     private void falhar(WebhookEntrada.Pendente pendente, Instant agora, RuntimeException e) {

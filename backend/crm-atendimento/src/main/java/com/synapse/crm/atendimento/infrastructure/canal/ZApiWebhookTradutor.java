@@ -122,7 +122,8 @@ public final class ZApiWebhookTradutor implements TradutorDeCanal {
         if ("DeliveryCallback".equals(evento)
                 && (!deliveryValido(no) || (no.has("momment") && horario(no) == null)))
             return descarte("delivery", MotivoDeDescarte.ITEM_MALFORMADO);
-        if (!"ReceivedCallback".equals(evento)) return Traducao.semDescartes(List.of());
+        if ("DeliveryCallback".equals(evento)) return Traducao.semDescartes(List.of());
+        if (!"ReceivedCallback".equals(evento)) return descarte("evento", MotivoDeDescarte.TIPO_NAO_SUPORTADO);
         if (!no.path("fromMe").isBoolean()) return descarte("outro", MotivoDeDescarte.ITEM_MALFORMADO);
         if (flag(no, "fromMe")) return Traducao.semDescartes(List.of());
         if (flag(no, "isGroup")) return descarte("outro", MotivoDeDescarte.GRUPO_NAO_SUPORTADO);
@@ -135,10 +136,27 @@ public final class ZApiWebhookTradutor implements TradutorDeCanal {
         Instant horario = horario(no);
         if (id == null || horario == null) return descarte("outro", MotivoDeDescarte.SEM_IDENTIFICADOR);
         String nome = texto(no, "senderName");
+        // Escolha e mensagem possuem identidades diferentes. O ID da escolha nunca e alias WhatsApp.
+        for (String campo : List.of("buttonsResponseMessage", "listResponseMessage")) {
+            if (!no.has(campo)) continue;
+            JsonNode resposta = no.path(campo);
+            String escolha = texto(resposta, campo.equals("buttonsResponseMessage") ? "buttonId" : "selectedRowId");
+            String rotulo = conteudo(resposta, "message");
+            if (!resposta.isObject() || escolha == null || rotulo == null
+                    || (resposta.hasNonNull("title") && !resposta.path("title").isTextual())
+                    || (no.has("buttonsResponseMessage") && no.has("listResponseMessage")))
+                return descarte(campo, MotivoDeDescarte.ITEM_MALFORMADO);
+            var interativa = json.createObjectNode();
+            interativa.put("tipo", campo.equals("buttonsResponseMessage") ? "BOTAO" : "LISTA");
+            interativa.put("identificador", escolha);
+            if (texto(resposta, "title") != null) interativa.put("titulo", texto(resposta, "title"));
+            return comDadosDoEvento(MensagemRecebidaDoCanal.texto(
+                    identidade("WHATSAPP", id).chaveInterna(), instancia, telefone, nome, rotulo, horario), no, interativa);
+        }
         String mensagem = conteudo(no.path("text"), "message");
         if (mensagem != null) {
-            return Traducao.semDescartes(List.of(MensagemRecebidaDoCanal.texto(
-                    identidade("WHATSAPP", id).chaveInterna(), instancia, telefone, nome, mensagem, horario)));
+            return comDadosDoEvento(MensagemRecebidaDoCanal.texto(
+                    identidade("WHATSAPP", id).chaveInterna(), instancia, telefone, nome, mensagem, horario), no, null);
         }
         for (String tipo : List.of("document", "image", "audio", "video")) {
             JsonNode midia = no.path(tipo);
@@ -148,15 +166,32 @@ public final class ZApiWebhookTradutor implements TradutorDeCanal {
                     && (!midia.path("downloadError").isTextual() || !midia.path("downloadError").asText().isBlank())))
                 return descarte(tipo, MotivoDeDescarte.CONTEUDO_INVALIDO);
             String tipoCrm = switch (tipo) { case "document" -> "DOCUMENTO"; case "image" -> "IMAGEM"; case "audio" -> "AUDIO"; default -> "VIDEO"; };
-            return Traducao.semDescartes(List.of(new MensagemRecebidaDoCanal(
+            return comDadosDoEvento(new MensagemRecebidaDoCanal(
                     identidade("WHATSAPP", id).chaveInterna(), telefone, nome, null, tipoCrm, url,
-                    texto(midia, "mimeType"), texto(midia, "fileName"), conteudo(midia, "caption"), horario, instancia)));
+                    texto(midia, "mimeType"), texto(midia, "fileName"), conteudo(midia, "caption"), horario, instancia), no, null);
         }
         return descarte("outro", MotivoDeDescarte.TIPO_NAO_SUPORTADO);
     }
 
     private IdentidadeDeMensagemDoCanal identidade(String namespace, String id) {
         return new IdentidadeDeMensagemDoCanal(provedor(), instancia, namespace, id);
+    }
+
+    private Traducao comDadosDoEvento(MensagemRecebidaDoCanal item, JsonNode evento, JsonNode respostaInterativa) {
+        String referencia = texto(evento, "referenceMessageId");
+        var metadados = json.createObjectNode();
+        if (respostaInterativa != null) metadados.set("respostaInterativa", respostaInterativa);
+        if (referencia != null) {
+            metadados.putObject("referenciaExterna").put("provedor", provedor()).put("instancia", instancia)
+                    .put("namespace", "WHATSAPP").put("valor", referencia);
+        }
+        var completa = new MensagemRecebidaDoCanal(item.idExterno(), item.telefoneRemetente(), item.nomeExibicao(),
+                item.texto(), item.tipo(), item.midiaIdExterno(), item.mimetype(), item.nomeArquivo(), item.legenda(),
+                item.enviadoEm(), item.identificadorDestino(), referencia, metadados.isEmpty() ? null : metadados.toString());
+        // Uma referencia malformada nao apaga uma resposta valida; o descarte e somente do campo.
+        var descartes = evento.hasNonNull("referenceMessageId") && referencia == null
+                ? List.of(new ItemDescartado("reference", MotivoDeDescarte.CONTEUDO_INVALIDO)) : List.<ItemDescartado>of();
+        return new Traducao(List.of(completa), descartes);
     }
 
     private boolean daInstancia(JsonNode no) { return instancia.equals(texto(no, "instanceId")); }

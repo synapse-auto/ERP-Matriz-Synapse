@@ -1,5 +1,45 @@
 # Z-API — progresso e gates
 
+## Respostas interativas e referências recebidas — 26/10/2026
+
+- Worktree isolada, branch `codex/z-api-botoes-citacoes`, baseada em `origin/main`
+  `c91efc3b31a6e899da3cf80cad25df5c35ac11b3` (merge da #330). Não duplica suas proteções
+  de citação de saída, aliases/RLS ou idempotência.
+- Lacunas comprovadas: tradutor ignorava botão/lista sem `text.message`, impedindo também
+  o repasse; `referenceMessageId` não era traduzido e a resolução recebida consultava
+  somente o índice legado em vez da identidade exata Z-API/instância/WHATSAPP/lead.
+- [Contrato, metadados, instruções para automação e diagnóstico por etapa](./respostas-interativas.md).
+  Sem migration, nova variável, alteração de workflow, deploy, replay ou envio real.
+- Rodada anterior à sincronização: tradutor 42/42; ZApiInteracoesIT 36/36 e regressão ZApiCitacaoIT 28/28,
+  com HTTP/PostgreSQL/MinIO reais e somente transporte externo simulado. A primeira rodada
+  revelou um estado inválido na fixture negativa; corrigida e repetida integralmente.
+- Frontend 1.417/1.417, typecheck aprovado, lint sem erros (quatro avisos preexistentes).
+  Primeiro executor de testes não inicializou; a suíte completa passou com threads limitadas.
+- Build frontend aprovado. A primeira execução de clean verify foi interrompida junto com
+  o ambiente local, sem resultado final. A execução integral posterior e o CI do último SHA
+  são registrados no fechamento da PR/relatório, separadamente dos testes dirigidos.
+- [Evidência visual e limites](../../../frontend/output/playwright/z-api-interacoes/README.md):
+  aplicação real com Inter carregada (1920×1080), escolhas/citações visíveis e origem fora
+  da página carregada por ação autorizada. Nova sessão de captura após o build recusada
+  pelo ambiente, sem contorno. Tela menor e reconexão/cancelamento com anexos não têm
+  comprovação visual completa. Aviso de chave repetida na inbox dev registrado sem causa
+  estabelecida e sem alegação de resolução; inbox não alterada.
+- Homologação da conta/Configurações Beta e execução real do workflow são separadas.
+- O CI inicial 40440803480 falhou em `DashboardVisaoGeralIT`: o oráculo usava
+  `date_trunc('day', now())` da sessão PostgreSQL UTC, mas a API usa o fuso configurado
+  da instância e intervalo com fim exclusivo. A virada de dia expôs a divergência.
+  Correção restrita ao teste: recebe `synapse.tenant.timezone`, usa limites explícitos e
+  inclui fixtures imediatamente antes do início e no fim do dia para provar exclusão.
+  Nenhum código/consulta de dashboard em produção foi alterado; não é mera repetição do CI.
+- A suíte completa local também identificou colisão do telefone fixo da fixture de outro
+  lead com dados de outra suíte. Somente essa fixture passou a gerar telefone sintético
+  derivado de UUID e conferir ausência antes do INSERT, seguindo o padrão dos ITs.
+  Não remove dados de outras suítes nem afrouxa unicidade/asserções de isolamento.
+- Sincronizada em 27/10/2026 com `origin/main` 4d2d600, preservando a #331 e seus testes
+  de proxy/CORS herdados. O único conflito era este registro de progresso; as duas seções
+  foram mantidas. Não houve alteração de migration, force push ou merge da PR para main.
+  Resultados do novo SHA integrado são registrados no fechamento da PR.
+
 ## Proxy produtivo persistente — 26/10/2026
 
 - Causa informada pelo operador: `403 Invalid CORS request` nos callbacks com Origin externo.

@@ -107,6 +107,24 @@ function renderizarComQuery(ui: ReactNode) {
 }
 
 describe("BolhaMensagem", () => {
+  it.each(["BOTAO", "LISTA"])("exibe escolha %s sem inventar botões ou origem navegável", async (tipo) => {
+    const responder = vi.fn();
+    renderizarComQuery(<BolhaMensagem mensagem={mensagem({ remetenteTipo: "LEAD", conteudo: "Ótimo 🙂\nhttps://example.com",
+      midiaMetadados: JSON.stringify({ respostaInterativa: { tipo, identificador: "1" },
+        referenciaExterna: { provedor: "z-api", namespace: "WHATSAPP", valor: "original-ausente" } }),
+    })} onResponder={responder} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />);
+    expect(screen.getByText(/Ótimo/)).toBeInTheDocument();
+    expect(screen.getByText("Mensagem original indisponível")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ir para mensagem respondida" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link")).toHaveAttribute("href", "https://example.com/");
+    fireEvent.click(screen.getByRole("button", { name: "Ações da mensagem" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Responder" }));
+    expect(responder).toHaveBeenCalledOnce();
+  });
+  it.each(["null", "[]", "42", "{malformado"])("metadados inválidos %s não derrubam a bolha", (midiaMetadados) => {
+    renderizarComQuery(<BolhaMensagem mensagem={mensagem({ conteudo: "Escolha preservada", midiaMetadados })} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />);
+    expect(screen.getByText("Escolha preservada")).toBeInTheDocument();
+  });
   it.each(["LEAD", "ATENDENTE"] as const)("preserva corpo normal e contraste opaco para %s", (remetenteTipo) => {
     renderizarComQuery(<BolhaMensagem mensagem={mensagem({ remetenteTipo, conteudo: "Texto sintético 🙂\nhttps://example.com" })} nomeDoRemetente="Equipe de teste" onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />);
     const corpo = screen.getByText(/Texto sintético/).closest(".rounded-2xl")!;

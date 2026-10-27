@@ -175,8 +175,9 @@ public class RegistrarMensagemRecebidaUseCase {
                     UUID.randomUUID(), atendimentoId, Remetente.lead(), entrada.tipo(),
                     entrada.midiaMetadados(), agora);
         }
-        return Mensagem.texto(
-                UUID.randomUUID(), atendimentoId, Remetente.lead(), entrada.conteudo(), agora);
+        return new Mensagem(UUID.randomUUID(), atendimentoId, Remetente.lead(), TipoMensagem.TEXTO,
+                entrada.conteudo(), null, entrada.midiaMetadados(),
+                com.synapse.crm.atendimento.domain.mensagem.StatusEntrega.ENVIADO, agora);
     }
 
     /**

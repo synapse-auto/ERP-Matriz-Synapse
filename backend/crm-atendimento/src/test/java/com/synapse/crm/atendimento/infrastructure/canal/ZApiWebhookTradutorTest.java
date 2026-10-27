@@ -14,6 +14,18 @@ class ZApiWebhookTradutorTest {
     private final ObjectMapper json = new ObjectMapper();
     private final ZApiWebhookTradutor tradutor = new ZApiWebhookTradutor(json, "SINTETICA-A");
 
+    @Test void tipoDesconhecidoTemDiagnosticoFixoSemExportarValorDoFornecedor() throws Exception {
+        var payload=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(recebido());
+        payload.put("type","tipo-nao-suportado-com-conteudo-sensivel");
+        var resultado=tradutor.traduzirComDescartes(payload.toString());
+        assertThat(resultado.mensagens()).isEmpty();
+        assertThat(resultado.descartes()).singleElement().satisfies(item->{
+            assertThat(item.tipo()).isEqualTo("evento");
+            assertThat(item.motivo()).isEqualTo(TradutorDeCanal.MotivoDeDescarte.TIPO_NAO_SUPORTADO);
+            assertThat(item.toString()).doesNotContain("sensivel");
+        });
+    }
+
     @Test
     void nenhumaCredencialPresumidaAbreEntrada() {
         assertThat(tradutor.assinaturaValida("{}", "Client-Token", "segredo-url")).isFalse();
@@ -153,6 +165,56 @@ class ZApiWebhookTradutorTest {
 
     private String recebido() {
         return "{\"type\":\"ReceivedCallback\",\"instanceId\":\"SINTETICA-A\",\"messageId\":\"recebida-1\",\"phone\":\"5561999990000\",\"fromMe\":false,\"momment\":1791800000000,\"text\":{\"message\":\"Teste\\nUnicode 🙂\"}}";
+    }
+
+    @ParameterizedTest @ValueSource(strings={"buttonsResponseMessage","listResponseMessage"})
+    void escolhaSemTextPreservaIdDoCliqueReferenciaEDadosEstruturados(String campo) throws Exception {
+        var evento=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(recebido());
+        evento.remove("text"); evento.put("referenceMessageId","original-whatsapp");
+        var escolha=evento.putObject(campo).put("message","Ótimo 🙂");
+        escolha.put(campo.equals("buttonsResponseMessage")?"buttonId":"selectedRowId","opcao-1");
+        if(campo.equals("listResponseMessage")) escolha.put("title","Opção escolhida");
+        var habilitado=new ZApiWebhookTradutor(json,"SINTETICA-A","WHATSAPP",true);
+        var resultado=habilitado.traduzirComDescartes(evento.toString());
+        assertThat(resultado.descartes()).isEmpty();
+        var mensagem=resultado.mensagens().getFirst();
+        assertThat(mensagem.tipo()).isEqualTo("TEXTO");
+        assertThat(mensagem.texto()).isEqualTo("Ótimo 🙂");
+        assertThat(mensagem.contextoWamid()).isEqualTo("original-whatsapp");
+        assertThat(habilitado.identidadeDaMensagem(evento.toString(),mensagem.idExterno()))
+                .contains(new IdentidadeDeMensagemDoCanal("z-api","SINTETICA-A","WHATSAPP","recebida-1"));
+        var dados=json.readTree(mensagem.metadados());
+        assertThat(dados.at("/respostaInterativa/identificador").asText()).isEqualTo("opcao-1");
+        assertThat(dados.at("/referenciaExterna/valor").asText()).isEqualTo("original-whatsapp");
+        assertThat(habilitado.repasseSemGrupos(evento.toString(),null)).get()
+                .extracting(TradutorDeCanal.RepasseParaAutomacao::payloadCru).isEqualTo(evento.toString());
+        evento.remove("referenceMessageId");
+        assertThat(habilitado.traduzir(evento.toString())).hasSize(1);
+        assertThat(habilitado.repasseSemGrupos(evento.toString(),null)).isPresent();
+    }
+
+    @ParameterizedTest @ValueSource(strings={"{}","[]","null","{\"buttonId\":1,\"message\":\"x\"}",
+            "{\"buttonId\":\"1\"}","{\"buttonId\":\"1\",\"message\":false}"})
+    void botaoMalformadoNaoInventaTextoNemDisparaRepasse(String valor) throws Exception {
+        var evento=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(recebido());
+        evento.remove("text"); evento.set("buttonsResponseMessage",json.readTree(valor));
+        var habilitado=new ZApiWebhookTradutor(json,"SINTETICA-A","WHATSAPP",true);
+        assertThat(habilitado.traduzirComDescartes(evento.toString()).mensagens()).isEmpty();
+        assertThat(habilitado.traduzirComDescartes(evento.toString()).descartes()).singleElement()
+                .extracting(TradutorDeCanal.ItemDescartado::motivo).isEqualTo(TradutorDeCanal.MotivoDeDescarte.ITEM_MALFORMADO);
+        assertThat(habilitado.repasseSemGrupos(evento.toString(),null)).isEmpty();
+    }
+
+    @Test void referenciaMalformadaNaoApagaMensagemEReferenciaDeTextoNaoMudaIdentidade() throws Exception {
+        var evento=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(recebido());
+        evento.put("referenceMessageId",42);
+        var parcial=tradutor.traduzirComDescartes(evento.toString());
+        assertThat(parcial.mensagens()).hasSize(1);
+        assertThat(parcial.descartes()).singleElement().extracting(TradutorDeCanal.ItemDescartado::tipo).isEqualTo("reference");
+        evento.put("referenceMessageId","original");
+        var citada=tradutor.traduzir(evento.toString()).getFirst();
+        assertThat(citada.contextoWamid()).isEqualTo("original");
+        assertThat(citada.idExterno()).isEqualTo(tradutor.traduzir(recebido()).getFirst().idExterno());
     }
 
     private String status(String estado) {

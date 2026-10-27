@@ -29,6 +29,7 @@ interface MidiaMetadados {
   endereco?: string;
   /** O cliente enviou o anexo, mas o provedor nunca entregou o arquivo (E207). */
   indisponivel?: boolean;
+  referenciaExterna?: { provedor?: string; namespace?: string; valor?: string };
 }
 
 interface OpcaoInterativa {
@@ -42,7 +43,9 @@ function metadadosDaMidia(json: string | null): MidiaMetadados {
     return {};
   }
   try {
-    return JSON.parse(json) as MidiaMetadados;
+    const valor: unknown = JSON.parse(json);
+    return typeof valor === "object" && valor !== null && !Array.isArray(valor)
+      ? valor as MidiaMetadados : {};
   } catch {
     return {};
   }
@@ -214,6 +217,13 @@ export function BolhaMensagem({
             onNavegar={onNavegarParaCitacao}
           />
         )}
+        {!mensagem.citacao && metadados.referenciaExterna?.provedor === "z-api" &&
+          metadados.referenciaExterna.namespace === "WHATSAPP" &&
+          typeof metadados.referenciaExterna.valor === "string" && (
+            <p className="mb-2 border-l-2 border-current pl-2 text-xs">
+              {catalogo.mensagem.citacao.origemIndisponivel}
+            </p>
+          )}
 
         {mensagem.tipo === "IMAGEM" && (
           <div className="space-y-1.5 rounded-lg border border-border bg-background/50 p-1.5 shadow-sm">

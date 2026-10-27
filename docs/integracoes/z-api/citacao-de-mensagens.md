@@ -1,5 +1,9 @@
 # Resposta citada na Z-API
 
+Complemento: [recebimento de referências e respostas interativas](./respostas-interativas.md).
+A #330 permanece como base das proteções de saída; o complemento resolve `referenceMessageId`
+recebido pela identidade tipada do canal e conserva botão/lista no histórico e no repasse.
+
 ## Diagnostico e contrato (26/10/2026)
 
 Relato: recebida 10:36, resposta 10:41 na Femina, erro Z_API_CITACAO_SEM_CORRELACAO.

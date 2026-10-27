@@ -302,7 +302,16 @@ public interface TradutorDeCanal {
             String legenda,
             Instant enviadoEm,
             String identificadorDestino,
-            String contextoWamid) {
+            String contextoWamid,
+            String metadados) {
+
+        /** Metadados normalizados opcionais; preserva os contratos dos demais tradutores. */
+        public MensagemRecebidaDoCanal(String idExterno, String telefoneRemetente, String nomeExibicao,
+                String texto, String tipo, String midiaIdExterno, String mimetype, String nomeArquivo,
+                String legenda, Instant enviadoEm, String identificadorDestino, String contextoWamid) {
+            this(idExterno, telefoneRemetente, nomeExibicao, texto, tipo, midiaIdExterno, mimetype,
+                    nomeArquivo, legenda, enviadoEm, identificadorDestino, contextoWamid, null);
+        }
 
         /** Compatibilidade para tradutores e fixtures que nao oferecem contexto. */
         public MensagemRecebidaDoCanal(

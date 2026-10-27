@@ -1,5 +1,16 @@
 # Z-API — documento para automação
 
+## Respostas de botões/lista e citação recebida — 26/10/2026
+
+O [contrato de respostas interativas](./respostas-interativas.md) complementa a #330.
+O repasse preserva o envelope Z-API original: o parser deve aceitar
+`buttonsResponseMessage.buttonId/message` e `listResponseMessage.selectedRowId/message/title`
+sem exigir `text.message`. `messageId` é o ID próprio do clique;
+`referenceMessageId` é a origem citada. Não deduplicar pelo texto nem pelo ID da opção.
+Deduplicar efeitos pelo `X-Synapse-Evento-Id` estável entre retries. Nenhum workflow
+publicado foi alterado. A equipe de automação precisa conferir o parser e homologar o
+contrato com contato controlado, sem replay dos eventos produtivos já encerrados.
+
 ## Transicao produtiva no banco existente — 26/10/2026
 
 - O operador informou numero ja conectado, 95 ciclos abertos (14 sem ancora), 80 envios

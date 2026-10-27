@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpMethod;
@@ -48,6 +50,9 @@ class DashboardVisaoGeralIT extends PostgresIT {
 
     @Autowired
     private ObjectMapper json;
+
+    @Value("${synapse.tenant.timezone}")
+    private String fusoHorario;
 
     @BeforeEach
     void limparCenario() {
@@ -309,19 +314,30 @@ class DashboardVisaoGeralIT extends PostgresIT {
         UUID ana = idDoUsuario(EMAIL_ANA);
         UUID gestor = idDoUsuario(EMAIL_GESTOR);
         Instant agora = Instant.now();
+        ZoneId fuso = ZoneId.of(fusoHorario);
+        var hoje = agora.atZone(fuso).toLocalDate();
+        Instant inicioHoje = hoje.atStartOfDay(fuso).toInstant();
+        Instant fimHoje = hoje.plusDays(1).atStartOfDay(fuso).toInstant();
         UUID etapa = jdbc.queryForObject(
                 "SELECT id FROM etapa_atendimento WHERE resultado='EM_ANDAMENTO' ORDER BY ordem LIMIT 1",
                 UUID.class);
 
+        // O dia da instancia nao e date_trunc('day', now()) na sessao UTC do PostgreSQL.
+        // Os dois extremos tambem provam que o limite superior nao e aberto para o futuro.
+        UUID anterior = criarLeads(1, "antes-do-dia", inicioHoje.minusMillis(1), etapa, ana)[0];
+        UUID futuro = criarLeads(1, "apos-o-dia", fimHoje, etapa, ana)[0];
+        registrarGanho(anterior, ana, gestor, inicioHoje.minusMillis(1));
+        registrarGanho(futuro, ana, gestor, fimHoje);
         long leadsHojeAntes = jdbc.queryForObject(
-                "SELECT count(*) FROM lead WHERE criado_em >= date_trunc('day', now())", Long.class);
+                "SELECT count(*) FROM lead WHERE criado_em >= ? AND criado_em < ?", Long.class,
+                timestamp(inicioHoje), timestamp(fimHoje));
         long vendasHojeAntes = jdbc.queryForObject(
                 """
                 SELECT count(DISTINCT e.lead_id) FROM evento_timeline e
                  WHERE e.tipo='ETAPA_ALTERADA' AND e.dados ->> 'resultado_novo' = 'GANHO'
-                   AND e.criado_em >= date_trunc('day', now())
+                   AND e.criado_em >= ? AND e.criado_em < ?
                 """,
-                Long.class);
+                Long.class, timestamp(inicioHoje), timestamp(fimHoje));
 
         UUID[] leads = criarLeads(1, "hoje", agora, etapa, ana);
         registrarGanho(leads[0], ana, gestor, agora);
