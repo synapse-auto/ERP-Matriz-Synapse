@@ -10,7 +10,7 @@
   somente o índice legado em vez da identidade exata Z-API/instância/WHATSAPP/lead.
 - [Contrato, metadados, instruções para automação e diagnóstico por etapa](./respostas-interativas.md).
   Sem migration, nova variável, alteração de workflow, deploy, replay ou envio real.
-- Testes dirigidos: tradutor 42/42; ZApiInteracoesIT 36/36 e regressão ZApiCitacaoIT 28/28,
+- Rodada anterior à sincronização: tradutor 42/42; ZApiInteracoesIT 36/36 e regressão ZApiCitacaoIT 28/28,
   com HTTP/PostgreSQL/MinIO reais e somente transporte externo simulado. A primeira rodada
   revelou um estado inválido na fixture negativa; corrigida e repetida integralmente.
 - Frontend 1.417/1.417, typecheck aprovado, lint sem erros (quatro avisos preexistentes).
@@ -35,6 +35,22 @@
   lead com dados de outra suíte. Somente essa fixture passou a gerar telefone sintético
   derivado de UUID e conferir ausência antes do INSERT, seguindo o padrão dos ITs.
   Não remove dados de outras suítes nem afrouxa unicidade/asserções de isolamento.
+- Sincronizada em 27/10/2026 com `origin/main` 4d2d600, preservando a #331 e seus testes
+  de proxy/CORS herdados. O único conflito era este registro de progresso; as duas seções
+  foram mantidas. Não houve alteração de migration, force push ou merge da PR para main.
+  Resultados do novo SHA integrado são registrados no fechamento da PR.
+
+## Proxy produtivo persistente — 26/10/2026
+
+- Causa informada pelo operador: `403 Invalid CORS request` nos callbacks com Origin externo.
+- Override de transicao existente complementado com middleware que remove Origin somente
+  nos dois webhooks; access logs/tracing OFF preservados. Base e CORS global nao mudam.
+- [Passos exatos no Dokploy](./webhooks-no-dokploy.md): Compose Path permanece; Command Stack
+  deve carregar base+override em todo deploy. Nao criar compose/routers concorrentes.
+- Prova com composicao real, Traefik 3.6.7/TLS e Spring/PostgreSQL; resultados do clean verify
+  e CI no fechamento da PR. Nenhuma env, migration, deploy ou operacao na VPS do agente.
+- Configuracao salva/ativa no Dokploy e logs de outros saltos exigem conferencia operacional;
+  testes locais nao sao homologacao da conta real.
 
 ## Resposta citada — 26/10/2026
 

@@ -496,6 +496,15 @@ Roteiro no Dokploy:
 5. Aponte os três registros DNS para a VPS e faça o deploy. Para rollback do CRM, troque apenas
    `SYNAPSE_IMAGE_TAG` pelo SHA anterior e redeploye.
 
+**Instância Z-API:** o Compose Path continua `docker/dokploy-stack.yml`, mas é obrigatório
+salvar o **Command Stack completo**, carregando também
+`docker/dokploy-z-api-transicao.override.yml` em todo deploy. Esse override protege os dois
+webhooks, remove `Origin` somente neles e desliga access logs/tracing do router. Não muda CORS
+das APIs nem autenticação. Nenhuma env nova. Siga o
+[procedimento exato no Dokploy](docs/integracoes/z-api/webhooks-no-dokploy.md), inclusive a
+substituição das labels temporárias e a conferência do App Name. Não basta adicionar o arquivo
+ao Git ou ao campo Compose Path; outras instâncias continuam usando somente o base.
+
 ### Extensões do PostgreSQL
 
 O schema usa **`pg_trgm`** (busca por nome). Em Postgres gerenciado (RDS, Cloud SQL, Azure Database
