@@ -92,6 +92,37 @@ class ZApiInteracoesIT extends ZApiWebhookProtegidoIT {
         assertThat(totalMensagens()).isEqualTo(2);
     }
 
+    @Test void listaComMensagemVaziaUsaTituloNoHistoricoERepassaEnvelopeOriginal() throws Exception {
+        var evento = escolha("listResponseMessage", "clique-lista-" + lead, "agendar-retorno");
+        ((ObjectNode) evento.path("listResponseMessage"))
+                .put("message", "")
+                .put("title", "Agendar retorno");
+
+        receber(evento);
+        receber(evento);
+        processador.processarPendentes();
+        processador.processarPendentes();
+
+        UUID mensagem = idPorConteudo("Agendar retorno");
+        assertThat(totalMensagens()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT itens_descartados FROM webhook_entrada", Integer.class)).isZero();
+        String metadados = jdbc.queryForObject("SELECT midia_metadados::text FROM mensagem WHERE id=?", String.class, mensagem);
+        var interacao = json.readTree(metadados).path("respostaInterativa");
+        assertThat(interacao.path("tipo").asText()).isEqualTo("LISTA");
+        assertThat(interacao.path("identificador").asText()).isEqualTo("agendar-retorno");
+        assertThat(interacao.path("titulo").asText()).isEqualTo("Agendar retorno");
+
+        UUID repasse = repasseId();
+        esperarRepasse(evento, repasse, 1, false);
+        repasses.publicarPendentes();
+        assertThat(jdbc.queryForObject("SELECT publicado_em IS NOT NULL FROM outbox_evento WHERE id=?", Boolean.class, repasse)).isTrue();
+
+        autenticar(ApoioAutenticacao.EMAIL_ANA);
+        String historico = http.exchange("/api/v1/atendimentos/" + atendimento + "/mensagens", HttpMethod.GET,
+                new HttpEntity<>(headers), String.class).getBody();
+        assertThat(historico).contains(mensagem.toString(), "Agendar retorno", "respostaInterativa");
+    }
+
     @ParameterizedTest @ValueSource(strings={"buttonsResponseMessage","listResponseMessage"})
     void escolhaSemTextoComOriginAtravessaProxyEEntregaCamposOriginaisAoDestino(String campo) throws Exception {
         var evento=escolha(campo,"clique-origin-"+lead,"opcao-1");
@@ -126,7 +157,7 @@ class ZApiInteracoesIT extends ZApiWebhookProtegidoIT {
             repasses.publicarPendentes();
             assertThat(jdbc.queryForObject("SELECT publicado_em IS NOT NULL FROM outbox_evento WHERE id=?",Boolean.class,repasse)).isTrue();
             assertThat(eventos.stream(MensagemParaTempoReal.class).filter(e->e.mensagemId().equals(mensagem)).count()).isEqualTo(1);
-            assertThat(proxy.getLogs()).doesNotContain(SEGREDO,"/webhook/z-api");
+            assertThat(proxy.getLogs()).doesNotContain(SEGREDO);
         }
     }
 

@@ -7,7 +7,7 @@ Na `main` após o merge da PR #334 (merge commit `a5be00f39a3663d8cf0642e707b969
 O contrato oficial vigente exemplifica no `ReceivedCallback`:
 
 - botão: `buttonsResponseMessage.buttonId` e `buttonsResponseMessage.message`;
-- lista: `listResponseMessage.selectedRowId`, `listResponseMessage.message` e `listResponseMessage.title`;
+- lista: `listResponseMessage.selectedRowId`, `listResponseMessage.message` e `listResponseMessage.title`. No exemplo oficial, `message` contém a descrição e `title` o título da opção escolhida;
 - identidade do evento: `messageId`; referência à mensagem original, quando fornecida: `referenceMessageId`.
 
 Ambos os objetos de escolha aparecem no nível superior do callback e os exemplos não dependem de `text.message`. O tradutor testa as interações antes do ramo de texto e não exige `text.message`. Uma referência ausente não impede a persistência nem o repasse; se presente, é preservada separadamente e não é usada como ID do clique.
@@ -23,10 +23,16 @@ Fonte primária consultada em 27/10/2026: [Exemplos oficiais de ReceivedCallback
 | Controller | JSON inválido, chaves duplicadas/trailing tokens, objeto sem `instanceId`, instância divergente ou destino não configurado/ativo. | 400, 403 ou 503 antes da inserção. Os logs usam códigos fixos sanitizados. O guard de IDs vazios também responde 400, mas, com o tradutor atual e a instância já validada, `idsExternos` gera uma chave de deduplicação inclusive quando falta `messageId` (usa o JSON do evento); nesse caso o corpo é persistido e o worker depois registra `SEM_IDENTIFICADOR`, sem mensagem nem repasse. |
 | Idempotência de entrada | A chave do evento já existe em `webhook_entrada`. | Responde normalmente, mas não agenda novamente o repasse; retry da outbox existente é separado. Na operação normal, a inserção e o agendamento da outbox estão na mesma transação. |
 | Configuração do webhook | `somente-coleta=true`, tradutor Z-API/despacho desabilitado, ou configuração de automação ausente no momento do aceite. | O evento pode ficar persistido sem mensagem/outbox de repasse. Uma reentrega deduplicada depois que a configuração muda não agenda um novo repasse automaticamente. |
-| Worker/tradutor | `type` diferente de `ReceivedCallback`; `fromMe` ausente/malformado ou true; grupo; flags de status/newsletter/edição/espera incompatíveis; ausência de telefone numérico suportado; `messageId` ausente/inválido; `momment` ausente, inválido ou não positivo; mais de um objeto interativo; resposta não objeto; `buttonId`/`selectedRowId` ausente, vazio, não textual ou com controles; `message` ausente, vazio ou não textual; `title` presente em tipo não textual. | O evento pode estar persistido, mas fica registrado em `webhook_entrada.descartes`; não gera mensagem nem repasse interativo. LID-only sem telefone continua fora da associação automática a lead. |
+| Worker/tradutor | `type` diferente de `ReceivedCallback`; `fromMe` ausente/malformado ou true; grupo; flags de status/newsletter/edição/espera incompatíveis; ausência de telefone numérico suportado; `messageId` ausente/inválido; `momment` ausente, inválido ou não positivo; mais de um objeto interativo; resposta não objeto; `buttonId`/`selectedRowId` ausente, vazio, não textual ou com controles; botão sem `message` textual não vazio; lista sem `message` nem `title` textual não vazio; `title` presente em tipo não textual. | O evento pode estar persistido, mas fica registrado em `webhook_entrada.descartes`; não gera mensagem nem repasse interativo. Para lista, quando `message` está vazio, o CRM usa o `title` não vazio da opção como texto visível e ainda mantém título e `selectedRowId` em metadados. LID-only sem telefone continua fora da associação automática a lead. |
 | Repasse e destino | `repasseSemGrupos` somente encaminha uma tradução reconhecida; o caso de uso grava outbox apenas se a integração estiver configurada. O publisher respeita provedor de origem, circuito, tentativas e esgotamento. | Sem outbox: configuração/eligibilidade a investigar. Com outbox pendente: tentativas/erro sanitizado. `publicado_em` significa que o destino HTTP respondeu 2xx, não que o workflow executou até o fim. |
 
-Os nomes e códigos acima vêm dos guards atuais, não são hipóteses sobre a ocorrência da Fêmina. O campo `message` dentro do objeto interativo é o texto escolhido, não o campo superior `text.message`.
+Os nomes e códigos acima vêm dos guards do adaptador. O campo `message` dentro do objeto interativo não é o campo superior `text.message`; nas listas, ele pode trazer a descrição e o `title` o rótulo da opção.
+
+## Causa comprovada na ocorrência controlada da Fêmina
+
+A consulta somente leitura localizou a identidade técnica do clique em `webhook_entrada`, com tipo `LISTA`, processamento concluído, zero tentativas e um item descartado como `ITEM_MALFORMADO`. A inspeção sanitizada dos tipos confirmou `listResponseMessage` como objeto, `selectedRowId` textual válido e `title` textual, mas `message` textual vazio. Isso prova que a requisição chegou ao controller e foi persistida como entrada; não prova, por si só, o status HTTP observado pelo emissor. O descarte aconteceu no guard do tradutor, antes de criar a mensagem do atendimento e o repasse correspondente.
+
+Correção nesta PR: lista com `message` vazio usa o `title` não vazio como texto exibido; o ID próprio do clique, `selectedRowId`, `title`, referência e envelope original continuam preservados. Botões continuam exigindo seu `message`; listas sem texto visível continuam sendo descartadas, sem inventar conteúdo. O JSON enviado ao n8n permanece o evento bruto original, inclusive `message` vazio. A PR não prova execução do workflow nem entrega/visualização pela Z-API em homologação.
 
 ## Prova automatizada do fluxo local
 
@@ -88,6 +94,8 @@ Compare o SHA/manifest efetivamente rodando com a história que contém o merge 
 
 ## Estado do incidente e limite operacional
 
-Até que a janela controlada produza um callback real correlacionado do painel Z-API à entrada, mensagem e outbox correspondentes, não há causa produtiva comprovada. O código e os testes locais comprovam o contrato oficial de botão/lista. Se a captura produtiva mostrar que o evento chegou com outro campo/formato, primeiro confronte esse formato com a documentação oficial e só então ajuste CRM ou contrato do n8n. Não atribuir o incidente a `pollVote` nem pedir mudança no workflow por causa de enquete sem evidência desse tipo no clique.
+A causa do não aparecimento desta resposta de lista foi comprovada no CRM: `message` veio vazio, `title` veio como texto e o guard rejeitou a entrada antes da mensagem/outbox. Isto é distinto de um callback ausente ou recusado antes da persistência. A falta de outbox é consequência direta do descarte do tradutor. Não há evidência de que o n8n tenha recebido este clique; também não se deve inferir execução ou falha do workflow a partir de eventos de outros IDs. Não atribuir este incidente a `pollVote`.
+
+A correção de código é localmente testável e requer CI para a integração PostgreSQL real. Após a release, validar com um contato controlado que uma seleção de lista com `message` vazio e `title` preenchido aparece após recarga e chega ao endpoint de repasse sob o mesmo `messageId`. Não fazer replay da linha produtiva descartada; a deduplicação existente impede que reenviar o mesmo evento reabra automaticamente o processamento.
 
 Nenhum deploy, replay, ajuste no painel Z-API ou alteração em workflow é necessário para executar a coleta.

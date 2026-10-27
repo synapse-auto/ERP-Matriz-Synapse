@@ -166,14 +166,18 @@ public final class ZApiWebhookTradutor implements TradutorDeCanal {
                         String.join(", ", rotulos), horario), no, interativa);
             }
             String escolha = texto(resposta, "buttonsResponseMessage".equals(campo) ? "buttonId" : "selectedRowId");
+            String titulo = texto(resposta, "title");
             String rotulo = conteudo(resposta, "message");
+            // Em callbacks de lista, o provedor pode deixar message vazio e ainda enviar
+            // title com o rótulo selecionado. Não aplicar esse fallback a respostas de botão.
+            if (rotulo == null && "listResponseMessage".equals(campo)) rotulo = titulo;
             if (!resposta.isObject() || escolha == null || rotulo == null
                     || (resposta.hasNonNull("title") && !resposta.path("title").isTextual()))
                 return descarte(campo, MotivoDeDescarte.ITEM_MALFORMADO);
             var interativa = json.createObjectNode();
             interativa.put("tipo", "buttonsResponseMessage".equals(campo) ? "BOTAO" : "LISTA");
             interativa.put("identificador", escolha);
-            if (texto(resposta, "title") != null) interativa.put("titulo", texto(resposta, "title"));
+            if (titulo != null) interativa.put("titulo", titulo);
             return comDadosDoEvento(MensagemRecebidaDoCanal.texto(
                     identidade("WHATSAPP", id).chaveInterna(), instancia, telefone, nome, rotulo, horario), no, interativa);
         }
