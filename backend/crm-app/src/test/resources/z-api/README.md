@@ -7,6 +7,7 @@ Nao incluem segredo, URL privada, assinatura inventada nem prova de autenticacao
 - received.json: https://developer.z-api.io/webhooks/on-message-received-examples
 - delivery.json: https://developer.z-api.io/webhooks/on-message-send-examples
 - status.json: https://developer.z-api.io/webhooks/on-whatsapp-message-status-changes
+- poll-vote.json: https://developer.z-api.io/webhooks/on-message-received-examples (ReceivedCallback/pollVote)
 
 O namespace WHATSAPP de ids[] e escolhido explicitamente SOMENTE no teste. Continua
 pendente de confirmacao oficial para producao. Os testes alteram IDs/instancia/status para

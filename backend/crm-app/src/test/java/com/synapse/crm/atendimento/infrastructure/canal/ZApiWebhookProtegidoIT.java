@@ -113,7 +113,10 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
                     assertThat(resposta.code()).as("router real aceito e backend acessivel").isEqualTo(200);
                 }
             });
-            String corpo = recebido().toString();
+            var callbackInterativo = recebido();
+            callbackInterativo.remove("text");
+            callbackInterativo.putObject("buttonsResponseMessage").put("buttonId", "1").put("message", "Escolha sintetica");
+            String corpo = callbackInterativo.toString();
             for (String segredo : List.of("", "?secret=incorreto", "?secret=" + SEGREDO)) {
                 try (var resposta = cliente.newCall(new Request.Builder().url(base + "/webhook/z-api" + segredo)
                     .header("Host", ProxyZApiParaTeste.DOMINIO).header("Origin", "https://origem-externa.example.test")
@@ -123,6 +126,8 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
                 }
             }
             assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT payload::text FROM webhook_entrada",String.class))
+                    .contains("buttonsResponseMessage", "Escolha sintetica");
             try (var resposta = cliente.newCall(new Request.Builder().url(base + "/webhook/canal?secret=incorreto")
                 .header("Host", ProxyZApiParaTeste.DOMINIO).header("Origin", "https://origem-externa.example.test")
                 .post(RequestBody.create("{}", okhttp3.MediaType.get("application/json"))).build()).execute()) {

@@ -1,0 +1,16 @@
+{
+  "type": "ReceivedCallback",
+  "instanceId": "INSTANCIA-SINTETICA",
+  "messageId": "VOTO-WHATSAPP-SINTETICO-001",
+  "phone": "5561999990000",
+  "fromMe": false,
+  "isGroup": false,
+  "momment": 1791800000000,
+  "pollVote": {
+    "pollMessageId": "ENQUETE-WHATSAPP-SINTETICA-009",
+    "options": [
+      { "name": "Instalação" },
+      { "name": "Orçamento" }
+    ]
+  }
+}

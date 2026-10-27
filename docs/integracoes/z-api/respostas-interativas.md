@@ -4,7 +4,7 @@
 
 Fontes oficiais:
 
-- [ReceivedCallback: exemplos de botão e lista](https://developer.z-api.io/webhooks/on-message-received-examples).
+- [ReceivedCallback: exemplos de botão, lista e voto em enquete](https://developer.z-api.io/webhooks/on-message-received-examples).
 - [Resposta textual citada](https://developer.z-api.io/message/reply-message).
 - [Imagem](https://developer.z-api.io/message/send-message-image), [vídeo](https://developer.z-api.io/message/send-message-video) e [documento](https://developer.z-api.io/message/send-message-document): campo de saída `messageId`.
 - [Áudio](https://developer.z-api.io/message/send-message-audio): a fonte consultada não documenta citação na saída. Preservada a recusa explícita da #330; responder com TEXTO citando um áudio continua permitido.
@@ -34,16 +34,42 @@ Uma escolha de lista substitui somente o objeto de resposta:
 {"listResponseMessage":{"selectedRowId":"2","message":"Descrição escolhida","title":"Título escolhido"}}
 ```
 
+Um voto em enquete usa o identificador da mensagem da enquete e os nomes das opções
+selecionadas; não exige `text.message` e não usa `referenceMessageId` no exemplo oficial:
+
+```json
+{
+  "type": "ReceivedCallback",
+  "instanceId": "INSTANCIA-SINTETICA",
+  "messageId": "ID-WHATSAPP-DO-VOTO-001",
+  "phone": "5561999990000",
+  "fromMe": false,
+  "isGroup": false,
+  "momment": 1791800000000,
+  "pollVote": {
+    "pollMessageId": "ID-WHATSAPP-DA-ENQUETE-009",
+    "options": [{ "name": "Instalação" }, { "name": "Orçamento" }]
+  }
+}
+```
+
 `messageId` identifica o clique e sua deduplicação; `referenceMessageId` identifica a
 mensagem citada. `buttonId`/`selectedRowId` identificam opções, não mensagens WhatsApp.
-Não converter nenhum desses campos em `zaapId`, UUID CRM ou chave interna de deduplicação.
+No voto, `pollMessageId` identifica a enquete original; ele não substitui `messageId`, não
+é alias e não cria por si só uma citação. Não converter esses campos em `zaapId`, UUID CRM
+ou chave interna de deduplicação.
 
 ## Persistência e interface
 
 - Botão/lista válidos sem `text.message` viram mensagem `TEXTO`, com `conteudo` igual ao
   `message` escolhido. Não criam opções clicáveis nem executam novamente o botão.
+- `pollVote` válido sem `text.message` vira mensagem `TEXTO`, com o conteúdo legível formado
+  pelos nomes selecionados na ordem recebida, separados por vírgula e espaço. O JSONB mantém
+  `respostaInterativa.tipo=ENQUETE`, `pollMessageId` e a lista ordenada `opcoes`. Não tenta
+  reconstruir a pergunta/opções originais nem criar uma citação.
 - O JSONB já existente `midia_metadados` conserva `respostaInterativa` com `tipo`
-  (`BOTAO`/`LISTA`), `identificador` e `titulo` opcional. Nenhuma migration é necessária.
+  (`BOTAO`/`LISTA`/`ENQUETE`), `identificador` e `titulo` opcional nos dois primeiros tipos;
+  no voto, `pollMessageId` e `opcoes`. Nenhuma migration é necessária.
 - `referenciaExterna` conserva `provedor`, `instancia`, `namespace=WHATSAPP` e `valor`.
   A resolução consulta a identidade exata não conflitante, ligada ao mesmo lead. Não usa
   o índice legado/hash como fallback. Meta/Uzapi mantêm seu caminho anterior.
@@ -61,7 +87,8 @@ Não converter nenhum desses campos em `zaapId`, UUID CRM ou chave interna de de
 
 O repasse NÃO troca o envelope por um payload Meta ou pela representação interna normalizada.
 O n8n recebe os campos originais acima, inclusive `buttonsResponseMessage`,
-`listResponseMessage`, `referenceMessageId` e o `messageId` próprio do clique.
+`listResponseMessage`, `pollVote`, `referenceMessageId` quando presente e o `messageId`
+próprio do clique/voto. Para `pollVote`, não confundir `pollMessageId` com o ID do voto.
 Pode haver normalização JSON de espaços/ordem já existente, não remoção desses campos.
 
 Conservar autenticação CRM→n8n por `X-Synapse-Webhook-Token` e deduplicar efeitos por
@@ -71,7 +98,9 @@ continuam distintos, mesmo com texto/opção iguais. Timeout não prova ausênci
 o workflow precisa deduplicar antes dos efeitos. Não foram alterados workflows publicados.
 
 O parser da automação deve priorizar o objeto de resposta interativa presente, sem exigir
-`text.message`, e manter o identificador da opção separado do rótulo. Campo obrigatório
+`text.message`, e manter o identificador da opção separado do rótulo. Para voto, ler
+`pollVote.pollMessageId` e `pollVote.options[].name`; a mensagem CRM mostra somente os nomes
+selecionados, mas o envelope original mantém a estrutura integral. Campo obrigatório
 ausente/tipo inválido é descartado com diagnóstico fixo sanitizado; não há texto inventado.
 Referência inválida descarta somente o campo, não a mensagem válida. Não repassar segredo
 do callback, telefone ou conteúdo a logs de diagnóstico.
