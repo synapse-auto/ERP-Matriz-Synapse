@@ -90,6 +90,36 @@ class ZApiInteracoesIT extends ZApiWebhookProtegidoIT {
         assertThat(totalMensagens()).isEqualTo(2);
     }
 
+    @Test void votoDeEnqueteSemTextoPersisteHistoricoTempoRealERepasseComIdentidadesSeparadas() throws Exception {
+        ObjectNode evento;
+        try(var f=getClass().getResourceAsStream("/z-api/poll-vote.json")) {
+            evento=(ObjectNode)json.readTree(f);
+        }
+        evento.put("instanceId", "ZAPI-PROTEGIDA").put("messageId", "voto-whatsapp-"+lead)
+                .put("phone", "5561999990000");
+
+        receber(evento);receber(evento);processador.processarPendentes();processador.processarPendentes();
+        UUID mensagem=idPorConteudo("Instalação, Orçamento");
+        assertThat(totalMensagens()).isEqualTo(1);
+        var dados=json.readTree(jdbc.queryForObject("SELECT midia_metadados::text FROM mensagem WHERE id=?",String.class,mensagem))
+                .path("respostaInterativa");
+        assertThat(dados.path("tipo").asText()).isEqualTo("ENQUETE");
+        assertThat(dados.path("pollMessageId").asText()).isEqualTo("ENQUETE-WHATSAPP-SINTETICA-009");
+        assertThat(dados.path("opcoes").get(0).asText()).isEqualTo("Instalação");
+        assertThat(dados.path("opcoes").get(1).asText()).isEqualTo("Orçamento");
+        assertThat(jdbc.queryForObject("SELECT id_externo FROM mensagem_correlacao_canal WHERE mensagem_id=? AND namespace='WHATSAPP'",String.class,mensagem))
+                .isEqualTo(evento.path("messageId").asText());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem_referencia WHERE mensagem_id=?",Integer.class,mensagem)).isZero();
+        assertThat(eventos.stream(MensagemParaTempoReal.class).filter(e->e.mensagemId().equals(mensagem)).count()).isEqualTo(1);
+
+        UUID repasse=repasseId();
+        esperarRepasse(evento,repasse,1,false);repasses.publicarPendentes();
+        assertThat(jdbc.queryForObject("SELECT publicado_em IS NOT NULL FROM outbox_evento WHERE id=?",Boolean.class,repasse)).isTrue();
+        autenticar(ApoioAutenticacao.EMAIL_ANA);
+        String historico=http.exchange("/api/v1/atendimentos/"+atendimento+"/mensagens",HttpMethod.GET,new HttpEntity<>(headers),String.class).getBody();
+        assertThat(historico).contains(mensagem.toString(),"Instalação, Orçamento","pollMessageId");
+    }
+
     @Test void falhaN8nNaoBloqueiaHistoricoERetryPreservaEnvelopeEIdentidade() throws Exception {
         var evento=escolha("buttonsResponseMessage","clique-"+lead,"1");
         receber(evento);processador.processarPendentes();UUID repasse=repasseId();

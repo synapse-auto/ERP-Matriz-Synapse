@@ -15,6 +15,7 @@ essas fixtures. Arrays representam **sequências de POSTs independentes**, não 
 | status-sequencia.json | [status](https://developer.z-api.io/webhooks/on-whatsapp-message-status-changes) | READ antes de RECEIVED, repetição; não regredir nem duplicar |
 | texto-callback.json | [exemplos entrada](https://developer.z-api.io/webhooks/on-message-received-examples) | texto recebido, instância e identidade |
 | documentos-sequencia.json | [exemplos entrada](https://developer.z-api.io/webhooks/on-message-received-examples) | PNG/JPEG como documento; variar MIME/nome sem reclassificar pelo sufixo |
+| resposta-enquete.json | [exemplos de ReceivedCallback](https://developer.z-api.io/webhooks/on-message-received-examples) | pollVote sem text.message; distinguir messageId do voto e pollMessageId da enquete, preservar ordem das opções |
 | negativos-sequencia.json | [entrada](https://developer.z-api.io/webhooks/on-message-received-examples), [LID](https://developer.z-api.io/tips/lid) | eco, grupo, outra instância com mesmo ID, LID-only |
 
 PNG/JPEG dentro de document são **variantes sintéticas candidatas**, não comprovação de que

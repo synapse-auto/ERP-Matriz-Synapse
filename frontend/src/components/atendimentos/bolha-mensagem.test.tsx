@@ -107,6 +107,22 @@ function renderizarComQuery(ui: ReactNode) {
 }
 
 describe("BolhaMensagem", () => {
+  it("exibe voto de enquete como texto escolhido, sem inventar controles de resposta", () => {
+    renderizarComQuery(<BolhaMensagem mensagem={mensagem({
+      remetenteTipo: "LEAD",
+      conteudo: "Instalação, Orçamento",
+      midiaMetadados: JSON.stringify({ respostaInterativa: {
+        tipo: "ENQUETE",
+        pollMessageId: "ENQUETE-WHATSAPP-SINTETICA-009",
+        opcoes: ["Instalação", "Orçamento"],
+      } }),
+    })} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />);
+
+    expect(screen.getByText("Instalação, Orçamento")).toBeInTheDocument();
+    expect(screen.queryByText("Opções")).not.toBeInTheDocument();
+    expect(screen.queryByText("Lista")).not.toBeInTheDocument();
+  });
+
   it.each(["BOTAO", "LISTA"])("exibe escolha %s sem inventar botões ou origem navegável", async (tipo) => {
     const responder = vi.fn();
     renderizarComQuery(<BolhaMensagem mensagem={mensagem({ remetenteTipo: "LEAD", conteudo: "Ótimo 🙂\nhttps://example.com",

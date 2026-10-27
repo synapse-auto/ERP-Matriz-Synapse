@@ -136,18 +136,42 @@ public final class ZApiWebhookTradutor implements TradutorDeCanal {
         Instant horario = horario(no);
         if (id == null || horario == null) return descarte("outro", MotivoDeDescarte.SEM_IDENTIFICADOR);
         String nome = texto(no, "senderName");
-        // Escolha e mensagem possuem identidades diferentes. O ID da escolha nunca e alias WhatsApp.
-        for (String campo : List.of("buttonsResponseMessage", "listResponseMessage")) {
-            if (!no.has(campo)) continue;
+        // Resposta interativa tem prioridade sobre text.message, ausente em callbacks oficiais.
+        // messageId identifica o voto/clique; pollMessageId/referenceMessageId mantem os papeis distintos.
+        List<String> interacoes = List.of("buttonsResponseMessage", "listResponseMessage", "pollVote").stream()
+                .filter(no::has).toList();
+        if (interacoes.size() > 1) return descarte("resposta_interativa", MotivoDeDescarte.ITEM_MALFORMADO);
+        if (!interacoes.isEmpty()) {
+            String campo = interacoes.getFirst();
             JsonNode resposta = no.path(campo);
-            String escolha = texto(resposta, campo.equals("buttonsResponseMessage") ? "buttonId" : "selectedRowId");
+            if ("pollVote".equals(campo)) {
+                String pollMessageId = texto(resposta, "pollMessageId");
+                JsonNode opcoes = resposta.path("options");
+                if (!resposta.isObject() || pollMessageId == null || pollMessageId.isBlank()
+                        || !opcoes.isArray() || opcoes.isEmpty())
+                    return descarte(campo, MotivoDeDescarte.ITEM_MALFORMADO);
+                List<String> rotulos = new ArrayList<>();
+                for (JsonNode opcao : opcoes) {
+                    String rotulo = texto(opcao, "name");
+                    if (!opcao.isObject() || rotulo == null || rotulo.isBlank())
+                        return descarte(campo, MotivoDeDescarte.ITEM_MALFORMADO);
+                    rotulos.add(rotulo);
+                }
+                var interativa = json.createObjectNode();
+                interativa.put("tipo", "ENQUETE").put("pollMessageId", pollMessageId);
+                var opcoesPersistidas = interativa.putArray("opcoes");
+                rotulos.forEach(opcoesPersistidas::add);
+                return comDadosDoEvento(MensagemRecebidaDoCanal.texto(
+                        identidade("WHATSAPP", id).chaveInterna(), instancia, telefone, nome,
+                        String.join(", ", rotulos), horario), no, interativa);
+            }
+            String escolha = texto(resposta, "buttonsResponseMessage".equals(campo) ? "buttonId" : "selectedRowId");
             String rotulo = conteudo(resposta, "message");
             if (!resposta.isObject() || escolha == null || rotulo == null
-                    || (resposta.hasNonNull("title") && !resposta.path("title").isTextual())
-                    || (no.has("buttonsResponseMessage") && no.has("listResponseMessage")))
+                    || (resposta.hasNonNull("title") && !resposta.path("title").isTextual()))
                 return descarte(campo, MotivoDeDescarte.ITEM_MALFORMADO);
             var interativa = json.createObjectNode();
-            interativa.put("tipo", campo.equals("buttonsResponseMessage") ? "BOTAO" : "LISTA");
+            interativa.put("tipo", "buttonsResponseMessage".equals(campo) ? "BOTAO" : "LISTA");
             interativa.put("identificador", escolha);
             if (texto(resposta, "title") != null) interativa.put("titulo", texto(resposta, "title"));
             return comDadosDoEvento(MensagemRecebidaDoCanal.texto(

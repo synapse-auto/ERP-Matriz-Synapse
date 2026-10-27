@@ -193,6 +193,51 @@ class ZApiWebhookTradutorTest {
         assertThat(habilitado.repasseSemGrupos(evento.toString(),null)).isPresent();
     }
 
+    @Test void votoDeEnquetePreservaIdsDistintosOpcoesOrdenadasEEnvelopeOriginal() throws Exception {
+        var evento=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(recebido());
+        evento.remove("text");
+        evento.put("messageId", "voto-whatsapp-001");
+        var opcoes=evento.putObject("pollVote").put("pollMessageId", "enquete-whatsapp-009").putArray("options");
+        opcoes.addObject().put("name", "Instalação");
+        opcoes.addObject().put("name", "Orçamento");
+        var habilitado=new ZApiWebhookTradutor(json,"SINTETICA-A","WHATSAPP",true);
+
+        var traducao=habilitado.traduzirComDescartes(evento.toString());
+        assertThat(traducao.descartes()).isEmpty();
+        assertThat(traducao.mensagens()).singleElement().satisfies(m -> {
+            assertThat(m.texto()).isEqualTo("Instalação, Orçamento");
+            assertThat(m.contextoWamid()).isNull();
+            assertThat(habilitado.identidadeDaMensagem(evento.toString(), m.idExterno()))
+                    .contains(new IdentidadeDeMensagemDoCanal("z-api", "SINTETICA-A", "WHATSAPP", "voto-whatsapp-001"));
+            try {
+                var metadados=json.readTree(m.metadados()).path("respostaInterativa");
+                assertThat(metadados.path("tipo").asText()).isEqualTo("ENQUETE");
+                assertThat(metadados.path("pollMessageId").asText()).isEqualTo("enquete-whatsapp-009");
+                assertThat(metadados.path("opcoes").size()).isEqualTo(2);
+                assertThat(metadados.path("opcoes").get(0).asText()).isEqualTo("Instalação");
+                assertThat(metadados.path("opcoes").get(1).asText()).isEqualTo("Orçamento");
+            } catch (Exception e) { throw new AssertionError(e); }
+        });
+        assertThat(habilitado.repasseSemGrupos(evento.toString(), null)).get()
+                .extracting(TradutorDeCanal.RepasseParaAutomacao::payloadCru).isEqualTo(evento.toString());
+    }
+
+    @ParameterizedTest @ValueSource(strings={"{}", "{\"pollMessageId\":\"poll-1\",\"options\":[]}",
+            "{\"pollMessageId\":4,\"options\":[{\"name\":\"Opção\"}]}",
+            "{\"pollMessageId\":\"poll-1\",\"options\":[{}]}",
+            "{\"pollMessageId\":\"poll-1\",\"options\":\"Opção\"}"})
+    void votoDeEnqueteIncompletoEDiagnosticadoSemInventarTextoOuRepassar(String valor) throws Exception {
+        var evento=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(recebido());
+        evento.remove("text"); evento.set("pollVote", json.readTree(valor));
+        var habilitado=new ZApiWebhookTradutor(json,"SINTETICA-A","WHATSAPP",true);
+        var resultado=habilitado.traduzirComDescartes(evento.toString());
+        assertThat(resultado.mensagens()).isEmpty();
+        assertThat(resultado.descartes()).singleElement()
+                .extracting(TradutorDeCanal.ItemDescartado::motivo)
+                .isEqualTo(TradutorDeCanal.MotivoDeDescarte.ITEM_MALFORMADO);
+        assertThat(habilitado.repasseSemGrupos(evento.toString(), null)).isEmpty();
+    }
+
     @ParameterizedTest @ValueSource(strings={"{}","[]","null","{\"buttonId\":1,\"message\":\"x\"}",
             "{\"buttonId\":\"1\"}","{\"buttonId\":\"1\",\"message\":false}"})
     void botaoMalformadoNaoInventaTextoNemDisparaRepasse(String valor) throws Exception {
