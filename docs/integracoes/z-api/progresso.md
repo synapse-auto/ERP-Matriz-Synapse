@@ -31,6 +31,10 @@
   Correção restrita ao teste: recebe `synapse.tenant.timezone`, usa limites explícitos e
   inclui fixtures imediatamente antes do início e no fim do dia para provar exclusão.
   Nenhum código/consulta de dashboard em produção foi alterado; não é mera repetição do CI.
+- A suíte completa local também identificou colisão do telefone fixo da fixture de outro
+  lead com dados de outra suíte. Somente essa fixture passou a gerar telefone sintético
+  derivado de UUID e conferir ausência antes do INSERT, seguindo o padrão dos ITs.
+  Não remove dados de outras suítes nem afrouxa unicidade/asserções de isolamento.
 
 ## Resposta citada — 26/10/2026
 

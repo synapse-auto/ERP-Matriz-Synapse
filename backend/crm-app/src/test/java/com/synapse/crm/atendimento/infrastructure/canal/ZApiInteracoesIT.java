@@ -173,8 +173,12 @@ class ZApiInteracoesIT extends ZApiWebhookProtegidoIT {
         UUID outroLead=null,outroAtendimento=null;
         try {
             if(caso.equals("outroLead")) {
-                outroLead=UUID.randomUUID();outroAtendimento=UUID.randomUUID();
-                jdbc.update("INSERT INTO lead(id,nome,telefone,status_basico) VALUES (?,?,'5561999990001','IA')",outroLead,PREFIXO+outroLead);
+                outroAtendimento=UUID.randomUUID();String telefone;
+                do {
+                    outroLead=UUID.randomUUID();
+                    telefone="5561"+String.format("%09d",Math.floorMod(outroLead.getLeastSignificantBits(),1_000_000_000L));
+                } while(Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM lead WHERE telefone=?)",Boolean.class,telefone)));
+                jdbc.update("INSERT INTO lead(id,nome,telefone,status_basico) VALUES (?,?,?,'IA')",outroLead,PREFIXO+outroLead,telefone);
                 jdbc.update("INSERT INTO atendimento(id,lead_id,canal_credencial_id,status) VALUES (?,?,?,'EM_ATENDIMENTO')",outroAtendimento,outroLead,CREDENCIAL);
                 jdbc.update("UPDATE mensagem SET atendimento_id=? WHERE id=?",outroAtendimento,idOrigem);
                 jdbc.update("UPDATE mensagem_correlacao_canal SET atendimento_id=? WHERE mensagem_id=?",outroAtendimento,idOrigem);
