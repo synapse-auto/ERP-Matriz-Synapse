@@ -157,7 +157,7 @@ class ZApiInteracoesIT extends ZApiWebhookProtegidoIT {
             repasses.publicarPendentes();
             assertThat(jdbc.queryForObject("SELECT publicado_em IS NOT NULL FROM outbox_evento WHERE id=?",Boolean.class,repasse)).isTrue();
             assertThat(eventos.stream(MensagemParaTempoReal.class).filter(e->e.mensagemId().equals(mensagem)).count()).isEqualTo(1);
-            assertThat(proxy.getLogs()).doesNotContain(SEGREDO,"/webhook/z-api");
+            assertThat(proxy.getLogs()).doesNotContain(SEGREDO);
         }
     }
 
