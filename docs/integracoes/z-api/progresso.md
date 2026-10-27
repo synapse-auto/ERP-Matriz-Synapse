@@ -1,5 +1,26 @@
 # Z-API — progresso e gates
 
+## Respostas interativas e referências recebidas — 26/10/2026
+
+- Worktree isolada, branch `codex/z-api-botoes-citacoes`, baseada em `origin/main`
+  `c91efc3b31a6e899da3cf80cad25df5c35ac11b3` (merge da #330). Não duplica suas proteções
+  de citação de saída, aliases/RLS ou idempotência.
+- Lacunas comprovadas: tradutor ignorava botão/lista sem `text.message`, impedindo também
+  o repasse; `referenceMessageId` não era traduzido e a resolução recebida consultava
+  somente o índice legado em vez da identidade exata Z-API/instância/WHATSAPP/lead.
+- [Contrato, metadados, instruções para automação e diagnóstico por etapa](./respostas-interativas.md).
+  Sem migration, nova variável, alteração de workflow, deploy, replay ou envio real.
+- Testes dirigidos: tradutor 42/42; ZApiInteracoesIT 36/36 e regressão ZApiCitacaoIT 28/28,
+  com HTTP/PostgreSQL/MinIO reais e somente transporte externo simulado. A primeira rodada
+  revelou um estado inválido na fixture negativa; corrigida e repetida integralmente.
+- Frontend 1.417/1.417, typecheck aprovado, lint sem erros (quatro avisos preexistentes).
+  Primeiro executor de testes não inicializou; a suíte completa passou com threads limitadas.
+- A primeira execução de clean verify foi interrompida junto com o ambiente local, sem
+  resultado final; nova execução integral e build estão em andamento. Não é aprovação de CI.
+  Aplicação real já exibiu as escolhas/citações com Inter carregada (1920x1080); capturas
+  finais/recarga/tela menor e CI do último SHA devem constar do fechamento.
+- Homologação da conta/Configurações Beta e execução real do workflow são separadas.
+
 ## Resposta citada — 26/10/2026
 
 - Branch `codex/z-api-citacao`, baseada na main653a66b apos merge da #329; worktree isolada.

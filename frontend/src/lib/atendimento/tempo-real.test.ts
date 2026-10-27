@@ -81,6 +81,16 @@ function mensagem(
 }
 
 describe("mesclarMensagens", () => {
+  it("reconcilia clique recebido por WebSocket e recarga sem duplicar nem perder referência/opção", () => {
+    const clique: MensagemResposta = { ...mensagem("clique-1", "2026-10-26T13:00:00Z", "ENVIADO"),
+      remetenteTipo: "LEAD", conteudo: "Ótimo 🙂",
+      midiaMetadados: JSON.stringify({ respostaInterativa: { tipo: "BOTAO", identificador: "1" } }),
+      citacao: { tipoReferencia: "RESPOSTA", origemId: "original-1", autor: "Equipe", tipoConteudo: "TEXTO", previa: "Escolha uma opção" },
+    };
+    const recebidas = mesclarMensagens([], [clique, clique]);
+    const recarregadas = mesclarMensagens(recebidas, [clique]);
+    expect(recarregadas).toEqual([clique]);
+  });
   it("aceita falha do provedor após ENVIADO, mantém falha persistida e permite recuperar falha local", () => {
     const enviado = mensagem("real-1", "2026-01-01T00:00:00Z", "ENVIADO");
     const falhou = { ...enviado, statusEntrega: "FALHOU" as const, erroEntrega: { codigo: 400, titulo: "recusado" } };
