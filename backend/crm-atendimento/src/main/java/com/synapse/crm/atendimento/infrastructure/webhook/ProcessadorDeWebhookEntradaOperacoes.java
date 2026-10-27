@@ -47,6 +47,8 @@ import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.application.lead.ResetarFichaDoLeadUseCase;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal;
+import com.synapse.crm.sharedkernel.midia.DocumentoWord;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -100,6 +102,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final LeadNoCaminhoDeMensagem leads;
     private final CanalGateway canal;
     private final ArmazenamentoDeMidia armazenamento;
+    private final DetectorDeTipoReal detector;
     private final CanalCredencialAtivaRepositorio canaisAtivos;
     private final ObjectMapper json;
     private final Clock relogio;
@@ -130,6 +133,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             LeadNoCaminhoDeMensagem leads,
             CanalGateway canal,
             ArmazenamentoDeMidia armazenamento,
+            DetectorDeTipoReal detector,
             CanalCredencialAtivaRepositorio canaisAtivos,
             ObjectMapper json,
             Clock relogio,
@@ -156,6 +160,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.leads = leads;
         this.canal = canal;
         this.armazenamento = armazenamento;
+        this.detector = detector;
         this.canaisAtivos = canaisAtivos;
         this.json = json;
         this.relogio = relogio;
@@ -413,15 +418,25 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         var recurso = canal.abrirMidiaRecebida(mensagem.midiaIdExterno(), tipo);
         if (recurso.isPresent()) {
             try (var fluxo = recurso.get()) {
+                if (!DocumentoWord.nomeCompativel(mensagem.nomeArquivo(), fluxo.mimetype()))
+                    throw new MidiaRecebidaInvalidaException();
                 String referenciaStorage = armazenamento.salvar(fluxo.conteudo(), fluxo.tamanho(), mensagem.nomeArquivo(), fluxo.mimetype());
                 compensarStorageEmRollback(referenciaStorage);
                 return midiaPersistida(leadId, mensagem, canalEntrada, referenciaDaMensagem, tipo, referenciaStorage, fluxo.mimetype(), fluxo.tamanho());
             } catch (java.io.IOException e) { throw new IllegalStateException("falha ao fechar midia recebida"); }
         }
         CanalGateway.MidiaRecebida baixada = canal.baixarMidiaRecebida(mensagem.midiaIdExterno());
+        String mimetype = baixada.mimetype();
+        if (tipo == TipoMensagem.DOCUMENTO && DocumentoWord.inspecionar(mensagem.nomeArquivo(), mimetype)) {
+            String real = detector.detectar(baixada.conteudo());
+            if (!DocumentoWord.nomeCompativel(mensagem.nomeArquivo(), real)
+                    || (DocumentoWord.ehWord(mimetype) && !DocumentoWord.ehWord(real)))
+                throw new MidiaRecebidaInvalidaException();
+            if (DocumentoWord.ehWord(real)) mimetype = real;
+        }
         String referenciaStorage = armazenamento.salvar(
-                baixada.conteudo(), mensagem.nomeArquivo(), baixada.mimetype());
-        return midiaPersistida(leadId, mensagem, canalEntrada, referenciaDaMensagem, tipo, referenciaStorage, baixada.mimetype(), baixada.conteudo().length);
+                baixada.conteudo(), mensagem.nomeArquivo(), mimetype);
+        return midiaPersistida(leadId, mensagem, canalEntrada, referenciaDaMensagem, tipo, referenciaStorage, mimetype, baixada.conteudo().length);
     }
 
     private void compensarStorageEmRollback(String referencia) {
@@ -440,7 +455,9 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             TradutorDeCanal.MensagemRecebidaDoCanal mensagem, CanalEntradaAtiva canalEntrada,
             ReferenciaDeMensagem referenciaDaMensagem, TipoMensagem tipo, String referenciaStorage, String mime, long tamanho) {
         ObjectNode metadados = metadadosDoCanal(mensagem);
-        if (mensagem.nomeArquivo() != null) {
+        if (DocumentoWord.ehWord(mime)) {
+            metadados.put("nome", DocumentoWord.nomeSeguro(mensagem.nomeArquivo(), mime));
+        } else if (mensagem.nomeArquivo() != null) {
             metadados.put("nome", mensagem.nomeArquivo());
         }
         metadados.put("mimetype", mime);

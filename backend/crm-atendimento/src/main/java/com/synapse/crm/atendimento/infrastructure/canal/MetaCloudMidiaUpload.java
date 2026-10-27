@@ -47,6 +47,7 @@ final class MetaCloudMidiaUpload {
         if (extensao.isEmpty()) {
             return base;
         }
+        if ((extensao.equals(".doc") || extensao.equals(".docx")) && base.toLowerCase(Locale.ROOT).endsWith(extensao)) return base;
         int ponto = base.lastIndexOf('.');
         String semExtensao = ponto > 0 ? base.substring(0, ponto) : base;
         return semExtensao + extensao;
@@ -85,6 +86,8 @@ final class MetaCloudMidiaUpload {
             case "video/webm" -> ".webm";
             case "video/quicktime" -> ".mov";
             case "application/pdf" -> ".pdf";
+            case "application/msword" -> ".doc";
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> ".docx";
             default -> "";
         };
     }

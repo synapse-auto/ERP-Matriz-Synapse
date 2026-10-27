@@ -202,6 +202,22 @@ class MetaCloudApiAdapterTest {
         assertThat(payload.path("document").path("caption").asText()).isEqualTo("Nota do documento");
     }
 
+    @ParameterizedTest @ValueSource(strings={"doc","docx"})
+    void wordMantemNomeMimeEBytesNoUploadOficial(String extensao) throws Exception {
+        String mime = extensao.equals("doc") ? "application/msword" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        byte[] bytes;
+        try (var recurso = getClass().getResourceAsStream(extensao.equals("doc") ? "/word/vazio.doc" : "/word/sintetico.docx")) { bytes = recurso.readAllBytes(); }
+        when(armazenamento.baixar(REFERENCIA)).thenReturn(bytes);
+        String nome = "Relatório final."+extensao.toUpperCase(java.util.Locale.ROOT);
+        String[] upload = {null};
+        JsonNode payload = enviarMidiaComMetadados(TipoMensagem.DOCUMENTO,
+                json.writeValueAsString(java.util.Map.of("nome",nome,"mimetype",mime)),upload);
+        assertThat(payload.path("document").path("filename").asText()).isEqualTo(nome);
+        assertThat(upload[0]).contains("Content-Type: "+mime);
+        assertThat(upload[0].getBytes(StandardCharsets.ISO_8859_1)).containsSubsequence(bytes);
+        assertThat(MetaCloudMidiaUpload.nomeDoArquivo(null,mime)).endsWith("."+extensao);
+    }
+
     @Test
     void videoComLegendaMantemCaption() {
         JsonNode payload = enviarMidia(TipoMensagem.VIDEO, "video/mp4", "Legenda do video");

@@ -19,6 +19,7 @@ import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 import com.synapse.crm.sharedkernel.midia.CategoriaDeMidia;
 import com.synapse.crm.sharedkernel.midia.ConversorDeAudio;
 import com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal;
+import com.synapse.crm.sharedkernel.midia.DocumentoWord;
 import com.synapse.crm.sharedkernel.midia.IsoBmffAudioOnly;
 import com.synapse.crm.sharedkernel.midia.LimiteDeAnexoRepositorio;
 import com.synapse.crm.sharedkernel.midia.ResumoSeguroDeMidia;
@@ -152,6 +153,8 @@ public class EnviarMidiaUseCase {
             boolean gravacaoDoComposer,
             String chaveIdempotencia) {
         String mimetypeDetectado = detector.detectar(conteudo);
+        if (!DocumentoWord.nomeCompativel(nomeArquivoOriginal, mimetypeDetectado))
+            throw new TipoDeMidiaNaoPermitidoException(mimetypeDetectado);
         // E215: a classificacao olha as trilhas do conteiner. Video disfarcado de audio (M4A com
         // trilha de video) e recusado; video de verdade vira VIDEO, nunca AUDIO.
         TiposDeMidiaPermitidos.Classificacao classificacao = TiposDeMidiaPermitidos
@@ -196,7 +199,8 @@ public class EnviarMidiaUseCase {
             }
         }
 
-        String nomeSanitizado = sanitizar(nomeArquivoOriginal);
+        String nomeSanitizado = DocumentoWord.ehWord(mimetypeReal)
+                ? DocumentoWord.nomeSeguro(nomeArquivoOriginal, mimetypeReal) : sanitizar(nomeArquivoOriginal);
         if (convertido) {
             nomeSanitizado = trocarExtensao(nomeSanitizado, ".ogg");
             ResumoSeguroDeMidia resumo = ResumoSeguroDeMidia.de(conteudoParaSalvar);

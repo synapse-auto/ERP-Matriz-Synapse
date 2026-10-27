@@ -154,6 +154,7 @@ class RecebimentoDeMidiaUzapiPontaAPontaTest {
                 leads,
                 adaptador,
                 armazenamento,
+                mock(com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal.class),
                 canaisAtivos,
                 json,
                 Clock.fixed(AGORA, ZoneOffset.UTC),

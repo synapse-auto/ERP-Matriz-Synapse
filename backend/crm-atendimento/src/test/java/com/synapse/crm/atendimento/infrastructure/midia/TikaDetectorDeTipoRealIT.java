@@ -190,13 +190,19 @@ class TikaDetectorDeTipoRealIT {
                 + "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
                 + "<Override PartName=\"/" + partePrincipal + "\" ContentType=\"" + mimetype + "\"/>"
                 + "</Types>";
+        String raiz = namespace.equals("wordprocessingml") ? "document" : "root";
         String xmlPrincipal = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-                + "<root xmlns=\"http://schemas.openxmlformats.org/" + namespace + "/2006/main\"/>";
+                + "<" + raiz + " xmlns=\"http://schemas.openxmlformats.org/" + namespace + "/2006/main\">"
+                + (namespace.equals("wordprocessingml") ? "<body/>" : "") + "</" + raiz + ">";
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
                 adicionar(zip, "[Content_Types].xml", contentTypes);
                 adicionar(zip, partePrincipal, xmlPrincipal);
+                if (namespace.equals("wordprocessingml")) adicionar(zip, "_rels/.rels",
+                        "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                        + "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/>"
+                        + "</Relationships>");
             }
             return bytes.toByteArray();
         } catch (IOException e) {

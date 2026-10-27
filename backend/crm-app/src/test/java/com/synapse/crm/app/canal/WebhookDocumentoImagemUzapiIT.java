@@ -210,14 +210,18 @@ class WebhookDocumentoImagemUzapiIT extends PostgresIT {
                 Arguments.of("document", "captura.png", "png", "image/png", "DOCUMENTO"),
                 Arguments.of("image", "foto.jpg", "jpeg", "image/jpeg", "IMAGEM"),
                 Arguments.of("image", "foto.png", "png", "image/png", "IMAGEM"),
-                Arguments.of("document", "contrato.pdf", "pdf", "application/pdf", "DOCUMENTO"));
+                Arguments.of("document", "contrato.pdf", "pdf", "application/pdf", "DOCUMENTO"),
+                Arguments.of("document", "Relatório final.DOC", "doc", "application/msword", "DOCUMENTO"),
+                Arguments.of("document", "Relatório final.DOCX", "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "DOCUMENTO"));
     }
 
     @ParameterizedTest(name = "{0} {1}")
     @MethodSource("anexos")
     void webhookJobStorageHistoricoEDownloadPreservamTipoNomeEBytes(
             String tipo, String nome, String formato, String mimetype, String tipoCrm) throws IOException {
-        arquivo = formato.equals("pdf") ? pdf() : imagem(formato);
+        if (formato.equals("doc") || formato.equals("docx")) {
+            try (var recurso = getClass().getResourceAsStream(formato.equals("doc") ? "/word/vazio.doc" : "/word/sintetico.docx")) { arquivo = recurso.readAllBytes(); }
+        } else arquivo = formato.equals("pdf") ? pdf() : imagem(formato);
         mime = mimetype;
         String payload = payload(tipo, nome, midiaId);
         assertThat(postar(payload, "incorreto")).isEqualTo(HttpStatus.FORBIDDEN);

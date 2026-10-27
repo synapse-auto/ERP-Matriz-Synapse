@@ -204,6 +204,31 @@ class UzapiAutoticAdapterTest {
 
     // --- midia: upload em duas etapas ---------------------------------------
 
+    @ParameterizedTest @ValueSource(strings={"doc","docx"})
+    void wordUsaUploadDocumentENaoConverteConteudo(String extensao) throws Exception {
+        String mime = extensao.equals("doc") ? "application/msword" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        byte[] bytes;
+        try (var recurso = getClass().getResourceAsStream(extensao.equals("doc") ? "/word/vazio.doc" : "/word/sintetico.docx")) { bytes = recurso.readAllBytes(); }
+        when(armazenamento.baixar(REFERENCIA)).thenReturn(bytes);
+        String nome = "Relatório final."+extensao.toUpperCase(java.util.Locale.ROOT);
+        servidor.expect(once(),requestTo(URL_BASE+CAMINHO_BASE+"/media")).andExpect(requisicao -> {
+            byte[] upload = ((MockClientHttpRequest)requisicao).getBodyAsBytes();
+            assertThat(upload).containsSubsequence(bytes);
+            assertThat(new String(upload,java.nio.charset.StandardCharsets.ISO_8859_1)).contains("Content-Type: "+mime);
+        }).andRespond(withSuccess("{\"id\":\"word-media\"}",MediaType.APPLICATION_JSON));
+        servidor.expect(once(),requestTo(URL_BASE+CAMINHO_BASE+"/messages")).andExpect(requisicao -> {
+            var corpo = json.readTree(((MockClientHttpRequest)requisicao).getBodyAsBytes());
+            assertThat(corpo.path("type").asText()).isEqualTo("document");
+            assertThat(corpo.path("document").path("id").asText()).isEqualTo("word-media");
+            assertThat(corpo.path("document").path("filename").asText()).isEqualTo(nome);
+        }).andRespond(withSuccess("{\"status\":\"success\",\"messages\":[{\"id\":\"wamid.word\"}]}",MediaType.APPLICATION_JSON));
+        assertThat(adapter.enviar(new CanalGateway.Envio(UUID.randomUUID(),"5561999999999",
+                new ConteudoDeEnvio.MensagemMidia(TipoMensagem.DOCUMENTO,REFERENCIA,
+                        json.writeValueAsString(java.util.Map.of("nome",nome,"mimetype",mime)),null),UUID.randomUUID())))
+                .isInstanceOf(ResultadoDeEnvio.Aceito.class);
+        servidor.verify();
+    }
+
     @ParameterizedTest
     @EnumSource(
             value = TipoMensagem.class,

@@ -138,5 +138,11 @@
       <groupId>org.apache.tika</groupId>
       <artifactId>tika-core</artifactId>
     </dependency>
+    <!-- POIFS somente: identifica streams OLE/Word sem extrair texto nem executar macros. -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi</artifactId>
+      <version>6.0.0</version>
+    </dependency>
   </dependencies>
 </project>

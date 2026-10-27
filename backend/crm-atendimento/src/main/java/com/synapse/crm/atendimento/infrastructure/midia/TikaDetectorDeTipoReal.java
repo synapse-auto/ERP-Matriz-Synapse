@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Set;
 
 import org.apache.tika.Tika;
 import org.springframework.stereotype.Component;
@@ -12,16 +11,13 @@ import org.springframework.stereotype.Component;
 import com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal;
 
 /**
- * Deteccao por magic bytes com Apache Tika — nao le extensao nem {@code Content-Type} declarado.
+ * Detecção por bytes/estrutura — não lê extensão nem {@code Content-Type} declarado.
  *
- * <p>{@link Tika#detect(byte[])} e thread-safe e nao faz I/O (o Tika mantem a base de assinaturas
- * de mimetype em memoria), entao um unico bean singleton serve toda a instancia sem contencao.
+ * <p>Tika é thread-safe. Recipientes Office passam por spool e inspeção limitada de metadados,
+ * com recursos locais por chamada. Não extrai texto nem executa conteúdo do documento.
  */
 @Component
 class TikaDetectorDeTipoReal implements DetectorDeTipoReal {
-
-    private static final Set<String> TIPOS_DE_CONTAINER_AMBIGUOS =
-            Set.of("application/x-tika-ooxml", "application/zip");
 
     private final Tika tika = new Tika();
 
@@ -29,20 +25,27 @@ class TikaDetectorDeTipoReal implements DetectorDeTipoReal {
     public String detectar(Path arquivo) {
         try (var entrada = Files.newInputStream(arquivo)) {
             String tipo = tika.detect(entrada);
-            return TIPOS_DE_CONTAINER_AMBIGUOS.contains(tipo)
-                    ? DetectorDePacoteOoxml.detectar(arquivo).orElse(tipo) : tipo;
+            return DetectorDeDocumentoWord.recipiente(tipo) ? DetectorDeDocumentoWord.detectar(arquivo, tipo) : tipo;
         } catch (IOException e) { throw new UncheckedIOException("falha ao detectar midia", e); }
     }
 
     @Override
     public String detectar(byte[] conteudo) {
         String tipoDetectado = tika.detect(conteudo);
-        if (!TIPOS_DE_CONTAINER_AMBIGUOS.contains(tipoDetectado)) {
+        if (!DetectorDeDocumentoWord.recipiente(tipoDetectado)) {
             return tipoDetectado;
         }
-        // O tika-core nao inclui os parsers OOXML. Quando o detector so reconhece o ZIP,
-        // inspecionamos o [Content_Types].xml do pacote para recuperar o tipo especifico sem
-        // confiar na extensao ou no Content-Type informado pelo navegador.
-        return DetectorDePacoteOoxml.detectar(conteudo).orElse(tipoDetectado);
+        // Spool para inspecao aleatoria limitada: nao duplica documento inteiro em um segundo
+        // byte[] nem descomprime imagens/objetos para procurar metadados Office.
+        Path temporario = null;
+        try {
+            temporario = Files.createTempFile("office-tipo-", ".tmp");
+            Files.write(temporario, conteudo);
+            return DetectorDeDocumentoWord.detectar(temporario, tipoDetectado);
+        } catch (IOException e) { throw new UncheckedIOException("falha ao detectar documento", e); }
+        finally {
+            if (temporario != null) try { Files.deleteIfExists(temporario); }
+            catch (IOException e) { temporario.toFile().deleteOnExit(); }
+        }
     }
 }

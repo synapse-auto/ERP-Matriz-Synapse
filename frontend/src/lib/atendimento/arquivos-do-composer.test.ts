@@ -33,6 +33,20 @@ function arquivo(nome: string, tipo: string): File {
 }
 
 describe("arquivos-do-composer", () => {
+  it.each(["doc", "docx"])("seleciona Word .%s com MIME genérico e extensão maiúscula sem alterar o nome", (extensao) => {
+    const nome = `Relatório final.${extensao.toUpperCase()}`;
+    const documento = arquivo(nome, "application/octet-stream");
+    expect(filtrarArquivos([documento], TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO).aceitos[0]?.name).toBe(nome);
+    expect(arquivoCompativel(arquivo("macro.docm", "application/vnd.ms-word.document.macroEnabled.12"), ACCEPT)).toBe(false);
+  });
+
+  it.each([
+    ["application/msword", ".doc"],
+    ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"],
+  ])("gera extensão Word correta para arquivo colado de MIME %s", (mimetype, extensao) => {
+    const data = { files: [arquivo("sem-nome", mimetype)] } as unknown as DataTransfer;
+    expect(arquivosDaAreaDeTransferencia(data)[0]?.name).toBe(`arquivo-colado${extensao}`);
+  });
   it("aceita imagem, pdf e áudio; recusa executável", () => {
     expect(arquivoCompativel(arquivo("foto.png", "image/png"), ACCEPT)).toBe(true);
     expect(arquivoCompativel(arquivo("voz.mp3", "audio/mpeg"), ACCEPT)).toBe(true);
