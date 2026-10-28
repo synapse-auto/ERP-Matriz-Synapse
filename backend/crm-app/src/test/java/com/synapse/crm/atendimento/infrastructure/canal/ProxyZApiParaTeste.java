@@ -29,11 +29,14 @@ final class ProxyZApiParaTeste {
         var finalizado = compor(true);
         var labelsBase = base.at("/services/backend/deploy/labels");
         var labels = finalizado.at("/services/backend/deploy/labels");
-        labelsBase.properties().forEach(e -> assertThat(labels.get(e.getKey())).isEqualTo(e.getValue()));
+        assertThat(labels).as("override legado nao deve ser necessario nem divergir do Compose Path do Dokploy")
+            .isEqualTo(labelsBase);
         ((ObjectNode) base.at("/services/backend/deploy")).remove("labels");
         ((ObjectNode) finalizado.at("/services/backend/deploy")).remove("labels");
         assertThat(finalizado).as("override nao altera outros servicos, envs, volumes ou politica de deploy").isEqualTo(base);
 
+        // Validar o arquivo configurado como Compose Path, nao apenas uma composicao manual.
+        labels = labelsBase;
         String router = "traefik.http.routers." + PREFIXO + "-transicao.";
         String middleware = PREFIXO + "-webhook-sem-origin";
         assertThat(labels.path(router + "rule").asText()).isEqualTo("Host(`" + DOMINIO

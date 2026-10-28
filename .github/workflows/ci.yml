@@ -146,7 +146,11 @@ jobs:
         run: |
           docker compose -f docker/dokploy-stack.yml config --quiet
           docker compose -f docker/dokploy-stack.yml -f docker/dokploy-z-api-transicao.override.yml config --quiet
+          docker compose -f docker/dokploy-stack.yml -f docker/dokploy-z-api-homologacao.override.yml config --quiet
+          python3 docker/verificacao/validar-webhooks-dokploy.py
+          docker stack config -c docker/dokploy-stack.yml >/dev/null
           docker stack config -c docker/dokploy-stack.yml -c docker/dokploy-z-api-transicao.override.yml >/dev/null
+          docker stack config -c docker/dokploy-stack.yml -c docker/dokploy-z-api-homologacao.override.yml >/dev/null
           bash docker/verificacao/validar-politica-rollout.sh
           sh -n docker/postgres-init/10-create-n8n-database.sh
 

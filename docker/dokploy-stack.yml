@@ -356,6 +356,20 @@ services:
         # sintoma e /api/v1 devolvendo HTML, /ws em 502 e o webhook da Meta parando de
         # entrar. Aconteceu na E23 e custou uma noite. Os demais servicos usam so `swarm`.
         - "traefik.swarm.network=dokploy-network"
+        # O Dokploy usa este arquivo como Compose Path unico. Os callbacks precisam de um router
+        # dedicado no proprio stack, senao o router geral pode aplicar CORS e registrar a query
+        # secreta. O middleware fica restrito aos dois caminhos de webhook; APIs e WebSocket nao
+        # herdam a remocao de Origin nem a politica de observabilidade deste router.
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && (PathPrefix(`/webhook/z-api`) || PathPrefix(`/webhook/canal`))'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.entrypoints=websecure'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.tls=true'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.tls.certresolver=letsencrypt'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.priority=150'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.service=${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.middlewares=${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-webhook-sem-origin'
+        - 'traefik.http.middlewares.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-webhook-sem-origin.headers.customrequestheaders.Origin='
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.observability.accessLogs=false'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.observability.tracing=false'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && (PathPrefix(`/api/v1`) || PathPrefix(`/webhook/canal`) || PathPrefix(`/ws`) || PathPrefix(`/health`) || PathPrefix(`/swagger-ui`) || PathPrefix(`/v3/api-docs`))'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.entrypoints=websecure'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.tls=true'

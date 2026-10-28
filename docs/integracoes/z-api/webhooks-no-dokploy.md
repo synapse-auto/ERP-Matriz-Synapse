@@ -7,9 +7,10 @@ respondia `403 Invalid CORS request`. Remover esse header no router exclusivo re
 entrada. Nao se deve liberar CORS globalmente, retirar a autenticacao ou copiar essa regra
 para o router das APIs.
 
-Reutilizamos **docker/dokploy-z-api-transicao.override.yml** sobre
-**docker/dokploy-stack.yml**. Nao existe um novo compose de producao nem uma copia da stack.
-O base continua igual para Meta, Uzapi e instancias que nao usam esse override.
+As labels agora estao em **docker/dokploy-stack.yml**, o Compose Path unico usado pela aplicacao
+Stack no Dokploy. Nao dependem de um segundo arquivo ou Command personalizado. O antigo
+**docker/dokploy-z-api-transicao.override.yml** foi mantido vazio para que um Command salvo
+anteriormente com a referencia a ele continue valido; o override nao e mais fonte funcional.
 
 O router `${TRAEFIK_ROUTER_PREFIX}-transicao` usa o dominio `SYNAPSE_DOMINIO`, entrypoint
 `websecure`, TLS/`letsencrypt`, prioridade 150 e o servico `${TRAEFIK_ROUTER_PREFIX}-backend`.
@@ -22,44 +23,27 @@ As validacoes de segredo, HTTPS, instancia, tamanho e persistencia duravel no ba
 mudam. A query continua intacta ate a autenticacao. Isso nao e assinatura nativa da Z-API.
 Nenhum segredo entra em label, nome de router, regra, YAML versionado ou comando do Dokploy.
 
-## Antes do deploy: salvar no Dokploy, nao na VPS
+## Acao unica no Dokploy
 
-**Esta mudanca exige salvar o Command da aplicacao existente.** Um arquivo override no Git
-nao e carregado automaticamente. `COMPOSE_FILE` nao substitui `-c` no Docker Stack.
+O repositório sozinho nao altera uma stack ja implantada. Depois que esta mudanca estiver na
+branch de release aprovada, execute **um deploy normal** na aplicacao existente da Femina para
+reaplicar a especificacao versionada. Nao e necessario editar Compose Path, Command Stack,
+Domains, variaveis ou credenciais. Nenhum deploy e executado por esta tarefa.
 
-1. Na aplicacao **existente da Femina**, confirmar Source Git/GitHub, branch de release
-   aprovada e **Compose Type = Stack**. Nao criar outra aplicacao/stack nem trocar banco,
-   volumes, rede, dominio ou prefixo. Esta entrega nao faz merge ou deploy automaticamente.
-2. **Compose Path permanece `docker/dokploy-stack.yml`.** Nao colocar dois arquivos nesse
-   campo. Preservar Registry, Domains (sem routers duplicados), mounts e todas as envs.
-3. Em **Advanced / Command**, salvar o comando completo abaixo **sem o prefixo `docker`**.
-   Ele substitui o comando padrao, nao acrescenta flags. A ordem base -> override importa.
-   Conferir o App Name exibido no comando padrao antes de salvar; o nome informado no
-   diagnostico desta instancia foi `fmnaprod-uzapi-36acu4`:
+1. Manter a aplicacao existente, `Compose Type = Stack` e Compose Path
+   `docker/dokploy-stack.yml`; nao criar stack nova nem trocar volumes, rede, dominio ou prefixo.
+2. Executar o deploy normal na branch de release que contem esta mudanca. Um Command antigo que
+   ainda carregue o override vazio tambem continua valido, mas nao e requisito.
+3. Apos o deploy, conferir somente os nomes das labels do servico e o router efetivo no Traefik.
+   A especificacao versionada inclui TLS/websecure, prioridade 150, backend, middleware exclusivo
+   para remover `Origin` e observability `accessLogs=false`/`tracing=false`.
 
-   ```text
-   stack deploy -c docker/dokploy-stack.yml -c docker/dokploy-z-api-transicao.override.yml fmnaprod-uzapi-36acu4 --prune --with-registry-auth
-   ```
+Nenhuma variavel nova. Preservar valores atuais de `SYNAPSE_DOMINIO`, `TRAEFIK_ROUTER_PREFIX`,
+`SERVER_FORWARD_HEADERS_STRATEGY=NATIVE`, flags e segredo exclusivo do webhook. Nao exportar o
+Compose interpolado completo: ele contem segredos. O Traefik 3.6.7 foi validado; a sintaxe exige
+Traefik 3.3+ com observability por router.
 
-   Se o App Name atual for diferente, usar **exatamente o atual**, nunca renomear a stack.
-   Preservar flags operacionais adicionais do comando existente. Nao usar `$APP_NAME`,
-   substituicao de shell, pipes ou comandos de preparacao nesse campo. O Dokploy v0.29.13
-   recusa esses caracteres; executa `docker <Command>` na raiz do checkout e exporta as envs
-   da stack. Por isso os caminhos relativos acima e as envs existentes funcionam.
-4. Nao carregar tambem `dokploy-z-api-homologacao.override.yml`: sao alternativas, nao
-   camadas cumulativas. Nao deixar router temporario com a mesma regra e prioridade.
-5. **Nenhuma env nova.** Preservar os valores existentes de `SYNAPSE_DOMINIO`,
-   `TRAEFIK_ROUTER_PREFIX`, `SERVER_FORWARD_HEADERS_STRATEGY=NATIVE`, flags e segredo exclusivo
-   do webhook. Backend privado, sem porta 8080 publicada; proxy deve ser confiavel.
-6. Confirmar Traefik serie 3, >=3.3, com observability por router. A versao informada e testada
-   aqui e **3.6.7**. Em versao incompativel, parar; nao remover as labels de protecao para
-   forcar deploy. Nao reiniciar ou atualizar Traefik nesta etapa.
-
-O Preview Compose pode mostrar somente o base: a prova de carregamento e o **Command salvo**,
-o comando no log de deployment e, apos implantacao manual autorizada, o router efetivo. Nao
-exportar o compose interpolado completo: ele contem segredos do ambiente.
-
-## Conferencias e labels temporarias
+## Conferencias da especificacao implantada
 
 **VPS, somente leitura (operador):**
 
@@ -72,25 +56,24 @@ docker service inspect fmnaprod-uzapi-36acu4_backend --format '{{range $k,$v := 
 O ultimo comando imprime **nomes**, nao valores. Identificar nomes dos routers/middlewares
 temporarios de webhook. Nao exportar envs, payloads, URLs com query ou configuracao completa.
 
-Em checkout da release aprovada, com envs carregadas privadamente, validar sem imprimir valores:
+Em checkout da release aprovada, com envs carregadas privadamente, validar base e stack sem imprimir valores:
 
 ```bash
+docker compose -f docker/dokploy-stack.yml config --quiet
+docker stack config -c docker/dokploy-stack.yml >/dev/null
 docker compose -f docker/dokploy-stack.yml -f docker/dokploy-z-api-transicao.override.yml config --quiet
 docker stack config -c docker/dokploy-stack.yml -c docker/dokploy-z-api-transicao.override.yml >/dev/null
+docker compose -f docker/dokploy-stack.yml -f docker/dokploy-z-api-homologacao.override.yml config --quiet
+docker stack config -c docker/dokploy-stack.yml -c docker/dokploy-z-api-homologacao.override.yml >/dev/null
 ```
 
-Nao basta `config`: ele nao prova que o Traefik aceitou o schema nem que o Dokploy carregou o
-override. No deploy manual, conferir no log apenas o comando completo (dois `-c`) e no
-Traefik que o router esta aceito, ligado ao backend e sem erro de middleware/observability.
-
-**Quando remover as labels temporarias:** primeiro salvar o Command acima. Remover do
-compose Raw/customizacao persistente ou Domains somente as definicoes temporarias deste
-webhook que duplicam o router; preservar todas as outras configuracoes. Na mesma implantacao
-manual, o Stack aplica as labels versionadas. Labels adicionadas apenas por `service update`
-sao substituidas pela especificacao versionada; nao fazer um `label-rm` antecipado que abra
-uma janela sem protecao. Se reaparecerem, ainda existe outra fonte persistente: corrigir essa
-fonte e nao aumentar prioridade para disputar com ela. Depois conferir o router efetivo e os
-testes abaixo. Nenhuma remocao massiva de labels e autorizada por este documento.
+O teste `proxyProdutivoRemoveOriginSomenteDosWebhooksSemAfrouxarSegredoOuCors` compoe o Compose Path
+sozinho e o arquivo de compatibilidade, exige labels identicas e executa o router derivado do
+base no Traefik de teste. Isso evita que a CI passe apenas porque um override manual estava
+presente. O teste nao prova configuracao efetiva no Dokploy: depois do deploy normal, conferir o
+servico e o dashboard/config dinamica do Traefik. Nao remover labels temporarias antes de a
+especificacao versionada estar ativa; se houver uma fonte externa ao Compose, identificar essa
+fonte separadamente e remover somente a duplicata comprovada.
 
 ## Provas sem mensagens ou pacientes
 
@@ -141,9 +124,9 @@ webhooks com controle positivo na API. A configuracao de tracing OFF e verificad
 pelo schema real; nao se afirma inspecao do coletor produtivo. A fixture usa certificado local
 sem validacao apenas no cliente de teste; a aplicacao/producao nao muda TLS.
 
-CI valida tambem a composicao base+override. Isso nao comprova configuracao salva/ativa no
-Dokploy nem callbacks reais da conta: essas conferencias sao operacionais e nao executadas
-pelo agente.
+CI valida o Compose Path isolado, o `docker stack config` isolado e a composicao com ambos os
+overrides legados. Isso nao comprova configuracao ativa no Dokploy nem callbacks reais da conta; essas
+conferencias sao operacionais e nao executadas pelo agente.
 
 - [Dokploy Docker Compose e Command](https://docs.dokploy.com/docs/core/docker-compose).
 - [Builder Dokploy v0.29.13](https://github.com/Dokploy/dokploy/blob/v0.29.13/packages/server/src/utils/builders/compose.ts).

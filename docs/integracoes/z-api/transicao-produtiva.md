@@ -232,10 +232,10 @@ do corpo. Header nativo nao confirmado: nao inventar nem aguardar para usar a al
 
 ## E. Proxy persistente e os tres callbacks
 
-**Atualizacao 26/10/2026:** seguir [webhooks-no-dokploy.md](webhooks-no-dokploy.md) para o
-Command persistente e a remocao restrita de Origin. O override agora possui dez labels, nao
-apenas as oito citadas no roteiro original. Nao copiar labels manualmente nem usar service
-update como fonte; preservar Compose Path base e carregar o override em TODO deploy.
+**Atualizacao 27/10/2026:** as labels estao no Compose Path `docker/dokploy-stack.yml`, que o
+Dokploy carrega em todo deploy. Veja [webhooks-no-dokploy.md](webhooks-no-dokploy.md) para detalhes.
+O arquivo `dokploy-z-api-transicao.override.yml` e vazio, mantido somente para compatibilidade
+com um Command antigo. Nao copiar labels manualmente nem usar `service update` como fonte.
 
 Traefik informado 3.6.7, Dokploy 0.29.13. Schema oficial 3.6 suporta observability por router;
 ainda conferir entrypoint/resolver/service reais e configuracao aceita. Nao reiniciar proxy.
@@ -248,23 +248,17 @@ docker service inspect fmnaprod-uzapi-36acu4_backend --format '{{json .Spec.Labe
 docker service inspect fmnaprod-uzapi-36acu4_backend --format '{{json .Endpoint.Spec.Ports}}'
 ```
 
-Backend sem porta 8080 publicada. **Dokploy:** preservar comando Stack atual e acrescentar
--c docker/dokploy-z-api-transicao.override.yml apos compose base. Se campo Command existir,
-substitui comando inteiro e Dokploy ja acrescenta docker. Exemplo estrutural:
-
-```text
-stack deploy --with-registry-auth -c docker/dokploy-stack.yml -c docker/dokploy-z-api-transicao.override.yml NOME_REAL_DA_STACK_FMNA
-```
-
-Se o campo nao aparecer, conferir Source/Compose Type e a versao do Dokploy conforme o
-procedimento atualizado; nao improvisar outra fonte de labels. Confirmar PREFIXO-backend, websecure,
+Backend sem porta 8080 publicada. **Dokploy:** depois do merge, um deploy normal da aplicacao
+existente aplica o router que agora faz parte do Compose Path base; nao alterar Compose Path nem
+Command Stack. Confirmar PREFIXO-transicao, PREFIXO-backend, websecure,
 letsencrypt e prioridade 150 maior que router geral 100. Regra cobre /webhook/z-api e
 /webhook/canal, inclusive sufixos recusados, sem segredo em labels.
 
 **VPS**, checkout/envs carregadas privadamente; validar sem despejar interpolacao:
 
 ```bash
-docker compose -f docker/dokploy-stack.yml -f docker/dokploy-z-api-transicao.override.yml config --quiet
+docker compose -f docker/dokploy-stack.yml config --quiet
+docker stack config -c docker/dokploy-stack.yml >/dev/null
 ```
 
 Aplicar manualmente config/release FMNA com pausa true; conferir health/router efetivo.

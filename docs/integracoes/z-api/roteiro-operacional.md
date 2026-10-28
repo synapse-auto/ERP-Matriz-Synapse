@@ -245,7 +245,7 @@ O n8n valida **X-Synapse-Webhook-Token**, contrato do CRM, antes do workflow e d
 **X-Synapse-Evento-Id**. Nao e header de callback da Z-API. API interna conserva
 X-Synapse-Token e Idempotency-Key existentes. Adaptar nos diretos Uzapi separadamente.
 
-## 4. Dokploy / override e Traefik
+## 4. Dokploy / Compose Path e Traefik
 
 **VPS, somente leitura:** escolher container Traefik da lista do passo 1, nao reinicia-lo.
 
@@ -262,43 +262,18 @@ isso nao autoriza atualizar Traefik. Versao inferior/incompativel: **STOP na exp
 pedir plano de infraestrutura/redacao separado; cadastro e testes locais continuam possiveis.
 Nao confiar apenas em `docker compose config`: ele nao valida o schema dinamico do Traefik.
 
-**Dokploy → stack HML → Advanced → Command**, se a versao instalada oferecer esse campo
-para **Stack**: copiar o comando padrao exibido e inserir o segundo `-c` imediatamente
-apos o compose base, **preservando nome da stack, registry-auth e opcoes existentes**.
-O campo Command substitui o comando inteiro e o Dokploy ja acrescenta `docker`.
-Exemplo estrutural (substituir stack real e preservar as flags do comando atual):
-
-```text
-stack deploy --with-registry-auth -c docker/dokploy-stack.yml -c docker/dokploy-z-api-homologacao.override.yml NOME_REAL_STACK_HML
-```
-
-Nao colar `docker docker ...`. O caminho relativo e o checkout usado pelo deploy, nao
-um arquivo do container. Se o modo/versao nao aceitar comando customizado, **nao inventar
-um campo Compose Files**: no editor persistente do compose da HML, acrescentar as oito
-labels abaixo em `services.backend.deploy.labels`, mantendo todas as labels atuais:
-
-```yaml
-- 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && PathPrefix(`/webhook/z-api`)'
-- 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.entrypoints=websecure'
-- 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.tls=true'
-- 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.tls.certresolver=letsencrypt'
-- 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.priority=150'
-- 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.service=${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend'
-- 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.observability.accessLogs=false'
-- 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-z-api.observability.tracing=false'
-```
-
-Na instalacao atual, conferir `websecure`, `letsencrypt`, nome do servico `PREFIXO-backend`
-e regra prioritaria antes de usar esse overlay. Se nomes diferirem, ajustar **somente na
-fonte persistente HML** para os nomes efetivos. Nao usar `service update --label-add`
-como configuracao persistente: o proximo deploy desfaz. Nao trocar para PathPrefix(`/`)
-nem publicar `/internal/v1`. A regra inclui sufixos para que o filtro recuse variantes.
+As labels dos dois webhooks fazem parte de `docker/dokploy-stack.yml`, usado como Compose Path
+unico. O Dokploy deve continuar em modo Stack apontando para esse arquivo; nao configurar Command
+customizado nem copiar labels para Domains/Raw Compose. Depois do merge, um deploy normal da HML
+aplica a versao declarativa. Os overrides antigos estao vazios e permanecem somente para que
+comandos antigos ainda funcionem. A regra tem prioridade antes do router geral, cobre os dois
+paths e nao publica `/internal/v1`.
 
 **VPS, checkout/config HML com envs carregadas de forma privada**, validar sem despejar envs:
 
 ```bash
-docker compose -f docker/dokploy-stack.yml \
-  -f docker/dokploy-z-api-homologacao.override.yml config --quiet
+docker compose -f docker/dokploy-stack.yml config --quiet
+docker stack config -c docker/dokploy-stack.yml >/dev/null
 ```
 
 So depois aplicar **deploy manual da HML** no Dokploy. Nao aplicar na stack Femina.

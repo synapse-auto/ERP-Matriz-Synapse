@@ -128,9 +128,10 @@ Os placeholders sao apenas documentais; nunca compartilhar a URL preenchida.
    | `AUTOMACAO_WEBHOOK_REPASSE_TOKEN` | segredo proprio CRM→n8n, validado antes do workflow |
    | `SERVER_FORWARD_HEADERS_STRATEGY` | default `NONE`; `NATIVE` somente atras de proxy confiavel |
 
-4. Proxy: `/webhook/z-api` nao foi incluido no router generico. Overlay opt-in
-   `docker/dokploy-z-api-homologacao.override.yml` cria router **HTTPS-only** com accessLogs e
-   tracing desativados nessa rota. Conferir antes que a versao implantada do Traefik suporta
+4. Proxy: `/webhook/z-api` e `/webhook/canal` usam router HTTPS dedicado declarado no Compose Path
+   `docker/dokploy-stack.yml`; remove `Origin` e desativa accessLogs/tracing somente nesses paths.
+   Os overrides de transicao/homologacao foram esvaziados para evitar depender de Command customizado
+   ou criar routers concorrentes. Conferir antes que a versao implantada do Traefik suporta
    [observability por router](https://doc.traefik.io/traefik/reference/routing-configuration/http/routing/observability/).
    Se nao suporta, configurar redacao/exclusao equivalente no proxy antes de expor; nao aplicar
    labels desconhecidas nem ampliar logging global. O backend continua sem porta publicada.
