@@ -39,6 +39,8 @@ def cabecalho(prefixo):
 
 def estrutura(dados):
     posicao = paginas = flags = granule = 0
+    crc_validos = sequencia_contigua = stream_unico = sem_continuacoes = pacotes_encerrados = True
+    serial = None
     while posicao < len(dados):
         if len(dados) - posicao < 27 or dados[posicao:posicao + 4] != b"OggS":
             return {"estrutura_paginas": "CABECALHO_TRUNCADO_OU_INVALIDO", "paginas": paginas}
@@ -51,12 +53,27 @@ def estrutura(dados):
         if fim_pagina > len(dados):
             return {"estrutura_paginas": "CORPO_TRUNCADO", "paginas": paginas}
         flags = dados[posicao + 5]
+        atual = int.from_bytes(dados[posicao + 14:posicao + 18], "little")
+        if serial is None:
+            serial = atual
+        stream_unico &= atual == serial
+        sequencia_contigua &= int.from_bytes(dados[posicao + 18:posicao + 22], "little") == paginas
+        sem_continuacoes &= not bool(flags & 1)
+        pacotes_encerrados &= fim_tabela > posicao + 27 and dados[fim_tabela - 1] < 255
+        crc = 0
+        for i in range(posicao, fim_pagina):
+            crc ^= (0 if posicao + 22 <= i < posicao + 26 else dados[i]) << 24
+            for _ in range(8):
+                crc = ((crc << 1) ^ (0x04c11db7 if crc & 0x80000000 else 0)) & 0xffffffff
+        crc_validos &= crc == int.from_bytes(dados[posicao + 22:posicao + 26], "little")
         granule = int.from_bytes(dados[posicao + 6:posicao + 14], "little", signed=True)
         paginas += 1
         posicao = fim_pagina
     return {"estrutura_paginas": "COMPLETAS", "paginas": paginas,
             "ultima_pagina_eos": bool(flags & 4), "granule_final": granule,
-            "granule_final_positivo": granule > 0}
+            "granule_final_positivo": granule > 0, "crc_paginas_validos": crc_validos,
+            "sequencia_contigua": sequencia_contigua, "stream_unico": stream_unico,
+            "sem_continuacoes": sem_continuacoes, "pacotes_encerrados": pacotes_encerrados}
 
 
 def main():
