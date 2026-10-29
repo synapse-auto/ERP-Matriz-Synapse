@@ -229,12 +229,12 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
         }
         assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isEqualTo(1);
     }
-    @ParameterizedTest @ValueSource(strings={"image","image-jpeg","audio","video","document","document-jpeg","document-pdf","document-doc","document-docx"})
+    @ParameterizedTest @ValueSource(strings={"image","image-jpeg","audio","audio-sem-eos","video","document","document-jpeg","document-pdf","document-doc","document-docx"})
     void midiaPelaRotaRealVaiAoStoragePrivadoComDownloadAutorizado(String caso) throws Exception {
-        String tipo=caso.startsWith("document")?"document":caso.startsWith("image")?"image":caso;
+        String tipo=caso.startsWith("document")?"document":caso.startsWith("image")?"image":caso.startsWith("audio")?"audio":caso;
         byte[] bytes;
         if(caso.equals("video")) try(var f=getClass().getResourceAsStream("/midia/chat-interno/video-validacao.mp4")){bytes=f.readAllBytes();}
-        else if(caso.equals("audio")) try(var f=getClass().getResourceAsStream("/z-api/audio-sintetico.ogg")){bytes=f.readAllBytes();}
+        else if(caso.startsWith("audio")) try(var f=getClass().getResourceAsStream("/z-api/audio-sintetico.ogg")){bytes=f.readAllBytes();if(caso.equals("audio-sem-eos")) semEosSintetico(bytes);}
         else if(caso.equals("document-pdf")) try(var f=getClass().getResourceAsStream("/z-api/documento-sintetico.pdf")){bytes=f.readAllBytes();}
         else if(caso.equals("document-doc") || caso.equals("document-docx")) try(var f=getClass().getResourceAsStream(caso.equals("document-doc") ? "/word/vazio.doc" : "/word/sintetico.docx")){bytes=f.readAllBytes();}
         else if(caso.endsWith("jpeg")){var s=new java.io.ByteArrayOutputStream();javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(2,2,java.awt.image.BufferedImage.TYPE_INT_RGB),"jpg",s);bytes=s.toByteArray();}
@@ -258,6 +258,42 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
         }
         headers.setBearerAuth(ApoioAutenticacao.login(http,"bruno@dev.local",ApoioAutenticacao.SENHA_ATENDENTE).accessToken());
         assertThat(http.exchange("/api/v1/leads/"+lead+"/midias/"+id+"/download",HttpMethod.GET,new HttpEntity<>(headers),String.class).getStatusCode()).isIn(HttpStatus.FORBIDDEN,HttpStatus.NOT_FOUND);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"host","http","mime","crc","truncado"})
+    void audioRecusadoPeloWorkerNaoGanhaDownloadEnganoso(String caso) throws Exception {
+        byte[] bytes;
+        try(var f=getClass().getResourceAsStream("/z-api/audio-sintetico.ogg")){bytes=f.readAllBytes();}
+        semEosSintetico(bytes);
+        if(caso.equals("crc")) bytes[bytes.length-1]^=1;
+        if(caso.equals("truncado")) bytes=java.util.Arrays.copyOf(bytes,bytes.length-1);
+        if(caso.equals("mime")) bytes=Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+juxkAAAAASUVORK5CYII=");
+        String url="https://"+(caso.equals("host")?"nao-permitido.test":"cdn.exemplo.test")+"/audio?segredo=nao-logar";
+        Call chamada=mock(Call.class);when(cdn.newCall(any())).thenReturn(chamada);
+        when(chamada.execute()).thenReturn(new Response.Builder().request(new Request.Builder().url(url).build()).protocol(Protocol.HTTP_1_1).code(caso.equals("http")?403:200).message("teste").body(ResponseBody.create(bytes,okhttp3.MediaType.get("audio/ogg"))).build());
+        var payload=recebido();payload.remove("text");payload.putObject("audio").put("audioUrl",url).put("mimeType","audio/ogg; codecs=opus");
+        assertThat(post(payload.toString(),SEGREDO)).isEqualTo(HttpStatus.OK);verifyNoInteractions(cdn);
+        processador.processarPendentes();
+        assertThat(jdbc.queryForObject("SELECT midia_metadados::jsonb->>'indisponivel' FROM mensagem WHERE atendimento_id=?",String.class,atendimento)).isEqualTo("true");
+        UUID id=jdbc.queryForObject("SELECT id FROM mensagem WHERE atendimento_id=?",UUID.class,atendimento);
+        if(caso.equals("host")) verifyNoInteractions(cdn);
+        headers.setBearerAuth(ApoioAutenticacao.login(http,ApoioAutenticacao.EMAIL_ANA,ApoioAutenticacao.SENHA_ATENDENTE).accessToken());
+        assertThat(http.exchange("/api/v1/leads/"+lead+"/midias/"+id+"/download",HttpMethod.GET,new HttpEntity<>(headers),String.class).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    private static void semEosSintetico(byte[] bytes) {
+        for(int pos=0;pos<bytes.length;) {
+            bytes[pos+5]&=~4;
+            int corpo=pos+27+(bytes[pos+26]&255),fim=corpo;
+            for(int i=pos+27;i<corpo;i++) fim+=bytes[i]&255;
+            int crc=0;
+            for(int i=pos;i<fim;i++) {
+                crc^=(i>=pos+22&&i<pos+26?0:bytes[i]&255)<<24;
+                for(int bit=0;bit<8;bit++) crc=(crc<<1)^(crc<0?0x04c11db7:0);
+            }
+            for(int i=0;i<4;i++) bytes[pos+22+i]=(byte)(crc>>>(8*i));
+            pos=fim;
+        }
     }
     @Test void deliverySemTimestampPelaRotaRealReconciliaCallbackAntecipadoEDuplicado() {
         UUID mensagem=UUID.randomUUID();

@@ -503,3 +503,13 @@ Nenhum contrato do workflow foi mudado e nenhuma ação foi pedida ao Dylan para
 Validação desta branch: `ZApiInteracoesIT` 43/43 (PostgreSQL/Testcontainers; entrada HTTP real, proxy Traefik sintético, repasse HTTP simulado e consulta de diagnóstico); `./mvnw clean verify -Dmaven.compiler.release=21` terminou BUILD SUCCESS em 22m14s com Java 21.0.12, 1.522 testes, zero falhas/erros e um teste skipped, Spotless limpo. A primeira execução completa foi interrompida após a asserção de privacidade detectar que a consulta incluía o valor de `buttonId` e `referenceMessageId`; esses dois valores foram removidos do relatório, mantendo o `messageId` do clique e IDs internos de persistência/repasse, e a suíte dirigida e a verificação completa passaram depois da correção. `git diff --check` passou.
 
 CI de `push` run 40562573746 no SHA `2878e75d7d6348a08541eea897153fa10a9412ad`: frontend e Stack passaram; backend falhou apenas em `ZApiInteracoesIT.escolhaSemTextoComOriginAtravessaProxyEEntregaCamposOriginaisAoDestino`, cuja prontidão aceitava HTTP 404 do health path sem confirmar que a rota dinâmica estivesse carregada. A falha observada foi 404 onde o callback esperava 200. O teste foi corrigido para aguardar a resposta 403 do filtro protegido a um segredo inválido antes de enviar o callback válido; esse probe não persiste evento. A validação direcionada pós-correção passou 43/43. O CI da revisão corrigida deve ser conferido pelo SHA mais recente da PR, sem considerar a run anterior como verde.
+## Audio recebido sem EOS — 29/10/2026
+
+- Diagnostico produtivo somente leitura encontrou OGG/Opus mono/48k, paginas completas e
+  granule positivo, sem EOS na ultima pagina. A recusa do validador foi reproduzida localmente.
+- [Compatibilidade restrita de entrada](audio-recebido-sem-eos.md): preserva bytes e uploads,
+  exige CRC, sequencia/serial, headers/pacotes completos e granule no perfil sem EOS.
+- Novos codigos fixos distinguem recusas sem expor URL/segredo/conteudo. Sem host novo,
+  migration, env, replay ou deploy. Operador confirmou CRC valido, sequencia contigua,
+  stream unico e pacotes encerrados no arquivo observado. Homologacao de novo audio
+  permanece pendente e distinta dos testes sinteticos/CI.

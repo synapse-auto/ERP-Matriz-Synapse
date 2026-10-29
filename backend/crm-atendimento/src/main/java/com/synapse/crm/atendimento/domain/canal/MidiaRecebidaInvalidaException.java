@@ -5,4 +5,8 @@ public final class MidiaRecebidaInvalidaException extends RuntimeException {
     private static final long serialVersionUID = 1L;
     public MidiaRecebidaInvalidaException() { super("MIDIA_RECEBIDA_INVALIDA"); }
     public MidiaRecebidaInvalidaException(int status) { super("MIDIA_RECEBIDA_INVALIDA; etapa=download; http_status=" + status); }
+    public enum Motivo { REFERENCIA, HOST_NAO_PERMITIDO, TAMANHO, CONTEUDO_VAZIO, OGG_INVALIDO, TIPO_INCOMPATIVEL, PROCESSAMENTO }
+    public MidiaRecebidaInvalidaException(Motivo motivo) {
+        super("MIDIA_RECEBIDA_INVALIDA; etapa=validacao; codigo=" + motivo.name());
+    }
 }

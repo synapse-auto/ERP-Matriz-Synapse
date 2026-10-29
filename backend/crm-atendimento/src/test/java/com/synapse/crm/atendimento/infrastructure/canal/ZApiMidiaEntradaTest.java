@@ -119,4 +119,17 @@ class ZApiMidiaEntradaTest {
                 .protocol(Protocol.HTTP_1_1).code(status).message("teste")
                 .body(ResponseBody.create(bytes, MediaType.get("application/pdf"))).build());
     }
+
+    @Test void recebeOpusSemEosPreservandoBytesESemAfrouxarUpload() throws Exception {
+        byte[] bytes = OggOpusRecebidoTest.fixture();
+        responder(200, bytes);
+        try (var midia = entrada.abrir(URL, TipoMensagem.AUDIO)) {
+            assertThat(midia.mimetype()).isEqualTo("audio/ogg");
+            assertThat(midia.conteudo().readAllBytes()).isEqualTo(bytes);
+        }
+        assertThat(com.synapse.crm.sharedkernel.midia.ValidadorDeOggOpus.ehValido(bytes)).isFalse();
+        responder(200, bytes);
+        assertThatThrownBy(() -> entrada.abrir(URL, TipoMensagem.DOCUMENTO))
+                .isInstanceOf(MidiaRecebidaInvalidaException.class);
+    }
 }
