@@ -7,11 +7,14 @@ import json
 import socket
 import ssl
 import subprocess
+import sys
+import time
 from urllib.parse import urlsplit
 
 
 HOST = "f004.backblazeb2.com"  # Host comprovado nestas entradas; nao e allowlist do produto.
 ENTRADA = "canal:7114c4241cf57c1fdd53f65c85c01c19c4f319e03b315670e70d34234f0f9f45"
+LIMITE = 16 * 1024 * 1024
 
 
 def executar(comando, entrada=None):
@@ -34,7 +37,32 @@ def cabecalho(prefixo):
     return resultado
 
 
+def estrutura(dados):
+    posicao = paginas = flags = granule = 0
+    while posicao < len(dados):
+        if len(dados) - posicao < 27 or dados[posicao:posicao + 4] != b"OggS":
+            return {"estrutura_paginas": "CABECALHO_TRUNCADO_OU_INVALIDO", "paginas": paginas}
+        if dados[posicao + 4] != 0:
+            return {"estrutura_paginas": "VERSAO_OGG_INVALIDA", "paginas": paginas}
+        fim_tabela = posicao + 27 + dados[posicao + 26]
+        if fim_tabela > len(dados):
+            return {"estrutura_paginas": "TABELA_TRUNCADA", "paginas": paginas}
+        fim_pagina = fim_tabela + sum(dados[posicao + 27:fim_tabela])
+        if fim_pagina > len(dados):
+            return {"estrutura_paginas": "CORPO_TRUNCADO", "paginas": paginas}
+        flags = dados[posicao + 5]
+        granule = int.from_bytes(dados[posicao + 6:posicao + 14], "little", signed=True)
+        paginas += 1
+        posicao = fim_pagina
+    return {"estrutura_paginas": "COMPLETAS", "paginas": paginas,
+            "ultima_pagina_eos": bool(flags & 4), "granule_final": granule,
+            "granule_final_positivo": granule > 0}
+
+
 def main():
+    completo = sys.argv[1:] == ["--completo"]
+    if sys.argv[1:] and not completo:
+        raise ValueError("ARGUMENTO_INVALIDO")
     containers = executar(["docker", "ps", "--filter", "name=fmnaprod-uzapi-36acu4_postgres.1",
                            "--format", "{{.ID}}"] ).splitlines()
     if len(containers) != 1:
@@ -69,13 +97,28 @@ def main():
         destino = partes.path or "/"
         if partes.query:
             destino += "?" + partes.query
-        conexao.request("GET", destino, headers={"Range": "bytes=0-4095", "Accept-Encoding": "identity"})
+        headers = {"Accept-Encoding": "identity"}
+        if not completo:
+            headers["Range"] = "bytes=0-4095"
+        conexao.request("GET", destino, headers=headers)
         resposta = conexao.getresponse()
         mime = resposta.getheader("Content-Type", "").split(";", 1)[0].strip().lower()
         permitidos = {"audio/ogg", "audio/opus", "application/ogg", "application/octet-stream"}
         resultado = {"entrada": ENTRADA, "hostname": HOST, "http_atual": resposta.status,
                      "mime_http": mime if mime in permitidos else "OUTRO_OU_AUSENTE"}
-        if resposta.status in (200, 206):
+        if completo and resposta.status == 200:
+            inicio = time.monotonic()
+            dados = bytearray()
+            while len(dados) <= LIMITE and time.monotonic() - inicio < 30:
+                parte = resposta.read(min(65536, LIMITE + 1 - len(dados)))
+                if not parte:
+                    break
+                dados.extend(parte)
+            if len(dados) > LIMITE or time.monotonic() - inicio >= 30:
+                resultado["leitura"] = "LIMITE_DE_BYTES_OU_TEMPO"
+            else:
+                resultado.update(bytes_lidos=len(dados), **cabecalho(dados), **estrutura(dados))
+        elif not completo and resposta.status in (200, 206):
             resultado.update(cabecalho(resposta.read(4096)))
         print(json.dumps(resultado))
     finally:
