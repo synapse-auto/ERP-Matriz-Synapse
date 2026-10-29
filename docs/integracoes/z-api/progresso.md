@@ -510,5 +510,6 @@ CI de `push` run 40562573746 no SHA `2878e75d7d6348a08541eea897153fa10a9412ad`: 
 - [Compatibilidade restrita de entrada](audio-recebido-sem-eos.md): preserva bytes e uploads,
   exige CRC, sequencia/serial, headers/pacotes completos e granule no perfil sem EOS.
 - Novos codigos fixos distinguem recusas sem expor URL/segredo/conteudo. Sem host novo,
-  migration, env, replay ou deploy. Homologacao de novo audio e CRC do arquivo observado
-  permanecem distintos dos testes sinteticos/CI.
+  migration, env, replay ou deploy. Operador confirmou CRC valido, sequencia contigua,
+  stream unico e pacotes encerrados no arquivo observado. Homologacao de novo audio
+  permanece pendente e distinta dos testes sinteticos/CI.

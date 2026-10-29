@@ -9,7 +9,9 @@ f004.backblazeb2.com. Nao foi necessario liberar outro host nem modificar CORS.
 
 Uma consulta manual posterior ao ultimo arquivo retornou HTTP 200, audio/ogg, 4582 bytes,
 OpusHead versao 1/mono/48000/mapping 0, quatro paginas completas e granule final 101112,
-mas nenhuma flag EOS na ultima pagina. Isso reproduz uma condicao rejeitada pelo validador
+mas nenhuma flag EOS na ultima pagina. A coleta ampliada confirmou CRC valido em todas as
+paginas, sequencia contigua, stream unico, ausencia de continuacoes e pacotes encerrados.
+Isso reproduz uma condicao rejeitada pelo validador
 anterior. Nao existe hash/HTTP historico para provar que os bytes eram identicos na tentativa
 original; os outros dois arquivos nao foram inspecionados integralmente.
 
