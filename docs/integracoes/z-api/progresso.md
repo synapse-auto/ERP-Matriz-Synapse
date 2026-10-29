@@ -513,3 +513,18 @@ CI de `push` run 40562573746 no SHA `2878e75d7d6348a08541eea897153fa10a9412ad`: 
   migration, env, replay ou deploy. Operador confirmou CRC valido, sequencia contigua,
   stream unico e pacotes encerrados no arquivo observado. Homologacao de novo audio
   permanece pendente e distinta dos testes sinteticos/CI.
+
+### Recorrencia com taxa original 16k — 29/10/2026
+
+- Imagem `bd32f48`: nova entrada falhou com `etapa=validacao codigo=OGG_INVALIDO`.
+  Coleta posterior encontrou HTTP 200, OGG/Opus mono, 13 paginas/47258 bytes, CRC,
+  sequencia, stream, pacotes e OpusTags validos; somente o perfil do OpusHead falhou
+  pela taxa original 16000. A exigencia anterior de 48000 confundia metadado de
+  entrada com taxa de reproducao (RFC 7845, 5.1). A primeira correcao era incompleta.
+- O perfil recebido Z-API ignora esse metadado, sem converter bytes, e permite EOS
+  somente no final ou ausente. Upload compartilhado e Meta/Uzapi ficam inalterados.
+- Regressao reproduzida antes da correcao; depois, 44/44 testes dirigidos e 5/5 do
+  coletor passaram. Integracao protegida inclui 16k com/sem EOS e taxa nao informada.
+- `clean verify` Java 21 local foi executado e parou em
+  `MinioArmazenamentoDeMidiaIT.iniciarMinio`: Docker indisponivel. Isso nao comprova
+  a integracao; consultar CI do ultimo SHA. Sem replay/deploy e sem homologacao real.

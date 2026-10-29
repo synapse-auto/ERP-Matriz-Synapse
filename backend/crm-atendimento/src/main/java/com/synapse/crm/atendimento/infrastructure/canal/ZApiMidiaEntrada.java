@@ -117,11 +117,12 @@ class ZApiMidiaEntrada {
             if (inspecionar && tamanho > TiposDeMidiaPermitidos.tetoDaMetaEmBytes(TipoMensagem.AUDIO)) throw new MidiaRecebidaInvalidaException(MidiaRecebidaInvalidaException.Motivo.TAMANHO);
             byte[] bytes = inspecionar ? Files.readAllBytes(arquivo) : new byte[0];
             // tika-core reconhece Opus como container generico. So normalizar apos verificar
-            // estrutura completa, OpusHead/mono/48 kHz, EOS e duracao pelo validador existente.
+            // estrutura, OpusHead mono e duracao; entrada pode ter EOS opcional e taxa original
+            // informativa diferente de 48 kHz, sem alterar o perfil estrito de upload.
             if (Set.of("application/ogg", "audio/opus", "audio/x-opus+ogg").contains(mime)
                     || (tipo == TipoMensagem.AUDIO && "audio/ogg".equals(mime))) {
                 boolean valido = ValidadorDeOggOpus.ehValido(bytes)
-                        || (tipo == TipoMensagem.AUDIO && OggOpusRecebido.semEosIntegro(bytes));
+                        || (tipo == TipoMensagem.AUDIO && OggOpusRecebido.integro(bytes));
                 if (!valido) throw new MidiaRecebidaInvalidaException(MidiaRecebidaInvalidaException.Motivo.OGG_INVALIDO);
                 mime = "audio/ogg";
             }

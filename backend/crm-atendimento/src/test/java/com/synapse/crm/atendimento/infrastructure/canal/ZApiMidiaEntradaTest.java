@@ -132,4 +132,18 @@ class ZApiMidiaEntradaTest {
         assertThatThrownBy(() -> entrada.abrir(URL, TipoMensagem.DOCUMENTO))
                 .isInstanceOf(MidiaRecebidaInvalidaException.class);
     }
+
+    @ParameterizedTest @ValueSource(longs={0,16000,44100,48000})
+    void recebeTaxaOriginalInformativaComESemEos(long taxa) throws Exception {
+        for(boolean eos:new boolean[]{false,true}) {
+            byte[] bytes=OggOpusRecebidoTest.comTaxaOriginal(taxa,eos);
+            responder(200,bytes);
+            try(var midia=entrada.abrir(URL,TipoMensagem.AUDIO)) {
+                assertThat(midia.mimetype()).isEqualTo("audio/ogg");
+                assertThat(midia.conteudo().readAllBytes()).isEqualTo(bytes);
+            }
+            if(taxa!=48000 || !eos)
+                assertThat(com.synapse.crm.sharedkernel.midia.ValidadorDeOggOpus.ehValido(bytes)).isFalse();
+        }
+    }
 }
