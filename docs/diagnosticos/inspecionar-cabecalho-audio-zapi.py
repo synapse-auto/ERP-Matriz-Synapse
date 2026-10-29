@@ -67,7 +67,7 @@ def estrutura(dados):
     pacotes = 0
     tags = head = False
     granule_anterior = 0
-    granules_validos = flags_validas = tamanhos_validos = True
+    granules_validos = flags_validas = flags_entrada_validas = tamanhos_validos = True
     while posicao < len(dados):
         if len(dados) - posicao < 27 or dados[posicao:posicao + 4] != b"OggS":
             return {"estrutura_paginas": "CABECALHO_TRUNCADO_OU_INVALIDO", "paginas": paginas}
@@ -81,6 +81,8 @@ def estrutura(dados):
             return {"estrutura_paginas": "CORPO_TRUNCADO", "paginas": paginas}
         flags = dados[posicao + 5]
         flags_validas &= flags == (2 if paginas == 0 else 0)
+        flags_entrada_validas &= (flags == 2 if paginas == 0
+                                  else flags == 0 or (flags == 4 and fim_pagina == len(dados)))
         atual = int.from_bytes(dados[posicao + 14:posicao + 18], "little")
         if serial is None:
             serial = atual
@@ -98,7 +100,7 @@ def estrutura(dados):
             if pacotes == 0:
                 h = dados[inicio_pacote:inicio_pacote + tamanho_pacote]
                 head = (tamanho_pacote == 19 and h[:8] == b"OpusHead" and h[8:10] == bytes([1, 1])
-                        and int.from_bytes(h[12:16], "little") == 48000 and h[18] == 0)
+                        and h[18] == 0)
             if pacotes == 1:
                 tags = tags_validas(dados, inicio_pacote, tamanho_pacote)
             pacotes += 1
@@ -121,6 +123,7 @@ def estrutura(dados):
             "sequencia_contigua": sequencia_contigua, "stream_unico": stream_unico,
             "sem_continuacoes": sem_continuacoes, "pacotes_encerrados": pacotes_encerrados,
             "flags_perfil_sem_eos": flags_validas, "granule_sem_regressao": granules_validos,
+            "flags_perfil_entrada": flags_entrada_validas,
             "opus_head_no_perfil": head, "opus_tags_validas": tags,
             "pacotes_nao_vazios": tamanhos_validos, "minimo_paginas_e_pacotes": paginas >= 3 and pacotes >= 3}
 

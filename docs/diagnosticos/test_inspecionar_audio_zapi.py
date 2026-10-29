@@ -35,10 +35,10 @@ class ColetorAudioTest(unittest.TestCase):
         self.assertTrue(r["flags_perfil_sem_eos"])
         self.assertFalse(r["ultima_pagina_eos"])
 
-    def test_taxa_fora_do_perfil_sem_expor_bytes(self):
+    def test_taxa_original_informativa_sem_expor_bytes(self):
         r = COLETOR["estrutura"](audio(taxa=16000))
         self.assertTrue(r["crc_paginas_validos"])
-        self.assertFalse(r["opus_head_no_perfil"])
+        self.assertTrue(r["opus_head_no_perfil"])
         self.assertEqual(COLETOR["cabecalho"](audio(taxa=16000))["taxa_original_hz"], 16000)
 
     def test_tags_malformadas_e_granule_invalido(self):

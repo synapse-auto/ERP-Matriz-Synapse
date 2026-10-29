@@ -2,17 +2,18 @@ package com.synapse.crm.atendimento.infrastructure.canal;
 
 import java.nio.charset.StandardCharsets;
 
-/** Compatibilidade de entrada Z-API sem EOS, sem alterar bytes ou regras de upload. */
+/** Perfil de entrada Z-API, com EOS opcional, sem alterar bytes ou regras de upload. */
 final class OggOpusRecebido {
     private OggOpusRecebido() {}
 
-    static boolean semEosIntegro(byte[] bytes) {
+    static boolean integro(byte[] bytes) {
         int pos = 0, sequencia = 0, pacotes = 0;
         long serial = -1, granuleFinal = 0;
         while (pos < bytes.length) {
             if (bytes.length - pos < 27 || !assinatura(bytes, pos, "OggS") || bytes[pos + 4] != 0) return false;
             // Perfil estreito: um stream, sem chaining, continuacoes ou EOS intermediario.
-            if ((bytes[pos + 5] & 255) != (sequencia == 0 ? 2 : 0)) return false;
+            int flags = bytes[pos + 5] & 255;
+            if (sequencia == 0 ? flags != 2 : (flags != 0 && flags != 4)) return false;
             long serialAtual = inteiro(bytes, pos + 14);
             if (sequencia == 0) serial = serialAtual;
             if (serialAtual != serial || inteiro(bytes, pos + 18) != sequencia) return false;
@@ -22,6 +23,7 @@ final class OggOpusRecebido {
             int fim = corpo;
             for (int i = pos + 27; i < corpo; i++) fim += bytes[i] & 255;
             if (fim > bytes.length || inteiro(bytes, pos + 22) != crc(bytes, pos, fim)) return false;
+            if (flags == 4 && fim != bytes.length) return false;
             int inicioPacote = corpo, tamanho = 0;
             for (int i = pos + 27; i < corpo; i++) {
                 int segmento = bytes[i] & 255;
@@ -30,7 +32,9 @@ final class OggOpusRecebido {
                 if (tamanho == 0) return false;
                 if (pacotes == 0 && (tamanho != 19 || !assinatura(bytes, inicioPacote, "OpusHead")
                         || bytes[inicioPacote + 8] != 1 || bytes[inicioPacote + 9] != 1
-                        || inteiro(bytes, inicioPacote + 12) != 48000 || bytes[inicioPacote + 18] != 0)) return false;
+                        || bytes[inicioPacote + 18] != 0)) return false;
+                // RFC 7845 5.1: input sample rate e metadado informativo (inclusive zero),
+                // nao e taxa de reproducao e nao decide a validade dos pacotes Opus.
                 if (pacotes == 1 && !tags(bytes, inicioPacote, tamanho)) return false;
                 pacotes++;
                 inicioPacote += tamanho;

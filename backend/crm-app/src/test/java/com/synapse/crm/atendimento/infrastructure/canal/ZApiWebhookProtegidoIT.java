@@ -229,12 +229,12 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
         }
         assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isEqualTo(1);
     }
-    @ParameterizedTest @ValueSource(strings={"image","image-jpeg","audio","audio-sem-eos","video","document","document-jpeg","document-pdf","document-doc","document-docx"})
+    @ParameterizedTest @ValueSource(strings={"image","image-jpeg","audio","audio-sem-eos","audio-16k-sem-eos","audio-16k-com-eos","audio-zero-sem-eos","video","document","document-jpeg","document-pdf","document-doc","document-docx"})
     void midiaPelaRotaRealVaiAoStoragePrivadoComDownloadAutorizado(String caso) throws Exception {
         String tipo=caso.startsWith("document")?"document":caso.startsWith("image")?"image":caso.startsWith("audio")?"audio":caso;
         byte[] bytes;
         if(caso.equals("video")) try(var f=getClass().getResourceAsStream("/midia/chat-interno/video-validacao.mp4")){bytes=f.readAllBytes();}
-        else if(caso.startsWith("audio")) try(var f=getClass().getResourceAsStream("/z-api/audio-sintetico.ogg")){bytes=f.readAllBytes();if(caso.equals("audio-sem-eos")) semEosSintetico(bytes);}
+        else if(caso.startsWith("audio")) try(var f=getClass().getResourceAsStream("/z-api/audio-sintetico.ogg")){bytes=f.readAllBytes();if(!caso.equals("audio")) audioSintetico(bytes,caso.contains("16k")?16000:caso.contains("zero")?0:48000,caso.endsWith("com-eos"));}
         else if(caso.equals("document-pdf")) try(var f=getClass().getResourceAsStream("/z-api/documento-sintetico.pdf")){bytes=f.readAllBytes();}
         else if(caso.equals("document-doc") || caso.equals("document-docx")) try(var f=getClass().getResourceAsStream(caso.equals("document-doc") ? "/word/vazio.doc" : "/word/sintetico.docx")){bytes=f.readAllBytes();}
         else if(caso.endsWith("jpeg")){var s=new java.io.ByteArrayOutputStream();javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(2,2,java.awt.image.BufferedImage.TYPE_INT_RGB),"jpg",s);bytes=s.toByteArray();}
@@ -282,10 +282,16 @@ class ZApiWebhookProtegidoIT extends PostgresIT {
     }
 
     private static void semEosSintetico(byte[] bytes) {
+        audioSintetico(bytes,48000,false);
+    }
+
+    private static void audioSintetico(byte[] bytes,int taxa,boolean eos) {
+        for(int i=0;i<4;i++) bytes[40+i]=(byte)(taxa>>>(8*i));
         for(int pos=0;pos<bytes.length;) {
             bytes[pos+5]&=~4;
             int corpo=pos+27+(bytes[pos+26]&255),fim=corpo;
             for(int i=pos+27;i<corpo;i++) fim+=bytes[i]&255;
+            if(eos && fim==bytes.length) bytes[pos+5]|=4;
             int crc=0;
             for(int i=pos;i<fim;i++) {
                 crc^=(i>=pos+22&&i<pos+26?0:bytes[i]&255)<<24;
