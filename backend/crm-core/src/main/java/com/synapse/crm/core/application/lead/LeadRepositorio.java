@@ -51,6 +51,9 @@ public interface LeadRepositorio {
      */
     Optional<Lead> porId(UUID id);
 
+    /** Mesmo recorte da ficha, com bloqueio de linha para confirmação concorrente de identidade. */
+    Optional<Lead> porIdParaAtualizacao(UUID id);
+
     /** Somente CPF/telefone do cadastro atual, com a mesma Specification da ficha. */
     Optional<IdentificacaoLead> identificacao(UUID id);
 
