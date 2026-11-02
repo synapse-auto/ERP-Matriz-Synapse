@@ -41,8 +41,12 @@ realtime/polling e usa invalidação das queries existentes. Nada de reproduçã
 
 ## Resultados automatizados
 
-- `CpfTest`: 12/12; `DarwinHttpAdapterTest`: 15/15.
+- `CpfTest`: 12/12; `DarwinHttpAdapterTest`: 18/18, incluindo resposta acima do limite de bytes,
+  origem loopback recusada em produção e mapeamento ausente/de tipo numérico recusado.
 - `DarwinLeadIT`: 8/8 e `DarwinDesabilitadaIT`: 1/1, HTTP CRM/PostgreSQL/Testcontainers reais.
+- `EncaminhamentoDoChatParaClienteIT`: 35/35; `RespostaEEncaminhamentoIT`: 7/7. A reprodução
+  com um lote inteiro anterior falhou antes da correção e passou depois: o teste dispara
+  sucessivas rodadas pela entrada real do job, sem ampliar os 10s nem alterar produção.
 - Frontend completo Node 22.23.4: **170 arquivos / 1.438 testes**, sem falhas.
 - Typecheck, lint (4 avisos preexistentes), build e audit de produção (zero vulnerabilidades).
 - Primeira CI PR `41398089248`: frontend/stack passaram; backend falhou na limpeza antiga de
@@ -51,5 +55,11 @@ realtime/polling e usa invalidação das queries existentes. Nada de reproduçã
   Limpeza da fixture corrigida, sem alterar trigger/migration/produção, com regressão própria;
   resultado da nova verificação e CI do último SHA constam do relatório atualizado da PR.
 
-O `clean verify` completo local está documentado separadamente da CI. Testes simulados não
-comprovam credencial, mapeamento, disponibilidade comercial ou dados reais da Fêmina.
+`clean verify` completo local Java 21: BUILD SUCCESS em 46min12s, 3.007 testes contabilizados,
+zero falhas/erros e quatro skips preexistentes por FFmpeg ausente: dois em
+`FfmpegConversorDeAudioTest`, um em `MinioArmazenamentoDeMidiaIT` e um em `ZApiSaidaIT`.
+Depois foram verificados direcionadamente os ajustes de fixtures (51 cenários de integração)
+e os negativos de segurança adicionais (30 testes core). CI do último SHA e seu resultado
+são informados no relatório da PR, sem equiparar execução local a CI verde.
+Testes simulados não comprovam credencial, mapeamento, disponibilidade comercial ou dados
+reais da Fêmina.

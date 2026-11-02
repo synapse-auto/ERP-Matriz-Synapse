@@ -87,7 +87,8 @@ no envio/recebimento, scheduler, outbox ou caminho de mensagens.
 ## Roteiro operacional — nenhuma ação executada em produção
 
 1. Responsável pela conta obtém credencial pelo canal seguro e confere `/v1/custom-fields`,
-   IDs **string** de nome e CPF e canal WhatsApp; verificar amostra controlada de sessão/detalhe.
+   IDs exatos dos campos de nome e CPF (ambos de tipo `string`) e canal WhatsApp; verificar
+   amostra controlada de sessão/detalhe. ID numérico do catálogo é configurado por sua representação textual.
    Não compartilhar token, telefone/CPF ou URL identificável em logs/tickets.
 2. **Somente no Dokploy da Fêmina**, cadastrar `DARWIN_API_KEY`, `DARWIN_CAMPO_NOME`,
    `DARWIN_CAMPO_CPF`, `DARWIN_CANAL_ID`. Conferir os limites opcionais na tabela do README.
@@ -113,3 +114,7 @@ Na CI foi encontrada falha de limpeza no teste de encaminhamento: o trigger V65 
 uma citação que o mesmo DELETE em lote tentava excluir. A fixture desvincula apenas referências
 internas ao conjunto descartável antes de remover linhas, sem desativar trigger, mudar migration,
 enfraquecer asserções de autorização ou alterar o comportamento do chat.
+O teste de resposta/encaminhamento também assumia que uma rodada drenava toda a outbox.
+Uma fila sintética com um lote inteiro anterior reproduziu a falha. A espera agora dispara
+rodadas pela entrada real do job enquanto avalia a condição, como o scheduler, mantendo os
+10s e as mesmas asserções de entrega/citação. Nenhuma regra de envio ou configuração mudou.
