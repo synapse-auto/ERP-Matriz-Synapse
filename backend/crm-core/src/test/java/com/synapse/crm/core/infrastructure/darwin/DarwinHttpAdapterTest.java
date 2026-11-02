@@ -34,6 +34,7 @@ class DarwinHttpAdapterTest {
     private HttpServer servidor;
     private final List<String> caminhos = new CopyOnWriteArrayList<>();
     private volatile int status = 200;
+    private volatile String definicoes = DEFINICOES;
     private volatile String sessoes = "[{\"sessionId\":123,\"customFields\":" + CAMPOS + "}]";
     private volatile String detalhe = "{\"id\":123,\"phoneNumber\":\"+5561999991234\",\"customFields\":" + CAMPOS + "}";
     private volatile CompletableFuture<Void> liberar;
@@ -51,7 +52,7 @@ class DarwinHttpAdapterTest {
             try {
                 if (liberar != null) liberar.get(3, TimeUnit.SECONDS);
                 var caminho = troca.getRequestURI().getPath();
-                String corpo = status != 200 ? "erro-sintetico-sem-uso" : caminho.equals("/v1/custom-fields") ? DEFINICOES
+                String corpo = status != 200 ? "erro-sintetico-sem-uso" : caminho.equals("/v1/custom-fields") ? definicoes
                         : caminho.equals("/v1/sessions") ? sessoes : detalhe;
                 var bytes = corpo.getBytes(StandardCharsets.UTF_8);
                 troca.getResponseHeaders().set("Content-Type", "application/json");
@@ -87,6 +88,24 @@ class DarwinHttpAdapterTest {
         assertThatThrownBy(() -> adaptador.consultar("5561999991234")).hasMessage("DARWIN_DESABILITADA");
         assertThatThrownBy(() -> adaptador.verificar("qualquer")).hasMessage("DARWIN_DESABILITADA");
         assertThat(caminhos).isEmpty();
+    }
+    @Test void origemLocalDeFixtureNaoEPermitidaEmProducao() {
+        var producao = new DarwinHttpAdapter(config(true,1,100,Duration.ofSeconds(2)),json,relogio,new MockEnvironment());
+        assertThat(producao.habilitado()).isFalse();
+        assertThatThrownBy(() -> producao.consultar("5561999991234")).hasMessage("DARWIN_CONFIGURACAO");
+        assertThat(caminhos).isEmpty();
+    }
+    @Test void campoConfiguradoAusenteOuDeTipoNumericoNaoViraIdentidade() {
+        definicoes = "[{\"id\":11,\"type\":\"string\"}]";
+        assertThatThrownBy(() -> adapter().consultar("5561999991234")).hasMessage("DARWIN_CONFIGURACAO");
+        definicoes = "[{\"id\":11,\"type\":\"string\"},{\"id\":22,\"type\":\"number\"}]";
+        assertThatThrownBy(() -> adapter().consultar("5561999991234")).hasMessage("DARWIN_CONFIGURACAO");
+        assertThat(caminhos).containsExactly("/v1/custom-fields","/v1/custom-fields");
+    }
+    @Test void respostaAcimaDoLimiteDeBytesEInterrompidaSemInterpretarOuAplicar() {
+        sessoes = "[" + " ".repeat(65536) + "]";
+        assertThatThrownBy(() -> adapter().consultar("5561999991234")).hasMessage("DARWIN_INDISPONIVEL").hasNoCause();
+        assertThat(caminhos).hasSize(2).noneMatch(c -> c.startsWith("/v1/session/"));
     }
     @ParameterizedTest @CsvSource({"401,AUTENTICACAO", "403,AUTENTICACAO", "429,LIMITE", "500,INDISPONIVEL", "503,INDISPONIVEL", "302,RESPOSTA_INVALIDA"})
     void recusaHttpSanitizadaSemRetry(int codigo, String motivo) {
