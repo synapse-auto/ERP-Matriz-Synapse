@@ -34,6 +34,7 @@ import org.springframework.test.context.TestPropertySource;
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.canal.CanalFake;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
+import com.synapse.crm.atendimento.infrastructure.outbox.OutboxProperties;
 import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -52,6 +53,7 @@ class RespostaEEncaminhamentoIT extends PostgresIT {
     @Autowired private ObjectMapper json;
     @Autowired private CanalFake canal;
     @Autowired private PublicadorDaOutbox publicador;
+    @Autowired private OutboxProperties propriedadesOutbox;
 
     private UUID idAna;
     private UUID idBruno;
@@ -91,6 +93,27 @@ class RespostaEEncaminhamentoIT extends PostgresIT {
     @Test
     @DisplayName("resposta valida persiste citacao e entrega context.message_id ao adaptador")
     void respostaValidaPersisteEEnviaContexto() throws Exception {
+        verificarRespostaValida();
+    }
+
+    @Test
+    void respostaComFilaAnteriorMaiorQueUmaRodadaEntregaContextoSemDependerDaOrdemDasSuites() throws Exception {
+        Cenario fila = criarConversaComWamid(idAna, "fila anterior", "wamid.E87-fila");
+        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.setBearerAuth(token);
+        cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+        // Uma rodada inteira anterior à resposta, pelo HTTP real; sem mockar reserva ou esvaziar
+        // eventos de suites alheias. O lote vem da mesma configuração do publisher.
+        for (int i = 0; i < propriedadesOutbox.lote(); i++) {
+            var resposta = http.exchange("/api/v1/atendimentos/mensagens", HttpMethod.POST,
+                    new HttpEntity<>(Map.of("leadId",fila.leadId().toString(),"conteudo","Fila sintética "+i),cabecalhos),String.class);
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        }
+        verificarRespostaValida();
+    }
+
+    private void verificarRespostaValida() throws Exception {
         Cenario origem = criarConversaComWamid(idAna, "lead origem", "wamid.E87-origem");
 
         var resposta = enviarComo(
@@ -115,8 +138,11 @@ class RespostaEEncaminhamentoIT extends PostgresIT {
                         novaId))
                 .isEqualTo("RESPOSTA");
 
-        publicador.publicarPendentes();
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            // O scheduler está desligado nos ITs. Cada chamada é uma rodada limitada, não
+            // a promessa de drenar a fila inteira. Exercita o ponto de entrada a cada tick,
+            // inclusive quando eventos de outras suites estão à frente; sem aumentar timeout.
+            publicador.publicarPendentes();
             var envioDaResposta = canal.enviados().stream()
                     .filter(envio -> novaId.equals(envio.mensagemId()))
                     .findFirst()
