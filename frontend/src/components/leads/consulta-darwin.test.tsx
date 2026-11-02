@@ -85,7 +85,7 @@ describe("consulta Darwin pela ficha", () => {
     api.mockImplementation((url: string, opcoes?: { signal?: AbortSignal }) => {
       if (url.endsWith("/darwin")) return Promise.resolve({ habilitada: true });
       sinal = opcoes?.signal;
-      return new Promise(() => {});
+      return new Promise((_resolve, rejeitar) => sinal?.addEventListener("abort", () => rejeitar(new DOMException("Consulta cancelada", "AbortError")), { once: true }));
     });
     montar(); const botao = await screen.findByRole("button", { name: "Consultar na Darwin" });
     fireEvent.click(botao); fireEvent.click(botao);

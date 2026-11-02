@@ -102,3 +102,14 @@ no envio/recebimento, scheduler, outbox ou caminho de mensagens.
 Dependências de homologação real: API key, IDs de campos compatíveis e canal da conta. Testes HTTP
 simulados não comprovam dados daquela conta, limites comerciais ou disponibilidade do fornecedor.
 Evidências e resultados locais/CI serão registrados no relatório da PR; não fazer merge/deploy automático.
+
+## Evidências e correções adjacentes necessárias
+
+[Screenshots e protocolo da validação real local](evidencias/darwin-identidade/README.md).
+O editor inline de nome passa a derivar do cadastro quando não há rascunho: a confirmação
+Darwin agora aparece sem F5 e um refetch não apaga digitação manual. Corrigidas chaves de
+reconciliação distintas na ficha, incluindo colisão anterior entre Notas/Mídias.
+Na CI foi encontrada falha de limpeza no teste de encaminhamento: o trigger V65 atualizava
+uma citação que o mesmo DELETE em lote tentava excluir. A fixture desvincula apenas referências
+internas ao conjunto descartável antes de remover linhas, sem desativar trigger, mudar migration,
+enfraquecer asserções de autorização ou alterar o comportamento do chat.

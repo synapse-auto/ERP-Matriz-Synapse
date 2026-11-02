@@ -189,7 +189,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
               rotulo={textosLead.dados.email}
               valor={lead.data.email}
             />
-            <ConsultaDarwin key={leadId} leadId={leadId} cpfAtual={lead.data.cpf} permitido={capacidades.pode("contatos.editar")} />
+            <ConsultaDarwin key={`darwin:${leadId}`} leadId={leadId} cpfAtual={lead.data.cpf} permitido={capacidades.pode("contatos.editar")} />
             <InformacaoDoPainel
               icone={<MapPin className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.localizacao}
@@ -299,7 +299,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
           />
         )}
         <SecaoDeNotasInternas key={lead.data.id} lead={lead.data} />
-        <SecaoDeMidias key={leadId} leadId={leadId} />
+        <SecaoDeMidias key={`midias:${leadId}`} leadId={leadId} />
       </div>
     </aside>
   );
