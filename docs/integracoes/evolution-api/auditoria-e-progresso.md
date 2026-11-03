@@ -4,7 +4,9 @@
 
 Auditoria de 02/11/2026 sobre `origin/main` em
 `989dcc0e199821e05fb1af0946582bd3b3a6ef03` (PR #339 incorporada).
-Branch independente: `codex/evolution-api`; não incorpora a PR Darwin #340.
+Branch independente: `codex/evolution-api`. Em 03/11/2026, a base foi sincronizada
+com `origin/main` em `3a687b3`, que já incorporou a PR Darwin #340. Essas alterações
+são herdadas da main; o diff próprio desta PR continua exclusivamente documental.
 Esta entrega documental **não habilita nem implementa o canal** e não comprova
 homologação. Nenhum cliente existente, workflow, banco ou ambiente foi alterado.
 
@@ -117,7 +119,19 @@ de interface sem funcionamento.
 ## 6. Verificação e continuidade
 
 - Auditoria de código/configuração e fontes públicas: realizada conforme seções acima.
-- `clean verify` completo Java 21: iniciado na branch, resultado ainda pendente.
+- O CI original falhou em fixtures antigas de encaminhamento, não neste documento:
+  a limpeza de `EncaminhamentoDoChatParaClienteIT` fazia DELETE de origem e citação
+  no mesmo lote, conflitando com o trigger V65; `RespostaEEncaminhamentoIT` esperava
+  a fila inteira após uma única rodada limitada do publicador, com scheduler OFF.
+  Evidência: [run PR 41478185581](https://github.com/synapse-auto/ERP-Matriz-Synapse/actions/runs/41478185581)
+  e [run push 41478101814](https://github.com/synapse-auto/ERP-Matriz-Synapse/actions/runs/41478101814).
+- A atualização da base traz as correções e testes de regressão já integrados pela
+  PR #340: desvincular apenas citações do próprio fixture antes da limpeza e
+  exercitar novas rodadas do publicador durante a espera por condição. Sem editar
+  migration aplicada, desativar trigger, aumentar timeout ou pular teste.
+- `clean verify` completo Java 21 e CI são reexecutados sobre a base atualizada.
+  Os resultados, SHA e números das runs finais devem constar na PR #341; não
+  inferir aprovação de runs anteriores ou de execução local.
 - Testes funcionais Evolution e homologação: **não executados**; dependem do contrato.
 - CI/PR/SHA de entrega: registrar após commit/push, sem inferir CI de execução local.
 - Após resposta do responsável, continuar **esta task/branch**: fixar fontes da
