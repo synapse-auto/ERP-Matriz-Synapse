@@ -148,7 +148,7 @@ public class AtualizarFotoDoLeadUseCase {
     }
 
     /** SHA-256 dos bytes ORIGINAIS — o que a integracao mandou, nao o que o CRM gravou. */
-    public static String sha256(byte[] conteudo) {
+    private static String sha256(byte[] conteudo) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(conteudo));
         } catch (NoSuchAlgorithmException e) {

@@ -78,7 +78,7 @@ public class CapturarFotoZApiDoLead {
                     || (lead.fotoUrl()!=null && !lead.fotoUrl().isBlank())) return null;
             var atual = leads.fotoDoLead(id).orElse(null);
             var reserva = cache.reservar(id, api.instanciaId(), api.credencialId(),
-                    AtualizarFotoDoLeadUseCase.sha256(lead.telefone().getBytes(StandardCharsets.UTF_8)),
+                    telefoneHash(lead.telefone()),
                     agora, agora.plus(foto.reserva())).orElse(null);
             return reserva == null || atual == null ? null : new Consulta(lead.telefone(), atual, reserva);
         });
@@ -111,4 +111,13 @@ public class CapturarFotoZApiDoLead {
         }
     }
     private record Consulta(String telefone, FotoDoLead atual, CapturaDeFotoRepositorio.Reserva reserva) {}
+
+    private static String telefoneHash(String telefone) {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(telefone.getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException erro) {
+            throw new IllegalStateException("SHA-256 indisponivel");
+        }
+    }
 }

@@ -460,6 +460,9 @@ describe("presença alterada pelo sistema (E223)", () => {
     renderizarComCliente(cliente);
 
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["me"] });
+    for (const chave of ["avatar", "atendimentos", "agenda", "lead"]) {
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: [chave] }, { cancelRefetch: false });
+    }
   });
 
   it("sem nenhuma conexão ainda não relê nada", () => {
