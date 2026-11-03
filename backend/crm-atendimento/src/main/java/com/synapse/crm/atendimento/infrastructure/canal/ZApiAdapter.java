@@ -55,11 +55,13 @@ class ZApiAdapter implements CanalGateway {
     private final String instanciaEsperada;
     private final ZApiMidiaSaida midias;
     private final ZApiMidiaEntrada entrada;
+    private ZApiFotoDePerfil fotos;
 
     @Autowired
     ZApiAdapter(ZApiProperties propriedades, CanalProperties canal, ObjectMapper json, CircuitBreakerRegistry breakers,
-            ZApiMidiaSaida midias, ZApiMidiaEntrada entrada) {
+            ZApiMidiaSaida midias, ZApiMidiaEntrada entrada, org.springframework.beans.factory.ObjectProvider<ZApiFotoDePerfil> fotos) {
         this(clienteIsolado(propriedades), propriedades, json, breakers, canal.numeroPrincipal(), midias, entrada);
+        this.fotos = fotos.getIfAvailable();
     }
 
     /** Builder nao gerenciado; testes substituem somente o transporte, nunca o contrato. */
@@ -108,6 +110,11 @@ class ZApiAdapter implements CanalGateway {
 
     @Override
     public String provedor() { return "z-api"; }
+
+    @Override public Optional<MidiaRecebida> buscarFotoDePerfil(String telefone) {
+        if (!configurada() || fotos == null) return Optional.empty();
+        return fotos.buscar(telefone);
+    }
 
     @Override
     public boolean aceitaTextoLivre(Optional<Instant> ultimaInteracaoDoLead, Instant agora) { return true; }

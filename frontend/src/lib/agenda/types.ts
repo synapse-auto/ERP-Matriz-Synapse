@@ -34,6 +34,7 @@ export interface TagDaLista {
 }
 
 export interface LeadDaAgenda {
+  fotoUrl?: string | null;
   id: string;
   nome: string;
   telefone: string | null;

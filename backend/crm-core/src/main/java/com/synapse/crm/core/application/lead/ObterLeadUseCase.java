@@ -19,13 +19,17 @@ import com.synapse.crm.core.domain.lead.Lead;
 public class ObterLeadUseCase {
 
     private final LeadRepositorio leads;
+    private final org.springframework.context.ApplicationEventPublisher eventos;
 
-    public ObterLeadUseCase(LeadRepositorio leads) {
+    public ObterLeadUseCase(LeadRepositorio leads, org.springframework.context.ApplicationEventPublisher eventos) {
         this.leads = leads;
+        this.eventos = eventos;
     }
 
     @PreAuthorize("isAuthenticated()")
     public Optional<Lead> executar(UUID id) {
-        return leads.porId(id);
+        var resultado = leads.porId(id);
+        resultado.ifPresent(lead -> eventos.publishEvent(new com.synapse.crm.core.domain.lead.LeadConsultado(lead.id())));
+        return resultado;
     }
 }

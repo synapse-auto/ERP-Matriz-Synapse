@@ -61,6 +61,17 @@ public class AtualizarFotoDoLeadUseCase {
     @Transactional
     public ResultadoDaFotoDoLead executar(UUID leadId, byte[] original) {
         FotoDoLead atual = leads.fotoDoLead(leadId).orElseThrow(() -> naoEncontrado(leadId));
+        return gravar(leadId, original, atual, null);
+    }
+
+    /** A origem é conferida pelo orquestrador; o CAS preserva escritas durante o download. */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional
+    public ResultadoDaFotoDoLead executarAutomaticamente(UUID leadId, byte[] original, FotoDoLead esperada, String telefone) {
+        return gravar(leadId, original, esperada, telefone);
+    }
+
+    private ResultadoDaFotoDoLead gravar(UUID leadId, byte[] original, FotoDoLead atual, String telefone) {
         if (original == null || original.length == 0) {
             throw new FotoDeLeadInvalidaException("a foto esta vazia");
         }
@@ -77,14 +88,27 @@ public class AtualizarFotoDoLeadUseCase {
         ProcessadorDeFotoDeLead.Resultado pronto = processador.processar(original);
         String novaReferencia = armazenamento.salvar(pronto.conteudo(), pronto.mimetype());
         try {
-            if (!leads.atualizarFoto(leadId, novaReferencia, hash, Instant.now(relogio))) {
+            boolean alterada = telefone == null
+                    ? leads.atualizarFoto(leadId, novaReferencia, hash, Instant.now(relogio))
+                    : leads.atualizarFotoSeInalterada(leadId, atual, telefone, novaReferencia, hash, Instant.now(relogio));
+            if (!alterada) {
                 throw naoEncontrado(leadId);
             }
         } catch (RuntimeException erro) {
             removerSemFalhar(novaReferencia);
             throw erro;
         }
-        removerSemFalhar(atual.referencia());
+        if (telefone == null) {
+            removerSemFalhar(atual.referencia());
+        } else {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override public void afterCommit() { removerSemFalhar(atual.referencia()); }
+                    @Override public void afterCompletion(int status) {
+                        if (status != STATUS_COMMITTED) removerSemFalhar(novaReferencia);
+                    }
+                });
+        }
         return ResultadoDaFotoDoLead.ATUALIZADA;
     }
 

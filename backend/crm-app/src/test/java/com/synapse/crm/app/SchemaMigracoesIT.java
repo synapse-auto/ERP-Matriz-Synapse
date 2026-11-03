@@ -117,6 +117,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     "lead",
                     // V104 (D3b): vinculo explicito lead -> ultimo atendente humano; so orienta o rodizio da IA.
                     "lead_atendente_vinculado",
+                    // V115: cache e reserva da coleta de foto por identidade de canal.
+                    "lead_foto_captura",
                     "lead_tag",
                     "lembrete",
                     "marca_da_instancia",

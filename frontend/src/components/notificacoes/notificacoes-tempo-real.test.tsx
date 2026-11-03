@@ -247,6 +247,17 @@ describe("NotificacoesTempoReal — ACESSO_ALTERADO (Gestão, docs/47)", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
+  it("foto atualizada invalida avatares, ficha, lista e Agenda sem toast ou navegação", () => {
+    const cliente = new QueryClient(); const invalidar = vi.spyOn(cliente, "invalidateQueries");
+    renderizarCom(cliente); invalidar.mockClear(); mocks.push.mockClear();
+    act(() => mocks.callback?.({ tipo: "FOTOS_LEADS_ATUALIZADAS", eventoId: "foto-1", dados: {} } as unknown as NotificacaoTempoReal));
+    for (const chave of ["avatar", "atendimentos", "agenda", "lead"]) {
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: [chave] }, { cancelRefetch: false });
+    }
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   it("revalida as permissões efetivas sem F5 e sem mostrar aviso ao usuário", async () => {
     const cliente = new QueryClient();
     const invalidar = vi.spyOn(cliente, "invalidateQueries");
@@ -449,6 +460,9 @@ describe("presença alterada pelo sistema (E223)", () => {
     renderizarComCliente(cliente);
 
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["me"] });
+    for (const chave of ["avatar", "atendimentos", "agenda", "lead"]) {
+      expect(invalidar).toHaveBeenCalledWith({ queryKey: [chave] }, { cancelRefetch: false });
+    }
   });
 
   it("sem nenhuma conexão ainda não relê nada", () => {

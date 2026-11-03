@@ -75,6 +75,7 @@ export function ListaDeLeadsMobile({ leads, etapas, equipe, textos, onAbrirFicha
                       <AvatarIniciais
                         id={lead.id}
                         nome={lead.nome}
+                        fotoUrl={lead.fotoUrl}
                         className="flex size-11 shrink-0 items-center justify-center rounded-full text-xs font-bold text-primary-foreground"
                       />
                       <span className="min-w-0 flex-1">
