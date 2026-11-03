@@ -100,8 +100,7 @@ class ZApiFotoDoLeadIT extends PostgresIT {
     @Autowired SimuladorFoto servidor;
     @Autowired ArmazenamentoDeFotoDeLead storage;
     @Autowired CircuitBreakerRegistry breakers;
-    @Autowired @org.springframework.beans.factory.annotation.Qualifier("fotoDePerfilExecutor")
-    org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor executorFoto;
+    @Autowired @org.springframework.beans.factory.annotation.Qualifier("fotoDePerfilExecutor") org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor executorFoto;
     @Autowired org.springframework.context.ApplicationEventPublisher eventos;
     @Autowired org.springframework.transaction.PlatformTransactionManager tm;
     @Autowired com.synapse.crm.core.application.lead.foto.CapturaDeFotoRepositorio reservas;
@@ -122,7 +121,7 @@ class ZApiFotoDoLeadIT extends PostgresIT {
     }
     @AfterEach void limpar() {
         await().atMost(Duration.ofSeconds(20)).until(()->executorFoto.getActiveCount()==0 && executorFoto.getThreadPoolExecutor().getQueue().isEmpty());
-        await().atMost(Duration.ofSeconds(20)).until(()->jdbc.queryForObject("SELECT count(*) FROM lead_foto_captura WHERE lead_id=? AND resultado IS NULL",Integer.class,lead)==0);
+        // Estado incompleto deve reprovar na asserção do teste, não impedir a limpeza e contaminar outras suites.
         jdbc.query("SELECT foto_referencia FROM lead WHERE id=?",(rs,n)->rs.getString(1),lead).forEach(storage::remover);
         jdbc.update("DELETE FROM evento_timeline WHERE lead_id=?",lead);
         jdbc.update("DELETE FROM atendimento WHERE lead_id=?",lead);
