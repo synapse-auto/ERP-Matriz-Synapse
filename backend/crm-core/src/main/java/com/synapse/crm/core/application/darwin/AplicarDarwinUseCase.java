@@ -37,6 +37,9 @@ public class AplicarDarwinUseCase {
         if (!id.equals(recibo.leadId()) || !usuarios.atual().id().equals(recibo.usuarioId()) || (!nome && !cpf)) invalido();
         if (!Objects.equals(atual.telefone(), recibo.telefone())) conflito();
         var encontrado = recibo.candidato();
+        // Troca concorrente de CPF invalida também a aplicação só do nome.
+        // Reaplicar o mesmo resultado continua idempotente.
+        if (!Objects.equals(atual.cpf(), recibo.cpfAnterior()) && !Objects.equals(atual.cpf(), encontrado.cpf())) conflito();
         if ((nome && encontrado.nome() == null) || (cpf && (encontrado.cpfInvalido() || Cpf.validoOuNulo(encontrado.cpf()) == null))) invalido();
         var campos = new ArrayList<String>();
         if (nome && !Objects.equals(atual.nome(), encontrado.nome())) {
@@ -51,7 +54,7 @@ public class AplicarDarwinUseCase {
                 campos.contains("nome") ? encontrado.nome() : null, null, null, null,
                 campos.contains("cpf") ? encontrado.cpf() : null, null, null, null, null, null, null, null, null))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        return new DadosDarwin.Aplicacao(id, "DARWIN", java.util.List.copyOf(campos));
+        return new DadosDarwin.Aplicacao(id, "DARWIN_MEDICO", java.util.List.copyOf(campos));
     }
     private static void invalido() { throw new FalhaDarwin(FalhaDarwin.Codigo.CONSULTA_INVALIDA); }
     private static void conflito() { throw new FalhaDarwin(FalhaDarwin.Codigo.CONCORRENCIA); }

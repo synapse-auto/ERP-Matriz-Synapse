@@ -8,7 +8,7 @@ import com.synapse.crm.core.domain.lead.Lead;
 public interface DarwinGateway {
     boolean habilitado();
     void exigirDisponivel();
-    DadosDarwin.Resultado consultar(String telefone);
+    DadosDarwin.Resultado consultar(String cpf);
     String comprovar(UUID usuarioId, Lead anterior, DadosDarwin.Candidato candidato);
     DadosDarwin.Recibo verificar(String confirmacao);
 }

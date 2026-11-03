@@ -474,12 +474,11 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `CHAT_INTERNO_DOWNLOAD_CONCORRENCIA` | `2` | Downloads binários simultâneos do chat interno por réplica; excedentes recebem 503 recuperável, sem esperar. |
 | `CHAT_INTERNO_DOWNLOAD_CB_JANELA`, `CHAT_INTERNO_DOWNLOAD_CB_MINIMO`, `CHAT_INTERNO_DOWNLOAD_CB_LIMIAR`, `CHAT_INTERNO_DOWNLOAD_CB_ESPERA` | `10`, `5`, `50`, `30s` | Circuit breaker exclusivo do download interno. Opcionais; sem ação obrigatória no Dokploy. |
 | `FEATURE_CAMPANHAS` | `false` | Só ligar quando a aba de Campanhas entrar no escopo. |
-| `DARWIN_HABILITADO` | `false` | Consulta manual de nome/CPF na ficha; habilitar somente na instância homologada. [Contrato e roteiro](docs/darwin-identidade-lead.md). |
-| `DARWIN_API_KEY` | vazio | Segredo backend `X-API-KEY`; nunca no frontend/banco/logs. Opcional com recurso OFF. |
-| `DARWIN_CAMPO_NOME`, `DARWIN_CAMPO_CPF`, `DARWIN_CANAL_ID` | vazio | IDs exatos de campos string e canal da conta Darwin; todos necessários antes de habilitar. Não usar labels. |
-| `DARWIN_MAX_PAGINAS`, `DARWIN_MAX_SESSOES` | `1`, `100` | Janela máxima manual; a Darwin entrega 100 sessões por página. |
+| `DARWIN_HABILITADO` | `false` | Darwin médico: consulta manual por CPF **conhecido**, na ficha do lead. Habilitar somente na Fêmina após homologação. Não descobre CPF por telefone. [Contrato e roteiro](docs/darwin-identidade-lead.md). |
+| `DARWIN_URL` | `https://developers.darwin.med.br` | Origem exata da coleção Darwin médica; somente HTTPS nesse host em produção. Não utilizar a API de outro produto chamado Darwin. |
+| `DARWIN_TOKEN` | vazio | Bearer token médico exclusivo do backend, com escopo do local/profissional. Nunca no frontend/banco/logs. Opcional com recurso OFF. |
 | `DARWIN_CONCORRENCIA` | `2` | Consultas simultâneas por réplica, sem fila de espera. |
-| `DARWIN_TIMEOUT_CONEXAO`, `DARWIN_TIMEOUT_CONSULTA` | `2s`, `10s` | Conexão e prazo total (catálogo + páginas + detalhe), sem retries automáticos. |
+| `DARWIN_TIMEOUT_CONEXAO`, `DARWIN_TIMEOUT_CONSULTA` | `2s`, `10s` | Conexão e prazo da consulta única por CPF, sem retries automáticos. |
 | `DARWIN_VALIDADE_PREVIA`, `DARWIN_MAX_RESPOSTA_BYTES` | `5m`, `524288` | Validade da confirmação e limite do corpo de cada resposta HTTP. |
 | `DARWIN_CIRCUITO_MINIMO`, `DARWIN_CIRCUITO_LIMIAR`, `DARWIN_CIRCUITO_ESPERA` | `5`, `50`, `30s` | Circuito exclusivo Darwin por réplica: chamadas mínimas, percentual de falha e espera. |
 | `FEATURE_CHAT_INTERNO`, `FEATURE_FIDELIZACAO` | `true` | Corte de capacidade por filho. |

@@ -9,10 +9,7 @@ import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -21,6 +18,8 @@ import java.util.concurrent.TimeUnit;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.bulkhead.Bulkhead;
@@ -38,7 +37,7 @@ import com.synapse.crm.core.domain.lead.Cpf;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.NomeDoLead;
 
-/** ACL da documentação https://api.getdarwin.ai/. Somente GET; nunca recebe telefone do navegador. */
+/** ACL da coleção Darwin médico: só consulta por CPF conhecido, nunca criação de paciente. */
 @Component
 class DarwinHttpAdapter implements DarwinGateway {
     private static final Base64.Encoder BASE64 = Base64.getUrlEncoder().withoutPadding();
@@ -49,10 +48,9 @@ class DarwinHttpAdapter implements DarwinGateway {
     private volatile Recursos recursos;
     private record Recursos(HttpClient http, Bulkhead isolamento, CircuitBreaker circuito) {}
 
-
     DarwinHttpAdapter(DarwinProperties config, ObjectMapper json, Clock relogio, Environment ambiente) {
         this.config = config; this.json = json; this.relogio = relogio;
-        this.ambienteLocal = ambiente.acceptsProfiles(Profiles.of("dev", "test"));
+        ambienteLocal = ambiente.acceptsProfiles(Profiles.of("dev", "test"));
     }
 
     private synchronized Recursos recursos() {
@@ -60,113 +58,64 @@ class DarwinHttpAdapter implements DarwinGateway {
         var http = HttpClient.newBuilder().connectTimeout(config.timeoutConexao()).followRedirects(HttpClient.Redirect.NEVER).build();
         var isolamento = Bulkhead.of("darwin-identidade", BulkheadConfig.custom().maxConcurrentCalls(config.concorrencia()).maxWaitDuration(Duration.ZERO).build());
         var circuito = CircuitBreaker.of("darwin-identidade", CircuitBreakerConfig.custom()
-                .slidingWindowSize(Math.max(1, config.circuitoMinimo())).minimumNumberOfCalls(Math.max(1, config.circuitoMinimo()))
+                .slidingWindowSize(config.circuitoMinimo()).minimumNumberOfCalls(config.circuitoMinimo())
                 .failureRateThreshold(config.circuitoLimiar()).waitDurationInOpenState(config.circuitoEspera()).build());
-        recursos = new Recursos(http, isolamento, circuito);
-        return recursos;
+        return recursos = new Recursos(http, isolamento, circuito);
     }
 
     @Override public boolean habilitado() { return config.habilitado() && pronta(); }
-    private boolean pronta() { return config.pronta() && (ambienteLocal || "api.getdarwin.ai".equals(config.url().getHost())); }
+    private boolean pronta() { return config.pronta() && (ambienteLocal || "developers.darwin.med.br".equals(config.url().getHost())); }
     @Override public void exigirDisponivel() {
         if (!config.habilitado()) throw falha(FalhaDarwin.Codigo.DESABILITADA);
         if (!pronta()) throw falha(FalhaDarwin.Codigo.CONFIGURACAO);
     }
 
-    @Override public DadosDarwin.Resultado consultar(String telefone) {
+    @Override public DadosDarwin.Resultado consultar(String documento) {
         exigirDisponivel();
-        if (!telefone.matches("[1-9][0-9]{7,14}")) throw falha(FalhaDarwin.Codigo.IDENTIDADE_DIVERGENTE);
+        String cpf = Cpf.validoOuNulo(documento);
+        if (cpf == null) throw falha(FalhaDarwin.Codigo.CPF_INVALIDO);
         var recurso = recursos();
         if (!recurso.isolamento().tryAcquirePermission()) throw falha(FalhaDarwin.Codigo.OCUPADO);
-        try {
-            return recurso.circuito().executeSupplier(() -> carregar(telefone));
-        } catch (io.github.resilience4j.circuitbreaker.CallNotPermittedException erro) {
-            throw falha(FalhaDarwin.Codigo.INDISPONIVEL);
-        } catch (FalhaDarwin erro) { throw erro; }
+        try { return recurso.circuito().executeSupplier(() -> carregar(cpf)); }
+        catch (io.github.resilience4j.circuitbreaker.CallNotPermittedException erro) { throw falha(FalhaDarwin.Codigo.INDISPONIVEL); }
+        catch (FalhaDarwin erro) { throw erro; }
         catch (RuntimeException erro) { throw falha(FalhaDarwin.Codigo.INDISPONIVEL); }
         finally { recurso.isolamento().onComplete(); }
     }
 
-    private DadosDarwin.Resultado carregar(String telefone) {
-        long limite = System.nanoTime() + config.timeoutConsulta().toNanos();
-        var definicoes = get("/v1/custom-fields", limite);
-        if (!definicoes.isArray()) throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
-        var tipos = new HashMap<String, String>();
-        for (var d : definicoes) tipos.put(d.path("id").asText(), d.path("type").asText());
-        if (!"string".equals(tipos.get(config.campoNome())) || !"string".equals(tipos.get(config.campoCpf())))
-            throw falha(FalhaDarwin.Codigo.CONFIGURACAO);
-        var candidatos = new ArrayList<DadosDarwin.Candidato>();
-        var vistos = new HashSet<String>();
-        boolean limitado = false;
-        int inspecionadas = 0;
-        for (int pagina = 1; pagina <= config.maxPaginas(); pagina++) {
-            var sessoes = get("/v1/sessions?id=" + URLEncoder.encode(telefone, StandardCharsets.UTF_8)
-                    + "&channelId=" + config.canalId() + "&page=" + pagina, limite);
-            if (!sessoes.isArray() || sessoes.size() > 100) throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
-            for (var sessao : sessoes) {
-                if (inspecionadas >= config.maxSessoes()) { limitado = true; break; }
-                var id = sessao.path("sessionId").asText();
-                if (!id.matches("[1-9][0-9]*") || !vistos.add(id)) throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
-                inspecionadas++;
-                var candidato = candidato(id, sessao.path("customFields"));
-                if (candidato != null) candidatos.add(candidato);
-            }
-            if (limitado || sessoes.size() < 100) break;
-            if (pagina == config.maxPaginas() || inspecionadas >= config.maxSessoes()) { limitado = true; break; }
+    private DadosDarwin.Resultado carregar(String cpf) {
+        String formatado = cpf.substring(0,3)+"."+cpf.substring(3,6)+"."+cpf.substring(6,9)+"-"+cpf.substring(9);
+        JsonNode paciente = get("/api/patients/find/cpf?cpf=" + URLEncoder.encode(formatado, StandardCharsets.UTF_8));
+        if (paciente == null) return new DadosDarwin.Resultado(List.of(), false); // 404: sem paciente no escopo do token.
+        if (!paciente.isObject() || !paciente.path("cpf").isTextual()) throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
+        String retornado = Cpf.validoOuNulo(paciente.path("cpf").asText());
+        if (!cpf.equals(retornado)) throw falha(FalhaDarwin.Codigo.IDENTIDADE_DIVERGENTE);
+        var campoNome = paciente.get("name");
+        if (campoNome == null || (!campoNome.isNull() && !campoNome.isTextual())) throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
+        String nome = null;
+        if (campoNome.isTextual() && !campoNome.asText().isBlank()) {
+            try { nome = NomeDoLead.normalizar(campoNome.asText()); }
+            catch (IllegalArgumentException erro) { throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA); }
         }
-        // Só a sessão escolhível precisa de detalhe. Ambiguidade não gera N chamadas externas.
-        if (!candidatos.isEmpty() && candidatos.stream().map(c -> java.util.Arrays.asList(c.nome(), c.cpf(), c.cpfInvalido())).distinct().count() == 1) {
-            var candidato = candidatos.getFirst();
-            var detalhe = get("/v1/session/" + candidato.sessaoId(), limite);
-            if (!candidato.sessaoId().equals(detalhe.path("id").asText())) throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
-            // Não converter BSUID/customer.id em telefone nem tentar variantes do nono dígito.
-            String telefoneRetornado = detalhe.path("phoneNumber").asText("");
-            if (!telefoneRetornado.matches("\\+?[1-9][0-9]{7,14}") || !telefone.equals(telefoneRetornado.replace("+", "")))
-                throw falha(FalhaDarwin.Codigo.IDENTIDADE_DIVERGENTE);
-            var atual = candidato(candidato.sessaoId(), detalhe.path("customFields"));
-            return new DadosDarwin.Resultado(atual == null ? List.of() : List.of(atual), limitado);
-        }
-        return new DadosDarwin.Resultado(candidatos, limitado);
+        // Não há ID de sessão/paciente neste contrato. Nunca inferir IDs nem usar campos clínicos.
+        return new DadosDarwin.Resultado(List.of(new DadosDarwin.Candidato(null, nome, retornado, false)), false);
     }
 
-    private DadosDarwin.Candidato candidato(String id, JsonNode campos) {
-        if (!campos.isArray()) throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
-        String nome = null, cpf = null;
-        boolean invalido = false;
-        var ids = new HashSet<String>();
-        for (var campo : campos) {
-            String campoId = campo.path("fieldId").asText();
-            if (!campoId.equals(config.campoNome()) && !campoId.equals(config.campoCpf())) continue;
-            if (!ids.add(campoId)) throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
-            var valor = campo.path("value");
-            if (valor.isNull() || valor.isMissingNode()) continue;
-            if (!valor.isTextual()) throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
-            if (valor.asText().isBlank()) continue;
-            if (campoId.equals(config.campoNome())) {
-                try { nome = NomeDoLead.normalizar(valor.asText()); }
-                catch (IllegalArgumentException erro) { throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA); }
-            } else {
-                cpf = Cpf.validoOuNulo(valor.asText().trim());
-                invalido = cpf == null;
-            }
-        }
-        return nome == null && cpf == null && !invalido ? null : new DadosDarwin.Candidato(id, nome, cpf, invalido);
-    }
-
-    private JsonNode get(String caminho, long limite) {
-        var restante = Duration.ofNanos(limite - System.nanoTime());
-        if (restante.isNegative() || restante.isZero()) throw falha(FalhaDarwin.Codigo.INDISPONIVEL);
+    private JsonNode get(String caminho) {
         var pedido = HttpRequest.newBuilder(URI.create(config.url().toString().replaceAll("/$", "") + caminho))
-                .timeout(restante).header("X-API-KEY", config.apiKey()).header("Accept", "application/json").GET().build();
+                .timeout(config.timeoutConsulta()).header("Authorization", "Bearer " + config.token())
+                .header("Accept", "application/json").GET().build();
         var futuro = recursos().http().sendAsync(pedido, ignorada -> new CorpoHttpLimitado(config.maxRespostaBytes()));
         try {
-            var resposta = futuro.get(Math.max(1, restante.toMillis()), TimeUnit.MILLISECONDS);
+            var resposta = futuro.get(Math.max(1, config.timeoutConsulta().toMillis()), TimeUnit.MILLISECONDS);
             int status = resposta.statusCode();
+            if (status == 404) return null;
             if (status == 401 || status == 403) throw falha(FalhaDarwin.Codigo.AUTENTICACAO);
             if (status == 429) throw falha(FalhaDarwin.Codigo.LIMITE);
             if (status >= 500) throw falha(FalhaDarwin.Codigo.INDISPONIVEL);
             if (status != 200) throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
-            var corpo = json.readTree(resposta.body());
+            var corpo = json.reader().with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                    .with(JsonParser.Feature.STRICT_DUPLICATE_DETECTION).readTree(resposta.body());
             if (corpo == null) throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
             return corpo;
         } catch (FalhaDarwin erro) { throw erro; }
@@ -180,7 +129,7 @@ class DarwinHttpAdapter implements DarwinGateway {
         exigirDisponivel();
         try {
             var recibo = new DadosDarwin.Recibo(usuarioId, lead.id(), lead.telefone(), lead.nome(), lead.cpf(), candidato,
-                    Instant.now(relogio).plus(config.validadePrevia()), config.campoNome(), config.campoCpf(), config.canalId());
+                    Instant.now(relogio).plus(config.validadePrevia()), config.url().toString());
             String corpo = BASE64.encodeToString(json.writeValueAsBytes(recibo));
             return corpo + "." + BASE64.encodeToString(assinar(corpo));
         } catch (Exception erro) { throw falha(FalhaDarwin.Codigo.INDISPONIVEL); }
@@ -194,8 +143,7 @@ class DarwinHttpAdapter implements DarwinGateway {
             if (partes.length != 2 || !MessageDigest.isEqual(assinar(partes[0]), Base64.getUrlDecoder().decode(partes[1])))
                 throw falha(FalhaDarwin.Codigo.CONSULTA_INVALIDA);
             var recibo = json.readValue(Base64.getUrlDecoder().decode(partes[0]), DadosDarwin.Recibo.class);
-            if (!Instant.now(relogio).isBefore(recibo.expiraEm()) || !Objects.equals(config.campoNome(), recibo.campoNome())
-                    || !Objects.equals(config.campoCpf(), recibo.campoCpf()) || !Objects.equals(config.canalId(), recibo.canalId()))
+            if (!Instant.now(relogio).isBefore(recibo.expiraEm()) || !Objects.equals(config.url().toString(), recibo.origem()))
                 throw falha(FalhaDarwin.Codigo.CONSULTA_INVALIDA);
             return recibo;
         } catch (Exception erro) { throw falha(FalhaDarwin.Codigo.CONSULTA_INVALIDA); }
@@ -203,8 +151,9 @@ class DarwinHttpAdapter implements DarwinGateway {
 
     private byte[] assinar(String corpo) throws java.security.GeneralSecurityException {
         var mac = Mac.getInstance("HmacSHA256");
-        mac.init(new SecretKeySpec(config.apiKey().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-        return mac.doFinal(("synapse:darwin:previa:v1:" + corpo).getBytes(StandardCharsets.UTF_8));
+        mac.init(new SecretKeySpec(config.token().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        // Domínio novo invalida comprovantes do provedor incorreto, mesmo se reutilizarem um segredo.
+        return mac.doFinal(("synapse:darwin-medico:previa:v2:" + corpo).getBytes(StandardCharsets.UTF_8));
     }
     private static FalhaDarwin falha(FalhaDarwin.Codigo codigo) { return new FalhaDarwin(codigo); }
 }

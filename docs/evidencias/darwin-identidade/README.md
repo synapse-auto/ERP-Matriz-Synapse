@@ -1,4 +1,14 @@
-# Validação visual — Darwin na ficha real
+# Evidência histórica da PR #340 — NÃO valida Darwin médico
+
+> **Obsoleta para a integração atual.** As capturas e resultados abaixo pertencem ao
+> adaptador getdarwin.ai da PR #340, produto incorreto para a Fêmina. Não comprovam
+> o formulário atual de CPF conhecido nem o contrato de darwin.med.br. Preservadas
+> apenas como histórico, não como aprovação visual ou homologação da correção.
+> Contrato, configuração e roteiro vigentes: [Darwin médico](../../darwin-identidade-lead.md).
+> A fixture `DarwinIdentidadeLocal` foi atualizada para resposta médica sintética;
+> sua atualização não transforma estas imagens antigas em evidência nova.
+
+## Registro original (anterior à correção do fornecedor)
 
 02/11/2026, Playwright CLI **headed/Chrome**, Next real em `localhost:3014`, backend real
 em `localhost:8094`, Postgres 15/Redis descartáveis e HTTP Darwin simulado em loopback.

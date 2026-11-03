@@ -59,12 +59,8 @@ public final class DarwinIdentidadeLocal {
         fake.createContext("/", troca -> {
             try {
                 if ("lento".equals(estado.get())) liberar.get().get(20,TimeUnit.SECONDS);
-                String campos = "[{\"fieldId\":\"11\",\"value\":\"Pessoa Darwin Sintética\"},{\"fieldId\":\"22\",\"value\":\"529.982.247-25\"}]";
-                String caminho = troca.getRequestURI().getPath();
-                String corpo = caminho.equals("/v1/custom-fields") ? "[{\"id\":11,\"type\":\"string\"},{\"id\":22,\"type\":\"string\"}]"
-                        : caminho.equals("/v1/sessions") ? ("vazio".equals(estado.get()) ? "[]" : "[{\"sessionId\":123,\"customFields\":"+campos+"}]")
-                        : "{\"id\":123,\"phoneNumber\":\"+5561999900777\",\"customFields\":"+campos+"}";
-                int status = "erro".equals(estado.get()) ? 403 : 200;
+                String corpo = "{\"cpf\":\"529.982.247-25\",\"name\":\"Pessoa Darwin Sintética\"}";
+                int status = "erro".equals(estado.get()) ? 403 : "vazio".equals(estado.get()) ? 404 : 200;
                 byte[] bytes = corpo.getBytes(StandardCharsets.UTF_8);
                 troca.getResponseHeaders().set("Content-Type","application/json");
                 troca.sendResponseHeaders(status,bytes.length); troca.getResponseBody().write(bytes);
@@ -75,10 +71,7 @@ public final class DarwinIdentidadeLocal {
         String urlFake = "http://127.0.0.1:"+fake.getAddress().getPort();
         System.setProperty("synapse.integracoes.darwin.habilitado","true");
         System.setProperty("synapse.integracoes.darwin.url",urlFake);
-        System.setProperty("synapse.integracoes.darwin.api-key","chave-sintetica-nao-produtiva");
-        System.setProperty("synapse.integracoes.darwin.campo-nome","11");
-        System.setProperty("synapse.integracoes.darwin.campo-cpf","22");
-        System.setProperty("synapse.integracoes.darwin.canal-id","7");
+        System.setProperty("synapse.integracoes.darwin.token","token-medico-sintetico");
         System.setProperty("synapse.integracoes.darwin.timeout-consulta","30s");
         var contexto = SpringApplication.run(SynapseCrmApplication.class,"--spring.profiles.active=dev","--server.address=127.0.0.1","--server.port=8094");
         var jdbc = contexto.getBean(JdbcTemplate.class); banco.set(jdbc);

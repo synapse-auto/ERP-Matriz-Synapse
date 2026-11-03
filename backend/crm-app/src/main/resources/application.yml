@@ -161,12 +161,8 @@ synapse:
   integracoes:
     darwin:
       habilitado: ${DARWIN_HABILITADO:false}
-      api-key: ${DARWIN_API_KEY:}
-      campo-nome: ${DARWIN_CAMPO_NOME:}
-      campo-cpf: ${DARWIN_CAMPO_CPF:}
-      canal-id: ${DARWIN_CANAL_ID:}
-      max-paginas: ${DARWIN_MAX_PAGINAS:1}
-      max-sessoes: ${DARWIN_MAX_SESSOES:100}
+      url: ${DARWIN_URL:https://developers.darwin.med.br}
+      token: ${DARWIN_TOKEN:}
       concorrencia: ${DARWIN_CONCORRENCIA:2}
       timeout-conexao: ${DARWIN_TIMEOUT_CONEXAO:2s}
       timeout-consulta: ${DARWIN_TIMEOUT_CONSULTA:10s}

@@ -39,20 +39,15 @@ class DarwinLeadIT extends PostgresIT {
     private static final AtomicInteger CHAMADAS = new AtomicInteger();
     private static volatile String telefone;
     private static volatile int status = 200;
-    private static volatile String campos;
-    private static volatile String sessoes;
-    private static final String CAMPOS = "[{\"fieldId\":\"11\",\"value\":\"Pessoa Sintética Darwin\"},{\"fieldId\":\"22\",\"value\":\"529.982.247-25\"}]";
+    private static volatile String paciente;
+    private static final String PACIENTE = "{\"cpf\":\"529.982.247-25\",\"name\":\"Pessoa Sintética Darwin\",\"phoneNumber\":null,\"motherName\":\"Campo não utilizado\"}";
 
     private static HttpServer servidor() {
         try {
             var servidor = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             servidor.createContext("/", troca -> {
                 CHAMADAS.incrementAndGet();
-                String caminho = troca.getRequestURI().getPath();
-                String corpo = caminho.equals("/v1/custom-fields")
-                        ? "[{\"id\":11,\"type\":\"string\"},{\"id\":22,\"type\":\"string\"}]"
-                        : caminho.equals("/v1/sessions") ? sessoes
-                        : "{\"id\":123,\"phoneNumber\":\"+" + telefone + "\",\"customFields\":" + campos + "}";
+                String corpo = paciente;
                 if (status != 200) corpo = "erro sintético";
                 byte[] bytes = corpo.getBytes(StandardCharsets.UTF_8);
                 troca.getResponseHeaders().set("Content-Type", "application/json");
@@ -69,10 +64,7 @@ class DarwinLeadIT extends PostgresIT {
     static void configurar(DynamicPropertyRegistry r) {
         r.add("synapse.integracoes.darwin.habilitado", () -> "true");
         r.add("synapse.integracoes.darwin.url", () -> "http://127.0.0.1:" + DARWIN.getAddress().getPort());
-        r.add("synapse.integracoes.darwin.api-key", () -> "chave-sintetica-nao-produtiva");
-        r.add("synapse.integracoes.darwin.campo-nome", () -> "11");
-        r.add("synapse.integracoes.darwin.campo-cpf", () -> "22");
-        r.add("synapse.integracoes.darwin.canal-id", () -> "7");
+        r.add("synapse.integracoes.darwin.token", () -> "token-medico-sintetico");
         // Isola o teste de falhas do histórico do circuito compartilhado entre métodos.
         r.add("synapse.integracoes.darwin.circuito-minimo", () -> "100");
     }
@@ -87,8 +79,7 @@ class DarwinLeadIT extends PostgresIT {
     private String bruno;
 
     @BeforeEach void preparar() {
-        CHAMADAS.set(0); status = 200; campos = CAMPOS;
-        sessoes = "[{\"sessionId\":123,\"customFields\":" + campos + "}]";
+        CHAMADAS.set(0); status = 200; paciente = PACIENTE;
         telefone = "55619" + String.format("%08d", Math.floorMod(UUID.randomUUID().getLeastSignificantBits(), 100_000_000L));
         lead = criar(EMAIL_ANA, telefone);
         outro = criar(EMAIL_BRUNO, null);
@@ -115,7 +106,7 @@ class DarwinLeadIT extends PostgresIT {
     }
     private String rota(UUID id, String acao) { return "/api/v1/leads/" + id + "/darwin/" + acao; }
     private JsonNode previa() throws Exception {
-        var resposta = pedido(ana, HttpMethod.POST, rota(lead,"consultas"), null);
+        var resposta = pedido(ana, HttpMethod.POST, rota(lead,"consultas"), Map.of("cpf","529.982.247-25"));
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         return json.readTree(resposta.getBody());
     }
@@ -129,14 +120,19 @@ class DarwinLeadIT extends PostgresIT {
         var p = previa();
         assertThat(p.path("estado").asText()).isEqualTo("ENCONTRADO");
         assertThat(p.path("cpfAtual").isNull()).isTrue();
+        assertThat(p.path("candidatos").get(0).path("sessaoId").isNull()).isTrue();
+        assertThat(p.toString()).doesNotContain("motherName", "phoneNumber", "Campo não utilizado");
+        assertThat(jdbc.queryForObject("SELECT cpf FROM lead WHERE id=?",String.class,lead)).isNull();
         assertThat(jdbc.queryForObject("SELECT nome FROM lead WHERE id=?",String.class,lead)).isEqualTo("Identificação atual");
-        assertThat(aplicar(ana,lead,p,true,true).getStatusCode()).isEqualTo(HttpStatus.OK);
+        var aplicado = aplicar(ana,lead,p,true,true);
+        assertThat(aplicado.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(aplicado.getBody()).contains("DARWIN_MEDICO");
         var ficha = pedido(ana,HttpMethod.GET,"/api/v1/leads/"+lead,null);
         assertThat(ficha.getBody()).contains("Pessoa Sintética Darwin","52998224725","Nota preservada","Resumo preservado",telefone);
         assertThat(aplicar(ana,lead,p,true,true).getBody()).contains("\"camposAlterados\":[]");
-        assertThat(CHAMADAS).hasValue(3); // aplicação/reload não consultam o provedor.
+        assertThat(CHAMADAS).hasValue(1); // aplicação/reload não consultam o provedor.
         var auditoria = jdbc.queryForList("SELECT dados_depois::text FROM audit_log WHERE acao='APLICAR_DADOS_DARWIN' AND entidade_id=?",String.class,lead);
-        assertThat(auditoria).hasSize(2).allSatisfy(a -> assertThat(a).contains("DARWIN","camposAlterados").doesNotContain("52998224725","Pessoa Sintética Darwin",telefone,"confirmacao","chave-sintetica"));
+        assertThat(auditoria).hasSize(2).allSatisfy(a -> assertThat(a).contains("DARWIN_MEDICO","camposAlterados").doesNotContain("52998224725","Pessoa Sintética Darwin",telefone,"confirmacao","token-medico-sintetico"));
     }
     @Test void colegaInexistenteESemLoginNaoConsultamNemAplicam() throws Exception {
         for (UUID id : java.util.List.of(outro,UUID.randomUUID())) {
@@ -164,31 +160,31 @@ class DarwinLeadIT extends PostgresIT {
         assertThat(pedido(ana,HttpMethod.POST,rota(lead,"aplicacoes"),Map.of("confirmacao","x"+p.path("confirmacao").asText(),"nome",true)).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         jdbc.update("UPDATE lead SET telefone=NULL WHERE id=?",lead);
         assertThat(aplicar(ana,lead,p,true,true).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-        assertThat(previa().path("estado").asText()).isEqualTo("SEM_IDENTIDADE");
-        assertThat(CHAMADAS).hasValue(3);
-    }
-    @Test void ambiguidadeNaoMisturaSessoesNemForneceConfirmacao() throws Exception {
-        sessoes = "[{\"sessionId\":123,\"customFields\":[{\"fieldId\":\"11\",\"value\":\"Nome A\"}]},{\"sessionId\":122,\"customFields\":[{\"fieldId\":\"22\",\"value\":\"52998224725\"}]}]";
-        var p = previa();
-        assertThat(p.path("estado").asText()).isEqualTo("AMBIGUO");
-        assertThat(p.path("confirmacao").isNull()).isTrue();
-        assertThat(p.path("candidatos")).hasSize(2);
+        assertThat(previa().path("estado").asText()).isEqualTo("ENCONTRADO"); // CPF conhecido dispensa telefone.
         assertThat(CHAMADAS).hasValue(2);
     }
-    @Test void ausentesInvalidosESessaoVaziaNaoViraramDadosAplicaveis() throws Exception {
-        sessoes = "[]";
+    @Test void arrayOuCpfDivergenteNaoOferecemConfirmacaoNemGravam() {
+        for(String corpo:java.util.List.of("[]","{\"cpf\":\"39053344705\",\"name\":\"Outro cadastro\"}")) {
+            paciente=corpo;
+            var resposta=pedido(ana,HttpMethod.POST,rota(lead,"consultas"),Map.of("cpf","52998224725"));
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+            assertThat(resposta.getBody()).doesNotContain("Outro cadastro");
+            assertThat(jdbc.queryForObject("SELECT cpf FROM lead WHERE id=?",String.class,lead)).isNull();
+        }
+    }
+    @Test void pacienteAusenteNoEscopoENomeNuloNaoInventamValores() throws Exception {
+        status=404;
         assertThat(previa().path("estado").asText()).isEqualTo("SEM_RESULTADO");
-        campos = "[{\"fieldId\":\"22\",\"value\":\"11111111111\"}]";
-        sessoes = "[{\"sessionId\":123,\"customFields\":"+campos+"}]";
+        status=200;paciente="{\"cpf\":\"52998224725\",\"name\":null}";
         var p = previa();
-        assertThat(p.path("candidatos").get(0).path("cpfInvalido").asBoolean()).isTrue();
-        assertThat(aplicar(ana,lead,p,false,true).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        campos = "[]"; sessoes = "[{\"sessionId\":123,\"customFields\":[]}]";
-        assertThat(previa().path("estado").asText()).isEqualTo("SEM_RESULTADO");
+        assertThat(p.path("candidatos").get(0).path("nome").isNull()).isTrue();
+        assertThat(aplicar(ana,lead,p,true,false).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(aplicar(ana,lead,p,false,true).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT nome FROM lead WHERE id=?",String.class,lead)).isEqualTo("Identificação atual");
     }
     @Test void autorizacaoDoProvedorNaoDeslogaCrmEFichaContinuaDisponivel() {
         status = 403;
-        var resposta = pedido(ana,HttpMethod.POST,rota(lead,"consultas"),null);
+        var resposta = pedido(ana,HttpMethod.POST,rota(lead,"consultas"),Map.of("cpf","52998224725"));
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
         assertThat(resposta.getBody()).contains("DARWIN_AUTENTICACAO").doesNotContain(telefone,"chave-sintetica");
         assertThat(CHAMADAS).hasValue(1);
@@ -210,5 +206,53 @@ class DarwinLeadIT extends PostgresIT {
             jdbc.update("UPDATE lead SET atendente_responsavel_id=(SELECT id FROM usuario WHERE email=?) WHERE id=?",EMAIL_ANA,lead);
             jdbc.update("DELETE FROM usuario WHERE id=?",usuario);
         }
+    }
+
+    @Test void telefoneSemCpfNaoDescobreDocumentoNemFazChamada() throws Exception {
+        var resposta=pedido(ana,HttpMethod.POST,rota(lead,"consultas"),null);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(json.readTree(resposta.getBody()).path("estado").asText()).isEqualTo("SEM_IDENTIDADE");
+        assertThat(CHAMADAS).hasValue(0);
+    }
+
+    @Test void cpfCadastradoDispensaCorpoENaoDependeDeTelefone() throws Exception {
+        jdbc.update("UPDATE lead SET cpf='52998224725',telefone=NULL WHERE id=?",lead);
+        var resposta=pedido(ana,HttpMethod.POST,rota(lead,"consultas"),null);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        var p=json.readTree(resposta.getBody());
+        assertThat(p.path("estado").asText()).isEqualTo("ENCONTRADO");
+        assertThat(aplicar(ana,lead,p,true,false).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(CHAMADAS).hasValue(1);
+    }
+
+    @Test void documentoInvalidoNaoConsultaENaoEhPersistido() {
+        for(String cpf:java.util.List.of("11111111111","5561999991234","52998224724")) {
+            var resposta=pedido(ana,HttpMethod.POST,rota(lead,"consultas"),Map.of("cpf",cpf));
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(resposta.getBody()).contains("DARWIN_CPF_INVALIDO");
+        }
+        assertThat(CHAMADAS).hasValue(0);
+        assertThat(jdbc.queryForObject("SELECT cpf FROM lead WHERE id=?",String.class,lead)).isNull();
+    }
+
+    @Test void trocaConcorrenteDeCpfBloqueiaInclusiveAplicacaoSoDoNome() throws Exception {
+        var p=previa();
+        jdbc.update("UPDATE lead SET cpf='39053344705' WHERE id=?",lead);
+        assertThat(aplicar(ana,lead,p,true,false).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jdbc.queryForObject("SELECT nome FROM lead WHERE id=?",String.class,lead)).isEqualTo("Identificação atual");
+    }
+
+    @Test void openApiDocumentaConsultaPorCpfConhecidoSemPrometerBuscaPorTelefone() throws Exception {
+        var resposta = pedido(ana,HttpMethod.GET,"/v3/api-docs",null);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        var contrato = json.readTree(resposta.getBody());
+        var consulta = contrato.path("paths").path("/api/v1/leads/{id}/darwin/consultas").path("post");
+        assertThat(consulta.path("description").asText()).contains("CPF", "Não descobre CPF por telefone");
+        assertThat(consulta.path("requestBody").isMissingNode()).isFalse();
+        var esquema = consulta.path("requestBody").path("content").path("application/json").path("schema");
+        String referencia = esquema.path("$ref").asText();
+        if (!referencia.isEmpty()) esquema = contrato.at(referencia.substring(1));
+        assertThat(esquema.path("properties").has("cpf")).isTrue();
+        assertThat(CHAMADAS).hasValue(0);
     }
 }
