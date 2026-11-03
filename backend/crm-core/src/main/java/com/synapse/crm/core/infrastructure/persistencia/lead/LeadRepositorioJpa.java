@@ -140,6 +140,18 @@ class LeadRepositorioJpa implements LeadRepositorio {
     }
 
     @Override
+    public Optional<Lead> porIdParaAtualizacao(UUID id) {
+        var cb = em.getCriteriaBuilder();
+        var consulta = cb.createQuery(LeadEntity.class);
+        var raiz = consulta.from(LeadEntity.class);
+        var spec = VisibilidadeLeadSpecification.comParticipacao(visibilidadeAtual())
+                .and((lead, ignorada, builder) -> builder.equal(lead.get(LeadEntity.Campos.ID), id));
+        consulta.select(raiz).where(spec.toPredicate(raiz, consulta, cb));
+        return em.createQuery(consulta).setLockMode(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+                .getResultList().stream().findFirst().map(LeadEntity::paraDominio);
+    }
+
+    @Override
     public Optional<IdentificacaoLead> identificacao(UUID id) {
         var cb = em.getCriteriaBuilder();
         var consulta = cb.createQuery(IdentificacaoLead.class);

@@ -264,6 +264,14 @@ describe("painel da conversa", () => {
       { id: "etapa-2", nome: "Negociação", ordem: 3, corVisual: "var(--accent)" },
     ];
   });
+  it("mantém identidades distintas para edição de código e consulta Darwin ao trocar a ficha", () => {
+    const erros = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      renderizarPainel("lead-1", "Ana");
+      expect(erros.mock.calls.flat().map(String).join(" ")).not.toContain("same key");
+    } finally { erros.mockRestore(); }
+  });
+
   it("mostra contadores, etapa e resumo por IA recolhido — sem seção de arquivos", () => {
     const onRetrair = vi.fn();
     renderizarPainel("lead-1", "Jardel Lima", onRetrair);
