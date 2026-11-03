@@ -71,6 +71,7 @@ class ZApiFotoDoLeadIT extends PostgresIT {
         volatile int status=200;
         volatile String link="https://pps.whatsapp.net/foto-sintetica";
         volatile Runnable aoConsultar=()->{};
+        volatile int cor=0x2775b6;
         okhttp3.Response responder(Interceptor.Chain chain) throws java.io.IOException {
             assertThat(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
             var pedido=chain.request(); pedidos.add(pedido);
@@ -80,7 +81,15 @@ class ZApiFotoDoLeadIT extends PostgresIT {
             if(status==408) throw new java.net.SocketTimeoutException("fixture");
             byte[] bytes;
             if(api) bytes=("{\"link\":"+(link==null?"null":"\""+link+"\"")+"}").getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            else { var out=new java.io.ByteArrayOutputStream(); javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(64,64,java.awt.image.BufferedImage.TYPE_INT_RGB),"png",out); bytes=out.toByteArray(); }
+            else {
+                var out=new java.io.ByteArrayOutputStream();
+                var imagem=new java.awt.image.BufferedImage(64,64,java.awt.image.BufferedImage.TYPE_INT_RGB);
+                var desenho=imagem.createGraphics();
+                try { desenho.setColor(new java.awt.Color(cor));desenho.fillRect(0,0,64,64);
+                    desenho.setColor(java.awt.Color.WHITE);desenho.fillOval(24,12,16,16);desenho.fillOval(16,34,32,26);
+                } finally { desenho.dispose(); }
+                javax.imageio.ImageIO.write(imagem,"png",out); bytes=out.toByteArray();
+            }
             return new okhttp3.Response.Builder().request(pedido).protocol(Protocol.HTTP_1_1).message("fixture")
                     .code(status).body(ResponseBody.create(bytes,okhttp3.MediaType.get(api?"application/json":"image/png"))).build();
         }
@@ -91,6 +100,8 @@ class ZApiFotoDoLeadIT extends PostgresIT {
     @Autowired SimuladorFoto servidor;
     @Autowired ArmazenamentoDeFotoDeLead storage;
     @Autowired CircuitBreakerRegistry breakers;
+    @Autowired @org.springframework.beans.factory.annotation.Qualifier("fotoDePerfilExecutor")
+    org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor executorFoto;
     @Autowired org.springframework.context.ApplicationEventPublisher eventos;
     @Autowired org.springframework.transaction.PlatformTransactionManager tm;
     @Autowired com.synapse.crm.core.application.lead.foto.CapturaDeFotoRepositorio reservas;
@@ -100,6 +111,7 @@ class ZApiFotoDoLeadIT extends PostgresIT {
     @BeforeEach void preparar() {
         servidor.consultas.set(0);servidor.downloads.set(0);servidor.pedidos.clear();servidor.status=200;
         servidor.link="https://pps.whatsapp.net/foto-sintetica"; servidor.aoConsultar=()->{};
+        servidor.cor=0x2775b6;
         breakers.circuitBreaker("canal-z-api-foto").reset();
         canal=jdbc.queryForObject("INSERT INTO canal(nome,tipo,ativo) VALUES (?,'WHATSAPP',true) RETURNING id",UUID.class,"FOTO-IT-"+UUID.randomUUID());
         jdbc.update("INSERT INTO canal_credencial(id,canal_id,numero,identificador_externo,token_ref) VALUES (?,?,'5511999991234','FOTO-TESTE','env://Z_API_TOKEN')",CREDENCIAL,canal);
@@ -109,6 +121,7 @@ class ZApiFotoDoLeadIT extends PostgresIT {
         tokenBruno=ApoioAutenticacao.login(http,ApoioAutenticacao.EMAIL_BRUNO,ApoioAutenticacao.SENHA_ATENDENTE).accessToken();
     }
     @AfterEach void limpar() {
+        await().atMost(Duration.ofSeconds(20)).until(()->executorFoto.getActiveCount()==0 && executorFoto.getThreadPoolExecutor().getQueue().isEmpty());
         await().atMost(Duration.ofSeconds(20)).until(()->jdbc.queryForObject("SELECT count(*) FROM lead_foto_captura WHERE lead_id=? AND resultado IS NULL",Integer.class,lead)==0);
         jdbc.query("SELECT foto_referencia FROM lead WHERE id=?",(rs,n)->rs.getString(1),lead).forEach(storage::remover);
         jdbc.update("DELETE FROM evento_timeline WHERE lead_id=?",lead);
@@ -121,6 +134,7 @@ class ZApiFotoDoLeadIT extends PostgresIT {
     private void abrir() { assertThat(get("/api/v1/leads/"+lead,String.class,tokenAna).getStatusCode()).isEqualTo(HttpStatus.OK); }
     private void esperar(String resultado) {
         await().atMost(Duration.ofSeconds(20)).untilAsserted(()->assertThat(jdbc.queryForList("SELECT resultado FROM lead_foto_captura WHERE lead_id=?",String.class,lead)).containsExactly(resultado));
+        await().atMost(Duration.ofSeconds(20)).until(()->executorFoto.getActiveCount()==0 && executorFoto.getThreadPoolExecutor().getQueue().isEmpty());
     }
     @Test void leadAntigoAtualizaPelaFichaPersisteFotoAutorizadaECacheSobreviveANovasSolicitacoes() {
         abrir(); esperar("FOTO");
@@ -194,6 +208,34 @@ class ZApiFotoDoLeadIT extends PostgresIT {
             assertThat(reservas.reservar(lead,"OUTRA",CREDENCIAL,"a".repeat(64),agora.plusSeconds(121),agora.plusSeconds(240))).isEmpty();
         }));
         jdbc.update("UPDATE lead_foto_captura SET resultado='PRESERVADA' WHERE lead_id=?",lead);
+    }
+
+    @Test void reservasRealmenteConcorrentesNoBancoTemUmUnicoVencedor() throws Exception {
+        var barreira=new java.util.concurrent.CyclicBarrier(2);
+        java.util.function.Supplier<Boolean> reservar=()-> {
+            try { barreira.await(10,java.util.concurrent.TimeUnit.SECONDS); }
+            catch (Exception falha) { throw new IllegalStateException(falha); }
+            return com.synapse.crm.sharedkernel.identidade.ContextoDeServico.buscarComo("teste-concorrente-foto",()->
+                new org.springframework.transaction.support.TransactionTemplate(tm).execute(s->{
+                    var agora=java.time.Instant.now();
+                    return reservas.reservar(lead,"FOTO-TESTE",CREDENCIAL,"a".repeat(64),agora,agora.plusSeconds(120)).isPresent();
+                }));
+        };
+        var primeira=java.util.concurrent.CompletableFuture.supplyAsync(reservar);
+        var segunda=java.util.concurrent.CompletableFuture.supplyAsync(reservar);
+        assertThat(List.of(primeira.get(15,java.util.concurrent.TimeUnit.SECONDS),segunda.get(15,java.util.concurrent.TimeUnit.SECONDS)))
+                .containsExactlyInAnyOrder(true,false);
+        jdbc.update("UPDATE lead_foto_captura SET resultado='PRESERVADA' WHERE lead_id=?",lead);
+    }
+
+    @Test void validadeExpiradaPermiteAtualizarSomenteAFotoQueOColetorCriou() {
+        abrir();esperar("FOTO");
+        String anterior=jdbc.queryForObject("SELECT foto_referencia FROM lead WHERE id=?",String.class,lead);
+        jdbc.update("UPDATE lead_foto_captura SET proxima_consulta=now()-interval '1 minute',resultado=NULL WHERE lead_id=?",lead);
+        servidor.cor=0x16834d;
+        abrir();esperar("FOTO");
+        assertThat(jdbc.queryForObject("SELECT foto_referencia FROM lead WHERE id=?",String.class,lead)).isNotEqualTo(anterior);
+        assertThat(servidor.consultas.get()).isEqualTo(2);
     }
 
     /** Aplicação real para screenshots headed, limitada ao banco Testcontainers sintético. */

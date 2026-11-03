@@ -127,3 +127,21 @@ o desligamento não exige credenciais novas nem impede o boot de outros canais.
 
 Testes de transporte simulado, PostgreSQL e storage descartáveis não substituem
 essa homologação. Não houve chamada produtiva, coleta em massa, alteração n8n ou deploy.
+
+## Evidências e limite da validação local
+
+`ZApiFotoDePerfilTest` cobre contrato HTTP, autenticação de saída, isolamento do
+download, ausência, timeout/4xx/5xx, MIME/bytes/dimensões e destinos recusados.
+`ZApiFotoDoLeadIT` usa HTTP da ficha, PostgreSQL/RLS e MinIO reais: inclui acesso
+negado, origem preexistente, alteração concorrente, cache vencido/negativo/erro,
+eventos transacionais e disputa real de reservas no banco. Apenas transporte
+externo é simulado. `FotoDoLeadIT` preserva o contrato interno/entrega existente.
+Frontend cobre passagem do sinal por STOMP, invalidação sem toast e reconexão.
+Resultados e run do SHA final devem ser conferidos na PR, não inferidos desta lista.
+
+A fixture opt-in `ZApiFotoDoLeadIT.main` inicia aplicação e dados sintéticos
+descartáveis para inspeção headed. Nesta sessão, o backend iniciou, mas a
+ferramenta **bloqueou iniciar o frontend local**. A validação visual em desktop
+e celular está pendente de frontend autorizado acessível; não existem screenshots
+aprovadas nem comprovação visual a substituir por HTML simplificado. A PR deve
+permanecer draft até completar essa etapa (ou decisão explícita do responsável).
