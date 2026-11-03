@@ -108,6 +108,14 @@ class EncaminhamentoDoChatParaClienteIT extends PostgresIT {
         jdbc.update("DELETE FROM atendimento WHERE lead_id IN (" + leads + ")");
         jdbc.update("DELETE FROM lead WHERE nome LIKE '" + PREFIXO + "%'");
         for (UUID conversa : conversas) {
+            // A V65 atualiza citações ao apagar a origem; não pode alterar outra linha
+            // que o mesmo DELETE em lote também vai remover. Só desvincula este fixture.
+            jdbc.update("""
+                    UPDATE chat_interno_mensagem
+                       SET referencia_origem_id=NULL, referencia_origem_removida=TRUE, referencia_previa=''
+                     WHERE conversa_id=? AND referencia_origem_id IN
+                         (SELECT id FROM chat_interno_mensagem WHERE conversa_id=?)
+                    """, conversa, conversa);
             jdbc.update("DELETE FROM chat_interno_mensagem WHERE conversa_id = ?", conversa);
             jdbc.update("DELETE FROM chat_interno_participante WHERE conversa_id = ?", conversa);
             jdbc.update("DELETE FROM chat_interno_conversa WHERE id = ?", conversa);
@@ -116,6 +124,20 @@ class EncaminhamentoDoChatParaClienteIT extends PostgresIT {
     }
 
     // ---------------------------------------------------------------- um tipo de cada
+
+    @Test
+    void limpezaDescartaOrigemECitacaoNoMesmoConjuntoSemDependerDaOrdemFisica() {
+        UUID conversa = conversaDireta(EMAIL_ANA, bruno);
+        UUID origem = mensagemDeTexto(conversa, bruno, "Origem sintética");
+        UUID citacao = mensagemDeTexto(conversa, ana, "Citação sintética");
+        jdbc.update("""
+                UPDATE chat_interno_mensagem SET referencia_origem_id=?,referencia_tipo='RESPOSTA',
+                    referencia_autor='Sintético',referencia_tipo_conteudo='TEXTO',referencia_previa='Origem sintética'
+                WHERE id=?
+                """, origem, citacao);
+        limpar();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM chat_interno_mensagem WHERE conversa_id=?",Integer.class,conversa)).isZero();
+    }
 
     @Test
     @DisplayName("texto: vai pelo fluxo oficial, o telefone e do backend e o canal recebe o texto da linha persistida")
