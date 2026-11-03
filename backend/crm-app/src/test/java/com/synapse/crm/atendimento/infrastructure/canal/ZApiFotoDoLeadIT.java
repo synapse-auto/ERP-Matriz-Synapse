@@ -238,6 +238,33 @@ class ZApiFotoDoLeadIT extends PostgresIT {
         assertThat(servidor.consultas.get()).isEqualTo(2);
     }
 
+    @Test void cacheOperacionalNaoPodeSerLidoNemEscritoPorUsuarioMesmoDonoDoLead() throws Exception {
+        abrir();esperar("FOTO");
+        try(var conexao=java.sql.DriverManager.getConnection(POSTGRES.getJdbcUrl(),POSTGRES.getUsername(),POSTGRES.getPassword())) {
+            conexao.setAutoCommit(false);
+            try(var sql=conexao.createStatement()) {
+                sql.execute("SET LOCAL ROLE synapse_app");
+                try(var papel=sql.executeQuery("SELECT current_user,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user")) {
+                    assertThat(papel.next()).isTrue();assertThat(papel.getString(1)).isEqualTo("synapse_app");
+                    assertThat(papel.getBoolean(2)).isFalse();assertThat(papel.getBoolean(3)).isFalse();
+                }
+                sql.execute("SELECT set_config('app.papel','SERVICO',true)");
+                try(var linha=sql.executeQuery("SELECT count(*) FROM lead_foto_captura WHERE lead_id='"+lead+"'")) {
+                    linha.next();assertThat(linha.getInt(1)).isEqualTo(1);
+                }
+                sql.execute("SELECT set_config('app.papel','ATENDENTE',true),set_config('app.usuario_id','"+ana+"',true)");
+                try(var linha=sql.executeQuery("SELECT count(*) FROM lead_foto_captura WHERE lead_id='"+lead+"'")) {
+                    linha.next();assertThat(linha.getInt(1)).isZero();
+                }
+                assertThat(sql.executeUpdate("UPDATE lead_foto_captura SET resultado='ERRO' WHERE lead_id='"+lead+"'")).isZero();
+                assertThatThrownBy(()->sql.executeUpdate("INSERT INTO lead_foto_captura(lead_id,instancia,credencial_id,telefone_hash,token,proxima_consulta) VALUES ('"
+                        +lead+"','FOTO-TESTE','"+CREDENCIAL+"','"+"a".repeat(64)+"','"+UUID.randomUUID()+"',now())"))
+                        .isInstanceOf(java.sql.SQLException.class)
+                        .satisfies(falha->assertThat(((java.sql.SQLException)falha).getSQLState()).isEqualTo("42501"));
+            } finally { conexao.rollback(); }
+        }
+    }
+
     /** Aplicação real para screenshots headed, limitada ao banco Testcontainers sintético. */
     public static void main(String[] args) {
         if (!"true".equals(System.getenv("Z_API_FOTO_VISUAL_LOCAL"))) throw new IllegalStateException("FIXTURE_LOCAL_DESABILITADA");
