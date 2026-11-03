@@ -103,7 +103,8 @@ class RespostaEEncaminhamentoIT extends PostgresIT {
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.setBearerAuth(token);
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);
-        // Enfileira pelo HTTP uma rodada inteira antes da resposta, usando o lote configurado.
+        // Uma rodada inteira anterior à resposta, pelo HTTP real; sem mockar reserva ou esvaziar
+        // eventos de suites alheias. O lote vem da mesma configuração do publisher.
         for (int i = 0; i < propriedadesOutbox.lote(); i++) {
             var resposta = http.exchange("/api/v1/atendimentos/mensagens", HttpMethod.POST,
                     new HttpEntity<>(Map.of("leadId",fila.leadId().toString(),"conteudo","Fila sintética "+i),cabecalhos),String.class);
@@ -138,7 +139,9 @@ class RespostaEEncaminhamentoIT extends PostgresIT {
                 .isEqualTo("RESPOSTA");
 
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            // O scheduler dos ITs está OFF; cada tick processa um lote, não toda a fila.
+            // O scheduler está desligado nos ITs. Cada chamada é uma rodada limitada, não
+            // a promessa de drenar a fila inteira. Exercita o ponto de entrada a cada tick,
+            // inclusive quando eventos de outras suites estão à frente; sem aumentar timeout.
             publicador.publicarPendentes();
             var envioDaResposta = canal.enviados().stream()
                     .filter(envio -> novaId.equals(envio.mensagemId()))

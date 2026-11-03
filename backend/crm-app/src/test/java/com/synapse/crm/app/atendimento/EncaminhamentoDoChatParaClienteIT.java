@@ -108,8 +108,9 @@ class EncaminhamentoDoChatParaClienteIT extends PostgresIT {
         jdbc.update("DELETE FROM atendimento WHERE lead_id IN (" + leads + ")");
         jdbc.update("DELETE FROM lead WHERE nome LIKE '" + PREFIXO + "%'");
         for (UUID conversa : conversas) {
-            // A V65 atualiza citações ao apagar a origem; não pode alterar outra linha
-            // que o mesmo DELETE em lote também vai remover. Só desvincula este fixture.
+            // A exclusão em lote não pode disparar o trigger da V65 atualizando outra linha
+            // que o MESMO DELETE também removerá (Postgres: tuple already modified).
+            // Desvincula apenas citações internas ao conjunto descartável antes de apagá-lo.
             jdbc.update("""
                     UPDATE chat_interno_mensagem
                        SET referencia_origem_id=NULL, referencia_origem_removida=TRUE, referencia_previa=''

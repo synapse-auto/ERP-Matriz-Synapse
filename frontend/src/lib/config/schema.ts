@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DarwinTextosSchema } from "./schema-darwin";
 
 import { CampanhasTextosSchema } from "./schema-campanhas";
 import { SetoresTextosSchema } from "./schema-setores";
@@ -119,6 +120,7 @@ export type Tema = z.infer<typeof TemaSchema>;
  * de frontend e backend; a estrutura fundacional continua obrigatória.
  */
 export const TextosSchema = z.object({
+  darwin: DarwinTextosSchema,
   painelOperacional: PainelOperacionalTextosSchema,
   erros: ErrosTextosSchema,
   novidades: z.object({
