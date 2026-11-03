@@ -106,6 +106,11 @@ resilience4j:
         minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
         failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
         wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+      canal-z-api-foto:
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
       canal-z-api-midia-entrada:
         sliding-window-size: ${CANAL_CB_JANELA:20}
         minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
@@ -235,6 +240,17 @@ synapse:
       midia-entrada:
         hosts-permitidos: ${Z_API_MIDIA_HOSTS_PERMITIDOS:}
         concorrencia: ${Z_API_MIDIA_ENTRADA_CONCORRENCIA:1}
+      foto-perfil:
+        habilitado: ${Z_API_FOTO_HABILITADO:false}
+        cache-ttl: ${Z_API_FOTO_CACHE_TTL:6h}
+        cache-negativo: ${Z_API_FOTO_CACHE_NEGATIVO:1h}
+        intervalo-erro: ${Z_API_FOTO_INTERVALO_ERRO:15m}
+        reserva: ${Z_API_FOTO_RESERVA:2m}
+        timeout: ${Z_API_FOTO_TIMEOUT:10s}
+        concorrencia: ${Z_API_FOTO_CONCORRENCIA:1}
+        limite-bytes: ${Z_API_FOTO_LIMITE_BYTES:5242880}
+        pixels-maximos: ${Z_API_FOTO_PIXELS_MAXIMOS:24000000}
+        hosts-permitidos: ${Z_API_FOTO_HOSTS_PERMITIDOS:pps.whatsapp.net}
     whatsapp:
       # A UNICA chave que decide qual adaptador de canal roda. Trocar de provedor
       # para um filho e mudar esta variavel — nao ha `if` em lugar nenhum do codigo.

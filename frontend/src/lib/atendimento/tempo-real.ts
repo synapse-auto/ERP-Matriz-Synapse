@@ -1,5 +1,6 @@
 "use client";
 import { ehAvisoPainelOperacional } from "./aviso-painel-operacional";
+import { ehAvisoDeFotoDoLead } from "./aviso-de-foto-do-lead";
 import { ehAvisoDeCancelamentos } from "@/lib/cancelamentos/aviso";
 
 import { useEffect, useState } from "react";
@@ -423,6 +424,7 @@ export class ConexaoTempoReal {
           ehAvisoDeAcessoAlterado(notificacao) ||
           ehAvisoDeFinalizacaoEmMassa(notificacao) ||
           ehAvisoPainelOperacional(notificacao) ||
+          ehAvisoDeFotoDoLead(notificacao) ||
           ehAvisoDeCancelamentos(notificacao) ||
           ehAvisoDePresencaAlterada(notificacao)
         ) {

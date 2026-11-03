@@ -101,6 +101,7 @@ export function TabelaDeLeads({
                     <AvatarIniciais
                       id={lead.id}
                       nome={lead.nome}
+                      fotoUrl={lead.fotoUrl}
                       className="flex size-10 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-primary-foreground"
                     />
                     <div className="min-w-0">

@@ -457,6 +457,12 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `CANAL_FOTO_PERFIL_CONCORRENCIA` / `CANAL_FOTO_PERFIL_FILA` | `2` / `100` | Bulkhead da captura assíncrona; não compartilha threads com o chat. |
 | `CANAL_FOTO_PERFIL_LIMITE_BYTES` | `5242880` | Limite de bytes aceito na resposta da foto; o processador de imagens mantém suas validações. |
 | `CANAL_FOTO_PERFIL_HOSTS_PERMITIDOS` | `pps.whatsapp.net` | Hosts exatos (vírgula) de onde a foto pode ser baixada além do host da UZAPI. A UZAPI devolve a URL do CDN de fotos do WhatsApp. Vazio = só o host da UZAPI. Valor com esquema, porta, caminho, IP ou curinga derruba o boot. |
+| `Z_API_FOTO_HABILITADO` | `false` | Coleta de foto do lead por atividade, somente no canal Z-API. Ativar explicitamente na Fêmina; sem efeito nos outros canais. |
+| `Z_API_FOTO_CACHE_TTL` / `Z_API_FOTO_CACHE_NEGATIVO` / `Z_API_FOTO_INTERVALO_ERRO` | `6h` / `1h` / `15m` | Cache durável positivo, ausência e falha; sem polling. |
+| `Z_API_FOTO_RESERVA` / `Z_API_FOTO_TIMEOUT` | `2m` / `10s` | Lease entre réplicas e timeout por HTTP; reserva deve exceder dois timeouts. |
+| `Z_API_FOTO_CONCORRENCIA` | `1` | Bulkhead HTTP de fotos, independente do envio. Executor usa `CANAL_FOTO_PERFIL_CONCORRENCIA`/`FILA`. |
+| `Z_API_FOTO_LIMITE_BYTES` / `Z_API_FOTO_PIXELS_MAXIMOS` | `5242880` / `24000000` | Limites do download e da imagem antes de decodificar. |
+| `Z_API_FOTO_HOSTS_PERMITIDOS` | `pps.whatsapp.net` | Hosts exatos de CDN, HTTPS, DNS público, sem redirects nem credenciais. [Política e homologação](docs/integracoes/z-api/foto-de-perfil-do-lead.md). |
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
 | `WEBHOOK_MAX_TENTATIVAS` | `5` | Tentativas reais contra a Meta na fila de entrada. Disjuntor aberto não consome. |
 | `META_PRECIFICACAO_INTERVALO_MS` | `30000` | Intervalo opcional do job de classificação de preço observado em `statuses[].pricing`; não calcula tarifa nem participa do envio. |

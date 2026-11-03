@@ -455,6 +455,19 @@ describe("ConexaoTempoReal", () => {
     expect(ouvinte).toHaveBeenCalledWith(expect.objectContaining({ tipo: "CONVITE_ATENDIMENTO" }));
   });
 
+  it("encaminha invalidação de foto pela conexão e seus ouvintes", () => {
+    const { cliente } = clienteStompFalso();
+    const onNotificacao = vi.fn(); const ouvinte = vi.fn();
+    const conexao = new ConexaoTempoReal({ brokerUrl: "ws://test", obterAccessToken: () => "token",
+      onNotificacao, criarCliente: () => cliente });
+    conexao.adicionarOuvinteDeNotificacao(ouvinte); conexao.conectar();
+    const callback = (cliente.subscribe as ReturnType<typeof vi.fn>).mock.calls[1]?.[1];
+    const aviso = { tipo: "FOTOS_LEADS_ATUALIZADAS", eventoId: "foto-1", dados: {} };
+    callback({ body: JSON.stringify(aviso) });
+    expect(onNotificacao).toHaveBeenCalledWith(aviso); expect(ouvinte).toHaveBeenCalledWith(aviso);
+    conexao.desconectar();
+  });
+
   it("entrega o aviso de conclusão da finalização em massa e descarta tipo desconhecido", () => {
     const { cliente } = clienteStompFalso();
     const onNotificacao = vi.fn();

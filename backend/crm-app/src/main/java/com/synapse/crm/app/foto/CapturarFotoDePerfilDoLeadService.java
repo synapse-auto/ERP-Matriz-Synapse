@@ -60,7 +60,7 @@ public class CapturarFotoDePerfilDoLeadService {
 
     /** Executa uma tentativa best-effort; falha de foto nunca falha a mensagem recebida. */
     public void executar(UUID leadId) {
-        if (!propriedades.habilitado() || leadId == null) {
+        if (!propriedades.habilitado() || leadId == null || "z-api".equals(canal.provedor())) {
             return;
         }
         Instant agora = relogio.instant();

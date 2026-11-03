@@ -21,6 +21,10 @@ substitui o contrato n8n abaixo. O ritmo de qualquer polling externo continua se
 > documentada em `docs/38-contrato-uzapi-autotic.md`; ela não remove a possibilidade de o n8n enviar
 > uma foto explicitamente e não expõe URL ou token do provedor.
 
+Complemento de 03/11/2026: [captura nativa Z-API](integracoes/z-api/foto-de-perfil-do-lead.md)
+tem opt-in próprio, cache durável e política conservadora de origem. Não substitui
+fotos preexistentes nem altera este contrato interno da automação.
+
 ---
 
 ## 2. Mudanças em relação ao CONTRATO V1

@@ -132,4 +132,8 @@ public interface LeadRepositorio {
      * @return {@code false} se o lead sumiu ou nao e visivel
      */
     boolean atualizarFoto(UUID leadId, String referencia, String hash, Instant quando);
+
+    /** Compare-and-set do enriquecimento: não substitui URL manual, telefone ou foto concorrente. */
+    boolean atualizarFotoSeInalterada(UUID leadId, FotoDoLead esperada, String telefone,
+            String referencia, String hash, Instant quando);
 }

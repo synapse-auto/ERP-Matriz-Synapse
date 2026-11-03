@@ -34,7 +34,8 @@ record LeadDaLista(
         @Schema(description = "Quantidade consolidada de mensagens.") int numMensagens,
         @Schema(description = "Instante de criação em UTC.") Instant criadoEm,
         @Schema(description = "Instante da última interação; nulo se nunca houve.") Instant ultimaInteracaoEm,
-        @Schema(description = "Tags vinculadas ao lead.") List<TagDaLista> tags) {
+        @Schema(description = "Tags vinculadas ao lead.") List<TagDaLista> tags,
+        @Schema(description = "Foto opcional; caminho autenticado do CRM quando armazenada, nunca URL temporária do provedor.") String fotoUrl) {
 
     static LeadDaLista de(LeadResumo lead, List<Tag> tagsDoLead) {
         return new LeadDaLista(
@@ -50,7 +51,7 @@ record LeadDaLista(
                 lead.numMensagens(),
                 lead.criadoEm(),
                 lead.ultimaInteracaoEm(),
-                tagsDoLead.stream().map(TagDaLista::de).toList());
+                tagsDoLead.stream().map(TagDaLista::de).toList(), lead.fotoUrl());
     }
 
     /**

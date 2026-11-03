@@ -23,4 +23,12 @@ public record LeadResumo(
         int numAtendimentos,
         int numMensagens,
         Instant criadoEm,
-        Instant ultimaInteracaoEm) {}
+        Instant ultimaInteracaoEm,
+        String fotoUrl) {
+    public LeadResumo(UUID id, String nome, String telefone, String empresa, String localizacao,
+            StatusBasicoLead statusBasico, UUID etapaAtendimentoId, UUID atendenteResponsavelId,
+            int numAtendimentos, int numMensagens, Instant criadoEm, Instant ultimaInteracaoEm) {
+        this(id,nome,telefone,empresa,localizacao,statusBasico,etapaAtendimentoId,atendenteResponsavelId,
+                numAtendimentos,numMensagens,criadoEm,ultimaInteracaoEm,null);
+    }
+}

@@ -11,6 +11,7 @@ import {
 } from "@/lib/atendimento/atualizacao-do-painel";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { ehAvisoPainelOperacional } from "@/lib/atendimento/aviso-painel-operacional";
+import { ehAvisoDeFotoDoLead } from "@/lib/atendimento/aviso-de-foto-do-lead";
 import { ehAvisoDeCancelamentos } from "@/lib/cancelamentos/aviso";
 import {
   chaveTecnicaDaNotificacao,
@@ -65,6 +66,13 @@ export function NotificacoesTempoReal() {
 
   const aoReceber = useCallback((notificacao: NotificacaoTempoReal) => {
     const bruto: unknown = notificacao;
+    if (ehAvisoDeFotoDoLead(bruto)) {
+      if (!acessoClientes) return;
+      for (const chave of ["avatar", "atendimentos", "agenda", "lead"]) {
+        void cache.invalidateQueries({ queryKey: [chave] }, { cancelRefetch: false });
+      }
+      return; // Não é mensagem: sem som/toast e sem alterar autoria ou histórico.
+    }
     if (!acessoClientes && !ehAvisoDeAcessoAlterado(bruto) && !ehAvisoDePresencaAlterada(bruto)
       && !notificacao.tipo.startsWith("CHAT_INTERNO_")) return;
     if (ehAvisoDeCancelamentos(bruto)) {
@@ -148,6 +156,7 @@ export function NotificacoesTempoReal() {
     if (ciclo > 0) {
       void cache.invalidateQueries({ queryKey: ["me"] });
       void cache.invalidateQueries({ queryKey: ["cancelamentos"] });
+      void cache.invalidateQueries({ queryKey: ["avatar"] });
     }
   }, [ciclo, cache]);
 
