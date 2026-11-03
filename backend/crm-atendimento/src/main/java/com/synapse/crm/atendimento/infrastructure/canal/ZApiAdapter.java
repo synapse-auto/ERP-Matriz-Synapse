@@ -59,9 +59,9 @@ class ZApiAdapter implements CanalGateway {
 
     @Autowired
     ZApiAdapter(ZApiProperties propriedades, CanalProperties canal, ObjectMapper json, CircuitBreakerRegistry breakers,
-            ZApiMidiaSaida midias, ZApiMidiaEntrada entrada, ZApiFotoDePerfil fotos) {
+            ZApiMidiaSaida midias, ZApiMidiaEntrada entrada, org.springframework.beans.factory.ObjectProvider<ZApiFotoDePerfil> fotos) {
         this(clienteIsolado(propriedades), propriedades, json, breakers, canal.numeroPrincipal(), midias, entrada);
-        this.fotos = fotos;
+        this.fotos = fotos.getIfAvailable();
     }
 
     /** Builder nao gerenciado; testes substituem somente o transporte, nunca o contrato. */
