@@ -252,7 +252,10 @@ class ZApiFotoDoLeadIT extends PostgresIT {
                 try(var linha=sql.executeQuery("SELECT count(*) FROM lead_foto_captura WHERE lead_id='"+lead+"'")) {
                     linha.next();assertThat(linha.getInt(1)).isEqualTo(1);
                 }
-                sql.execute("SELECT set_config('app.papel','ATENDENTE',true),set_config('app.usuario_id','"+ana+"',true)");
+                sql.execute("SELECT set_config('app.papel','ATENDENTE',true),set_config('app.usuario_id','"+ana+"',true),set_config('app.acesso_clientes','true',true)");
+                try(var linha=sql.executeQuery("SELECT count(*) FROM lead WHERE id='"+lead+"'")) {
+                    linha.next();assertThat(linha.getInt(1)).isEqualTo(1);
+                }
                 try(var linha=sql.executeQuery("SELECT count(*) FROM lead_foto_captura WHERE lead_id='"+lead+"'")) {
                     linha.next();assertThat(linha.getInt(1)).isZero();
                 }
