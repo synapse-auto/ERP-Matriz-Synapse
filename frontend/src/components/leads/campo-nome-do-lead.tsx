@@ -19,32 +19,34 @@ type Props = {
 
 /**
  * Editor inline do nome do cliente. Vazio no blur nao chama a API — o schema e NOT NULL e a tela
- * inteira (card, cabecalho, busca) depende do campo. {@code key={leadId}} no pai remonta o estado;
- * nao sincronize com {@code useEffect}.
+ * inteira (card, cabecalho, busca) depende do campo. Sem rascunho, acompanha o valor persistido
+ * (inclusive atualização confirmada da Darwin); refetch não apaga uma edição manual em curso.
+ * {@code key={leadId}} no pai descarta o rascunho somente ao trocar de lead; sem useEffect.
  */
 export function CampoNomeDoLead({ leadId, valorAtual, className }: Props) {
   const textos = useTextos().painelLead.dados;
   const salvar = useSalvarFicha(leadId);
   const podeEditar = useCapacidades().pode("contatos.editar");
   const idCampo = useId();
-  const [valor, setValor] = useState(valorAtual);
+  const [rascunho, setRascunho] = useState<string | null>(null);
+  const valor = rascunho ?? valorAtual;
   const [erro, setErro] = useState(false);
 
   function persistir() {
     const canonico = valor.trim();
     if (!canonico) {
-      setValor(valorAtual);
+      setRascunho(null);
       setErro(true);
       return;
     }
-    setValor(canonico);
+    setRascunho(canonico === valorAtual ? null : canonico);
     setErro(false);
     if (canonico === valorAtual) return;
     salvar.mutate(
       { nome: canonico },
       {
         onError: () => setErro(true),
-        onSuccess: () => setErro(false),
+        onSuccess: () => { setErro(false); setRascunho(null); },
       },
     );
   }
@@ -77,7 +79,7 @@ export function CampoNomeDoLead({ leadId, valorAtual, className }: Props) {
           )}
           onChange={(evento) => {
             setErro(false);
-            setValor(evento.target.value);
+            setRascunho(evento.target.value);
           }}
           onBlur={persistir}
           onKeyDown={(evento) => {
