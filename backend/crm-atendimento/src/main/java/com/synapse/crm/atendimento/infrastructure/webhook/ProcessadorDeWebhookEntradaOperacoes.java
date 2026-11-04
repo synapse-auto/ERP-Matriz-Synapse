@@ -179,7 +179,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         // Nao reserva, incrementa tentativas, baixa bytes ou mistura a fila Uzapi anterior.
         if(zApiSomenteColeta && "z-api".equals(tradutor.provedor())) return 0;
         List<WebhookEntrada.Pendente> pendentes = transacoes.execute(status ->
-                "z-api".equals(tradutor.provedor()) ? entrada.reservarPendentes(lote, tradutor.provedor()) : entrada.reservarPendentes(lote));
+                java.util.Set.of("z-api","evolution").contains(tradutor.provedor()) ? entrada.reservarPendentes(lote, tradutor.provedor()) : entrada.reservarPendentes(lote));
         for (WebhookEntrada.Pendente pendente : pendentes) {
             processar(pendente);
         }
@@ -512,7 +512,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         if (contextoWamid == null || contextoWamid.isBlank()) {
             return null;
         }
-        var encontrada = "z-api".equals(tradutor.provedor())
+        var encontrada = java.util.Set.of("z-api","evolution").contains(tradutor.provedor())
                 ? origens.buscarPorIdentidade(new com.synapse.crm.atendimento.domain.canal.IdentidadeDeMensagemDoCanal(
                         tradutor.provedor(), mensagem.identificadorDestino(), "WHATSAPP", contextoWamid), leadId)
                 : origens.buscarPorWamid(contextoWamid);

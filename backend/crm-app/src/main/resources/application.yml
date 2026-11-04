@@ -231,6 +231,19 @@ synapse:
     transicao:
       saidas-suspensas: ${CANAL_TRANSICAO_SAIDAS_SUSPENSAS:false}
       status-uzapi-legado: ${CANAL_TRANSICAO_STATUS_UZAPI_LEGADO:false}
+    evolution:
+      habilitado: ${EVOLUTION_HABILITADO:false}
+      url-base: ${EVOLUTION_URL_BASE:}
+      instancia: ${EVOLUTION_INSTANCIA:}
+      api-key: ${EVOLUTION_API_KEY:}
+      credencial-id: ${EVOLUTION_CREDENCIAL_ID:}
+      segredo-webhook: ${EVOLUTION_WEBHOOK_SEGREDO:}
+      timeout: ${WHATSAPP_TIMEOUT:10s}
+      concorrencia: ${EVOLUTION_CONCORRENCIA:1}
+      limite-corpo-bytes: ${EVOLUTION_WEBHOOK_LIMITE_CORPO_BYTES:1048576}
+      limite-resposta-bytes: ${EVOLUTION_LIMITE_RESPOSTA_BYTES:1048576}
+      permitir-destino-privado: ${EVOLUTION_PERMITIR_DESTINO_PRIVADO:false}
+      repasse-automacao-habilitado: ${EVOLUTION_REPASSE_AUTOMACAO_HABILITADO:false}
     z-api:
       habilitado: ${Z_API_HABILITADO:false}
       instancia-id: ${Z_API_INSTANCIA_ID:}

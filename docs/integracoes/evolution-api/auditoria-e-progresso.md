@@ -1,6 +1,29 @@
 # Evolution API — auditoria e progresso
 
-## Estado: bloqueio contratual, implementação não iniciada
+## Estado atual: implementacao funcional Baileys 2.3.7; homologacao externa nao realizada
+
+Decisao recebida em 03/11/2026: imagem `evoapicloud/evolution-api:v2.3.7`,
+WhatsApp Baileys/QR Code, origin `https://evolution-hml.187.77.47.30.sslip.io`,
+exclusivo nova instancia CRM de testes. O bloqueio de release/modalidade foi
+resolvido. Nome da instancia, UUID real e segredos sao parametros operacionais,
+nao valores presumidos nem gerados no codigo.
+
+A branch funcional `codex/evolution-baileys` parte da main posterior ao merge da
+#341. Ha ACL/registro, entrada HTTPS por header exclusivo, redacao de apikey antes
+da fila, traducao texto/midia/interacoes/status, correlacao/citacao, spool privado,
+repasse opt-in, cadastro/ativacao isolados e rota no Compose Path real.
+
+Contrato, divergencias da referencia antiga, envs e roteiro executavel:
+[provisionamento](provisionamento.md). Testes de transporte dirigidos passaram
+29/29 na primeira rodada; a primeira rodada de EvolutionFluxoIT passou 12/12 com
+PostgreSQL/Redis/MinIO e proxy real. Casos adicionais foram acrescentados depois.
+O negativo de cadastro detectou erro mascarado pelo exit code do wrapper psql:
+ON_ERROR_STOP agora e habilitado antes de incluir o script compartilhado; o
+negativo repetido passou 1/1. Resultados finais de regressao/clean verify/CI devem
+ser consultados na PR funcional por ultimo SHA, nao inferidos desses subtotais.
+Nenhuma operacao externa, QR, envio ou deploy foi executado.
+
+## Registro historico da auditoria #341 (nao e o estado funcional atual)
 
 Auditoria de 02/11/2026 sobre `origin/main` em
 `989dcc0e199821e05fb1af0946582bd3b3a6ef03` (PR #339 incorporada).

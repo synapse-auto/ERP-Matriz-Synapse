@@ -431,6 +431,17 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `WHATSAPP_CONTA_NEGOCIO` | vazio | WABA ID, necessário para listar/criar templates. Não é o Phone Number ID; vazio desabilita somente a administração de templates. |
 | `WHATSAPP_USUARIO_API` | vazio (legada) | Mantida por compatibilidade com E152; a Uzapi/Autotic atual não usa username, nem exige esta variável. |
 | `WHATSAPP_VERSAO_API` | vazio | `{version}` das rotas da Uzapi/Autotic (E152, provedor `uzapi-autotic`). Só esse adaptador usa; vazio não afeta `meta-cloud`. |
+| `EVOLUTION_HABILITADO` | `false` | Opt-in Baileys 2.3.7, somente na nova instancia. [Provisionamento](docs/integracoes/evolution-api/provisionamento.md). |
+| `EVOLUTION_URL_BASE` | vazio | Origin HTTPS exato da API, sem path/query/credencial. |
+| `EVOLUTION_INSTANCIA` | vazio | Nome da instancia Baileys; deve coincidir com `WHATSAPP_NUMERO`. |
+| `EVOLUTION_API_KEY` | vazio | Chave de saida `apikey`, somente no ambiente. |
+| `EVOLUTION_CREDENCIAL_ID` | vazio | UUID real gerado pelo cadastro do canal. |
+| `EVOLUTION_WEBHOOK_SEGREDO` | vazio | Segredo aleatorio exclusivo do header `X-Evolution-Webhook-Token`, minimo 43 caracteres base64url. |
+| `EVOLUTION_CONCORRENCIA` | `1` | Bulkhead do adaptador; timeout herdado de `WHATSAPP_TIMEOUT`. |
+| `EVOLUTION_WEBHOOK_LIMITE_CORPO_BYTES` | `1048576` | Teto do callback autenticado, sem Base64 no webhook. |
+| `EVOLUTION_LIMITE_RESPOSTA_BYTES` | `1048576` | Teto das respostas JSON de envio/consulta; binario recebido usa spool e limites de anexos. |
+| `EVOLUTION_PERMITIR_DESTINO_PRIVADO` | `false` | Opt-in somente ao origin explicitamente configurado, sem redirects; nao libera URLs do payload. |
+| `EVOLUTION_REPASSE_AUTOMACAO_HABILITADO` | `false` | Ativar somente com consumidor Evolution adaptado e token HTTPS exclusivo. |
 | `Z_API_HABILITADO` | `false` | Opt-in do adaptador; manter OFF até o [roteiro de homologação protegida](docs/integracoes/z-api/homologacao-protegida.md). |
 | `CANAL_TRANSICAO_SAIDAS_SUSPENSAS` | `false` | Pausa novas saidas/dispatcher/programadas sem derrubar leitura de Atendimentos. Usar `true` no primeiro deploy da transicao produtiva. Ver [roteiro](docs/integracoes/z-api/transicao-produtiva.md). |
 | `CANAL_TRANSICAO_STATUS_UZAPI_LEGADO` | `false` | Com Z-API ativa, conserva somente status autenticados na URL Uzapi antiga; exige segredo original e metadados de transicao. Nao recebe mensagens nem repassa ao n8n. |

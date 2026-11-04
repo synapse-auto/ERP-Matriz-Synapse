@@ -17,7 +17,8 @@ package com.synapse.crm.atendimento.domain.canal;
  */
 public sealed interface ResultadoDeEnvio {
 
-    /** Aceite na fila do fornecedor, ainda sem comprovacao de envio ao destinatario. */
+    /** Aceite na fila do fornecedor, ainda sem comprovacao de envio ao destinatario.
+     * idDoProcessamento e opcional: nao fabricar um segundo ID quando so existe o WhatsApp ID. */
     record Enfileirado(String instancia, String idDoProcessamento, String idDaMensagem)
             implements ResultadoDeEnvio {}
 

@@ -78,7 +78,7 @@ router = f"traefik.http.routers.{PREFIX}-transicao."
 middleware = f"{PREFIX}-webhook-sem-origin"
 exigir(
     router + "rule",
-    f"Host(`{DOMAIN}`) && (PathPrefix(`/webhook/z-api`) || PathPrefix(`/webhook/canal`))",
+    f"Host(`{DOMAIN}`) && (PathPrefix(`/webhook/z-api`) || PathPrefix(`/webhook/canal`) || PathPrefix(`/webhook/evolution`))",
 )
 exigir(router + "entrypoints", "websecure")
 exigir(router + "tls", "true")

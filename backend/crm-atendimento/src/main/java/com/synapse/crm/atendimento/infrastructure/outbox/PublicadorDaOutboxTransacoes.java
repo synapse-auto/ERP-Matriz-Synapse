@@ -117,10 +117,12 @@ class PublicadorDaOutboxTransacoes {
                     var mensagem = new Vinculo(
                             new IdentidadeDeMensagemDoCanal(canal.provedor(), fila.instancia(), "WHATSAPP", fila.idDaMensagem()),
                             pendente.mensagemId(), pendente.enviadoEm(), pendente.atendimentoId());
-                    var processamento = new Vinculo(
+                    var vinculos = new java.util.ArrayList<Vinculo>();
+                    vinculos.add(mensagem);
+                    if(fila.idDoProcessamento()!=null) vinculos.add(new Vinculo(
                             new IdentidadeDeMensagemDoCanal(canal.provedor(), fila.instancia(), "PROCESSAMENTO", fila.idDoProcessamento()),
-                            pendente.mensagemId(), pendente.enviadoEm(), pendente.atendimentoId());
-                    correlacionar.executar(List.of(mensagem, processamento), List.of());
+                            pendente.mensagemId(), pendente.enviadoEm(), pendente.atendimentoId()));
+                    correlacionar.executar(vinculos, List.of());
                 }
                 // PENDENTE continua sendo o ultimo estado comprovado; callback autenticado e
                 // correlacao isolada por instancia pertencem a fase de entrada, nao a este aceite.

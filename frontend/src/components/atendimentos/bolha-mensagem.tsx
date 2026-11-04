@@ -217,8 +217,8 @@ export function BolhaMensagem({
             onNavegar={onNavegarParaCitacao}
           />
         )}
-        {!mensagem.citacao && metadados.referenciaExterna?.provedor === "z-api" &&
-          metadados.referenciaExterna.namespace === "WHATSAPP" &&
+        {!mensagem.citacao && ["z-api", "evolution"].includes(metadados.referenciaExterna?.provedor ?? "") &&
+          metadados.referenciaExterna?.namespace === "WHATSAPP" &&
           typeof metadados.referenciaExterna.valor === "string" && (
             <p className="mb-2 border-l-2 border-current pl-2 text-xs">
               {catalogo.mensagem.citacao.origemIndisponivel}

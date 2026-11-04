@@ -40,7 +40,7 @@ class CadastroCanalZApiIT extends PostgresIT {
         Flyway.configure().dataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword())
                 .locations("classpath:db/migration").placeholders(Map.of("telefone_ddi_padrao", "55"))
                 .load().migrate();
-        for (String arquivo : List.of("cadastrar-canal-z-api.sql", "ativar-canal-z-api-homologacao.sql")) {
+        for (String arquivo : List.of("cadastrar-canal-z-api.sql", "ativar-canal-z-api-homologacao.sql", "cadastrar-canal-evolution.sql", "ativar-canal-evolution-homologacao.sql")) {
             // Somente fixture SQL: evita o empacotador TAR incompatível da base sem alterar
             // dependencias de producao. O script e passado como argumento, nunca interpolado.
             String conteudo = Base64.getEncoder().encodeToString(Files.readAllBytes(Path.of("../../docker/provisionamento", arquivo)));
@@ -187,6 +187,27 @@ class CadastroCanalZApiIT extends PostgresIT {
         } finally {
             administrativo("DROP ROLE " + papel);
         }
+    }
+
+    @Test
+    void cadastroEvolutionUsaUuidGeradoReferenciaDeAmbienteEAtivacaoIsolada() throws Exception {
+        assertThat(executar("cadastrar-canal-evolution.sql", "confirmar=CADASTRAR").getExitCode()).isZero();
+        UUID id=jdbc.queryForObject("SELECT id FROM canal_credencial WHERE token_ref='env://EVOLUTION_API_KEY'",UUID.class);
+        assertThat(id).isNotNull();
+        assertThat(jdbc.queryForObject("SELECT ativo FROM canal_credencial WHERE id=?",Boolean.class,id)).isFalse();
+        assertThat(executar("cadastrar-canal-evolution.sql", "confirmar=CADASTRAR").getExitCode()).isZero();
+        assertThat(contar("canal_credencial")).isEqualTo(1);
+        assertThat(executar("ativar-canal-evolution-homologacao.sql", "credencial_id="+id,"confirmar=HOMOLOGACAO_ISOLADA").getExitCode()).isZero();
+        assertThat(jdbc.queryForObject("SELECT ativo FROM canal_credencial WHERE id=?",Boolean.class,id)).isTrue();
+    }
+
+    @Test
+    void evolutionNaoAdotaIdentidadeDeOutroProvedor() throws Exception {
+        assertThat(cadastrar("CADASTRAR").getExitCode()).isZero();
+        assertThat(jdbc.queryForObject("SELECT token_ref FROM canal_credencial",String.class)).isEqualTo("env://Z_API_TOKEN");
+        var negativa=executar("cadastrar-canal-evolution.sql", "confirmar=CADASTRAR");
+        assertThat(negativa.getExitCode()).as(negativa.getStdout()+negativa.getStderr()).isNotZero();
+        assertThat(jdbc.queryForObject("SELECT token_ref FROM canal_credencial",String.class)).isEqualTo("env://Z_API_TOKEN");
     }
 
     private ExecResult cadastrar(String confirmacao) throws Exception {

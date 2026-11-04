@@ -56,12 +56,13 @@ class RoteamentoDeSaidaJdbc implements RoteamentoDeSaida {
             throw new SaidaSuspensaParaTransicaoException();
         // Ciclos novos que o fluxo manual ainda abre sem ancora recebem somente um snapshot
         // da credencial ativa; a entidade/historico nao e reescrita.
-        if(rota.credencialId()==null && "z-api".equals(canal.provedor())) {
+        if(rota.credencialId()==null && java.util.Set.of("z-api","evolution").contains(canal.provedor())) {
             var ativas=chat.query("""
                     SELECT cc.id FROM canal_credencial cc JOIN canal c ON c.id=cc.canal_id
-                    WHERE c.ativo AND cc.ativo AND cc.identificador_externo=? AND cc.token_ref='env://Z_API_TOKEN'
+                    WHERE c.ativo AND cc.ativo AND cc.identificador_externo=? AND cc.token_ref=?
                       AND cc.vigente_desde<=now() AND cc.vigente_ate IS NULL
-                    """,(rs,i)->rs.getObject(1,UUID.class),canal.numeroPrincipal());
+                    """,(rs,i)->rs.getObject(1,UUID.class),canal.numeroPrincipal(),
+                    "evolution".equals(canal.provedor())?"env://EVOLUTION_API_KEY":"env://Z_API_TOKEN");
             if(ativas.size()!=1) throw new SaidaSuspensaParaTransicaoException();
             rota=new Rota(ativas.getFirst(),null);
         }

@@ -3,6 +3,10 @@
 -- psql -X -v banco_esperado=... -v credencial_id=UUID_RETORNADO -v confirmar=HOMOLOGACAO_ISOLADA
 \set ON_ERROR_STOP on
 \set VERBOSITY terse
+\if :{?provedor}
+\else
+  \set provedor z-api
+\endif
 \if :{?banco_esperado}
 \else
   \set banco_esperado ''
@@ -21,14 +25,19 @@ SET LOCAL statement_timeout = '5s';
 SET LOCAL app.papel = 'SERVICO';
 CREATE TEMP TABLE ativacao_z_api ON COMMIT DROP AS
 SELECT :'banco_esperado'::text AS banco, :'credencial_id'::text AS credencial,
-       :'confirmar'::text AS confirmacao;
+       :'confirmar'::text AS confirmacao, :'provedor'::text AS provedor;
 DO $$
 DECLARE
     entrada record;
     credencial canal_credencial%ROWTYPE;
     anterior jsonb;
+    referencia_token text;
 BEGIN
     SELECT * INTO entrada FROM ativacao_z_api;
+    IF entrada.provedor NOT IN ('z-api','evolution') THEN
+        RAISE EXCEPTION 'Provedor nao suportado pelo procedimento';
+    END IF;
+    referencia_token := CASE entrada.provedor WHEN 'evolution' THEN 'env://EVOLUTION_API_KEY' ELSE 'env://Z_API_TOKEN' END;
     IF entrada.banco = '' OR entrada.banco <> current_database()
        OR entrada.confirmacao <> 'HOMOLOGACAO_ISOLADA' THEN
         RAISE EXCEPTION 'Exige banco_esperado e confirmar=HOMOLOGACAO_ISOLADA';
@@ -47,7 +56,7 @@ BEGIN
         RAISE EXCEPTION 'Banco possui dados operacionais; ativacao HML recusada (nao apagar dados para contornar)';
     END IF;
     SELECT * INTO credencial FROM canal_credencial WHERE id = entrada.credencial::uuid FOR UPDATE;
-    IF NOT FOUND OR credencial.token_ref IS DISTINCT FROM 'env://Z_API_TOKEN'
+    IF NOT FOUND OR credencial.token_ref IS DISTINCT FROM referencia_token
        OR credencial.identificador_externo !~ '^[A-Za-z0-9_-]{1,120}$'
        OR credencial.vigente_ate IS NOT NULL OR credencial.vigente_desde > now()
        OR NOT EXISTS (SELECT 1 FROM canal WHERE id = credencial.canal_id AND tipo = 'WHATSAPP') THEN
@@ -58,7 +67,7 @@ BEGIN
     UPDATE canal SET ativo = true WHERE id = credencial.canal_id AND NOT ativo;
     UPDATE canal_credencial SET ativo = true WHERE id = credencial.id AND NOT ativo;
     INSERT INTO audit_log(ator_tipo, acao, entidade_tipo, entidade_id, dados_antes, dados_depois)
-    VALUES ('SISTEMA', 'ATIVAR_CANAL_Z_API_HML', 'CANAL_CREDENCIAL', credencial.id, anterior,
+    VALUES ('SISTEMA', CASE entrada.provedor WHEN 'evolution' THEN 'ATIVAR_CANAL_EVOLUTION_HML' ELSE 'ATIVAR_CANAL_Z_API_HML' END, 'CANAL_CREDENCIAL', credencial.id, anterior,
             jsonb_build_object('canalId', credencial.canal_id, 'ativo', true, 'executorSql', current_user));
 END $$;
 SELECT c.id AS canal_id, cc.id AS credencial_id, c.ativo AS canal_ativo, cc.ativo AS credencial_ativa

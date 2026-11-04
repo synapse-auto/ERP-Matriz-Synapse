@@ -56,7 +56,7 @@ public class CompositorDeEnvioParaCanalConfigurado implements CompositorDeEnvioP
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public CanalGateway.Envio montar(Outbox.EnvioPendente pendente) {
         ConteudoDeEnvio conteudo = prefixarSeNecessario(pendente);
-        IdentidadeDeMensagemDoCanal citacao = "z-api".equals(canal.provedor())
+        IdentidadeDeMensagemDoCanal citacao = ("z-api".equals(canal.provedor()) || "evolution".equals(canal.provedor()))
                 && pendente.contextoWamid()!=null && !pendente.contextoWamid().isBlank()
                 ? correlacoes.resolverCitacao(pendente.mensagemId(),pendente.enviadoEm(),pendente.atendimentoId(),canal.provedor(),canal.numeroPrincipal()).orElse(null)
                 : null;
