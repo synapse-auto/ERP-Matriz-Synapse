@@ -23,155 +23,161 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.mock.env.MockEnvironment;
 
 import com.synapse.crm.core.application.darwin.FalhaDarwin;
 import com.synapse.crm.core.domain.lead.Lead;
 
+/** Contrato sanitizado da coleção médica, sem seus exemplos/segredos de pacientes. */
 class DarwinHttpAdapterTest {
-    static final String DEFINICOES = "[{\"id\":11,\"name\":\"campo A\",\"type\":\"string\"},{\"id\":22,\"name\":\"campo B\",\"type\":\"string\"}]";
-    static final String CAMPOS = "[{\"fieldId\":\"11\",\"value\":\"Pessoa Sintética\"},{\"fieldId\":\"22\",\"value\":\"529.982.247-25\"}]";
     private HttpServer servidor;
     private final List<String> caminhos = new CopyOnWriteArrayList<>();
+    private final List<String> metodos = new CopyOnWriteArrayList<>();
+    private final List<String> autorizacoes = new CopyOnWriteArrayList<>();
     private volatile int status = 200;
-    private volatile String definicoes = DEFINICOES;
-    private volatile String sessoes = "[{\"sessionId\":123,\"customFields\":" + CAMPOS + "}]";
-    private volatile String detalhe = "{\"id\":123,\"phoneNumber\":\"+5561999991234\",\"customFields\":" + CAMPOS + "}";
+    private volatile String paciente = "{\"cpf\":\"529.982.247-25\",\"name\":\"Pessoa Sintética\",\"phoneNumber\":null,\"motherName\":\"Dado que não deve sair\"}";
     private volatile CompletableFuture<Void> liberar;
     private final CompletableFuture<Void> recebeu = new CompletableFuture<>();
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
-    private final Clock relogio = Clock.fixed(Instant.parse("2026-11-02T12:00:00Z"), ZoneOffset.UTC);
+    private final Clock relogio = Clock.fixed(Instant.parse("2026-11-03T12:00:00Z"), ZoneOffset.UTC);
 
     @BeforeEach void abrir() throws Exception {
         servidor = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         servidor.createContext("/", troca -> {
-            caminhos.add(troca.getRequestURI().toString());
-            assertThat(troca.getRequestMethod()).isEqualTo("GET");
-            assertThat(troca.getRequestHeaders().getFirst("X-API-KEY")).isEqualTo("chave-sintetica-nao-produtiva");
+            caminhos.add(troca.getRequestURI().toString()); metodos.add(troca.getRequestMethod());
+            autorizacoes.add(String.valueOf(troca.getRequestHeaders().getFirst("Authorization")));
             recebeu.complete(null);
             try {
                 if (liberar != null) liberar.get(3, TimeUnit.SECONDS);
-                var caminho = troca.getRequestURI().getPath();
-                String corpo = status != 200 ? "erro-sintetico-sem-uso" : caminho.equals("/v1/custom-fields") ? definicoes
-                        : caminho.equals("/v1/sessions") ? sessoes : detalhe;
-                var bytes = corpo.getBytes(StandardCharsets.UTF_8);
+                byte[] bytes = paciente.getBytes(StandardCharsets.UTF_8);
                 troca.getResponseHeaders().set("Content-Type", "application/json");
+                troca.getResponseHeaders().set("Location", "/destino-que-nao-deve-ser-seguido");
                 troca.sendResponseHeaders(status, bytes.length); troca.getResponseBody().write(bytes);
-            } catch (Exception erro) { /* Cancelamento/timeout do cliente é parte deste fixture. */ }
+            } catch (Exception erro) { /* Cancelamento/timeout esperado na fixture. */ }
             finally { troca.close(); }
         });
         servidor.start();
     }
     @AfterEach void fechar() { if (liberar != null) liberar.complete(null); servidor.stop(0); }
-    private DarwinProperties config(boolean habilitado, int paginas, int maxSessoes, Duration timeout) {
-        return new DarwinProperties(habilitado, URI.create("http://127.0.0.1:" + servidor.getAddress().getPort()),
-                "chave-sintetica-nao-produtiva", "11", "22", 7L, paginas, maxSessoes, 1,
+    private DarwinProperties config(boolean habilitado, URI url, Duration timeout) {
+        return new DarwinProperties(habilitado, url, "token-medico-sintetico", 1,
                 Duration.ofSeconds(1), timeout, Duration.ofMinutes(5), 65536, 2, 50, Duration.ofSeconds(30));
+    }
+    private DarwinProperties config(boolean habilitado, Duration timeout) {
+        return config(habilitado, URI.create("http://127.0.0.1:"+servidor.getAddress().getPort()), timeout);
     }
     private DarwinHttpAdapter adapter(DarwinProperties config, Clock clock) {
         var ambiente = new MockEnvironment(); ambiente.setActiveProfiles("test");
         return new DarwinHttpAdapter(config, json, clock, ambiente);
     }
-    private DarwinHttpAdapter adapter() { return adapter(config(true, 1, 100, Duration.ofSeconds(2)), relogio); }
+    private DarwinHttpAdapter adapter() { return adapter(config(true, Duration.ofSeconds(2)), relogio); }
 
-    @Test void contratoRealMapeiaIdsConfiguradosSemUsarLabelsEValidaTelefoneDoDetalhe() {
-        var resposta = adapter().consultar("5561999991234");
+    @Test void consultaUnicaPorCpfFormatadoComBearerSemConsultarSessoesOuCriarPaciente() throws Exception {
+        var resposta = adapter().consultar("52998224725");
         assertThat(resposta.candidatos()).singleElement().satisfies(c -> {
-            assertThat(c.sessaoId()).isEqualTo("123"); assertThat(c.nome()).isEqualTo("Pessoa Sintética");
-            assertThat(c.cpf()).isEqualTo("52998224725");
+            assertThat(c.sessaoId()).isNull(); assertThat(c.nome()).isEqualTo("Pessoa Sintética");
+            assertThat(c.cpf()).isEqualTo("52998224725"); assertThat(c.cpfInvalido()).isFalse();
         });
-        assertThat(caminhos).containsExactly("/v1/custom-fields", "/v1/sessions?id=5561999991234&channelId=7&page=1", "/v1/session/123");
+        assertThat(caminhos).containsExactly("/api/patients/find/cpf?cpf=529.982.247-25");
+        assertThat(metodos).containsExactly("GET");
+        assertThat(autorizacoes).containsExactly("Bearer token-medico-sintetico");
+        assertThat(json.writeValueAsString(resposta)).doesNotContain("motherName", "phoneNumber", "Dado que não deve sair");
     }
     @Test void desligadaNaoChamaHttpNemAceitaRecibo() {
-        var adaptador = adapter(config(false, 1, 100, Duration.ofSeconds(2)), relogio);
+        var adaptador = adapter(config(false, Duration.ofSeconds(2)), relogio);
         assertThat(adaptador.habilitado()).isFalse();
-        assertThatThrownBy(() -> adaptador.consultar("5561999991234")).hasMessage("DARWIN_DESABILITADA");
+        assertThatThrownBy(() -> adaptador.consultar("52998224725")).hasMessage("DARWIN_DESABILITADA");
         assertThatThrownBy(() -> adaptador.verificar("qualquer")).hasMessage("DARWIN_DESABILITADA");
         assertThat(caminhos).isEmpty();
     }
     @Test void origemLocalDeFixtureNaoEPermitidaEmProducao() {
-        var producao = new DarwinHttpAdapter(config(true,1,100,Duration.ofSeconds(2)),json,relogio,new MockEnvironment());
+        var producao = new DarwinHttpAdapter(config(true,Duration.ofSeconds(2)),json,relogio,new MockEnvironment());
         assertThat(producao.habilitado()).isFalse();
-        assertThatThrownBy(() -> producao.consultar("5561999991234")).hasMessage("DARWIN_CONFIGURACAO");
+        assertThatThrownBy(() -> producao.consultar("52998224725")).hasMessage("DARWIN_CONFIGURACAO");
         assertThat(caminhos).isEmpty();
     }
-    @Test void campoConfiguradoAusenteOuDeTipoNumericoNaoViraIdentidade() {
-        definicoes = "[{\"id\":11,\"type\":\"string\"}]";
-        assertThatThrownBy(() -> adapter().consultar("5561999991234")).hasMessage("DARWIN_CONFIGURACAO");
-        definicoes = "[{\"id\":11,\"type\":\"string\"},{\"id\":22,\"type\":\"number\"}]";
-        assertThatThrownBy(() -> adapter().consultar("5561999991234")).hasMessage("DARWIN_CONFIGURACAO");
-        assertThat(caminhos).containsExactly("/v1/custom-fields","/v1/custom-fields");
+    @ParameterizedTest @ValueSource(strings={"https://api.getdarwin.ai", "https://developers.darwin.med.br.evil.test", "http://developers.darwin.med.br", "https://developers.darwin.med.br:444", "https://user@developers.darwin.med.br", "https://developers.darwin.med.br/extra"})
+    void recusaOutroProdutoEOuOrigemInsegura(String origem) {
+        var adaptador=adapter(config(true,URI.create(origem),Duration.ofSeconds(2)),relogio);
+        assertThat(adaptador.habilitado()).isFalse();
+        assertThatThrownBy(()->adaptador.consultar("52998224725")).hasMessage("DARWIN_CONFIGURACAO");
+        assertThat(caminhos).isEmpty();
     }
-    @Test void respostaAcimaDoLimiteDeBytesEInterrompidaSemInterpretarOuAplicar() {
-        sessoes = "[" + " ".repeat(65536) + "]";
-        assertThatThrownBy(() -> adapter().consultar("5561999991234")).hasMessage("DARWIN_INDISPONIVEL").hasNoCause();
-        assertThat(caminhos).hasSize(2).noneMatch(c -> c.startsWith("/v1/session/"));
+    @ParameterizedTest @ValueSource(strings={"", "5561999991234", "11111111111", "52998224724", "529.982.247-25x"})
+    void telefoneOuDocumentoInvalidoNaoConsulta(String documento) {
+        assertThatThrownBy(()->adapter().consultar(documento)).hasMessage("DARWIN_CPF_INVALIDO");
+        assertThat(caminhos).isEmpty();
     }
-    @ParameterizedTest @CsvSource({"401,AUTENTICACAO", "403,AUTENTICACAO", "429,LIMITE", "500,INDISPONIVEL", "503,INDISPONIVEL", "302,RESPOSTA_INVALIDA"})
-    void recusaHttpSanitizadaSemRetry(int codigo, String motivo) {
+    @Test void corpoExcessivoEInterrompidoSemExporConteudo() {
+        paciente = " ".repeat(65537);
+        assertThatThrownBy(() -> adapter().consultar("52998224725")).hasMessage("DARWIN_INDISPONIVEL").hasNoCause();
+        assertThat(caminhos).hasSize(1);
+    }
+    @ParameterizedTest @CsvSource({"400,RESPOSTA_INVALIDA", "401,AUTENTICACAO", "403,AUTENTICACAO", "429,LIMITE", "500,INDISPONIVEL", "503,INDISPONIVEL", "302,RESPOSTA_INVALIDA"})
+    void recusaHttpSanitizadaSemRetryOuRedirect(int codigo, String motivo) {
         status = codigo;
-        assertThatThrownBy(() -> adapter().consultar("5561999991234")).hasMessage("DARWIN_" + motivo)
-                .hasNoCause().hasMessageNotContaining("5561999991234");
+        assertThatThrownBy(() -> adapter().consultar("52998224725")).hasMessage("DARWIN_" + motivo)
+                .hasNoCause().hasMessageNotContaining("52998224725");
         assertThat(caminhos).hasSize(1);
     }
     @Test void circuitoAbreSemRetryAgressivo() {
         status = 500; var adaptador = adapter();
-        for (int i = 0; i < 3; i++) assertThatThrownBy(() -> adaptador.consultar("5561999991234")).hasMessage("DARWIN_INDISPONIVEL");
+        for (int i = 0; i < 3; i++) assertThatThrownBy(() -> adaptador.consultar("52998224725")).hasMessage("DARWIN_INDISPONIVEL");
         assertThat(caminhos).hasSize(2);
     }
-    @Test void ausentesCpfInvalidoENenhumaSessaoNaoSimulamZeroValido() {
-        sessoes = "[]";
-        assertThat(adapter().consultar("5561999991234").candidatos()).isEmpty();
-        sessoes = "[{\"sessionId\":123,\"customFields\":[{\"fieldId\":\"22\",\"value\":\"11111111111\"}]}]";
-        detalhe = "{\"id\":123,\"phoneNumber\":\"+5561999991234\",\"customFields\":[{\"fieldId\":\"22\",\"value\":\"11111111111\"}]}";
-        assertThat(adapter().consultar("5561999991234").candidatos()).singleElement().satisfies(c -> {
-            assertThat(c.cpf()).isNull(); assertThat(c.cpfInvalido()).isTrue();
-        });
+    @Test void ausenciaNoEscopoDoTokenENomeNuloNaoInventamValores() {
+        status=404;
+        assertThat(adapter().consultar("52998224725").candidatos()).isEmpty();
+        status=200;paciente="{\"cpf\":\"52998224725\",\"name\":null}";
+        assertThat(adapter().consultar("52998224725").candidatos()).singleElement().satisfies(c -> assertThat(c.nome()).isNull());
     }
-    @Test void rejeitaIdentidadeDivergenteEBsuidNaoViraTelefone() {
-        detalhe = "{\"id\":123,\"phoneNumber\":null,\"bsuid\":\"AR.123\",\"customer\":{\"id\":5561999991234},\"customFields\":[]}";
-        assertThatThrownBy(() -> adapter().consultar("5561999991234")).hasMessage("DARWIN_IDENTIDADE_DIVERGENTE");
-        detalhe = detalhe.replace("null", "\"+5561999994321\"");
-        assertThatThrownBy(() -> adapter().consultar("5561999991234")).hasMessage("DARWIN_IDENTIDADE_DIVERGENTE");
+    @ParameterizedTest @ValueSource(strings={"11111111111", "39053344705"})
+    void cpfDivergenteOuInvalidoNaoOfereceDados(String cpf) {
+        paciente="{\"cpf\":\""+cpf+"\",\"name\":\"Outra identidade\"}";
+        assertThatThrownBy(()->adapter().consultar("52998224725")).hasMessage("DARWIN_IDENTIDADE_DIVERGENTE");
     }
-    @Test void respostaMalformadaNaoViraAusenciaDeDados() {
-        sessoes = "{malformado";
-        assertThatThrownBy(() -> adapter().consultar("5561999991234")).hasMessage("DARWIN_RESPOSTA_INVALIDA");
-        sessoes = "{}";
-        assertThatThrownBy(() -> adapter().consultar("5561999991234")).hasMessage("DARWIN_RESPOSTA_INVALIDA");
+    @ParameterizedTest @ValueSource(strings={"{malformado", "{}", "[]", "null", "{\"cpf\":52998224725,\"name\":\"Nome\"}", "{\"cpf\":\"52998224725\",\"name\":55}", "{\"cpf\":\"52998224725\",\"name\":null} {}", "{\"cpf\":\"52998224725\",\"cpf\":\"52998224725\",\"name\":null}"})
+    void respostaInvalidaNaoViraAusenciaOuIdentidade(String corpo) {
+        paciente=corpo;
+        assertThatThrownBy(()->adapter().consultar("52998224725")).hasMessage("DARWIN_RESPOSTA_INVALIDA");
     }
-    @Test void paginacaoRespeitaJanelaConfiguradaSemLerHistoricoInteiro() {
-        sessoes = java.util.stream.IntStream.rangeClosed(1,100).mapToObj(n -> "{\"sessionId\":"+n+",\"customFields\":[]}")
-                .collect(java.util.stream.Collectors.joining(",","[","]"));
-        var resultado = adapter().consultar("5561999991234");
-        assertThat(resultado.limiteAtingido()).isTrue();
-        assertThat(caminhos).hasSize(2).noneMatch(c -> c.contains("page=2"));
-        caminhos.clear();
-        // O mesmo ID em outra página é violação do contrato, nunca duplicação silenciosa.
-        assertThatThrownBy(() -> adapter(config(true, 2, 200, Duration.ofSeconds(2)), relogio).consultar("5561999991234"))
-                .hasMessage("DARWIN_RESPOSTA_INVALIDA");
-        assertThat(caminhos).hasSize(3).anyMatch(c -> c.contains("page=2"));
-    }
-    @Test void timeoutEConcorrenciaIsoladosNaoAcumulamFila() throws Exception {
+    @Test void timeoutEConcorrenciaNaoAcumulamFila() throws Exception {
         liberar = new CompletableFuture<>();
-        var adaptador = adapter(config(true,1,100,Duration.ofMillis(250)),relogio);
+        var adaptador = adapter(config(true,Duration.ofMillis(250)),relogio);
         try (var executor = java.util.concurrent.Executors.newSingleThreadExecutor()) {
-            var primeira = executor.submit(() -> adaptador.consultar("5561999991234"));
+            var primeira = executor.submit(() -> adaptador.consultar("52998224725"));
             recebeu.get(2, TimeUnit.SECONDS);
-            assertThatThrownBy(() -> adaptador.consultar("5561999991234")).hasMessage("DARWIN_OCUPADO");
+            assertThatThrownBy(() -> adaptador.consultar("52998224725")).hasMessage("DARWIN_OCUPADO");
             assertThatThrownBy(() -> primeira.get(2,TimeUnit.SECONDS)).hasCauseInstanceOf(FalhaDarwin.class);
             assertThat(caminhos).hasSize(1);
         } finally { liberar.complete(null); }
     }
-    @Test void comprovanteAssinadoExpiraERecusaAlteracao() {
-        var adaptador = adapter(); var candidato = adaptador.consultar("5561999991234").candidatos().getFirst();
+    @Test void comprovanteAssinadoExpiraERecusaAlteracaoETrocaDaOrigem() {
+        var adaptador = adapter(); var candidato = adaptador.consultar("52998224725").candidatos().getFirst();
         var lead = mock(Lead.class);
         when(lead.id()).thenReturn(UUID.randomUUID()); when(lead.telefone()).thenReturn("5561999991234"); when(lead.nome()).thenReturn("Nome atual");
         UUID usuario = UUID.randomUUID(); String recibo = adaptador.comprovar(usuario, lead, candidato);
         assertThat(adaptador.verificar(recibo).usuarioId()).isEqualTo(usuario);
         assertThat(adaptador.verificar(recibo).candidato()).isEqualTo(candidato);
         assertThatThrownBy(() -> adaptador.verificar("x" + recibo)).hasMessage("DARWIN_CONSULTA_INVALIDA");
-        var depois = adapter(config(true,1,100,Duration.ofSeconds(2)), Clock.offset(relogio,Duration.ofMinutes(6)));
+        var depois = adapter(config(true,Duration.ofSeconds(2)), Clock.offset(relogio,Duration.ofMinutes(6)));
         assertThatThrownBy(() -> depois.verificar(recibo)).hasMessage("DARWIN_CONSULTA_INVALIDA");
+        var outra=adapter(config(true,URI.create("http://localhost:"+servidor.getAddress().getPort()),Duration.ofSeconds(2)),relogio);
+        assertThatThrownBy(()->outra.verificar(recibo)).hasMessage("DARWIN_CONSULTA_INVALIDA");
+    }
+
+    @Test void reciboDoProdutoAnteriorNaoValeMesmoComOMesmoSegredo() throws Exception {
+        var adaptador = adapter();
+        var lead = mock(Lead.class);
+        when(lead.id()).thenReturn(UUID.randomUUID());
+        var candidato = adaptador.consultar("52998224725").candidatos().getFirst();
+        String corpo = adaptador.comprovar(UUID.randomUUID(), lead, candidato).split("\\.")[0];
+        var mac = javax.crypto.Mac.getInstance("HmacSHA256");
+        mac.init(new javax.crypto.spec.SecretKeySpec("token-medico-sintetico".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        String assinaturaAnterior = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
+                mac.doFinal(("synapse:darwin:previa:v1:" + corpo).getBytes(StandardCharsets.UTF_8)));
+        assertThatThrownBy(() -> adaptador.verificar(corpo + "." + assinaturaAnterior))
+                .hasMessage("DARWIN_CONSULTA_INVALIDA");
     }
 }

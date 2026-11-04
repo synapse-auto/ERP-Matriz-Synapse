@@ -7,7 +7,9 @@ import java.util.UUID;
 /** Contratos próprios do CRM. Não transportam resumo, mensagens nem payload do provedor. */
 public final class DadosDarwin {
     private DadosDarwin() {}
-    public record Candidato(String sessaoId, String nome, String cpf, boolean cpfInvalido) {
+    // Campo legado apenas por compatibilidade do JSON CRM; médico não retorna sessão.
+    public record Candidato(@io.swagger.v3.oas.annotations.media.Schema(deprecated = true, nullable = true) String sessaoId,
+                            String nome, String cpf, boolean cpfInvalido) {
         @Override public String toString() { return "CandidatoDarwin[redigido]"; }
     }
     public record Resultado(List<Candidato> candidatos, boolean limiteAtingido) {
@@ -20,7 +22,7 @@ public final class DadosDarwin {
     }
     public record Recibo(UUID usuarioId, UUID leadId, String telefone, String nomeAnterior,
                          String cpfAnterior, Candidato candidato, Instant expiraEm,
-                         String campoNome, String campoCpf, Long canalId) {
+                         String origem) {
         @Override public String toString() { return "ReciboDarwin[redigido]"; }
     }
     public record Aplicacao(UUID leadId, String origem, List<String> camposAlterados) {}

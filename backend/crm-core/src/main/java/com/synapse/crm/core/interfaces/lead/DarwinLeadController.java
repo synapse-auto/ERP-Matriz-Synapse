@@ -28,17 +28,20 @@ class DarwinLeadController {
     }
     record Disponibilidade(boolean habilitada) {}
     record Confirmacao(@NotBlank @Size(max = 8192) String confirmacao, boolean nome, boolean cpf) {}
+    record Consulta(@Size(max = 14) String cpf) {}
 
     @GetMapping("/integracoes/darwin")
     @Operation(summary = "Disponibilidade da consulta Darwin", description = "Somente disponibilidade; não devolve configuração ou segredo nem chama o provedor. Desligada por padrão.")
     Disponibilidade disponibilidade() { return new Disponibilidade(darwin.habilitado()); }
 
     @PostMapping("/{id}/darwin/consultas")
-    @Operation(summary = "Consultar identidade na Darwin", description = "Exige contatos.editar e acesso ao lead por Specification/RLS. Identidade vem do cadastro; nenhuma entrada de telefone arbitrário. Não grava o lead. Provedor indisponível retorna 502/503, nunca 401/403 de sessão CRM.")
-    DadosDarwin.Previa consultar(@PathVariable UUID id) { return consultar.executar(id); }
+    @Operation(summary = "Consultar cadastro no Darwin médico por CPF conhecido", description = "Exige contatos.editar e acesso ao lead por Specification/RLS. CPF opcional no corpo: utiliza o CPF do lead quando omitido. Não descobre CPF por telefone nem grava a ficha. Somente oferece dados se o CPF retornado for válido e igual ao consultado. Provedor indisponível retorna 502/503, nunca 401/403 de sessão CRM.")
+    DadosDarwin.Previa consultar(@PathVariable UUID id, @Valid @RequestBody(required = false) Consulta dados) {
+        return consultar.executar(id, dados == null ? null : dados.cpf());
+    }
 
     @PostMapping("/{id}/darwin/aplicacoes")
-    @Operation(summary = "Aplicar campos confirmados da Darwin", description = "Confirmação assinada e expirável vinculada a usuário, lead, sessão, configuração e valores anteriores. Somente campos selecionados. Concorrência retorna 409 sem sobrescrever. Não consulta novamente o provedor; nenhuma escrita na Darwin.")
+    @Operation(summary = "Aplicar campos confirmados da Darwin", description = "Confirmação assinada e expirável vinculada a usuário, lead, cadastro/CPF, origem médica e valores anteriores. Somente campos selecionados. Concorrência retorna 409 sem sobrescrever. Não consulta novamente o provedor; nenhuma escrita na Darwin.")
     DadosDarwin.Aplicacao aplicar(@PathVariable UUID id, @Valid @RequestBody Confirmacao dados) {
         return aplicar.executar(id, dados.confirmacao(), dados.nome(), dados.cpf());
     }
@@ -47,7 +50,7 @@ class DarwinLeadController {
         HttpStatus status = switch (erro.codigo()) {
             case DESABILITADA -> HttpStatus.FORBIDDEN;
             case CONCORRENCIA -> HttpStatus.CONFLICT;
-            case CONSULTA_INVALIDA -> HttpStatus.BAD_REQUEST;
+            case CONSULTA_INVALIDA, CPF_INVALIDO -> HttpStatus.BAD_REQUEST;
             case AUTENTICACAO, RESPOSTA_INVALIDA, IDENTIDADE_DIVERGENTE -> HttpStatus.BAD_GATEWAY;
             default -> HttpStatus.SERVICE_UNAVAILABLE;
         };

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.core.domain.lead.Cpf;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
 @Service
@@ -20,14 +21,17 @@ public class ConsultarDarwinUseCase {
     }
     @PreAuthorize("isAuthenticated() and @capacidades.permite('clientes.acessar') and @capacidades.permite('contatos.editar')")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public DadosDarwin.Previa executar(UUID id) {
+    public DadosDarwin.Previa executar(UUID id, String cpfInformado) {
         darwin.exigirDisponivel();
         var lead = ler.executar(id);
-        if (lead.telefone() == null || !lead.telefone().matches("[1-9][0-9]{7,14}")) {
+        String documento = cpfInformado == null ? lead.cpf() : cpfInformado.trim();
+        if (documento == null || documento.isBlank()) {
             return new DadosDarwin.Previa(DadosDarwin.Estado.SEM_IDENTIDADE, List.of(), false, lead.nome(), lead.cpf(), null);
         }
-        var resultado = darwin.consultar(lead.telefone());
-        // Valores de sessões diferentes nunca são mesclados. Pares idênticos podem repetir no histórico.
+        String cpf = Cpf.validoOuNulo(documento);
+        if (cpf == null) throw new FalhaDarwin(FalhaDarwin.Codigo.CPF_INVALIDO);
+        var resultado = darwin.consultar(cpf);
+        // O médico devolve no máximo um cadastro; campos legados da prévia ficam compatíveis.
         var pares = resultado.candidatos().stream().map(c -> java.util.Arrays.asList(c.nome(), c.cpf(), c.cpfInvalido())).distinct().toList();
         var estado = pares.isEmpty() ? DadosDarwin.Estado.SEM_RESULTADO
                 : pares.size() > 1 ? DadosDarwin.Estado.AMBIGUO : DadosDarwin.Estado.ENCONTRADO;

@@ -1,120 +1,121 @@
-# Darwin AI → identidade na ficha do lead
+# Darwin médico — consulta cadastral por CPF conhecido
 
-## Escopo e fonte
+## Correção do fornecedor e fonte primária
 
-Consulta **manual e somente leitura** da Darwin AI; aplicação confirmada de nome/CPF no CRM.
-Desligada por padrão em todas as instâncias, sem condição por cliente e sem migration.
-Não é cadastro médico, sincronização por mensagem, webhook ou pesquisa por CPF.
-Fonte exclusiva verificada em 02/11/2026: [documentação oficial](https://api.getdarwin.ai/).
-O API Documentation Checker foi usado para conferir os contratos abaixo, não para acessar contas.
+A Fêmina utiliza **Darwin médico (`darwin.med.br`)**, não `getdarwin.ai`.
+A implementação e as instruções da PR #340 apontavam para outro produto e foram substituídas.
+Fonte desta correção: coleção fornecida `Darwin-API.postman_collection.json`, auditada
+em 03/11/2026, SHA-256
+`72aecfdf6805f9cc17df1266f42e1687499ae146470daa6126f66b23eaff61b1`.
+A coleção original não é versionada: seus exemplos podem conter dados pessoais/credenciais.
+Nenhuma requisição foi executada a partir dela ou contra conta produtiva.
 
-| Operação oficial | Contrato usado |
+| Contrato documentado | Uso no CRM |
 |---|---|
-| `GET /v1/custom-fields` | `X-API-KEY`; array de definições `id`, `name`, `type`. Validar IDs configurados e tipo `string`. |
-| `GET /v1/sessions` | `id` obrigatório = destino do contato (telefone no WhatsApp), `channelId` inteiro opcional no provedor, `page` a partir de 1. Array de `sessionId` e `customFields[{fieldId,value}]`; ordem decrescente de sessão; páginas fixas de 100. Só continuar se página cheia. |
-| `GET /v1/session/{session_id}` | Detalhe com `id`, `phoneNumber` E.164 ou null e valores `customFields[{fieldId,value}]`. Confirmar ID e telefone antes de permitir aplicação. |
-| `GET /v1/agent/smart-fields` | Catálogo, **não valores de um contato**; não consultado por esta integração. |
+| Base `https://developers.darwin.med.br` | Origem HTTPS permitida; sem path, query, userinfo ou porta alternativa. |
+| `GET /api/patients/find/cpf?cpf=000.000.000-00` | Consulta de CPF conhecido; normalização e verificação dos dígitos antes de enviar a máscara exigida. |
+| `Authorization: Bearer <token>` | Segredo somente no backend; sem `X-API-KEY`. |
+| 200: objeto raiz com `name` e `cpf` | Somente estes dois campos são aproveitados. CPF deve ser válido e exatamente igual ao consultado. |
+| Campos não preenchidos: `null` | Nome ausente não é inventado nem aplicado. CPF ausente/inválido impede qualquer aplicação. |
+| 404 | Nenhum paciente **no escopo do token**; não prova inexistência global do paciente. |
+| 400 documentado | Erro sanitizado; não encaminhar corpo do fornecedor ao navegador. |
 
-Os exemplos oficiais de `fieldId` não são uniformes entre o catálogo (ID numérico) e o detalhe
-(exemplo textual `lead_score`). Não inferimos equivalência por nome/label: o operador deve confirmar
-os IDs reais da conta e que são retornados nos dois recursos. Incompatibilidade retorna erro de
-mapeamento, nunca sucesso simulado. Não existem IDs fixos de nome/CPF no código de produção.
+O token tem escopo de unidade/profissional conforme a descrição da coleção. Dados clínicos,
+endereço, telefone, nomes de familiares e demais propriedades retornadas são descartados.
+O contrato não documenta ID de sessão/paciente nesta resposta; nenhum ID é deduzido do CPF.
 
-## Identidade, candidatos e limites
+### Limitação comprovada: não há descoberta de CPF pelo telefone
 
-O telefone vem **exclusivamente** do lead persistido, já normalizado pelo `TelefoneCanonico` do CRM
-(dígitos com DDI). Apenas números de 8–15 dígitos, primeiro não zero, são enviados ao contrato.
-Não alteramos o cadastro, não tentamos variantes de nono dígito, não usamos `telefone_provedor`,
-BSUID ou `customer.id` como telefone. No detalhe, só o `+` inicial pode diferir.
-Ausência/identidade insegura não aplica nada. Esta primeira versão exige `DARWIN_CANAL_ID`, embora
-opcional na Darwin: escolha conservadora para não misturar canais.
+Foram inventariadas as **19 operações** da coleção. Em pacientes, existem criação, atualização
+e consulta por CPF. Não existe consulta por telefone documentada nessa fonte. O campo
+`phoneNumber` na resposta não constitui endpoint de pesquisa.
+**O CRM não descobre CPF pelo telefone.** O operador precisa conhecer o CPF ou tê-lo na ficha.
+Criação/atualização de paciente não é usada como consulta; não há escrita no Darwin, variantes
+de telefone, IDs de campos personalizados, catálogo de campos ou paginação de sessões.
 
-Cada candidato mantém nome e CPF **da mesma sessão**. Pares diferentes (incluindo nome em uma
-sessão e CPF em outra) são ambíguos: mostrar candidatos sem botão aplicável. Pares idênticos podem
-repetir; apenas a sessão mais recente escolhível recebe uma chamada de detalhe. Não há N detalhes
-por página. A janela configurada é explícita na interface quando atingida; não se promete ter
-investigado todo o histórico. Ausentes não viram zero; CPF numérico não vira string com zeros inferidos.
-CPF aceita 11 dígitos ou máscara padrão, rejeita repetidos e valida os dois dígitos verificadores.
-Nome respeita o VO existente. Não se extrai identidade de texto livre, mensagens ou resumo de IA.
+## Fluxo da ficha e contrato CRM
 
-## Contrato do CRM e autorização
+1. Na ficha lateral, usuário autorizado abre **Consultar na Darwin**.
+2. CPF da ficha pré-preenche o formulário; se ausente, operador informa CPF conhecido e confere
+   que pertence ao lead. Abrir o modal não consulta o provedor.
+3. **Buscar por CPF** faz uma leitura; digitar/consultar não salva CPF nem nome.
+4. Prévia mostra atuais/encontrados. Campos existentes exigem seleção explícita;
+   campos vazios podem vir selecionados, mas **Aplicar seleção** continua obrigatório.
+5. Confirmação aplica apenas os campos selecionados; cancelar/erro não altera a ficha.
+   Sucesso invalida ficha, lista de atendimentos e agenda, sem F5 ou polling novo.
 
-Todos os endpoints exigem JWT, `clientes.acessar` **e** `contatos.editar`. Consulta e aplicação
-usam a visibilidade oficial de leads (Specification com participações + RLS); lead invisível e
-inexistente devolvem 404. Não foi ampliado nenhum teto de papel.
+Endpoints existentes, documentados no OpenAPI dos controllers:
 
-* `GET /api/v1/leads/integracoes/darwin`: `{habilitada:boolean}`, sem configuração/segredo e sem HTTP externo.
-* `POST /api/v1/leads/{id}/darwin/consultas`: sem entrada de telefone/campos. Retorna estado
-  `ENCONTRADO | SEM_RESULTADO | SEM_IDENTIDADE | AMBIGUO`, atuais, candidatos, aviso de janela e
-  `confirmacao` somente para um par seguro. **Não persiste**.
-* `POST /api/v1/leads/{id}/darwin/aplicacoes`: `{confirmacao,nome:boolean,cpf:boolean}`. Não aceita
-  valores arbitrários do navegador. Retorna `{leadId,origem:"DARWIN",camposAlterados}`.
+| Endpoint | Contrato |
+|---|---|
+| `GET /api/v1/leads/integracoes/darwin` | `{habilitada:boolean}`; não expõe configuração e não chama fornecedor. |
+| `POST /api/v1/leads/{id}/darwin/consultas` | Corpo opcional `{cpf:string}`. Sem CPF no corpo, utiliza o CPF persistido; se nenhum disponível, `SEM_IDENTIDADE`, sem HTTP externo. CPF inválido retorna 400. |
+| `POST /api/v1/leads/{id}/darwin/aplicacoes` | `{confirmacao,nome:boolean,cpf:boolean}`; não aceita valores arbitrários. Retorna `{leadId,origem:"DARWIN_MEDICO",camposAlterados}`. Não consulta novamente o fornecedor. |
 
-OpenAPI gerado pelos controllers documenta esses endpoints. Falhas são Problem Details, com
-`codigo`: recurso desligado 403; confirmação inválida/expirada 400; edição concorrente 409;
-recusa da credencial upstream/identidade divergente/resposta incompatível 502; limite/timeout/circuito/
-ocupação/configuração 503. **401/403 da Darwin não viram 401/403 de sessão CRM**.
+Mantida compatibilidade estrutural da prévia: `sessaoId` fica **null/deprecated**,
+`limiteAtingido=false`, e enum legado `AMBIGUO` não é produzido pelo adaptador médico.
+`ENCONTRADO`, `SEM_RESULTADO` e `SEM_IDENTIDADE` continuam disponíveis. O corpo antigo sem CPF
+agora só consulta se a ficha já tiver CPF; nunca recorre silenciosamente ao telefone.
+Catálogos antigos recebem textos de contexto médico por versão de contrato, preservando rótulos
+genéricos personalizados; não continuam instruindo consulta por telefone/sessão do outro produto.
 
-O botão e o CPF de consulta só aparecem na ficha lateral quando a capacidade de edição e a
-configuração estão habilitadas. O endpoint de disponibilidade é cacheado por usuário; erro fecha
-o controle. Campos vazios são pré-selecionados; existentes exigem seleção explícita, mesmo que
-o nome pareça telefone. Cancelar a consulta aborta a espera; nenhum cancelamento repete mutation.
-Sucesso invalida ficha/listas existentes, sem F5 ou polling. Erro mantém ficha e conversa.
+## Autorização, concorrência e auditoria preservadas
 
-## Concorrência, auditoria e segurança
+JWT + `clientes.acessar` + `contatos.editar` em consulta e aplicação; Specification com
+participações e RLS permanecem iguais. Lead inexistente/invisível retorna 404. Não ampliamos
+tetos de papel ou visibilidade. A entrada manual de CPF não concede acesso adicional ao lead.
 
-Leitura autorizada em transação curta; HTTP executado em `NOT_SUPPORTED` **fora de transação**.
-Confirmação HMAC-SHA256 com separação de domínio, vinculada a usuário, lead, telefone, sessão,
-valores anteriores, mapeamento/canal e validade (5m por padrão). É recibo assinado, não criptografia;
-contém PII já mostrada na prévia: manter somente em memória da tela, nunca URL/localStorage/log.
-Usa a API key backend como chave de assinatura; rotação invalida prévias e funciona entre réplicas
-com a mesma configuração. Não exige segredo adicional, tabela ou cache distribuído.
+Leitura autorizada em transação curta; HTTP em `NOT_SUPPORTED`, fora de transação.
+Recibo HMAC-SHA256 vinculado a usuário, lead, telefone, valores anteriores, candidato, origem
+e validade (padrão 5m). Domínio `synapse:darwin-medico:previa:v2:` e novo `DARWIN_TOKEN`
+invalidam recibos do produto anterior, mesmo se reutilizarem um segredo. Recibo não é
+criptografado: contém os dados da prévia, só em memória da tela, nunca URL/localStorage/log.
 
-Aplicação bloqueia a linha por `PESSIMISTIC_WRITE`, usando **a mesma Specification**, compara
-telefone e campos selecionados e chama `AtualizarLeadUseCase` com atualização parcial. Edição
-concorrente de campo selecionado retorna 409; campo não selecionado é preservado. Repetição com
-o mesmo valor já aplicado é no-op. Revalida autorização na aplicação. Não altera responsável,
-participantes, telefone, estado, histórico, resumo ou notas.
-`@Auditable` registra `APLICAR_DADOS_DARWIN` / `LEAD_DARWIN`, UUID, usuário, horário, origem e
-nomes dos campos alterados; allowlist não registra valores pessoais, telefone ou recibo.
+Aplicação usa `PESSIMISTIC_WRITE`, mesma Specification e atualização parcial pelo caso de uso
+existente. Mudança concorrente do CPF para outra identidade bloqueia inclusive aplicação só
+do nome; mudança concorrente do telefone ou campo selecionado também retorna 409. Campo não
+selecionado é preservado; reaplicar os mesmos valores é no-op. Não altera responsável,
+participantes, mensagens, telefone, resumo, estado ou notas.
+Auditoria `APLICAR_DADOS_DARWIN` / `LEAD_DARWIN` preserva usuário, UUID, horário, origem
+`DARWIN_MEDICO` e nomes dos campos; não registra valores pessoais ou recibos.
 
-API key somente no backend; URL HTTPS oficial fixa. HTTP loopback só é permitido em perfil
-`dev/test` para servidor simulado. Redirects desativados; resposta limitada em bytes; deadline total
-inclui leitura completa do corpo. Circuit breaker e bulkhead próprios por réplica, sem espera
-e sem retry. Instâncias OFF não inicializam HttpClient nem fazem chamadas Darwin. Sem trabalho
-no envio/recebimento, scheduler, outbox ou caminho de mensagens.
+Erros Problem Details sanitizados: desligada 403; CPF/recibo inválido 400; concorrência 409;
+credencial upstream/CPF divergente/resposta inválida 502; timeout, limite, circuito, ocupação
+ou configuração 503. **401/403 upstream não viram falha de autenticação da sessão CRM.**
 
-## Roteiro operacional — nenhuma ação executada em produção
+## Estabilidade e configuração
 
-1. Responsável pela conta obtém credencial pelo canal seguro e confere `/v1/custom-fields`,
-   IDs exatos dos campos de nome e CPF (ambos de tipo `string`) e canal WhatsApp; verificar
-   amostra controlada de sessão/detalhe. ID numérico do catálogo é configurado por sua representação textual.
-   Não compartilhar token, telefone/CPF ou URL identificável em logs/tickets.
-2. **Somente no Dokploy da Fêmina**, cadastrar `DARWIN_API_KEY`, `DARWIN_CAMPO_NOME`,
-   `DARWIN_CAMPO_CPF`, `DARWIN_CANAL_ID`. Conferir os limites opcionais na tabela do README.
-   Manter `DARWIN_HABILITADO=false` até homologação autorizada. Nenhuma variável é obrigatória
-   para subir as demais instâncias; todas usam defaults opcionais na stack.
-3. Após autorização operacional separada para deploy/ativação, habilitar só essa instância.
-   Homologar com lead controlado: atual/encontrado, seleção explícita, CPF, cancelamento,
-   conflito manual, persistência após reload e negativa para usuário sem acesso.
-4. Para desligar, `DARWIN_HABILITADO=false` e redeploy autorizado: não muda dados aplicados nem
-   interfere no chat. Demais instâncias permanecem OFF. Nenhum webhook/n8n deve ser cadastrado.
+Uma única consulta externa por ação; sem retries, redirects ou chamadas por mensagem/render.
+HTTP Client inicializado somente quando necessário, circuito e bulkhead próprios por réplica,
+espera zero, timeout de conexão 2s/total 10s e corpo limitado a 524288 bytes por padrão.
+Demais parâmetros opcionais preservados na tabela do README. Mensagens/outbox/scheduler e
+regras dos canais não foram alterados. Loopback HTTP somente `dev/test` para transporte simulado.
+Não há migration, nova tabela, campo clínico ou sincronização automática.
 
-Dependências de homologação real: API key, IDs de campos compatíveis e canal da conta. Testes HTTP
-simulados não comprovam dados daquela conta, limites comerciais ou disponibilidade do fornecedor.
-Evidências e resultados locais/CI serão registrados no relatório da PR; não fazer merge/deploy automático.
+| Variável | Default | Ação futura no Dokploy |
+|---|---|---|
+| `DARWIN_HABILITADO` | `false` | Habilitar **somente Fêmina** após homologação/autorização operacional. |
+| `DARWIN_URL` | `https://developers.darwin.med.br` | Conferir origem oficial; nunca apontar para o outro produto. |
+| `DARWIN_TOKEN` | vazio | Credencial Bearer do Darwin médico pelo canal seguro. |
 
-## Evidências e correções adjacentes necessárias
+Remover as variáveis obsoletas `DARWIN_API_KEY`, `DARWIN_CAMPO_NOME`, `DARWIN_CAMPO_CPF`,
+`DARWIN_CANAL_ID`, `DARWIN_MAX_PAGINAS`, `DARWIN_MAX_SESSOES`: não são lidas nem usadas
+como fallback. Nenhuma variável nova é obrigatória para o deploy de instâncias OFF.
+Ativação é configuração por instância (Silo), sem condicional por nome de cliente no código.
 
-[Screenshots e protocolo da validação real local](evidencias/darwin-identidade/README.md).
-O editor inline de nome passa a derivar do cadastro quando não há rascunho: a confirmação
-Darwin agora aparece sem F5 e um refetch não apaga digitação manual. Corrigidas chaves de
-reconciliação distintas na ficha, incluindo colisão anterior entre Notas/Mídias.
-Na CI foi encontrada falha de limpeza no teste de encaminhamento: o trigger V65 atualizava
-uma citação que o mesmo DELETE em lote tentava excluir. A fixture desvincula apenas referências
-internas ao conjunto descartável antes de remover linhas, sem desativar trigger, mudar migration,
-enfraquecer asserções de autorização ou alterar o comportamento do chat.
-O teste de resposta/encaminhamento também assumia que uma rodada drenava toda a outbox.
-Uma fila sintética com um lote inteiro anterior reproduziu a falha. A espera agora dispara
-rodadas pela entrada real do job enquanto avalia a condição, como o scheduler, mantendo os
-10s e as mesmas asserções de entrega/citação. Nenhuma regra de envio ou configuração mudou.
+## Homologação operacional futura — não executada nesta task
+
+1. Conferir com responsável Darwin a credencial e seu escopo; guardar token somente no Dokploy
+   da Fêmina. Manter OFF até deploy/ativação **separadamente autorizados**.
+2. Usar lead/CPF controlados e consentidos. Abrir modal sem consultar automaticamente; consultar
+   CPF conhecido. Conferir nome/CPF com a identidade esperada antes de aplicar.
+3. Confirmar só os campos desejados, verificar ficha/lista/agenda sem F5 e persistência após reload.
+4. Conferir CPF sem paciente no escopo, erro de credencial, cancelamento, alteração concorrente
+   e usuário sem acesso. Falha não pode modificar a ficha nem interromper Atendimentos.
+5. Desligamento: `DARWIN_HABILITADO=false` em operação autorizada; dados já confirmados ficam.
+   Não configurar webhook/n8n, cadastrar paciente ou testar telefones alternativos.
+
+Testes usam CPF e cadastro sintéticos, transporte HTTP simulado e PostgreSQL/Testcontainers;
+não comprovam credencial, dados ou disponibilidade da conta real. As capturas históricas da
+PR #340 estão [explicitamente obsoletas](evidencias/darwin-identidade/README.md) para este contrato.
+Descoberta telefone→CPF depende de contrato oficial adicional; não foi entregue nem simulada.
