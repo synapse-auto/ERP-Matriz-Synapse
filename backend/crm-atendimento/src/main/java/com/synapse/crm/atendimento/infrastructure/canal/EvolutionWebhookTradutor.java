@@ -120,7 +120,14 @@ public final class EvolutionWebhookTradutor implements TradutorDeCanal {
         if(midia==null&&conteudo==null) return descarte(MotivoDeDescarte.TIPO_NAO_SUPORTADO);
         Instant horario;
         try { horario=Instant.ofEpochSecond(d.path("messageTimestamp").asLong()); } catch(RuntimeException e) {return descarte(MotivoDeDescarte.CONTEUDO_INVALIDO);}
-        return Traducao.semDescartes(List.of(new MensagemRecebidaDoCanal(identidade(id).chaveInterna(),telefone,texto(d,"pushName"),conteudo,tipo,midia,mime,nome,legenda,horario,config.instancia(),texto(principal.path("contextInfo"),"stanzaId"),metadados)));
+        String referencia=texto(principal.path("contextInfo"),"stanzaId");
+        if(referencia!=null) {
+            var dados=metadados==null?json.createObjectNode():(com.fasterxml.jackson.databind.node.ObjectNode)raiz(metadados);
+            dados.putObject("referenciaExterna").put("provedor",provedor()).put("instancia",config.instancia())
+                    .put("namespace","WHATSAPP").put("valor",referencia);
+            metadados=dados.toString();
+        }
+        return Traducao.semDescartes(List.of(new MensagemRecebidaDoCanal(identidade(id).chaveInterna(),telefone,texto(d,"pushName"),conteudo,tipo,midia,mime,nome,legenda,horario,config.instancia(),referencia,metadados)));
     }
     static String telefone(String jid) {
         return jid!=null&&jid.matches("[1-9][0-9]{7,14}@s\\.whatsapp\\.net")?jid.substring(0,jid.indexOf('@')):null;

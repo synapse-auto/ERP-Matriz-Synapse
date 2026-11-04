@@ -71,4 +71,19 @@ class EvolutionAdapterTest {
         assertThat(adapter.enviar(new CanalGateway.Envio(t.mensagemId(),t.telefoneDestino(),t.conteudo(),t.credencialId(),id.valor(),id))).isInstanceOf(ResultadoDeEnvio.Enfileirado.class);
         var b=new Buffer();pedidos.getLast().body().writeTo(b);assertThat(json.readTree(b.readUtf8()).path("quoted").path("key").path("id").asText()).isEqualTo("wa-original");
     }
+    @ParameterizedTest @ValueSource(strings={"{}","{\"base64\":\"!nao-base64!\"}","{\"base64\":\"\"}"})
+    void midiaSemBytesValidosNaoViraArquivoDisponivel(String body)throws Exception {
+        when(call.execute()).thenReturn(resposta(200,body));
+        assertThatThrownBy(()->adapter.abrirMidiaRecebida("{\"id\":\"w1\",\"remoteJid\":\"5561999990000@s.whatsapp.net\",\"fromMe\":false}",TipoMensagem.IMAGEM))
+                .isInstanceOf(MidiaRecebidaInvalidaException.class);
+        verifyNoInteractions(storage);verify(call,times(1)).execute();
+    }
+    @ParameterizedTest @ValueSource(ints={410,500})
+    void falhaHttpDaMidiaPreservaClassificacaoSemRetry(int status)throws Exception {
+        when(call.execute()).thenReturn(resposta(status,"{\"segredo\":\"nao-expor\"}"));
+        assertThatThrownBy(()->adapter.abrirMidiaRecebida("{\"id\":\"w1\",\"remoteJid\":\"5561999990000@s.whatsapp.net\",\"fromMe\":false}",TipoMensagem.AUDIO))
+                .isInstanceOf(status==410?MidiaRecebidaRemovidaNoProvedorException.class:MidiaRecebidaTemporariamenteIndisponivelException.class)
+                .hasMessageNotContaining("nao-expor");
+        verifyNoInteractions(storage);verify(call,times(1)).execute();
+    }
 }

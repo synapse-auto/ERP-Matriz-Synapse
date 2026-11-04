@@ -96,12 +96,15 @@ class EvolutionFluxoIT extends PostgresIT {
                 case "native"->{var escolha=m.putObject("interactiveResponseMessage");escolha.putObject("body").put("text","Escolha sintetica");escolha.putObject("nativeFlowResponseMessage").put("name","quick_reply").put("paramsJson","{\"campoOpaco\":\"opcao\"}");}
                 default->m.putObject("listResponseMessage").put("title","Escolha sintetica").putObject("singleSelectReply").put("selectedRowId","2");
             }
+            String campo=switch(caso){case "botao"->"buttonsResponseMessage";case "template"->"templateButtonReplyMessage";case "native"->"interactiveResponseMessage";default->"listResponseMessage";};
+            ((ObjectNode)m.path(campo)).putObject("contextInfo").put("stanzaId","original-ainda-nao-local");
         }
         receber(n);receber(n);assertThat(jdbc.queryForObject("SELECT count(*) FROM webhook_entrada",Integer.class)).isEqualTo(1);verifyNoInteractions(transporte);
         worker.processarPendentes();worker.processarPendentes();assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id=?",Integer.class,atendimento)).isEqualTo(1);
         assertThat(eventos.stream(MensagemParaTempoReal.class).filter(e->e.atendimentoId().equals(atendimento)).count()).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT payload::text FROM webhook_entrada",String.class)).doesNotContain("NAO_PERSISTIR","apikey","destination");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem_correlacao_canal WHERE provedor='evolution'",Integer.class)).isEqualTo(1);
+        if(!caso.equals("texto"))assertThat(jdbc.queryForObject("SELECT midia_metadados::text FROM mensagem WHERE atendimento_id=?",String.class,atendimento)).contains("referenciaExterna","original-ainda-nao-local");
         esperarRepasse();repasses.publicarPendentes();repasses.publicarPendentes();
     }
     @ParameterizedTest @ValueSource(strings={"image","audio","video","pdf","doc","docx","document-image"})

@@ -29,6 +29,7 @@ class EvolutionWebhookTest {
         var t=new EvolutionWebhookTradutor(JSON,config());var n=recebido("w-recebido");var original=t.idsExternos(n.toString());
         var m=(ObjectNode)n.path("data").path("message");m.remove("conversation");m.putObject("extendedTextMessage").put("text","Resposta").putObject("contextInfo").put("stanzaId","w-original");
         var mensagem=t.traduzir(n.toString()).getFirst();assertThat(mensagem.contextoWamid()).isEqualTo("w-original");
+        assertThat(mensagem.metadados()).contains("referenciaExterna","evolution","evo-teste","WHATSAPP","w-original");
         assertThat(t.identidadeDaMensagem(n.toString(),mensagem.idExterno()).orElseThrow().valor()).isEqualTo("w-recebido");
         n.put("date_time","outro-horario-de-retry");assertThat(t.idsExternos(n.toString())).isEqualTo(original);
     }

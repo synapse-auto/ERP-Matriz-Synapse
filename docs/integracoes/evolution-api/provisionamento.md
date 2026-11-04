@@ -32,6 +32,9 @@ https://github.com/evolution-foundation/evolution-api/tree/2.3.7 .
   buttonsResponseMessage selectedButtonId/selectedDisplayText; listResponseMessage
   title/singleSelectReply.selectedRowId. `contextInfo.stanzaId` e referencia, nunca ID
   proprio. Ecos sao ignorados. Grupos, broadcast e LID-only nao viram telefone.
+  Referencia ainda nao encontrada fica em `referenciaExterna` com provedor/instancia/
+  namespace/ID; a bolha informa origem indisponivel sem inventar navegacao ou perder
+  a escolha recebida.
 - A dependencia fixada e Baileys `7.0.0-rc.9`; seu
   [WAProto versionado](https://github.com/WhiskeySockets/Baileys/blob/v7.0.0-rc.9/WAProto/WAProto.proto)
   define tambem templateButtonReplyMessage selectedId/selectedDisplayText e
@@ -142,7 +145,7 @@ em historico de comandos ou aqui:
 {"webhook":{"enabled":true,"url":"https://DOMINIO_DO_NOVO_CRM/webhook/evolution","headers":{"X-Evolution-Webhook-Token":"SEGREDO_EXCLUSIVO_DO_DOKPLOY"},"byEvents":false,"base64":false,"events":["MESSAGES_UPSERT","MESSAGES_UPDATE"]}}
 ```
 
-Somente assinatura local da instancia; desligar assinatura global equivalente para
+Somente inscricao local da instancia; desligar inscricao global equivalente para
 evitar entregas duplicadas. Nao habilitar `LOG_LEVEL=WEBHOOKS`: o codigo da versao
 logaria payload/apikey/destination. Secret header e autenticacao por posse sobre
 TLS, **nao HMAC nem garantia criptografica de integridade do corpo**.

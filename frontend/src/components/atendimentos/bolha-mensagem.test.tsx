@@ -123,11 +123,11 @@ describe("BolhaMensagem", () => {
     expect(screen.queryByText("Lista")).not.toBeInTheDocument();
   });
 
-  it.each(["BOTAO", "LISTA"])("exibe escolha %s sem inventar botões ou origem navegável", async (tipo) => {
+  it.each([["BOTAO", "z-api"], ["LISTA", "z-api"], ["BOTAO", "evolution"], ["LISTA", "evolution"]])("exibe escolha %s de %s sem inventar botões ou origem navegável", async (tipo, provedor) => {
     const responder = vi.fn();
     renderizarComQuery(<BolhaMensagem mensagem={mensagem({ remetenteTipo: "LEAD", conteudo: "Ótimo 🙂\nhttps://example.com",
       midiaMetadados: JSON.stringify({ respostaInterativa: { tipo, identificador: "1" },
-        referenciaExterna: { provedor: "z-api", namespace: "WHATSAPP", valor: "original-ausente" } }),
+        referenciaExterna: { provedor, namespace: "WHATSAPP", valor: "original-ausente" } }),
     })} onResponder={responder} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />);
     expect(screen.getByText(/Ótimo/)).toBeInTheDocument();
     expect(screen.getByText("Mensagem original indisponível")).toBeInTheDocument();
