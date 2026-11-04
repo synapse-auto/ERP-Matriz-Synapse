@@ -29,6 +29,8 @@ import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.infrastructure.canal.CanalProperties;
+import com.synapse.crm.atendimento.infrastructure.canal.RestricaoDeNumerosWhatsApp;
+import com.synapse.crm.core.domain.lead.TelefoneCanonico;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 class PublicadorDaOutboxOperacoesTest {
@@ -50,10 +52,51 @@ class PublicadorDaOutboxOperacoesTest {
         when(transacoes.reservar(AGORA)).thenReturn(List.of(envio));
         when(transacoes.marcarDespachando(any(),any())).thenReturn(true);
         when(compositor.montar(envio)).thenThrow(new com.synapse.crm.atendimento.application.ContaDeTesteSomenteLeituraException());
-        var operacoes=new PublicadorDaOutboxOperacoes(transacoes,canal,compositor,RELOGIO,Runnable::run, mock(CanalProperties.class));
+        var operacoes=new PublicadorDaOutboxOperacoes(transacoes,canal,compositor,RELOGIO,Runnable::run, mock(CanalProperties.class), restricaoDesligada());
         assertThat(operacoes.rodada()).isEqualTo(1);
         org.mockito.Mockito.verifyNoInteractions(canal);
         verify(transacoes).registrarResultado(org.mockito.ArgumentMatchers.eq(envio),org.mockito.ArgumentMatchers.argThat(resultado -> resultado instanceof ResultadoDeEnvio.Recusado recusa && recusa.permanente() && recusa.motivo().equals("CONTA_TESTE_SOMENTE_LEITURA")),org.mockito.ArgumentMatchers.eq(AGORA));
+    }
+
+    @Test
+    void pontoDeEntradaBloqueiaDestinoAntesDeComporOuChamarProvedorMesmoParaItemJaEnfileirado() {
+        var transacoes = mock(PublicadorDaOutboxTransacoes.class);
+        var canal = mock(CanalGateway.class);
+        var compositor = mock(com.synapse.crm.atendimento.application.CompositorDeEnvioParaCanal.class);
+        var pendente = pendente();
+        when(transacoes.reservar(AGORA)).thenReturn(List.of(pendente));
+        var restricao = new RestricaoDeNumerosWhatsApp(true, "555491082498", new TelefoneCanonico("55"));
+
+        var operacoes = new PublicadorDaOutboxOperacoes(
+                transacoes, canal, compositor, RELOGIO, Runnable::run, mock(CanalProperties.class), restricao);
+        assertThat(operacoes.rodada()).isEqualTo(1);
+
+        org.mockito.Mockito.verifyNoInteractions(canal, compositor);
+        verify(transacoes, org.mockito.Mockito.never()).marcarDespachando(any(), any());
+        verify(transacoes).registrarResultado(org.mockito.ArgumentMatchers.eq(pendente),
+                org.mockito.ArgumentMatchers.argThat(resultado -> resultado instanceof ResultadoDeEnvio.Recusado recusa
+                        && recusa.permanente() && recusa.motivo().equals(
+                                com.synapse.crm.atendimento.domain.mensagem.MotivosDeFalhaDeEntrega.DESTINO_NAO_AUTORIZADO)),
+                org.mockito.ArgumentMatchers.eq(AGORA));
+    }
+
+    @Test
+    void pontoDeEntradaEnviaDestinoPermitidoComRestricaoLigada() {
+        var transacoes = mock(PublicadorDaOutboxTransacoes.class);
+        var canal = mock(CanalGateway.class);
+        var compositor = mock(com.synapse.crm.atendimento.application.CompositorDeEnvioParaCanal.class);
+        var pendente = pendente();
+        when(transacoes.reservar(AGORA)).thenReturn(List.of(pendente));
+        when(transacoes.marcarDespachando(any(), any())).thenReturn(true);
+        when(compositor.montar(pendente)).thenReturn(new CanalGateway.Envio(pendente.mensagemId(),
+                pendente.telefoneDestino(), pendente.conteudo(), pendente.credencialId(), pendente.contextoWamid()));
+        when(canal.enviar(any())).thenReturn(new ResultadoDeEnvio.Aceito("external-id"));
+        var restricao = new RestricaoDeNumerosWhatsApp(true, pendente.telefoneDestino(), new TelefoneCanonico("55"));
+
+        new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run,
+                mock(CanalProperties.class), restricao).rodada();
+
+        verify(canal).enviar(any());
     }
 
     @Test
@@ -95,7 +138,7 @@ class PublicadorDaOutboxOperacoesTest {
                     canal,
                     compositor,
                     RELOGIO,
-                    executor, mock(CanalProperties.class));
+                    executor, mock(CanalProperties.class), restricaoDesligada());
             var rodada = CompletableFuture.runAsync(operacoes::rodada);
 
             assertThat(iniciouRapida.await(1, TimeUnit.SECONDS))
@@ -164,7 +207,7 @@ class PublicadorDaOutboxOperacoesTest {
                     canal,
                     compositor,
                     RELOGIO,
-                    executor, mock(CanalProperties.class));
+                    executor, mock(CanalProperties.class), restricaoDesligada());
             CompletableFuture<Void> rodada = CompletableFuture.runAsync(operacoes::rodada);
 
             assertThat(primeiraIniciou.await(1, TimeUnit.SECONDS)).isTrue();
@@ -205,7 +248,7 @@ class PublicadorDaOutboxOperacoesTest {
         });
 
         PublicadorDaOutboxOperacoes operacoes = new PublicadorDaOutboxOperacoes(
-                transacoes, canal, compositor, RELOGIO, Runnable::run, mock(CanalProperties.class));
+                transacoes, canal, compositor, RELOGIO, Runnable::run, mock(CanalProperties.class), restricaoDesligada());
 
         assertThat(operacoes.rodada()).isEqualTo(2);
         assertThat(ordemDeDespacho)
@@ -222,7 +265,7 @@ class PublicadorDaOutboxOperacoesTest {
         when(transacoes.reservar(AGORA)).thenReturn(List.of(pendente));
         when(transacoes.marcarDespachando(any(), any())).thenReturn(false);
         PublicadorDaOutboxOperacoes operacoes =
-                new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run, mock(CanalProperties.class));
+                new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run, mock(CanalProperties.class), restricaoDesligada());
 
         operacoes.rodada();
 
@@ -241,7 +284,7 @@ class PublicadorDaOutboxOperacoesTest {
         when(transacoes.marcarDespachando(any(), any())).thenReturn(true);
         when(canal.enviar(any())).thenReturn(new ResultadoDeEnvio.Aceito("externo"));
         PublicadorDaOutboxOperacoes operacoes =
-                new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run, mock(CanalProperties.class));
+                new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run, mock(CanalProperties.class), restricaoDesligada());
 
         operacoes.rodada();
 
@@ -470,7 +513,7 @@ class PublicadorDaOutboxOperacoesTest {
         when(canal.provedor()).thenReturn("provedor-atual");
         when(configuracao.numeroPrincipal()).thenReturn("conta-atual");
 
-        new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run, configuracao).rodada();
+        new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run, configuracao, restricaoDesligada()).rodada();
 
         org.mockito.Mockito.verifyNoInteractions(compositor);
         verify(canal, org.mockito.Mockito.never()).enviar(any());
@@ -481,6 +524,10 @@ class PublicadorDaOutboxOperacoesTest {
 
     private static OutboxProperties propriedades() {
         return new OutboxProperties(2, 3, Duration.ofSeconds(5), Duration.ofMinutes(30), 2, Duration.ofSeconds(30));
+    }
+
+    private static RestricaoDeNumerosWhatsApp restricaoDesligada() {
+        return new RestricaoDeNumerosWhatsApp(false, "", new TelefoneCanonico("55"));
     }
 
     private static Outbox.EnvioPendente pendente() {

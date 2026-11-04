@@ -402,12 +402,16 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `AUTOMACAO_AVALIACAO_MINIMO_CHAMADAS_CIRCUITO` / `AUTOMACAO_AVALIACAO_ESPERA_CIRCUITO` | 5 amostras / 30s; circuito exclusivo de avaliação. |
 | `AUTOMACAO_AVALIACAO_INTERVALO_MS` | 1000ms; desabilitado com o agendamento global nos testes. |
 | `WHATSAPP_NUMERO` | Identificador do número de telefone na Meta Cloud API. |
+| `WHATSAPP_RESTRICAO_NUMEROS_HABILITADA` | `false` | Bloqueia entrada e saída fora de `WHATSAPP_NUMEROS_PERMITIDOS`; `true` com lista vazia/inválida bloqueia todos. |
+| `WHATSAPP_NUMEROS_PERMITIDOS` | vazio | Telefones completos em dígitos, separados por vírgula; usa a normalização canônica do CRM, sem comparação por sufixo. |
 | `WHATSAPP_TOKEN` | Token de acesso da Meta usado nas chamadas de saída. |
 | `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Token escolhido pela instância para o desafio `GET` do webhook. |
 | `WHATSAPP_WEBHOOK_SECRET` | App Secret da Meta, usado somente no HMAC dos `POST` do webhook. |
 
 Os dois segredos do webhook são deliberadamente distintos e não podem ser reutilizados um no
 lugar do outro.
+
+Para ativar a allowlist temporária de homologação, consulte [Restrição de números do WhatsApp](docs/61-restricao-numeros-whatsapp.md).
 
 Avaliação após encerramento: consulte o [runbook E83](docs/35-runbook-webhook-avaliacao.md)
 antes de ativar. Lote e atendimento sem responsável não iniciam pesquisa. Ativação,

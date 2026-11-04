@@ -27,6 +27,10 @@ final class RepasseSemGrupos {
     }
 
     static Resultado filtrar(String payloadCru, ObjectMapper json, Predicate<JsonNode> ehGrupo) {
+        return filtrarRemovendo(payloadCru, json, ehGrupo);
+    }
+
+    static Resultado filtrarRemovendo(String payloadCru, ObjectMapper json, Predicate<JsonNode> remover) {
         JsonNode raiz;
         try {
             raiz = json.readTree(payloadCru);
@@ -43,7 +47,7 @@ final class RepasseSemGrupos {
                 if (mensagens.isArray()) {
                     Iterator<JsonNode> itens = mensagens.elements();
                     while (itens.hasNext()) {
-                        if (ehGrupo.test(itens.next())) {
+                        if (remover.test(itens.next())) {
                             itens.remove();
                             removidos++;
                         }

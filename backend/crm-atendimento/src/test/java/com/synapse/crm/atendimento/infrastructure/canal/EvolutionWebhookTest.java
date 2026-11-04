@@ -71,6 +71,29 @@ class EvolutionWebhookTest {
         key.put("remoteJid","grupo@g.us");assertThat(tradutor.traduzir(n.toString())).isEmpty();
         key.put("remoteJid","id-opaco@lid").put("remoteJidAlt","outro@lid");assertThat(tradutor.traduzir(n.toString())).isEmpty();
     }
+    @Test void allowlistEvolutionExigeTelefoneResolvidoDoLidERejeitaGrupo() {
+        var tradutor = new EvolutionWebhookTradutor(JSON, config());
+        var n = recebido("w-lid-allowlist");
+        var key = (ObjectNode) n.path("data").path("key");
+        key.put("remoteJid", "id-opaco@lid").put("remoteJidAlt", "556196791022@s.whatsapp.net");
+
+        assertThat(tradutor.repasseSomenteNumerosPermitidos(
+                        n.toString(), null, telefone -> telefone.equals("556196791022")))
+                .isPresent();
+        assertThat(tradutor.repasseSomenteNumerosPermitidos(
+                        n.toString(), null, telefone -> telefone.equals("555491082498")))
+                .isEmpty();
+
+        key.put("remoteJid", "grupo@g.us").remove("remoteJidAlt");
+        assertThat(tradutor.repasseSomenteNumerosPermitidos(
+                        n.toString(), null, telefone -> true))
+                .isEmpty();
+
+        key.put("remoteJid", "id-opaco@lid");
+        assertThat(tradutor.repasseSomenteNumerosPermitidos(
+                        n.toString(), null, telefone -> true))
+                .isEmpty();
+    }
     @ParameterizedTest @ValueSource(strings={"","errado"})
     void segredoInvalidoNaoLeCorpo(String segredo)throws Exception {
         var req=new MockHttpServletRequest("POST","/webhook/evolution") {

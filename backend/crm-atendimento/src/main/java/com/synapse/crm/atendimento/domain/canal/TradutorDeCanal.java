@@ -117,6 +117,15 @@ public interface TradutorDeCanal {
         return java.util.Optional.of(new RepasseParaAutomacao(payloadCru, assinatura));
     }
 
+    /** Repasse sujeito à allowlist; provedores com lote podem filtrar cada remetente no próprio ACL. */
+    default java.util.Optional<RepasseParaAutomacao> repasseSomenteNumerosPermitidos(
+            String payloadCru, String assinatura, java.util.function.Predicate<String> permiteTelefone) {
+        Traducao traducao = traduzirComDescartes(payloadCru);
+        if (traducao.mensagens().stream().anyMatch(m -> !permiteTelefone.test(m.telefoneRemetente())))
+            return java.util.Optional.empty();
+        return repasseSemGrupos(payloadCru, assinatura);
+    }
+
     /** Corpo e assinatura a repassar a Automacao. */
     record RepasseParaAutomacao(String payloadCru, String assinatura) {}
 
@@ -147,6 +156,7 @@ public interface TradutorDeCanal {
          */
         ALVO_DESCONHECIDO,
         IDENTIDADE_NAO_SUPORTADA,
+        REMETENTE_NAO_AUTORIZADO,
         OUTRO_CANAL,
         NAMESPACE_NAO_CONFIRMADO
     }

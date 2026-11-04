@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.synapse.crm.atendimento.application.AgendarRepasseWebhookAutomacaoUseCase;
 import com.synapse.crm.atendimento.application.ValidarDestinoWebhookUseCase;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
+import com.synapse.crm.atendimento.infrastructure.canal.RestricaoDeNumerosWhatsApp;
 import com.synapse.crm.atendimento.infrastructure.canal.ZApiProperties;
 import com.synapse.crm.atendimento.infrastructure.canal.ZApiWebhookProtegidoFilter;
 import com.synapse.crm.atendimento.infrastructure.canal.ZApiWebhookTradutor;
@@ -39,13 +40,14 @@ public class WebhookZApiController {
     private final AgendarRepasseWebhookAutomacaoUseCase repasse;
     private final ObjectMapper json;
     private final Clock relogio;
+    private final RestricaoDeNumerosWhatsApp restricaoNumeros;
     @Value("${synapse.canal.z-api.webhook.somente-coleta:false}") private boolean somenteColeta;
 
     public WebhookZApiController(ZApiProperties api, ZApiWebhookTradutor tradutor, WebhookEntrada entrada,
             ValidarDestinoWebhookUseCase destino, AgendarRepasseWebhookAutomacaoUseCase repasse,
-            ObjectMapper json, Clock relogio) {
+            ObjectMapper json, Clock relogio, RestricaoDeNumerosWhatsApp restricaoNumeros) {
         this.api = api; this.tradutor = tradutor; this.entrada = entrada;
-        this.destino = destino; this.repasse = repasse; this.json = json; this.relogio = relogio;
+        this.destino = destino; this.repasse = repasse; this.json = json; this.relogio = relogio; this.restricaoNumeros=restricaoNumeros;
     }
 
     @PostMapping(ZApiWebhookProtegidoFilter.ROTA)
@@ -86,7 +88,7 @@ public class WebhookZApiController {
         Instant agora = Instant.now(relogio);
         ContextoDeServico.executarComo("webhook-z-api", () -> {
             if (entrada.registrarSeNovo(ids.getFirst(), tradutor.provedor(), payload, agora) && !somenteColeta) {
-                tradutor.repasseSemGrupos(payload, null)
+                tradutor.repasseSomenteNumerosPermitidos(payload, null, restricaoNumeros::permite)
                         .ifPresent(item -> repasse.executar(item.payloadCru(), item.assinatura(), agora, tradutor.provedor()));
             }
         });

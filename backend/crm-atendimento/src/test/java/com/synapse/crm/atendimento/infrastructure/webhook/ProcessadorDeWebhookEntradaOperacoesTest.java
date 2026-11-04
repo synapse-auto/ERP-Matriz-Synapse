@@ -56,8 +56,10 @@ import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
+import com.synapse.crm.atendimento.infrastructure.canal.RestricaoDeNumerosWhatsApp;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.application.lead.ResetarFichaDoLeadUseCase;
+import com.synapse.crm.core.domain.lead.TelefoneCanonico;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 class ProcessadorDeWebhookEntradaOperacoesTest {
@@ -385,7 +387,50 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
         verify(entrada).marcarProcessado(ID_EXTERNO, AGORA, List.of());
     }
 
+    @Test
+    void pontoDeEntradaDescartaRemetenteNaoPermitidoSemResolverLeadNemRepassarParaOperacao() {
+        when(entrada.reservarPendentes(anyInt())).thenReturn(List.of(pendente(0, AGORA)));
+        var mensagem = new TradutorDeCanal.MensagemRecebidaDoCanal(
+                "wamid-bloqueado", "5511999999999", "nao usar", "ola", "TEXTO",
+                null, null, null, null, AGORA, "phone-id");
+        when(tradutor.traduzirComDescartes(anyString()))
+                .thenReturn(TradutorDeCanal.Traducao.semDescartes(List.of(mensagem)));
+        var regra = new RestricaoDeNumerosWhatsApp(true, "555491082498", new TelefoneCanonico("55"));
+
+        processador(Duration.ofHours(2), regra).rodada();
+
+        org.mockito.Mockito.verifyNoInteractions(leads, registrar, idempotencia);
+        verify(tradutor).statusComIdentidade(anyString(), eq(AGORA));
+        verify(entrada).marcarProcessado(eq(ID_EXTERNO), eq(AGORA), eq(List.of(
+                new TradutorDeCanal.ItemDescartado("mensagem",
+                        TradutorDeCanal.MotivoDeDescarte.REMETENTE_NAO_AUTORIZADO))));
+    }
+
+    @Test
+    void pontoDeEntradaPermiteRemetenteConfigurado() {
+        when(entrada.reservarPendentes(anyInt())).thenReturn(List.of(pendente(0, AGORA)));
+        var mensagem = new TradutorDeCanal.MensagemRecebidaDoCanal(
+                "wamid-permitido", "556196791022", "Teste", "oi", "TEXTO",
+                null, null, null, null, AGORA, "phone-id");
+        when(tradutor.traduzirComDescartes(anyString()))
+                .thenReturn(TradutorDeCanal.Traducao.semDescartes(List.of(mensagem)));
+        when(registrar.executar(any())).thenReturn(resultadoDeMidiaSemArquivo());
+        var regra = new RestricaoDeNumerosWhatsApp(true, "556196791022", new TelefoneCanonico("55"));
+
+        processador(Duration.ofHours(2), regra).rodada();
+
+        verify(leads).resolverPorTelefone("556196791022", "Teste");
+        verify(registrar).executar(any());
+        verify(leads).registrarTelefoneProvedor(any(), eq("556196791022"));
+        verify(entrada).marcarProcessado(ID_EXTERNO, AGORA, List.of());
+    }
+
     private ProcessadorDeWebhookEntradaOperacoes processador(Duration prazoAbsoluto) {
+        return processador(prazoAbsoluto, new RestricaoDeNumerosWhatsApp(false, "", new TelefoneCanonico("55")));
+    }
+
+    private ProcessadorDeWebhookEntradaOperacoes processador(
+            Duration prazoAbsoluto, RestricaoDeNumerosWhatsApp restricao) {
         PlatformTransactionManager transacoes = transacaoPassThrough();
         return new ProcessadorDeWebhookEntradaOperacoes(
                 mock(com.synapse.crm.atendimento.application.referencia.CorrelacionarMensagemDoCanalUseCase.class),
@@ -406,6 +451,7 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
                 mock(ArmazenamentoDeMidia.class),
                 mock(com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal.class),
                 canaisAtivos,
+                restricao,
                 new ObjectMapper(),
                 Clock.fixed(AGORA, ZoneOffset.UTC),
                 transacoes,

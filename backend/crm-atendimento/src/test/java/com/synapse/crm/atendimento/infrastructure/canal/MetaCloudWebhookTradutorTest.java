@@ -119,6 +119,20 @@ class MetaCloudWebhookTradutorTest {
     }
 
     @Test
+    void repasseMetaFiltraRemetenteNaoPermitidoEReassinaPayloadMisto() {
+        var regra = new RestricaoDeNumerosWhatsApp(true, "555491082498", new com.synapse.crm.core.domain.lead.TelefoneCanonico("55"));
+        String payload = payloadComMensagens(
+                "{\"from\":\"555491082498\",\"id\":\"permitido\",\"timestamp\":\"1720000000\",\"type\":\"text\",\"text\":{\"body\":\"a\"}},"
+                + "{\"from\":\"5511999999999\",\"id\":\"bloqueado\",\"timestamp\":\"1720000000\",\"type\":\"text\",\"text\":{\"body\":\"b\"}}");
+
+        assertThat(tradutor.repasseSomenteNumerosPermitidos(payload, "sha256=anterior", regra::permite))
+                .hasValueSatisfying(repasse -> {
+                    assertThat(repasse.payloadCru()).contains("permitido").doesNotContain("bloqueado");
+                    assertThat(tradutor.assinaturaValida(repasse.payloadCru(), repasse.assinatura(), null)).isTrue();
+                });
+    }
+
+    @Test
     void cliqueEmBotaoDeTemplateViraTextoComContextoDoTemplate() {
         // Formato oficial da Meta para resposta rápida de template (type=button, não interactive).
         var traducao = tradutor.traduzirComDescartes(payloadComMensagens(

@@ -22,6 +22,8 @@ import com.synapse.crm.atendimento.application.ValidarDestinoWebhookUseCase;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
 import com.synapse.crm.atendimento.application.precificacao.RegistrarPrecificacaoMetaUseCase;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
+import com.synapse.crm.atendimento.infrastructure.canal.RestricaoDeNumerosWhatsApp;
+import com.synapse.crm.core.domain.lead.TelefoneCanonico;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 class WebhookCanalControllerTest {
@@ -66,7 +68,8 @@ class WebhookCanalControllerTest {
                 validar,
                 status,
                 precificacao,
-                Clock.fixed(Instant.parse("2026-10-01T00:00:00Z"), ZoneOffset.UTC));
+                Clock.fixed(Instant.parse("2026-10-01T00:00:00Z"), ZoneOffset.UTC),
+                new RestricaoDeNumerosWhatsApp(false, "", new TelefoneCanonico("55")));
         assertThat(controller.receber(payload, "sha256=assinatura", null).getStatusCode().value())
                 .isEqualTo(200);
         verify(status).executar(List.of(entrega));
@@ -87,7 +90,8 @@ class WebhookCanalControllerTest {
                 validar,
                 status,
                 mock(RegistrarPrecificacaoMetaUseCase.class),
-                Clock.fixed(Instant.parse("2026-09-09T12:00:00Z"), ZoneOffset.UTC));
+                Clock.fixed(Instant.parse("2026-09-09T12:00:00Z"), ZoneOffset.UTC),
+                new RestricaoDeNumerosWhatsApp(false, "", new TelefoneCanonico("55")));
 
         String payload = "{\"entry\":[]}";
         when(tradutor.assinaturaValida(payload, "sha256=assinatura", null)).thenReturn(true);
@@ -101,7 +105,8 @@ class WebhookCanalControllerTest {
                         0));
         when(tradutor.statusDeEntrega(payload)).thenReturn(List.of());
         when(tradutor.idsExternos(payload)).thenReturn(List.of());
-        when(tradutor.repasseSemGrupos(payload, "sha256=assinatura")).thenReturn(java.util.Optional.of(
+        when(tradutor.repasseSomenteNumerosPermitidos(org.mockito.ArgumentMatchers.eq(payload), org.mockito.ArgumentMatchers.eq("sha256=assinatura"), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(java.util.Optional.of(
                 new TradutorDeCanal.RepasseParaAutomacao(payload, "sha256=assinatura")));
 
         var resposta = controller.receber(payload, "sha256=assinatura", null);

@@ -309,7 +309,19 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
      */
     @Override
     public java.util.Optional<RepasseParaAutomacao> repasseSemGrupos(String payloadCru, String assinatura) {
-        return switch (RepasseSemGrupos.filtrar(payloadCru, json, MetaCloudWebhookTradutor::ehGrupo)) {
+        return repassar(payloadCru, assinatura, MetaCloudWebhookTradutor::ehGrupo);
+    }
+
+    @Override
+    public java.util.Optional<RepasseParaAutomacao> repasseSomenteNumerosPermitidos(
+            String payloadCru, String assinatura, java.util.function.Predicate<String> permiteTelefone) {
+        return repassar(payloadCru, assinatura, mensagem -> ehGrupo(mensagem)
+                || !permiteTelefone.test(mensagem.path("from").asText(null)));
+    }
+
+    private java.util.Optional<RepasseParaAutomacao> repassar(
+            String payloadCru, String assinatura, java.util.function.Predicate<JsonNode> remover) {
+        return switch (RepasseSemGrupos.filtrarRemovendo(payloadCru, json, remover)) {
             case RepasseSemGrupos.Resultado.Intacto intacto ->
                     java.util.Optional.of(new RepasseParaAutomacao(payloadCru, assinatura));
             case RepasseSemGrupos.Resultado.SemConteudo vazio -> java.util.Optional.empty();

@@ -12,5 +12,8 @@ public final class MotivosDeFalhaDeEntrega {
      */
     public static final String ENVIO_NAO_CONFIRMADO = "Não foi possível confirmar o envio";
 
+    /** Recusa permanente antes de qualquer chamada ao provedor, para allowlist de homologação. */
+    public static final String DESTINO_NAO_AUTORIZADO = "Destinatário não autorizado para envio nesta instância";
+
     private MotivosDeFalhaDeEntrega() {}
 }

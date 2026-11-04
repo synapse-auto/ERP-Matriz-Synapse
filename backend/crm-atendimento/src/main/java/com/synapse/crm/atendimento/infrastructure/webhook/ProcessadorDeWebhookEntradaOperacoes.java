@@ -43,6 +43,7 @@ import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponi
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.atendimento.domain.mensagem.ReferenciaDeMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
+import com.synapse.crm.atendimento.infrastructure.canal.RestricaoDeNumerosWhatsApp;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.application.lead.ResetarFichaDoLeadUseCase;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
@@ -104,6 +105,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final ArmazenamentoDeMidia armazenamento;
     private final DetectorDeTipoReal detector;
     private final CanalCredencialAtivaRepositorio canaisAtivos;
+    private final RestricaoDeNumerosWhatsApp restricaoNumeros;
     private final ObjectMapper json;
     private final Clock relogio;
     private final int lote;
@@ -135,6 +137,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             ArmazenamentoDeMidia armazenamento,
             DetectorDeTipoReal detector,
             CanalCredencialAtivaRepositorio canaisAtivos,
+            RestricaoDeNumerosWhatsApp restricaoNumeros,
             ObjectMapper json,
             Clock relogio,
             @Qualifier(Pools.CHAT_TRANSACTION_MANAGER) PlatformTransactionManager chatTransactionManager,
@@ -162,6 +165,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.armazenamento = armazenamento;
         this.detector = detector;
         this.canaisAtivos = canaisAtivos;
+        this.restricaoNumeros = restricaoNumeros;
         this.json = json;
         this.relogio = relogio;
         this.lote = lote;
@@ -220,6 +224,13 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         for (TradutorDeCanal.MensagemRecebidaDoCanal mensagem : traducao.mensagens()) {
             if (mensagem.idExterno() == null || mensagem.idExterno().isBlank()) {
                 descartes.add(descarteDoProcessador(mensagem));
+                continue;
+            }
+            if (!restricaoNumeros.permite(mensagem.telefoneRemetente())) {
+                descartes.add(new TradutorDeCanal.ItemDescartado(
+                        "mensagem", TradutorDeCanal.MotivoDeDescarte.REMETENTE_NAO_AUTORIZADO));
+                log.warn("{} entrada={} provedor={} motivo=REMETENTE_NAO_AUTORIZADO",
+                        MARCADOR_DESCARTE, pendente.idExterno(), tradutor.provedor());
                 continue;
             }
             if (!idempotencia.reservarSeNova(mensagem.idExterno())) {
