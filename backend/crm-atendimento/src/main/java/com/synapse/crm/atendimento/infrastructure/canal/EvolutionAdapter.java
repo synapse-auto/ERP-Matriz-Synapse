@@ -98,13 +98,14 @@ class EvolutionAdapter implements CanalGateway {
         ObjectNode campos=json.createObjectNode().put("number",envio.telefoneDestino());
         if(envio.contextoWamid()!=null) {
             ObjectNode consulta=json.createObjectNode().put("offset",1).put("page",1);
-            consulta.putObject("where").putObject("key").put("id",envio.contextoWamid()).put("remoteJid",envio.telefoneDestino()+"@s.whatsapp.net");
+            consulta.putObject("where").putObject("key").put("id",envio.contextoWamid())
+                    .put("remoteJid",envio.telefoneDestino()+"@s.whatsapp.net").put("remoteJidAlt",envio.telefoneDestino()+"@s.whatsapp.net");
             JsonNode registros;
             try {registros=consultar("chat/findMessages",consulta).path("messages").path("records");}
             catch(RuntimeException e){throw new PreparacaoIndisponivel();}
             if(!registros.isArray()||registros.size()!=1) return ResultadoDeEnvio.Recusado.permanente("CITACAO_NAO_SUPORTADA_PELO_CANAL");
             JsonNode original=registros.get(0),key=original.path("key");
-            if(!envio.contextoWamid().equals(key.path("id").asText())||!(envio.telefoneDestino()+"@s.whatsapp.net").equals(key.path("remoteJid").asText())
+            if(!envio.contextoWamid().equals(key.path("id").asText())||!envio.telefoneDestino().equals(EvolutionWebhookTradutor.telefoneDaChave(key))
                     ||!key.path("fromMe").isBoolean()||!original.path("message").isObject()) return ResultadoDeEnvio.Recusado.permanente("CITACAO_NAO_SUPORTADA_PELO_CANAL");
             campos.putObject("quoted").set("key",key);
             ((ObjectNode)campos.path("quoted")).set("message",original.path("message"));
@@ -182,7 +183,7 @@ class EvolutionAdapter implements CanalGateway {
         String etapa="referencia";
         try {
             JsonNode key=json.readTree(referencia);
-            if(EvolutionWebhookTradutor.texto(key,"id")==null||EvolutionWebhookTradutor.telefone(EvolutionWebhookTradutor.texto(key,"remoteJid"))==null
+            if(EvolutionWebhookTradutor.texto(key,"id")==null||EvolutionWebhookTradutor.telefoneDaChave(key)==null
                     ||!key.path("fromMe").isBoolean()||key.path("fromMe").asBoolean())throw new MidiaRecebidaInvalidaException();
             ObjectNode pedido=json.createObjectNode().put("convertToMp4",false);pedido.putObject("message").set("key",key);
             long teto=Math.min(TiposDeMidiaPermitidos.tetoDaMetaEmBytes(esperado),

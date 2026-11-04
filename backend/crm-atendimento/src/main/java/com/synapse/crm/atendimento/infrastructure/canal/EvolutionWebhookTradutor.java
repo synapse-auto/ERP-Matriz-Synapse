@@ -56,7 +56,7 @@ public final class EvolutionWebhookTradutor implements TradutorDeCanal {
     @Override public List<StatusComIdentidade> statusComIdentidade(String payload,Instant recebidoEm) {
         JsonNode n=raiz(payload),d=n.path("data");
         if(!nossa(n)||!"messages.update".equals(n.path("event").asText())||!d.path("fromMe").isBoolean()
-                ||!d.path("fromMe").asBoolean()||telefone(texto(d,"remoteJid"))==null||recebidoEm==null) return List.of();
+                ||!d.path("fromMe").asBoolean()||!destinoIndividual(texto(d,"remoteJid"))||recebidoEm==null) return List.of();
         String id=texto(d,"keyId");
         StatusEntrega estado=switch(d.path("status").asText()) {
             case "SERVER_ACK" -> StatusEntrega.ENVIADO;
@@ -72,7 +72,7 @@ public final class EvolutionWebhookTradutor implements TradutorDeCanal {
         if(!nossa(n)||!"messages.upsert".equals(n.path("event").asText())) return Traducao.semDescartes(List.of());
         if(!key.path("fromMe").isBoolean()) return descarte(MotivoDeDescarte.ITEM_MALFORMADO);
         if(key.path("fromMe").asBoolean()) return Traducao.semDescartes(List.of());
-        String jid=texto(key,"remoteJid"),telefone=telefone(jid),id=texto(key,"id");
+        String jid=texto(key,"remoteJid"),telefone=telefoneDaChave(key),id=texto(key,"id");
         if(jid!=null&&jid.endsWith("@g.us")) return descarte(MotivoDeDescarte.GRUPO_NAO_SUPORTADO);
         if(telefone==null) return descarte(MotivoDeDescarte.IDENTIDADE_NAO_SUPORTADA);
         if(id==null||!d.path("messageTimestamp").isIntegralNumber()||!d.path("messageTimestamp").canConvertToLong()
@@ -132,6 +132,13 @@ public final class EvolutionWebhookTradutor implements TradutorDeCanal {
     static String telefone(String jid) {
         return jid!=null&&jid.matches("[1-9][0-9]{7,14}@s\\.whatsapp\\.net")?jid.substring(0,jid.indexOf('@')):null;
     }
+    static String telefoneDaChave(JsonNode key) {
+        String jid=texto(key,"remoteJid"),numero=telefone(jid);
+        // Relacao explicita do fornecedor, nunca extracao numerica de um LID.
+        return numero!=null?numero:lid(jid)?telefone(texto(key,"remoteJidAlt")):null;
+    }
+    private static boolean lid(String jid) {return jid!=null&&jid.length()>4&&jid.endsWith("@lid");}
+    private static boolean destinoIndividual(String jid) {return telefone(jid)!=null||lid(jid);}
     private static Traducao descarte(MotivoDeDescarte motivo) { return new Traducao(List.of(),List.of(new ItemDescartado("mensagem",motivo))); }
     @Override public Optional<RepasseParaAutomacao> repasseSemGrupos(String payload,String assinatura) {
         return config.repasseAutomacaoHabilitado()&&!traduzir(payload).isEmpty()?Optional.of(new RepasseParaAutomacao(payload,null)):Optional.empty();

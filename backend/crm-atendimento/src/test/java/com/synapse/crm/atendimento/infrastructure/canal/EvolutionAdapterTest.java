@@ -64,12 +64,19 @@ class EvolutionAdapterTest {
         assertThatThrownBy(()->adapter.baixarMidiaRecebida("https://127.0.0.1/segredo")).isInstanceOf(MidiaRecebidaInvalidaException.class);
         verify(call,times(1)).execute();
     }
-    @ParameterizedTest @ValueSource(booleans={false,true})
-    void citacaoResolvidaPorIdEConversaAntesDeDespachar(boolean enviada)throws Exception {
-        when(call.execute()).thenReturn(resposta(200,"{\"messages\":{\"records\":[{\"key\":{\"id\":\"wa-original\",\"fromMe\":"+enviada+",\"remoteJid\":\"5561999990000@s.whatsapp.net\"},\"message\":{\"conversation\":\"Original sintetico\"}}]}}"),resposta(201,"{\"key\":{\"id\":\"wa-nova\",\"fromMe\":true}}"));
+    @ParameterizedTest @ValueSource(strings={"recebida","enviada","lid-recebida","lid-enviada"})
+    void citacaoResolvidaPorIdEConversaAntesDeDespachar(String caso)throws Exception {
+        boolean enviada=caso.endsWith("enviada");String jid=caso.startsWith("lid")?"opaco@lid":"5561999990000@s.whatsapp.net";
+        when(call.execute()).thenReturn(resposta(200,"{\"messages\":{\"records\":[{\"key\":{\"id\":\"wa-original\",\"fromMe\":"+enviada+",\"remoteJid\":\""+jid+"\",\"remoteJidAlt\":\"5561999990000@s.whatsapp.net\"},\"message\":{\"conversation\":\"Original sintetico\"}}]}}"),resposta(201,"{\"key\":{\"id\":\"wa-nova\",\"fromMe\":true}}"));
         var t=texto();var id=new IdentidadeDeMensagemDoCanal("evolution","evo-teste","WHATSAPP","wa-original");
         assertThat(adapter.enviar(new CanalGateway.Envio(t.mensagemId(),t.telefoneDestino(),t.conteudo(),t.credencialId(),id.valor(),id))).isInstanceOf(ResultadoDeEnvio.Enfileirado.class);
         var b=new Buffer();pedidos.getLast().body().writeTo(b);assertThat(json.readTree(b.readUtf8()).path("quoted").path("key").path("id").asText()).isEqualTo("wa-original");
+    }
+    @Test void citacaoComLidDeOutroTelefoneNaoEnvia()throws Exception {
+        when(call.execute()).thenReturn(resposta(200,"{\"messages\":{\"records\":[{\"key\":{\"id\":\"wa-original\",\"fromMe\":false,\"remoteJid\":\"opaco@lid\",\"remoteJidAlt\":\"5561888880000@s.whatsapp.net\"},\"message\":{\"conversation\":\"Nao autorizado\"}}]}}"));
+        var t=texto();var id=new IdentidadeDeMensagemDoCanal("evolution","evo-teste","WHATSAPP","wa-original");
+        assertThat(adapter.enviar(new CanalGateway.Envio(t.mensagemId(),t.telefoneDestino(),t.conteudo(),t.credencialId(),id.valor(),id))).isInstanceOf(ResultadoDeEnvio.Recusado.class);
+        assertThat(pedidos).hasSize(1);assertThat(pedidos.getFirst().url().encodedPath()).contains("findMessages");
     }
     @ParameterizedTest @ValueSource(strings={"{}","{\"base64\":\"!nao-base64!\"}","{\"base64\":\"\"}"})
     void midiaSemBytesValidosNaoViraArquivoDisponivel(String body)throws Exception {

@@ -127,7 +127,7 @@ class EvolutionFluxoIT extends PostgresIT {
     @Test void apiCrmOutboxAceiteECitacaoRecarregadaSemRedisparo()throws Exception{
         receber(recebido());worker.processarPendentes();UUID original=jdbc.queryForObject("SELECT id FROM mensagem WHERE atendimento_id=?",UUID.class,atendimento);
         when(chamada.execute()).thenAnswer(i->{var req=(Request)mockingDetails(transporte).getInvocations().stream().filter(v->v.getMethod().getName().equals("newCall")).reduce((a,b)->b).orElseThrow().getArgument(0);
-            String body=req.url().encodedPath().contains("findMessages")?"{\"messages\":{\"records\":[{\"key\":{\"id\":\"w-"+lead+"\",\"fromMe\":false,\"remoteJid\":\"5561999990000@s.whatsapp.net\"},\"message\":{\"conversation\":\"Sintetico\"}}]}}":"{\"key\":{\"id\":\"wa-envio\",\"fromMe\":true}}";
+            String body=req.url().encodedPath().contains("findMessages")?"{\"messages\":{\"records\":[{\"key\":{\"id\":\"w-"+lead+"\",\"fromMe\":false,\"remoteJid\":\"opaco@lid\",\"remoteJidAlt\":\"5561999990000@s.whatsapp.net\"},\"message\":{\"conversation\":\"Sintetico\"}}]}}":"{\"key\":{\"id\":\"wa-envio\",\"fromMe\":true}}";
             return new Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(200).message("sintetico").body(ResponseBody.create(body,MediaType.get("application/json"))).build();});
         autenticar(ApoioAutenticacao.EMAIL_ANA);cabecalhos.set("Idempotency-Key",UUID.randomUUID().toString());
         Instant horario=jdbc.queryForObject("SELECT enviado_em FROM mensagem WHERE id=?",java.sql.Timestamp.class,original).toInstant();
@@ -136,7 +136,7 @@ class EvolutionFluxoIT extends PostgresIT {
         assertThat(envio.getStatusCode()).as(envio.getBody().toString()).isEqualTo(HttpStatus.OK);
         // Callback antecipado: so pode mudar a mensagem depois da correlacao do aceite.
         var estado=json.createObjectNode().put("event","messages.update").put("instance","evo-teste");
-        estado.putObject("data").put("keyId","wa-envio").put("remoteJid","5561999990000@s.whatsapp.net").put("fromMe",true).put("status","READ");
+        estado.putObject("data").put("keyId","wa-envio").put("remoteJid","opaco@lid").put("fromMe",true).put("status","READ");
         receber(estado);worker.processarPendentes();publicador.publicarPendentes();
         org.awaitility.Awaitility.await().atMost(java.time.Duration.ofSeconds(10)).untilAsserted(()->assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_evento WHERE tipo='canal.mensagem.enviar' AND publicado_em IS NOT NULL",Integer.class)).isEqualTo(1));
         publicador.publicarPendentes();verify(transporte,times(2)).newCall(any());

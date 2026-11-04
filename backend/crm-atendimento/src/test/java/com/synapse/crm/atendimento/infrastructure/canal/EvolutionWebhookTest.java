@@ -63,6 +63,14 @@ class EvolutionWebhookTest {
         var t=new EvolutionWebhookTradutor(JSON,config());assertThat(t.traduzir(n.toString())).isEmpty();
         n.put("instance","outra");assertThat(t.idsExternos(n.toString())).isEmpty();
     }
+    @Test void lidSoUsaTelefoneAlternativoExplicitoSemAssociacaoPorAproximacao() {
+        var n=recebido("w-lid");var key=(ObjectNode)n.path("data").path("key");
+        key.put("remoteJid","id-opaco@lid").put("remoteJidAlt","5561999990000@s.whatsapp.net");
+        var tradutor=new EvolutionWebhookTradutor(JSON,config());
+        assertThat(tradutor.traduzir(n.toString()).getFirst().telefoneRemetente()).isEqualTo("5561999990000");
+        key.put("remoteJid","grupo@g.us");assertThat(tradutor.traduzir(n.toString())).isEmpty();
+        key.put("remoteJid","id-opaco@lid").put("remoteJidAlt","outro@lid");assertThat(tradutor.traduzir(n.toString())).isEmpty();
+    }
     @ParameterizedTest @ValueSource(strings={"","errado"})
     void segredoInvalidoNaoLeCorpo(String segredo)throws Exception {
         var req=new MockHttpServletRequest("POST","/webhook/evolution") {

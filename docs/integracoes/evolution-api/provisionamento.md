@@ -32,6 +32,12 @@ https://github.com/evolution-foundation/evolution-api/tree/2.3.7 .
   buttonsResponseMessage selectedButtonId/selectedDisplayText; listResponseMessage
   title/singleSelectReply.selectedRowId. `contextInfo.stanzaId` e referencia, nunca ID
   proprio. Ecos sao ignorados. Grupos, broadcast e LID-only nao viram telefone.
+  A tag normaliza remoteJid com remoteJidAlt antes de emitir o callback, mas pode
+  persistir a chave anterior no banco da Evolution. O CRM consulta ambos os campos
+  e aceita apenas telefone explicito igual ao destinatario autorizado; preserva a
+  chave original no quoted, sem fabricar aliases. Um LID sem telefone alternativo
+  nao cria lead. Status com LID usam exclusivamente a correlacao existente por
+  provedor/instancia/messageId, nunca o LID para encontrar ou atribuir um lead.
   Referencia ainda nao encontrada fica em `referenciaExterna` com provedor/instancia/
   namespace/ID; a bolha informa origem indisponivel sem inventar navegacao ou perder
   a escolha recebida.
