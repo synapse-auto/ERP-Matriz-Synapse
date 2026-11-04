@@ -36,7 +36,7 @@ class DarwinHttpAdapterTest {
     private final List<String> metodos = new CopyOnWriteArrayList<>();
     private final List<String> autorizacoes = new CopyOnWriteArrayList<>();
     private volatile int status = 200;
-    private volatile String paciente = "{\"cpf\":\"529.982.247-25\",\"name\":\"Pessoa Sintética\",\"phoneNumber\":null,\"motherName\":\"Dado que não deve sair\"}";
+    private volatile String paciente = "{\"cpf\":\"529.982.247-25\",\"name\":\"Pessoa Sintética\",\"email\":\"sintetica@example.invalid\",\"phoneNumber\":null,\"motherName\":\"Dado que não deve sair\"}";
     private volatile CompletableFuture<Void> liberar;
     private final CompletableFuture<Void> recebeu = new CompletableFuture<>();
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
@@ -78,6 +78,7 @@ class DarwinHttpAdapterTest {
         assertThat(resposta.candidatos()).singleElement().satisfies(c -> {
             assertThat(c.sessaoId()).isNull(); assertThat(c.nome()).isEqualTo("Pessoa Sintética");
             assertThat(c.cpf()).isEqualTo("52998224725"); assertThat(c.cpfInvalido()).isFalse();
+            assertThat(c.email()).isEqualTo("sintetica@example.invalid"); assertThat(c.emailInvalido()).isFalse();
         });
         assertThat(caminhos).containsExactly("/api/patients/find/cpf?cpf=529.982.247-25");
         assertThat(metodos).containsExactly("GET");
@@ -131,6 +132,26 @@ class DarwinHttpAdapterTest {
         assertThat(adapter().consultar("52998224725").candidatos()).isEmpty();
         status=200;paciente="{\"cpf\":\"52998224725\",\"name\":null}";
         assertThat(adapter().consultar("52998224725").candidatos()).singleElement().satisfies(c -> assertThat(c.nome()).isNull());
+    }
+    @Test void emailOpcionalValidoPodeSerMostradoMasEmailInvalidoNaoEhExpostoNemAplicavel() throws Exception {
+        paciente="{\"cpf\":\"52998224725\",\"name\":null,\"email\":\"contato inválido\"}";
+        var candidato=adapter().consultar("52998224725").candidatos().getFirst();
+        assertThat(candidato.email()).isNull();
+        assertThat(candidato.emailInvalido()).isTrue();
+        assertThat(json.writeValueAsString(candidato)).doesNotContain("contato inválido");
+        paciente="{\"cpf\":\"52998224725\",\"name\":null,\"email\":55}";
+        assertThatThrownBy(()->adapter().consultar("52998224725")).hasMessage("DARWIN_RESPOSTA_INVALIDA");
+    }
+    @Test void disponibilidadeDistingueDesligadaDeConfiguracaoIncompletaSemExporDetalhes() {
+        var desligado=adapter(config(false,Duration.ofSeconds(2)),relogio);
+        assertThat(desligado.estadoIntegracao()).isEqualTo(com.synapse.crm.core.application.darwin.DadosDarwin.EstadoIntegracao.DESABILITADA);
+        var incompleto = new DarwinProperties(true,
+                URI.create("https://developers.darwin.med.br"), "", 1, Duration.ofSeconds(1), Duration.ofSeconds(2),
+                Duration.ofMinutes(5), 65536, 2, 50, Duration.ofSeconds(30));
+        var adaptador=adapter(incompleto,relogio);
+        assertThat(adaptador.habilitado()).isFalse();
+        assertThat(adaptador.estadoIntegracao()).isEqualTo(com.synapse.crm.core.application.darwin.DadosDarwin.EstadoIntegracao.CONFIGURACAO_INCOMPLETA);
+        assertThat(caminhos).isEmpty();
     }
     @ParameterizedTest @ValueSource(strings={"11111111111", "39053344705"})
     void cpfDivergenteOuInvalidoNaoOfereceDados(String cpf) {

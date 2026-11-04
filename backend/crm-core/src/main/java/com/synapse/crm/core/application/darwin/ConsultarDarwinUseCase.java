@@ -26,7 +26,7 @@ public class ConsultarDarwinUseCase {
         var lead = ler.executar(id);
         String documento = cpfInformado == null ? lead.cpf() : cpfInformado.trim();
         if (documento == null || documento.isBlank()) {
-            return new DadosDarwin.Previa(DadosDarwin.Estado.SEM_IDENTIDADE, List.of(), false, lead.nome(), lead.cpf(), null);
+            return new DadosDarwin.Previa(DadosDarwin.Estado.SEM_IDENTIDADE, List.of(), false, lead.nome(), lead.cpf(), lead.email(), null);
         }
         String cpf = Cpf.validoOuNulo(documento);
         if (cpf == null) throw new FalhaDarwin(FalhaDarwin.Codigo.CPF_INVALIDO);
@@ -37,6 +37,6 @@ public class ConsultarDarwinUseCase {
                 : pares.size() > 1 ? DadosDarwin.Estado.AMBIGUO : DadosDarwin.Estado.ENCONTRADO;
         var confirmacao = estado == DadosDarwin.Estado.ENCONTRADO
                 ? darwin.comprovar(usuarios.atual().id(), lead, resultado.candidatos().getFirst()) : null;
-        return new DadosDarwin.Previa(estado, resultado.candidatos(), resultado.limiteAtingido(), lead.nome(), lead.cpf(), confirmacao);
+        return new DadosDarwin.Previa(estado, resultado.candidatos(), resultado.limiteAtingido(), lead.nome(), lead.cpf(), lead.email(), confirmacao);
     }
 }

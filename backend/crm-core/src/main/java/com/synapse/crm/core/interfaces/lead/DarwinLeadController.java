@@ -26,13 +26,13 @@ class DarwinLeadController {
     DarwinLeadController(ConsultarDarwinUseCase consultar, AplicarDarwinUseCase aplicar, DarwinGateway darwin) {
         this.consultar = consultar; this.aplicar = aplicar; this.darwin = darwin;
     }
-    record Disponibilidade(boolean habilitada) {}
-    record Confirmacao(@NotBlank @Size(max = 8192) String confirmacao, boolean nome, boolean cpf) {}
+    record Disponibilidade(boolean habilitada, DadosDarwin.EstadoIntegracao estado) {}
+    record Confirmacao(@NotBlank @Size(max = 8192) String confirmacao, boolean nome, boolean cpf, boolean email) {}
     record Consulta(@Size(max = 14) String cpf) {}
 
     @GetMapping("/integracoes/darwin")
-    @Operation(summary = "Disponibilidade da consulta Darwin", description = "Somente disponibilidade; não devolve configuração ou segredo nem chama o provedor. Desligada por padrão.")
-    Disponibilidade disponibilidade() { return new Disponibilidade(darwin.habilitado()); }
+    @Operation(summary = "Disponibilidade da consulta Darwin", description = "Informa se a integração está desligada, pronta ou com configuração incompleta; não devolve configuração ou segredo nem chama o provedor. Desligada por padrão.")
+    Disponibilidade disponibilidade() { return new Disponibilidade(darwin.habilitado(), darwin.estadoIntegracao()); }
 
     @PostMapping("/{id}/darwin/consultas")
     @Operation(summary = "Consultar cadastro no Darwin médico por CPF conhecido", description = "Exige contatos.editar e acesso ao lead por Specification/RLS. CPF opcional no corpo: utiliza o CPF do lead quando omitido. Não descobre CPF por telefone nem grava a ficha. Somente oferece dados se o CPF retornado for válido e igual ao consultado. Provedor indisponível retorna 502/503, nunca 401/403 de sessão CRM.")
@@ -41,9 +41,9 @@ class DarwinLeadController {
     }
 
     @PostMapping("/{id}/darwin/aplicacoes")
-    @Operation(summary = "Aplicar campos confirmados da Darwin", description = "Confirmação assinada e expirável vinculada a usuário, lead, cadastro/CPF, origem médica e valores anteriores. Somente campos selecionados. Concorrência retorna 409 sem sobrescrever. Não consulta novamente o provedor; nenhuma escrita na Darwin.")
+    @Operation(summary = "Aplicar campos confirmados da Darwin", description = "Confirmação assinada e expirável vinculada a usuário, lead, cadastro/CPF, origem médica e valores anteriores. Somente nome, CPF e e-mail selecionados. Concorrência retorna 409 sem sobrescrever. Não consulta novamente o provedor; nenhuma escrita na Darwin.")
     DadosDarwin.Aplicacao aplicar(@PathVariable UUID id, @Valid @RequestBody Confirmacao dados) {
-        return aplicar.executar(id, dados.confirmacao(), dados.nome(), dados.cpf());
+        return aplicar.executar(id, dados.confirmacao(), dados.nome(), dados.cpf(), dados.email());
     }
     @ExceptionHandler(FalhaDarwin.class)
     ProblemDetail falha(FalhaDarwin erro) {

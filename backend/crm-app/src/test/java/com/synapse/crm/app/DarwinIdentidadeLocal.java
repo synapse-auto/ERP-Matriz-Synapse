@@ -59,7 +59,7 @@ public final class DarwinIdentidadeLocal {
         fake.createContext("/", troca -> {
             try {
                 if ("lento".equals(estado.get())) liberar.get().get(20,TimeUnit.SECONDS);
-                String corpo = "{\"cpf\":\"529.982.247-25\",\"name\":\"Pessoa Darwin Sintética\"}";
+                String corpo = "{\"cpf\":\"529.982.247-25\",\"name\":\"Pessoa Darwin Sintética\",\"email\":\"pessoa.sintetica@example.invalid\"}";
                 int status = "erro".equals(estado.get()) ? 403 : "vazio".equals(estado.get()) ? 404 : 200;
                 byte[] bytes = corpo.getBytes(StandardCharsets.UTF_8);
                 troca.getResponseHeaders().set("Content-Type","application/json");

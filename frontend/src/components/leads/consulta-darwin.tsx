@@ -25,13 +25,14 @@ export function ConsultaDarwin({ leadId, permitido, cpfAtual }: { leadId: string
   const [previa, setPrevia] = useState<PreviaDarwin | null>(null);
   const [nome, setNome] = useState(false);
   const [cpf, setCpf] = useState(false);
+  const [email, setEmail] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const [conflito, setConflito] = useState(false);
   const emCurso = useRef(false);
   const abortar = useRef<AbortController | null>(null);
   const aplicando = useRef(false);
   const consulta = useMutation({ mutationFn: ({ documento, signal }: { documento: string; signal: AbortSignal }) => consultarDarwin(leadId, documento, signal), retry: false, gcTime: 0 });
-  const aplicacao = useMutation({ mutationFn: () => aplicarDarwin(leadId, previa!.confirmacao!, nome, cpf), retry: false, gcTime: 0,
+  const aplicacao = useMutation({ mutationFn: () => aplicarDarwin(leadId, previa!.confirmacao!, nome, cpf, email), retry: false, gcTime: 0,
     onSuccess: () => {
       setSucesso(true);
       void cache.invalidateQueries({ queryKey: ["lead", leadId] });
@@ -49,6 +50,7 @@ export function ConsultaDarwin({ leadId, permitido, cpfAtual }: { leadId: string
   }
   function abrir() {
     setCpfConhecido(cpfAtual ?? ""); setPrevia(null); setSucesso(false); setConflito(false);
+    setNome(false); setCpf(false); setEmail(false);
     consulta.reset(); aplicacao.reset(); setAberto(true);
   }
   function buscar() {
@@ -63,6 +65,7 @@ export function ConsultaDarwin({ leadId, permitido, cpfAtual }: { leadId: string
         const candidato = dados.candidatos[0];
         setNome(Boolean(candidato?.nome && !dados.nomeAtual?.trim()));
         setCpf(Boolean(candidato?.cpf && !candidato.cpfInvalido && !dados.cpfAtual?.trim()));
+        setEmail(Boolean(candidato?.email && !candidato.emailInvalido && !dados.emailAtual?.trim()));
       },
       onSettled: () => { if (abortar.current === controle) emCurso.current = false; },
     });
@@ -78,9 +81,14 @@ export function ConsultaDarwin({ leadId, permitido, cpfAtual }: { leadId: string
       DARWIN_CONFIGURACAO: t.configuracao, DARWIN_IDENTIDADE_DIVERGENTE: t.identidade, DARWIN_CONSULTA_INVALIDA: t.comprovante,
       DARWIN_CPF_INVALIDO: t.cpfConsultaInvalido } as Record<string, string>)[codigo ?? ""] ?? t.erro;
   }
-  if (!permitido || disponibilidade.isError || !disponibilidade.data?.habilitada) return null;
+  if (!permitido) return null;
+  if (disponibilidade.isError) return <p role="status" className="text-xs text-muted-foreground">{t.erro}</p>;
+  if (!disponibilidade.data) return null;
+  const estadoIntegracao = disponibilidade.data.estado ?? (disponibilidade.data.habilitada ? "DISPONIVEL" : "DESABILITADA");
+  if (estadoIntegracao === "CONFIGURACAO_INCOMPLETA") return <p role="status" className="text-xs text-muted-foreground">{t.configuracao}</p>;
+  if (!disponibilidade.data.habilitada || estadoIntegracao !== "DISPONIVEL") return null;
   const candidato = previa?.candidatos[0];
-  const podeAplicar = previa?.estado === "ENCONTRADO" && previa.confirmacao && (nome || cpf) && !sucesso && !conflito;
+  const podeAplicar = previa?.estado === "ENCONTRADO" && previa.confirmacao && (nome || cpf || email) && !sucesso && !conflito;
   return <>
     <div className="flex min-w-0 items-center gap-3 text-sm"><FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden /><span className="shrink-0 text-xs text-muted-foreground">{t.cpf}</span><span className="min-w-0 break-words">{cpfAtual || t.ausente}</span></div>
     <Button type="button" variant="outline" size="sm" onClick={abrir} disabled={consulta.isPending || aplicacao.isPending} className="w-full gap-2">
@@ -103,13 +111,14 @@ export function ConsultaDarwin({ leadId, permitido, cpfAtual }: { leadId: string
         {previa && previa.estado !== "ENCONTRADO" && <p role="status" className="text-sm">{t[previa.estado]}</p>}
         {previa?.estado === "ENCONTRADO" && candidato && <div className="min-w-0 space-y-3">
           <p className="text-xs text-muted-foreground">{t.cadastroConsultado}</p>
-          {([{ campo: "nome", titulo: t.nome, atual: previa.nomeAtual, encontrado: candidato.nome, selecionado: nome, alterar: setNome, rotulo: t.selecionarNome, invalido: false },
-            { campo: "cpf", titulo: t.cpf, atual: previa.cpfAtual, encontrado: candidato.cpf, selecionado: cpf, alterar: setCpf, rotulo: t.selecionarCpf, invalido: candidato.cpfInvalido }]).map(c =>
+          {([{ campo: "nome", titulo: t.nome, atual: previa.nomeAtual, encontrado: candidato.nome, selecionado: nome, alterar: setNome, rotulo: t.selecionarNome, invalido: false, textoInvalido: null },
+            { campo: "cpf", titulo: t.cpf, atual: previa.cpfAtual, encontrado: candidato.cpf, selecionado: cpf, alterar: setCpf, rotulo: t.selecionarCpf, invalido: candidato.cpfInvalido, textoInvalido: t.cpfInvalido },
+            { campo: "email", titulo: t.email, atual: previa.emailAtual, encontrado: candidato.email, selecionado: email, alterar: setEmail, rotulo: t.selecionarEmail, invalido: candidato.emailInvalido, textoInvalido: t.emailInvalido }]).map(c =>
             <div key={c.campo} className="min-w-0 rounded-lg border border-border p-3">
               <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" className="size-4 accent-primary" checked={c.selecionado}
                 disabled={!c.encontrado || c.invalido || aplicacao.isPending || sucesso || conflito} onChange={e => c.alterar(e.target.checked)} aria-label={c.rotulo} />{c.titulo}</label>
               <dl className="mt-2 grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm"><dt className="text-muted-foreground">{t.atual}</dt><dd className="break-words">{c.atual || t.ausente}</dd><dt className="text-muted-foreground">{t.encontrado}</dt><dd className="break-words">{c.encontrado || t.ausente}</dd></dl>
-              {c.invalido && <p className="mt-2 text-xs text-destructive">{t.cpfInvalido}</p>}
+              {c.invalido && <p className="mt-2 text-xs text-destructive">{c.textoInvalido}</p>}
             </div>)}
         </div>}
         {aplicacao.isError && <p role="alert" className="text-sm text-destructive">{mensagem(aplicacao.error)}</p>}

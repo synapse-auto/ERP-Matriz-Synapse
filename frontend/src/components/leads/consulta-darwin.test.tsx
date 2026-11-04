@@ -12,8 +12,8 @@ vi.mock("@/lib/api/http-client", () => ({ apiFetch: api }));
 vi.mock("@/lib/auth/auth-store", () => ({ useAuthStore: (s: (v: unknown) => unknown) => s({ usuarioId: "usuario-sintetico" }) }));
 vi.mock("@/lib/config/textos-provider", () => ({ useTextos: () => TextosSchema.parse(JSON.parse(readFileSync(resolve(process.cwd(), "../backend/crm-app/src/main/resources/textos.json"), "utf8"))) }));
 
-const previa = { estado: "ENCONTRADO", nomeAtual: "Telefone cadastrado", cpfAtual: null, limiteAtingido: false,
-  candidatos: [{ sessaoId: null, nome: "Pessoa Sintética", cpf: "52998224725", cpfInvalido: false }], confirmacao: "comprovante-sintetico" };
+const previa = { estado: "ENCONTRADO", nomeAtual: "Telefone cadastrado", cpfAtual: null, emailAtual: null, limiteAtingido: false,
+  candidatos: [{ sessaoId: null, nome: "Pessoa Sintética", cpf: "52998224725", cpfInvalido: false, email: "sintetica@example.invalid", emailInvalido: false }], confirmacao: "comprovante-sintetico" };
 function montar(permitido = true, cpfAtual?: string) {
   const cache = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return { cache, ...render(<QueryClientProvider client={cache}><ConsultaDarwin leadId="lead-sintetico" permitido={permitido} cpfAtual={cpfAtual} /></QueryClientProvider>) };
@@ -50,17 +50,42 @@ describe("consulta Darwin pela ficha", () => {
     fireEvent.click(screen.getByRole("button", { name: "Aplicar seleção" }));
     await screen.findByText("Dados aplicados à ficha.");
     const pedido = api.mock.calls.find(([url]) => url.endsWith("/aplicacoes"));
-    expect(JSON.parse(pedido?.[1].body)).toEqual({ confirmacao: "comprovante-sintetico", nome: true, cpf: true });
+    expect(JSON.parse(pedido?.[1].body)).toEqual({ confirmacao: "comprovante-sintetico", nome: true, cpf: true, email: true });
     expect(pedido?.[1].body).not.toContain("52998224725");
     expect(JSON.parse(api.mock.calls.find(([url]) => url.endsWith("/consultas"))?.[1].body)).toEqual({ cpf: "529.982.247-25" });
   });
   it("CPF inválido não pode ser selecionado", async () => {
     api.mockImplementation((url: string) => Promise.resolve(url.endsWith("/darwin") ? { habilitada: true }
-      : { ...previa, candidatos: [{ ...previa.candidatos[0], cpf: null, cpfInvalido: true }] }));
+      : { ...previa, candidatos: [{ ...previa.candidatos[0], nome: null, cpf: null, cpfInvalido: true, email: null }] }));
     montar(); await abrirEConsultar();
     expect(await screen.findByRole("checkbox", { name: "Aplicar CPF" })).toBeDisabled();
     expect(screen.getByText("CPF inválido na origem; não será aplicado.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Aplicar seleção" })).toBeDisabled();
+  });
+  it("e-mail inválido não aparece como valor nem pode ser selecionado", async () => {
+    api.mockImplementation((url: string) => Promise.resolve(url.endsWith("/darwin") ? { habilitada: true }
+      : { ...previa, candidatos: [{ ...previa.candidatos[0], email: null, emailInvalido: true }] }));
+    montar(); await abrirEConsultar();
+    expect(await screen.findByRole("checkbox", { name: "Aplicar e-mail" })).toBeDisabled();
+    expect(screen.getByText("E-mail inválido na origem; não será aplicado.")).toBeInTheDocument();
+    expect(screen.queryByText("sintetica@example.invalid")).not.toBeInTheDocument();
+  });
+  it("configuração incompleta é diferenciada de integração desligada sem exibir botão inoperante", async () => {
+    api.mockResolvedValue({ habilitada: false, estado: "CONFIGURACAO_INCOMPLETA" });
+    montar();
+    expect(await screen.findByRole("status")).toHaveTextContent("A origem ou a credencial do Darwin médico não está configurada corretamente.");
+    expect(screen.queryByRole("button", { name: "Consultar na Darwin" })).not.toBeInTheDocument();
+  });
+  it("e-mail confirmado entra na prévia e é enviado somente como escolha explícita", async () => {
+    montar(); await abrirEConsultar();
+    expect(await screen.findByText("sintetica@example.invalid")).toBeInTheDocument();
+    const selecionarEmail = screen.getByRole("checkbox", { name: "Aplicar e-mail" });
+    expect(selecionarEmail).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar seleção" }));
+    await screen.findByText("Dados aplicados à ficha.");
+    const pedido = api.mock.calls.find(([url]) => url.endsWith("/aplicacoes"));
+    expect(JSON.parse(pedido?.[1].body)).toEqual({ confirmacao: "comprovante-sintetico", nome: false, cpf: true, email: true });
+    expect(pedido?.[1].body).not.toContain("sintetica@example.invalid");
   });
   it("edição concorrente mantém a prévia e bloqueia novo envio até consultar novamente", async () => {
     api.mockImplementation((url: string) => url.endsWith("/aplicacoes")
