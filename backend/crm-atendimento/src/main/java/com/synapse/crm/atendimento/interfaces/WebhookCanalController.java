@@ -32,6 +32,7 @@ import com.synapse.crm.atendimento.application.WebhookEntrada;
 import com.synapse.crm.atendimento.application.precificacao.RegistrarPrecificacaoMetaUseCase;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.StatusDeEntregaDoCanal;
+import com.synapse.crm.atendimento.infrastructure.canal.RestricaoDeNumerosWhatsApp;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -65,6 +66,7 @@ public class WebhookCanalController {
     private final AplicarStatusDeEntregaDoCanalUseCase aplicarStatus;
     private final RegistrarPrecificacaoMetaUseCase registrarPrecificacao;
     private final Clock relogio;
+    private final RestricaoDeNumerosWhatsApp restricaoNumeros;
     private StatusUzapiLegado legado;
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -77,7 +79,8 @@ public class WebhookCanalController {
             ValidarDestinoWebhookUseCase validarDestino,
             AplicarStatusDeEntregaDoCanalUseCase aplicarStatus,
             RegistrarPrecificacaoMetaUseCase registrarPrecificacao,
-            Clock relogio) {
+            Clock relogio,
+            RestricaoDeNumerosWhatsApp restricaoNumeros) {
         this.tradutor = tradutor;
         this.entrada = entrada;
         this.agendarRepasse = agendarRepasse;
@@ -85,6 +88,7 @@ public class WebhookCanalController {
         this.aplicarStatus = aplicarStatus;
         this.registrarPrecificacao = registrarPrecificacao;
         this.relogio = relogio;
+        this.restricaoNumeros = restricaoNumeros;
     }
 
     /**
@@ -248,7 +252,7 @@ public class WebhookCanalController {
      * GRUPO_NAO_SUPORTADO — visivel, nao perdido.
      */
     private void agendarRepasseSemGrupos(String payloadCru, String assinatura, Instant recebidoEm) {
-        tradutor.repasseSemGrupos(payloadCru, assinatura).ifPresentOrElse(
+        tradutor.repasseSomenteNumerosPermitidos(payloadCru, assinatura, restricaoNumeros::permite).ifPresentOrElse(
                 repasse -> agendarRepasse.executar(repasse.payloadCru(), repasse.assinatura(), recebidoEm, tradutor.provedor()),
                 () -> log.debug("POST so com mensagens de grupo: repasse a Automacao suprimido."));
     }

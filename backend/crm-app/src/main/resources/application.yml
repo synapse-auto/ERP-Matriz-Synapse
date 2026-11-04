@@ -283,6 +283,8 @@ synapse:
       provedor: ${WHATSAPP_PROVEDOR:meta-cloud}
       url-base: ${WHATSAPP_URL_BASE:https://graph.facebook.com/v21.0}
       numero-principal: ${WHATSAPP_NUMERO:}
+      restricao-numeros-habilitada: ${WHATSAPP_RESTRICAO_NUMEROS_HABILITADA:false}
+      numeros-permitidos: ${WHATSAPP_NUMEROS_PERMITIDOS:}
       token: ${WHATSAPP_TOKEN:}
       # Dois segredos distintos por contrato da Meta. O verify token e escolhido
       # pela instancia e valida apenas o GET de cadastro; o App Secret calcula o

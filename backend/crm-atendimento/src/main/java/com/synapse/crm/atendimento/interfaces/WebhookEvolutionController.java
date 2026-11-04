@@ -17,6 +17,7 @@ import com.synapse.crm.atendimento.application.ValidarDestinoWebhookUseCase;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
 import com.synapse.crm.atendimento.infrastructure.canal.EvolutionWebhookProtegidoFilter;
 import com.synapse.crm.atendimento.infrastructure.canal.EvolutionWebhookTradutor;
+import com.synapse.crm.atendimento.infrastructure.canal.RestricaoDeNumerosWhatsApp;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -28,8 +29,9 @@ public class WebhookEvolutionController {
     private final ValidarDestinoWebhookUseCase destino;
     private final AgendarRepasseWebhookAutomacaoUseCase repasse;
     private final Clock clock;
+    private final RestricaoDeNumerosWhatsApp restricaoNumeros;
     public WebhookEvolutionController(EvolutionWebhookTradutor tradutor,WebhookEntrada entrada,ValidarDestinoWebhookUseCase destino,
-            AgendarRepasseWebhookAutomacaoUseCase repasse,Clock clock) {this.tradutor=tradutor;this.entrada=entrada;this.destino=destino;this.repasse=repasse;this.clock=clock;}
+            AgendarRepasseWebhookAutomacaoUseCase repasse,Clock clock,RestricaoDeNumerosWhatsApp restricaoNumeros) {this.tradutor=tradutor;this.entrada=entrada;this.destino=destino;this.repasse=repasse;this.clock=clock;this.restricaoNumeros=restricaoNumeros;}
     @PostMapping(EvolutionWebhookProtegidoFilter.ROTA)
     @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
     public ResponseEntity<Void> receber(@RequestBody String payload,HttpServletRequest r) {
@@ -39,7 +41,8 @@ public class WebhookEvolutionController {
         Instant agora=clock.instant();
         ContextoDeServico.executarComo("webhook-evolution",()-> {
             if(entrada.registrarSeNovo(ids.getFirst(),tradutor.provedor(),payload,agora))
-                tradutor.repasseSemGrupos(payload,null).ifPresent(item->repasse.executar(item.payloadCru(),null,agora,tradutor.provedor()));
+                tradutor.repasseSomenteNumerosPermitidos(payload,null,restricaoNumeros::permite)
+                        .ifPresent(item->repasse.executar(item.payloadCru(),null,agora,tradutor.provedor()));
         });
         return ResponseEntity.ok().build();
     }

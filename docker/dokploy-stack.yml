@@ -232,6 +232,8 @@ services:
       WHATSAPP_PROVEDOR: ${WHATSAPP_PROVEDOR:-meta-cloud}
       WHATSAPP_URL_BASE: ${WHATSAPP_URL_BASE:-https://graph.facebook.com/v21.0}
       WHATSAPP_NUMERO: ${WHATSAPP_NUMERO:?obrigatoria}
+      WHATSAPP_RESTRICAO_NUMEROS_HABILITADA: ${WHATSAPP_RESTRICAO_NUMEROS_HABILITADA:-false}
+      WHATSAPP_NUMEROS_PERMITIDOS: ${WHATSAPP_NUMEROS_PERMITIDOS:-}
       TELEFONE_DDI_PADRAO: ${TELEFONE_DDI_PADRAO:-55}
       # Evolution usa segredos proprios. Ausencia continua falhando fechada no ACL Meta/Uzapi.
       WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}

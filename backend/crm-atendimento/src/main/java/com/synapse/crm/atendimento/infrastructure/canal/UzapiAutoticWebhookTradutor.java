@@ -418,8 +418,23 @@ class UzapiAutoticWebhookTradutor implements TradutorDeCanal {
      */
     @Override
     public java.util.Optional<RepasseParaAutomacao> repasseSemGrupos(String payloadCru, String assinatura) {
-        return switch (RepasseSemGrupos.filtrar(
-                payloadCru, json, mensagem -> !ehStatusOuStory(mensagem) && ehGrupo(mensagem))) {
+        return repassar(payloadCru, assinatura,
+                mensagem -> !ehStatusOuStory(mensagem) && ehGrupo(mensagem));
+    }
+
+    @Override
+    public java.util.Optional<RepasseParaAutomacao> repasseSomenteNumerosPermitidos(
+            String payloadCru, String assinatura, java.util.function.Predicate<String> permiteTelefone) {
+        return repassar(payloadCru, assinatura, mensagem -> {
+            if (ehStatusOuStory(mensagem)) return false;
+            return ehGrupo(mensagem) || !permiteTelefone.test(primeiroTexto(mensagem, "from", "sender", "participant"));
+        });
+    }
+
+    private java.util.Optional<RepasseParaAutomacao> repassar(
+            String payloadCru, String assinatura, java.util.function.Predicate<JsonNode> remover) {
+        return switch (RepasseSemGrupos.filtrarRemovendo(
+                payloadCru, json, remover)) {
             case RepasseSemGrupos.Resultado.Intacto intacto ->
                     java.util.Optional.of(new RepasseParaAutomacao(payloadCru, assinatura));
             case RepasseSemGrupos.Resultado.SemConteudo vazio -> java.util.Optional.empty();

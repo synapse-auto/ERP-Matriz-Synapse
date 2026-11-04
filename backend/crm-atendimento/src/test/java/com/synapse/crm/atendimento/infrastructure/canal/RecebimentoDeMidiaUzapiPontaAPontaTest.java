@@ -156,6 +156,7 @@ class RecebimentoDeMidiaUzapiPontaAPontaTest {
                 armazenamento,
                 mock(com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal.class),
                 canaisAtivos,
+                new RestricaoDeNumerosWhatsApp(false, "", new com.synapse.crm.core.domain.lead.TelefoneCanonico("55")),
                 json,
                 Clock.fixed(AGORA, ZoneOffset.UTC),
                 transacaoPassThrough(),

@@ -21,7 +21,9 @@ import com.synapse.crm.atendimento.application.ContaDeTesteSomenteLeituraExcepti
 import com.synapse.crm.atendimento.application.Outbox;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
+import com.synapse.crm.atendimento.domain.mensagem.MotivosDeFalhaDeEntrega;
 import com.synapse.crm.atendimento.infrastructure.canal.CanalProperties;
+import com.synapse.crm.atendimento.infrastructure.canal.RestricaoDeNumerosWhatsApp;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 /**
@@ -45,6 +47,7 @@ public class PublicadorDaOutboxOperacoes {
     private final Clock relogio;
     private final Executor executor;
     private final CanalProperties propriedades;
+    private final RestricaoDeNumerosWhatsApp restricaoNumeros;
 
     public PublicadorDaOutboxOperacoes(
             PublicadorDaOutboxTransacoes transacoes,
@@ -52,13 +55,15 @@ public class PublicadorDaOutboxOperacoes {
             CompositorDeEnvioParaCanal compositor,
             Clock relogio,
             @Qualifier("publicadorDaOutboxExecutor") Executor executor,
-            CanalProperties propriedades) {
+            CanalProperties propriedades,
+            RestricaoDeNumerosWhatsApp restricaoNumeros) {
         this.transacoes = transacoes;
         this.canal = canal;
         this.compositor = compositor;
         this.relogio = relogio;
         this.executor = executor;
         this.propriedades = propriedades;
+        this.restricaoNumeros = restricaoNumeros;
     }
 
     /** Reserva em uma transacao curta, envia em paralelo fora dela e registra cada resultado em outra. */
@@ -101,6 +106,14 @@ public class PublicadorDaOutboxOperacoes {
                 transacoes.registrarResultado(pendente,
                         ResultadoDeEnvio.Recusado.permanente("CANAL_DE_ORIGEM_DIVERGENTE"),
                         Instant.now(relogio));
+                return;
+            }
+            if (!restricaoNumeros.permite(pendente.telefoneDestino())) {
+                transacoes.registrarResultado(pendente,
+                        ResultadoDeEnvio.Recusado.permanente(MotivosDeFalhaDeEntrega.DESTINO_NAO_AUTORIZADO),
+                        Instant.now(relogio));
+                log.warn("Envio bloqueado pela restricao de numeros WhatsApp: mensagem={}, outbox={}",
+                        pendente.mensagemId(), pendente.outboxId());
                 return;
             }
             if (!transacoes.marcarDespachando(pendente, Instant.now(relogio))) {
