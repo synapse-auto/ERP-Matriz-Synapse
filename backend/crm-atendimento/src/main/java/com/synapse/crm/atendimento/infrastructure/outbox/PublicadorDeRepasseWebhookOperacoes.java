@@ -56,7 +56,7 @@ public class PublicadorDeRepasseWebhookOperacoes {
 
     private void entregar(Outbox.RepasseWebhookPendente pendente, Instant agora) {
         if ((pendente.provedorOrigem() != null && !pendente.provedorOrigem().equals(provedorAtivo))
-                || (pendente.provedorOrigem() == null && "z-api".equals(provedorAtivo))) {
+                || (pendente.provedorOrigem() == null && java.util.Set.of("z-api","evolution").contains(provedorAtivo))) {
             outbox.esgotar(pendente.outboxId(), agora, "REPASSE_PROVEDOR_DIVERGENTE_OU_LEGADO; reconciliar sem redisparo automatico");
             log.error("{} repasse={} bloqueado por origem divergente/legada; nenhuma chamada HTTP", MARCADOR_ALARME, pendente.outboxId());
             return;

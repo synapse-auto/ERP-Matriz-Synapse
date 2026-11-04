@@ -92,7 +92,7 @@ public class ZApiWebhookProtegidoFilter extends OncePerRequestFilter {
             @Override public Map<String, String[]> getParameterMap() { return Map.of(); }
             @Override public Enumeration<String> getParameterNames() { return Collections.emptyEnumeration(); }
             private boolean sensivel(String nome) {
-                return nome.equalsIgnoreCase(headerSensivel) || List.of("authorization", "client-token", "x-synapse-token")
+                return nome.equalsIgnoreCase(headerSensivel) || List.of("authorization", "client-token", "x-synapse-token", "apikey")
                         .contains(nome.toLowerCase(java.util.Locale.ROOT));
             }
             @Override public String getHeader(String nome) { return sensivel(nome) ? null : super.getHeader(nome); }

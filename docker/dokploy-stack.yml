@@ -233,9 +233,10 @@ services:
       WHATSAPP_URL_BASE: ${WHATSAPP_URL_BASE:-https://graph.facebook.com/v21.0}
       WHATSAPP_NUMERO: ${WHATSAPP_NUMERO:?obrigatoria}
       TELEFONE_DDI_PADRAO: ${TELEFONE_DDI_PADRAO:-55}
-      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:?obrigatoria}
-      WHATSAPP_WEBHOOK_VERIFY_TOKEN: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:?obrigatoria}
-      WHATSAPP_WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET:?obrigatoria}
+      # Evolution usa segredos proprios. Ausencia continua falhando fechada no ACL Meta/Uzapi.
+      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
+      WHATSAPP_WEBHOOK_VERIFY_TOKEN: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:-}
+      WHATSAPP_WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET:-}
       # WABA ID. Vazio desabilita apenas listar/criar templates; nao tornar obrigatoria no stack.
       WHATSAPP_CONTA_NEGOCIO: ${WHATSAPP_CONTA_NEGOCIO:-}
       # Variavel legada da E152; a Uzapi/Autotic atual usa somente {version} e
@@ -243,6 +244,17 @@ services:
       WHATSAPP_USUARIO_API: ${WHATSAPP_USUARIO_API:-}
       WHATSAPP_VERSAO_API: ${WHATSAPP_VERSAO_API:-}
       # Preparacao somente; nao ativar antes dos gates de entrada/homologacao.
+      EVOLUTION_HABILITADO: ${EVOLUTION_HABILITADO:-false}
+      EVOLUTION_URL_BASE: ${EVOLUTION_URL_BASE:-}
+      EVOLUTION_INSTANCIA: ${EVOLUTION_INSTANCIA:-}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
+      EVOLUTION_CREDENCIAL_ID: ${EVOLUTION_CREDENCIAL_ID:-}
+      EVOLUTION_WEBHOOK_SEGREDO: ${EVOLUTION_WEBHOOK_SEGREDO:-}
+      EVOLUTION_CONCORRENCIA: ${EVOLUTION_CONCORRENCIA:-1}
+      EVOLUTION_WEBHOOK_LIMITE_CORPO_BYTES: ${EVOLUTION_WEBHOOK_LIMITE_CORPO_BYTES:-1048576}
+      EVOLUTION_LIMITE_RESPOSTA_BYTES: ${EVOLUTION_LIMITE_RESPOSTA_BYTES:-1048576}
+      EVOLUTION_PERMITIR_DESTINO_PRIVADO: ${EVOLUTION_PERMITIR_DESTINO_PRIVADO:-false}
+      EVOLUTION_REPASSE_AUTOMACAO_HABILITADO: ${EVOLUTION_REPASSE_AUTOMACAO_HABILITADO:-false}
       Z_API_HABILITADO: ${Z_API_HABILITADO:-false}
       CANAL_TRANSICAO_SAIDAS_SUSPENSAS: ${CANAL_TRANSICAO_SAIDAS_SUSPENSAS:-false}
       CANAL_TRANSICAO_STATUS_UZAPI_LEGADO: ${CANAL_TRANSICAO_STATUS_UZAPI_LEGADO:-false}
@@ -381,7 +393,7 @@ services:
         # dedicado no proprio stack, senao o router geral pode aplicar CORS e registrar a query
         # secreta. O middleware fica restrito aos dois caminhos de webhook; APIs e WebSocket nao
         # herdam a remocao de Origin nem a politica de observabilidade deste router.
-        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && (PathPrefix(`/webhook/z-api`) || PathPrefix(`/webhook/canal`))'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && (PathPrefix(`/webhook/z-api`) || PathPrefix(`/webhook/canal`) || PathPrefix(`/webhook/evolution`))'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.entrypoints=websecure'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.tls=true'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-transicao.tls.certresolver=letsencrypt'

@@ -40,7 +40,7 @@ final class ProxyZApiParaTeste {
         String router = "traefik.http.routers." + PREFIXO + "-transicao.";
         String middleware = PREFIXO + "-webhook-sem-origin";
         assertThat(labels.path(router + "rule").asText()).isEqualTo("Host(`" + DOMINIO
-            + "`) && (PathPrefix(`/webhook/z-api`) || PathPrefix(`/webhook/canal`))");
+            + "`) && (PathPrefix(`/webhook/z-api`) || PathPrefix(`/webhook/canal`) || PathPrefix(`/webhook/evolution`))");
         assertThat(labels.path(router + "entrypoints").asText()).isEqualTo("websecure");
         assertThat(labels.path(router + "tls").asText()).isEqualTo("true");
         assertThat(labels.path(router + "tls.certresolver").asText()).isEqualTo("letsencrypt");

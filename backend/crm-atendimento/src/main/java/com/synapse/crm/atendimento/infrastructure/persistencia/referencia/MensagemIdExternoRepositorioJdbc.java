@@ -58,7 +58,7 @@ class MensagemIdExternoRepositorioJdbc implements MensagemIdExternoRepositorio {
             return Optional.ofNullable(chat.queryForObject(
                     SQL_BUSCAR, String.class, mensagemId, Timestamp.from(enviadoEm)));
         } catch (EmptyResultDataAccessException e) {
-            if(!"z-api".equals(canal.provedor())) return Optional.empty();
+            if(!java.util.Set.of("z-api","evolution").contains(canal.provedor())) return Optional.empty();
             // Aceites Z-API anteriores nao preenchiam o indice legado. Ler apenas alias ja
             // comprovado, sem criar registro nem inferir ID de processamento/historico antigo.
             var aliases=chat.query("""

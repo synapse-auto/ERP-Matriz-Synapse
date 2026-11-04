@@ -3,6 +3,10 @@
 -- Nao recebe token/UUID, nao ativa canal e nao altera credenciais anteriores.
 \set ON_ERROR_STOP on
 \set VERBOSITY terse
+\if :{?provedor}
+\else
+  \set provedor z-api
+\endif
 \if :{?banco_esperado}
 \else
   \set banco_esperado ''
@@ -29,7 +33,7 @@ SET LOCAL statement_timeout = '5s';
 CREATE TEMP TABLE entrada_z_api ON COMMIT DROP AS
 SELECT :'banco_esperado'::text AS banco, :'canal_nome'::text AS nome,
        :'instancia_id'::text AS instancia, :'telefone'::text AS telefone,
-       :'confirmar'::text AS confirmacao;
+       :'confirmar'::text AS confirmacao, :'provedor'::text AS provedor;
 CREATE TEMP TABLE resultado_z_api (canal_id uuid, credencial_id uuid, criado boolean) ON COMMIT DROP;
 DO $$
 DECLARE
@@ -38,8 +42,13 @@ DECLARE
     credencial_atual canal_credencial%ROWTYPE;
     novo_canal uuid;
     nova_credencial uuid;
+    referencia_token text;
 BEGIN
     SELECT * INTO entrada FROM entrada_z_api;
+    IF entrada.provedor NOT IN ('z-api','evolution') THEN
+        RAISE EXCEPTION 'Provedor nao suportado pelo procedimento';
+    END IF;
+    referencia_token := CASE entrada.provedor WHEN 'evolution' THEN 'env://EVOLUTION_API_KEY' ELSE 'env://Z_API_TOKEN' END;
     IF entrada.banco = '' OR entrada.banco <> current_database() THEN
         RAISE EXCEPTION 'Banco diferente do banco_esperado; cadastro recusado';
     END IF;
@@ -66,7 +75,7 @@ BEGIN
             RAISE EXCEPTION 'Nome de canal ocupado; nao reutilizar canal de outro provedor';
         END IF;
         SELECT * INTO credencial_atual FROM canal_credencial WHERE canal_id = canal_atual.id FOR UPDATE;
-        IF credencial_atual.token_ref IS DISTINCT FROM 'env://Z_API_TOKEN'
+        IF credencial_atual.token_ref IS DISTINCT FROM referencia_token
            OR credencial_atual.identificador_externo IS DISTINCT FROM entrada.instancia
            OR credencial_atual.numero IS DISTINCT FROM entrada.telefone
            OR credencial_atual.vigente_ate IS NOT NULL THEN
@@ -85,10 +94,10 @@ BEGIN
     INSERT INTO canal(nome, tipo, ativo) VALUES (entrada.nome, 'WHATSAPP', false)
     RETURNING id INTO novo_canal;
     INSERT INTO canal_credencial(canal_id, numero, identificador_externo, token_ref, ativo)
-    VALUES (novo_canal, entrada.telefone, entrada.instancia, 'env://Z_API_TOKEN', false)
+    VALUES (novo_canal, entrada.telefone, entrada.instancia, referencia_token, false)
     RETURNING id INTO nova_credencial;
     INSERT INTO audit_log(ator_tipo, acao, entidade_tipo, entidade_id, dados_depois)
-    VALUES ('SISTEMA', 'CADASTRAR_CANAL_Z_API', 'CANAL_CREDENCIAL', nova_credencial,
+    VALUES ('SISTEMA', CASE entrada.provedor WHEN 'evolution' THEN 'CADASTRAR_CANAL_EVOLUTION' ELSE 'CADASTRAR_CANAL_Z_API' END, 'CANAL_CREDENCIAL', nova_credencial,
             jsonb_build_object('canalId', novo_canal, 'ativo', false, 'executorSql', current_user));
     INSERT INTO resultado_z_api VALUES (novo_canal, nova_credencial, true);
 END $$;
