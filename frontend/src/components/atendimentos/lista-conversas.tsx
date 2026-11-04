@@ -130,9 +130,10 @@ function ListaConversasComPainel(props: Props) {
   const fila = useFilaOperacional(filtro, true);
   const snapshot = useSnapshotOperacional(true, filtro);
   const etapas = useEtapas();
-  // Mantém grupos/individuais pelo contrato próprio, sem baixar outra inbox de clientes.
+  // O painel operacional tem consulta própria para a fila de clientes. A lista de conversas
+  // internas segue a participação do usuário e aparece nos mesmos recortes TODOS/ATIVOS da inbox.
   const internos = useQuery({ queryKey: ["atendimentos", "internos-painel", usuarioId],
-    queryFn: listarConversasChat, enabled: props.chatInternoHabilitado && visao === "TODOS" && !props.filtroOperacional });
+    queryFn: listarConversasChat, enabled: props.chatInternoHabilitado && (visao === "TODOS" || visao === "ATIVOS") && !props.filtroOperacional });
   const cartoesInternos = useMemo<ItemInbox[]>(() => (internos.data ?? [])
     .filter(c => (c.participantes ?? "").toLocaleLowerCase().includes(busca.toLocaleLowerCase()))
     .map(c => ({ tipo: "EQUIPE_INTERNA", atendimentoId: null, conversaId: c.id,
@@ -145,7 +146,7 @@ function ListaConversasComPainel(props: Props) {
     fila: digitando ? { ...fila, data: undefined, isLoading: true } : fila,
     snapshot: digitando ? { ...snapshot, data: undefined } : snapshot,
     busca, setBusca, etapa, setEtapa,
-    etapas: (etapas.data ?? []).map(e => [e.id,e.nome]), internos: visao === "TODOS" && !props.filtroOperacional ? cartoesInternos : [], internosErro: internos.isError && visao === "TODOS" && !props.filtroOperacional,
+    etapas: (etapas.data ?? []).map(e => [e.id,e.nome]), internos: (visao === "TODOS" || visao === "ATIVOS") && !props.filtroOperacional ? cartoesInternos : [], internosErro: internos.isError && (visao === "TODOS" || visao === "ATIVOS") && !props.filtroOperacional,
     recarregarInternos: () => { void internos.refetch(); } }} />;
 }
 

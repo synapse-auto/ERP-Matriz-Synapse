@@ -39,6 +39,8 @@ export interface PedidoDeAtualizacao {
   chave?: string;
   /** Atendimento cujo estado canônico (`["atendimentos", "estado", id]`) também deve ser relido. */
   atendimentoId?: string | null;
+  /** Chat Interno altera a inbox, mas não as contagens dos atendimentos de clientes. */
+  atualizarContagem?: boolean;
   /**
    * Executa já, sem esperar a janela, e relê todos os estados abertos. Para o que protege
    * visibilidade ou responde a um clique: transferência, devolução para a IA, convite e revogação.
@@ -161,7 +163,7 @@ export class AgendadorDeAtualizacaoDoPainel {
       return;
     }
     this.lista.solicitar();
-    this.contagem.solicitar();
+    if (pedido.atualizarContagem !== false) this.contagem.solicitar();
   }
 
   private recarregarLista(): void {

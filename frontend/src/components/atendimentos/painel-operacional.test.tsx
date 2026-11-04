@@ -129,6 +129,21 @@ describe("painel operacional com componentes reais", () => {
     await waitFor(() => expect(api.mock.calls.filter(([url]) => url.includes("busca=Cliente+%26+Empresa"))).toHaveLength(2));
     expect(api.mock.calls.some(([url]) => url.includes("busca=Cli&"))).toBe(false);
   });
+  it("mantém conversas internas participativas também na visão Ativos do painel operacional", async () => {
+    const abrirInterno = vi.fn();
+    api.mockImplementation((url: string) => Promise.resolve(
+      url.includes("/fila?") ? { itens: [], proximoCursor: null }
+      : url.includes("/chat-interno/conversas") ? [{ id: "direta-ativa", tipo: "DIRETA", participantes: "Conversa sintética", ultimaMensagem: "Mensagem interna recente", ultimaMensagemEm: "2026-10-14T13:00:00Z", naoLidas: 2 }]
+      : url.includes("/etapas") ? [] : snapshot(),
+    ));
+    renderizar(<ListaConversas selecionadoId={null} visaoAtual="ATIVOS" painelOperacionalPermitido chatInternoHabilitado
+      onAbrirAtendimento={abrirInterno} onAbrirFilaOperacional={vi.fn()} />);
+
+    expect(await screen.findByText("Conversa sintética")).toBeInTheDocument();
+    expect(screen.getByText("Mensagem interna recente")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Conversa sintética"));
+    expect(abrirInterno).toHaveBeenCalledWith(expect.objectContaining({ tipo: "EQUIPE_INTERNA", conversaId: "direta-ativa" }));
+  });
   it("renderiza indicadores completos, sem somar Pendentes novamente ao total", async () => {
     renderizar(<PainelOperacional onFiltrar={vi.fn()} onAbrir={vi.fn()} />);
     await screen.findByRole("heading", { name: "Equipe" });

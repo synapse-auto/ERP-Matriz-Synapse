@@ -13,6 +13,7 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { definirConversaAtiva } from "@/lib/atendimento/servico-notificacoes-tempo-real";
+import { atualizarPainelDeAtendimentos } from "@/lib/atendimento/atualizacao-do-painel";
 
 import { CabecalhoChatInterno, ComposerChatInterno, DialogoEncaminharChatInterno, ListaMensagensChatInterno, type ComposerChatHandle } from "./componentes-chat-interno";
 import { DialogoEncaminharAoCliente } from "./dialogo-encaminhar-ao-cliente";
@@ -23,6 +24,9 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
   const catalogo = useTextos();
   const textos = catalogo.chatInterno;
   const cache = useQueryClient();
+  const atualizarInbox = useCallback(() => {
+    atualizarPainelDeAtendimentos(cache, { atualizarContagem: false });
+  }, [cache]);
   const composerRef = useRef<ComposerChatHandle>(null);
   const [respostaAlvo, setRespostaAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const [encaminharAlvo, setEncaminharAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
@@ -39,35 +43,44 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
   const conversa = conversas.data?.find((item) => item.id === conversaId);
   const enviar = useMutation({
     mutationFn: (conteudo: string) => enviarMensagemChat(conversaId, conteudo),
-    onSuccess: () => { void cache.invalidateQueries({ queryKey: ["chat-interno"] }); },
+    onSuccess: () => { void cache.invalidateQueries({ queryKey: ["chat-interno"] }); atualizarInbox(); },
   });
   const enviarMidia = useMutation({
     mutationFn: ({ arquivo, legenda, idempotencyKey }: { arquivo: File; legenda?: string; idempotencyKey: string }) => enviarMidiaChat(conversaId, arquivo, legenda, idempotencyKey),
-    onSuccess: () => { void cache.invalidateQueries({ queryKey: ["chat-interno"] }); },
+    onSuccess: () => { void cache.invalidateQueries({ queryKey: ["chat-interno"] }); atualizarInbox(); },
   });
   const responder = useMutation({
     mutationFn: ({ mensagemId, conteudo }: { mensagemId: string; conteudo: string }) => responderMensagemChat(conversaId, mensagemId, conteudo),
-    onSuccess: () => { setRespostaAlvo(null); void cache.invalidateQueries({ queryKey: ["chat-interno"] }); },
+    onSuccess: () => { setRespostaAlvo(null); void cache.invalidateQueries({ queryKey: ["chat-interno"] }); atualizarInbox(); },
   });
   const excluir = useMutation({
     mutationFn: (mensagemId: string) => excluirMensagemChat(conversaId, mensagemId),
-    onSuccess: () => { void cache.invalidateQueries({ queryKey: ["chat-interno"] }); },
+    onSuccess: () => { void cache.invalidateQueries({ queryKey: ["chat-interno"] }); atualizarInbox(); },
   });
   const encaminhar = useMutation({
     mutationFn: ({ mensagemId, destinoId }: { mensagemId: string; destinoId: string }) => encaminharMensagemChat(conversaId, mensagemId, destinoId),
-    onSuccess: () => { setEncaminharAlvo(null); void cache.invalidateQueries({ queryKey: ["chat-interno"] }); },
+    onSuccess: () => { setEncaminharAlvo(null); void cache.invalidateQueries({ queryKey: ["chat-interno"] }); atualizarInbox(); },
   });
   const editar = useMutation({
     mutationFn: ({ mensagemId, conteudo }: { mensagemId: string; conteudo: string }) => editarMensagemChat(conversaId, mensagemId, conteudo),
-    onSuccess: () => { setEdicaoAlvo(null); void cache.invalidateQueries({ queryKey: ["chat-interno"] }); },
+    onSuccess: () => { setEdicaoAlvo(null); void cache.invalidateQueries({ queryKey: ["chat-interno"] }); atualizarInbox(); },
   });
   const atualizar = useCallback(() => {
     void cache.invalidateQueries({ queryKey: ["chat-interno"] });
   }, [cache]);
+  const marcarComoLida = useCallback(async () => {
+    try {
+      await marcarChatComoLido(conversaId);
+      // A leitura altera `naoLidas` do resumo; não há evento de leitura publicado pelo backend.
+      atualizarInbox();
+    } catch {
+      // O histórico continua utilizável; o próximo carregamento/reconexão reconcilia o contador.
+    }
+  }, [conversaId, atualizarInbox]);
   const { ciclo } = useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
     if ((evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") && evento.dados.conversaId === conversaId) {
       atualizar();
-      if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA") void marcarChatComoLido(conversaId);
+      if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA") void marcarComoLida();
     }
     if (evento.tipo === "CHAT_INTERNO_REACAO" && evento.dados.conversaId === conversaId) {
       atualizarReacoesDoChatInterno(cache, conversaId, evento.dados.mensagemId, evento.dados.reacoes, { atorId: evento.dados.atorId, emojiDoAtor: evento.dados.emojiDoAtor }, useAuthStore.getState().usuarioId);
@@ -77,7 +90,7 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
   useEffect(() => {
     if (ciclo > 1) atualizar();
   }, [ciclo, atualizar]);
-  useEffect(() => { void marcarChatComoLido(conversaId).catch(() => undefined); }, [conversaId]);
+  useEffect(() => { void marcarComoLida(); }, [marcarComoLida]);
   useEffect(() => {
     definirConversaAtiva({ origem: "CHAT_INTERNO", id: conversaId });
     return () => definirConversaAtiva(null);

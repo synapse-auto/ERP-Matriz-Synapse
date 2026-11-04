@@ -130,7 +130,9 @@ export function NotificacoesTempoReal() {
     if (decisao.atualizarAtendimentos) {
       // E209: este ouvinte vive no layout (todas as páginas) e recebe ATENDIMENTO_ESTADO de cada
       // mensagem visível ao papel; o agendador junta a rajada e o eco da tela de Atendimentos.
-      atualizarPainelDeAtendimentos(cache, pedidoDaNotificacao(notificacao));
+      const pedido = pedidoDaNotificacao(notificacao);
+      if (notificacao.tipo.startsWith("CHAT_INTERNO_")) pedido.atualizarContagem = false;
+      atualizarPainelDeAtendimentos(cache, pedido);
     }
     if (decisao.atualizarChatInterno) {
       void cache.invalidateQueries({ queryKey: ["chat-interno"] });

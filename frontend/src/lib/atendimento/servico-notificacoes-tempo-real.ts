@@ -52,7 +52,14 @@ export class ServicoDeNotificacoesTempoReal {
     this.chavesProcessadas.add(chave);
 
     const origem = origemDaNotificacao(notificacao);
-    const atualizarAtendimentos = origem === "ATENDIMENTO" || notificacao.tipo === "TRANSFERENCIA_RECEBIDA";
+    // Resumos de conversa interna também fazem parte da sidebar de Atendimentos. O evento
+    // pessoal é a única atualização para outros participantes; o autor não recebe o próprio
+    // evento, então suas mutations atualizam a mesma inbox no sucesso.
+    const atualizarAtendimentos = origem === "ATENDIMENTO"
+      || notificacao.tipo === "TRANSFERENCIA_RECEBIDA"
+      || notificacao.tipo === "CHAT_INTERNO_MENSAGEM"
+      || notificacao.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA"
+      || notificacao.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA";
     const atualizarChatInterno = origem === "CHAT_INTERNO";
     const ehMensagemInternaDeUsuario = notificacao.tipo === "CHAT_INTERNO_MENSAGEM"
       && notificacao.dados.tipo != null;

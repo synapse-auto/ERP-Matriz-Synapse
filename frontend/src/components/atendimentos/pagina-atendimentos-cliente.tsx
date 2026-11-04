@@ -662,7 +662,9 @@ export function PaginaAtendimentosCliente({
       if (evento.tipo !== "CHAT_INTERNO_REACAO" && leiturasEmVoo.current.size === 0) {
         // E209: mesmo pedido (mesma chave) que o ouvinte global gera para este evento — os dois
         // viram um refetch só, e uma rajada vira no máximo um por janela.
-        atualizarPainelDeAtendimentos(cache, pedidoDaNotificacao(evento));
+        const pedido = pedidoDaNotificacao(evento);
+        if (evento.tipo.startsWith("CHAT_INTERNO_")) pedido.atualizarContagem = false;
+        atualizarPainelDeAtendimentos(cache, pedido);
       }
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM") {
         void cache.invalidateQueries({ queryKey: ["chat-interno", "mensagens", evento.dados.conversaId] });
