@@ -159,6 +159,9 @@ class EvolutionFluxoIT extends PostgresIT {
         if(caminho==null)bytes=Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+juxkAAAAASUVORK5CYII=");
         else try(var f=getClass().getResourceAsStream(caminho)){bytes=f.readAllBytes();}
         String nome="Relatório com espaços."+switch(caso){case "image"->"PNG";case "audio"->"ogg";case "video"->"mp4";default->caso.toUpperCase(java.util.Locale.ROOT);};
+        // Politica do upload compartilhado: Word preserva Unicode; os demais nomes
+        // sao sanitizados antes do storage/outbox, independentemente do provedor.
+        String nomePersistido=caso.equals("doc")||caso.equals("docx")?nome:nome.replaceAll("[^A-Za-z0-9._-]","_");
         String citacao="";
         if(caso.equals("docx")) {
             receber(recebido());worker.processarPendentes();
@@ -170,7 +173,7 @@ class EvolutionFluxoIT extends PostgresIT {
             var req=(Request)mockingDetails(transporte).getInvocations().stream().filter(v->v.getMethod().getName().equals("newCall")).reduce((a,b)->b).orElseThrow().getArgument(0);
             if(req.url().encodedPath().contains("findMessages"))return new Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(200).message("sintetico").body(ResponseBody.create("{\"messages\":{\"records\":[{\"key\":{\"id\":\"w-"+lead+"\",\"fromMe\":false,\"remoteJid\":\"5561999990000@s.whatsapp.net\"},\"message\":{\"conversation\":\"Original sintetico\"}}]}}",MediaType.get("application/json"))).build();
             assertThat(req.url().encodedPath()).isEqualTo("/message/sendMedia/evo-teste");var b=new okio.Buffer();req.body().writeTo(b);var n=json.readTree(b.readUtf8());
-            assertThat(Base64.getDecoder().decode(n.path("media").asText())).containsExactly(bytes);assertThat(n.path("fileName").asText()).isEqualTo(nome);
+            assertThat(Base64.getDecoder().decode(n.path("media").asText())).containsExactly(bytes);assertThat(n.path("fileName").asText()).isEqualTo(nomePersistido);
             if(caso.equals("docx"))assertThat(n.path("quoted").path("message").isObject()).isTrue();
             return new Response.Builder().request(req).protocol(Protocol.HTTP_1_1).code(201).message("sintetico").body(ResponseBody.create("{\"key\":{\"id\":\"wa-upload\",\"fromMe\":true}}",MediaType.get("application/json"))).build();
         });
@@ -180,6 +183,7 @@ class EvolutionFluxoIT extends PostgresIT {
         assertThat(resultado.getStatusCode()).as(String.valueOf(resultado.getBody())).isEqualTo(HttpStatus.OK);UUID id=UUID.fromString(resultado.getBody().path("mensagemId").asText());
         publicador.publicarPendentes();org.awaitility.Awaitility.await().atMost(java.time.Duration.ofSeconds(10)).untilAsserted(()->assertThat(jdbc.queryForObject("SELECT publicado_em IS NOT NULL FROM outbox_evento WHERE payload->>'mensagemId'=?",Boolean.class,id.toString())).isTrue());
         var download=http.exchange("/api/v1/leads/"+lead+"/midias/"+id+"/download",HttpMethod.GET,new HttpEntity<>(cabecalhos),byte[].class);assertThat(download.getBody()).containsExactly(bytes);
+        assertThat(download.getHeaders().getContentDisposition().getFilename()).isEqualTo(nomePersistido);
         publicador.publicarPendentes();verify(transporte,times(caso.equals("docx")?2:1)).newCall(any());
     }
     @Test void usuarioSemVisibilidadeNaoEnvia() {

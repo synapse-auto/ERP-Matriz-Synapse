@@ -53,6 +53,10 @@ Limite comprovado do fornecedor: `prepareMediaMessage` na tag usa
 original, mas a imagem entregue pelo WhatsApp pode ter MIME/bytes JPEG diferentes.
 Nao se troca IMAGEM por DOCUMENTO para contornar. Documentos (incluindo JPG/PNG
 como documento) seguem binarios; confirmar bytes no contato controlado.
+Nomes enviados seguem a politica existente do upload CRM: DOC/DOCX preservam
+espacos/acentos seguros; os demais formatos substituem caracteres fora do conjunto
+ASCII seguro por underscore antes do storage/outbox. A Evolution recebe esse nome
+persistido; esta integracao nao muda a politica global dos outros provedores.
 Os tetos locais existentes (5 MiB imagem, 16 MiB audio/video, 100 MiB documento)
 nao sao uma garantia de entrega do fornecedor. A tag configura JSON ate 136 MiB;
 proxies/WhatsApp podem impor outros limites. Nao foram aumentados limites globais.
