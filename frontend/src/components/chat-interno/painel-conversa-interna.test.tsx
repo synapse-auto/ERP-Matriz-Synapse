@@ -2,12 +2,15 @@ vi.mock("next/dynamic", () => ({
   default: () => () => null,
 }));
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const tempoReal = vi.hoisted(() => ({ ciclo: 1 }));
 vi.mock("@/lib/atendimento/tempo-real", () => ({
   useConexaoTempoReal: () => ({ ciclo: tempoReal.ciclo }),
+}));
+vi.mock("@/lib/atendimento/atualizacao-do-painel", () => ({
+  atualizarPainelDeAtendimentos: vi.fn(),
 }));
 
 vi.mock("@/lib/chat-interno/api", () => ({
@@ -38,6 +41,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
 }));
 
 import * as api from "@/lib/chat-interno/api";
+import { atualizarPainelDeAtendimentos } from "@/lib/atendimento/atualizacao-do-painel";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { PainelConversaInterna } from "./painel-conversa-interna";
 
@@ -48,10 +52,11 @@ describe("PainelConversaInterna", () => {
     vi.mocked(api.listarMensagensChat).mockResolvedValue({ proximoCursor: null, mensagens: [] });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const invalidar = vi.spyOn(client, "invalidateQueries");
+    vi.mocked(atualizarPainelDeAtendimentos).mockClear();
     const tela = () => <QueryClientProvider client={client}><PainelConversaInterna conversaId="c1" /></QueryClientProvider>;
     const { rerender } = render(tela());
     await screen.findByText("Bruno");
-    expect(invalidar).not.toHaveBeenCalled();
+    await waitFor(() => expect(atualizarPainelDeAtendimentos).toHaveBeenCalledWith(client, { atualizarContagem: false }));
     tempoReal.ciclo = 2;
     rerender(tela());
     await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ["chat-interno"] }));
@@ -67,8 +72,23 @@ describe("PainelConversaInterna", () => {
     const item = { tipo: "EQUIPE_INTERNA", tipoConversa: "GRUPO", conversaId: "c1", avatarUrl: "antiga" };
     const inbox = { pages: [{ itens: [item], proximoCursor: null }], pageParams: [null] };
     client.setQueryData(chave, inbox);
+    vi.mocked(atualizarPainelDeAtendimentos).mockClear();
     render(<QueryClientProvider client={client}><PainelConversaInterna conversaId="c1" /></QueryClientProvider>);
     await waitFor(() => expect(client.getQueryData<typeof inbox>(chave)?.pages[0].itens[0].avatarUrl).toBeNull());
+  });
+  it("atualiza a inbox após envio próprio, cujo evento não retorna ao autor", async () => {
+    vi.mocked(api.listarConversasChat).mockResolvedValue([{ id: "c1", tipo: "DIRETA", participantes: "Bruno", ultimaMensagem: null, ultimaMensagemEm: null, naoLidas: 0 }]);
+    vi.mocked(api.listarMensagensChat).mockResolvedValue({ proximoCursor: null, mensagens: [] });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><PainelConversaInterna conversaId="c1" /></QueryClientProvider>);
+    const campo = await screen.findByPlaceholderText("Escreva uma mensagem...");
+    vi.mocked(atualizarPainelDeAtendimentos).mockClear();
+
+    fireEvent.change(campo, { target: { value: "Mensagem sintética" } });
+    fireEvent.keyDown(campo, { key: "Enter", shiftKey: false });
+
+    await waitFor(() => expect(api.enviarMensagemChat).toHaveBeenCalledWith("c1", "Mensagem sintética"));
+    expect(atualizarPainelDeAtendimentos).toHaveBeenCalledWith(client, { atualizarContagem: false });
   });
   it("renderiza autoria real, cabeçalho interno e marca leitura", async () => {
     vi.mocked(api.listarConversasChat).mockResolvedValue([{ id: "c1", tipo: "DIRETA", participantes: "Bruno Almeida", ultimaMensagem: "Oi", ultimaMensagemEm: "2026-08-27T12:00:00Z", naoLidas: 1 }]);

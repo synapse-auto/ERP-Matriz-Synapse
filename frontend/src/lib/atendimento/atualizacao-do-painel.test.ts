@@ -134,6 +134,16 @@ describe("AgendadorDeAtualizacaoDoPainel", () => {
     expect(chamadas["atendimentos/inbox/TODOS"]).toBe(1);
   });
 
+  it("reconcilia mensagem interna sem recalcular a contagem de atendimentos de clientes", async () => {
+    const { cache, chamadas } = await painel();
+    const agendador = new AgendadorDeAtualizacaoDoPainel(cache, new RelogioManual());
+
+    agendador.solicitar({ chave: "chat-interno:mensagem-1", atualizarContagem: false });
+
+    expect(chamadas["atendimentos/inbox/TODOS"]).toBe(1);
+    expect(chamadas["atendimentos/contagem"]).toBe(0);
+  });
+
   it("junta uma rajada de 50 eventos: a lista relê na hora e no fim da janela de 5 s, a contagem na hora e no fim da de 10 s", async () => {
     const { cache, chamadas } = await painel();
     const relogio = new RelogioManual();

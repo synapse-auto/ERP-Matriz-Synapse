@@ -145,6 +145,7 @@ describe("ServicoDeNotificacoesTempoReal", () => {
     expect(new ServicoDeNotificacoesTempoReal().decidir(notificacao, contexto)).toMatchObject({
       exibir: false,
       tocar: false,
+      atualizarAtendimentos: true,
       atualizarChatInterno: true,
     });
   });
@@ -159,10 +160,25 @@ describe("ServicoDeNotificacoesTempoReal", () => {
     expect(decisao).toMatchObject({
       exibir: false,
       tocar: false,
-      atualizarAtendimentos: false,
+      atualizarAtendimentos: true,
       atualizarChatInterno: true,
     });
   });
+
+  it.each(["CHAT_INTERNO_MENSAGEM_EDITADA", "CHAT_INTERNO_MENSAGEM_REMOVIDA"] as const)(
+    "%s também atualiza o resumo da inbox sem criar notificação visual",
+    (tipo) => {
+      const notificacao = tipo === "CHAT_INTERNO_MENSAGEM_EDITADA"
+        ? { tipo, eventoId: "edicao-1", dados: { ...dadosDaMensagemInterna(), editadoEm: "2026-09-10T12:01:00Z" } }
+        : { tipo, eventoId: "remocao-1", dados: { conversaId: "conversa-1", mensagemId: "mensagem-interna-1" } };
+
+      expect(new ServicoDeNotificacoesTempoReal().decidir(notificacao, contexto)).toMatchObject({
+        exibir: false,
+        tocar: false,
+        atualizarAtendimentos: true,
+      });
+    },
+  );
 
   it("coalesce o som de uma rajada da mesma origem", () => {
     const servico = new ServicoDeNotificacoesTempoReal();

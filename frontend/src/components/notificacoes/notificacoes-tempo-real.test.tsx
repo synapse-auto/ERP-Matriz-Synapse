@@ -82,9 +82,9 @@ vi.mock("next/navigation", () => ({
 
 import { NotificacoesTempoReal } from "./notificacoes-tempo-real";
 
-function renderizar() {
+function renderizar(cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider client={cliente}>
       <NotificacoesTempoReal />
     </QueryClientProvider>,
   );
@@ -181,6 +181,24 @@ describe("NotificacoesTempoReal", () => {
     expect(screen.getByRole("status")).not.toHaveTextContent("Mensagem recebida no chat interno");
     fireEvent.click(screen.getByRole("button", { name: /Mensagem de João/ }));
     expect(mocks.push).toHaveBeenCalledWith("/chat-interno?conversaId=conversa-1");
+  });
+
+  it("mensagem interna invalida a sidebar de Atendimentos mesmo sem a página estar montada", () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidar = vi.spyOn(cliente, "invalidateQueries");
+    render(<QueryClientProvider client={cliente}><NotificacoesTempoReal /></QueryClientProvider>);
+    act(() => mocks.callback?.({
+      tipo: "CHAT_INTERNO_MENSAGEM",
+      eventoId: "evento-interno-sidebar",
+      dados: {
+        conversaId: "conversa-sidebar", mensagemId: "mensagem-sidebar", remetenteId: "outro", remetenteNome: "João",
+        tipo: "TEXTO", conteudo: "Resumo novo", midiaMetadados: null, enviadoEm: "2026-09-10T12:00:00Z",
+      },
+    }));
+
+    expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }));
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["chat-interno"] });
+    expect(invalidar).not.toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos", "contagem"] }));
   });
 
   it("exibe convite, oferece abrir convite e navega para o atendimento pendente", () => {
