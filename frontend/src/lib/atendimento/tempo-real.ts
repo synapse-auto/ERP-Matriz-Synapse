@@ -518,6 +518,9 @@ export function useConexaoTempoReal(
 
   useEffect(() => {
     consumidoresDaConexao += 1;
+    // StrictMode limpa e remonta efeitos sem recriar o useState. Reinscrever a instância
+    // viva evita que um consumidor tardio crie outra conexão sem nunca ativá-la.
+    if (consumidoresDaConexao === 1) conexaoCompartilhada = conexao;
     if (accessTokenAtual && (consumidoresDaConexao === 1 || tokenDaConexao !== accessTokenAtual)) {
       tokenDaConexao = accessTokenAtual;
       conexao.conectar();
