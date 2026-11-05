@@ -119,6 +119,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     "lead_atendente_vinculado",
                     // V115: cache e reserva da coleta de foto por identidade de canal.
                     "lead_foto_captura",
+                    // V117: lease/cache da coleta cadastral Darwin, sem dados pessoais.
+                    "lead_coleta_cadastral",
                     "lead_tag",
                     "lembrete",
                     "marca_da_instancia",

@@ -31,12 +31,14 @@ class DarwinLeadController {
     }
 
     @GetMapping("/{id}/darwin/coleta")
+    @Operation(summary="Ler estado da coleta cadastral Darwin", description="Exige acesso ao lead, clientes.acessar e contatos.editar. Retorna somente estado sanitizado do cache; não consulta o provedor nem devolve CPF ou configuração.")
     ColetaDarwin.Situacao estadoColeta(@PathVariable UUID id) {
         acesso.executar(id);
         return coleta.situacao(id);
     }
 
     @PostMapping("/{id}/darwin/coleta")
+    @Operation(summary="Solicitar nova coleta cadastral Darwin", description="Agenda consulta assíncrona por CPF já persistido, sem exigir CPF no corpo. Exige visibilidade e contatos.editar. Respeita lease e intervalo mínimo; 202 não comprova conclusão. Não modifica dados na Darwin.")
     @ResponseStatus(HttpStatus.ACCEPTED)
     void tentarColeta(@PathVariable UUID id) {
         acesso.executar(id);
