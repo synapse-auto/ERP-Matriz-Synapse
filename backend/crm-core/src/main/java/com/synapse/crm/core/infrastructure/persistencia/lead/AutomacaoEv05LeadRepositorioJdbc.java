@@ -8,6 +8,7 @@ import java.util.UUID;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -23,9 +24,11 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 class AutomacaoEv05LeadRepositorioJdbc implements AutomacaoEv05LeadRepositorio {
 
     private final JdbcTemplate chat;
+    private final ApplicationEventPublisher eventos;
 
-    AutomacaoEv05LeadRepositorioJdbc(@Qualifier(Pools.CHAT_DATA_SOURCE) DataSource dataSource) {
+    AutomacaoEv05LeadRepositorioJdbc(@Qualifier(Pools.CHAT_DATA_SOURCE) DataSource dataSource, ApplicationEventPublisher eventos) {
         this.chat = new JdbcTemplate(dataSource);
+        this.eventos = eventos;
     }
 
     @Override
@@ -85,6 +88,23 @@ class AutomacaoEv05LeadRepositorioJdbc implements AutomacaoEv05LeadRepositorio {
     }
 
     @Override
+    public ResultadoCampo aplicarNomeColetado(UUID leadId, String nome, String cpfColetado) {
+        TransacaoObrigatoria.exigir("aplicar nome coletado EV-05");
+        // O mesmo lock do preenchimento protege edicao humana e automacao concorrentes.
+        var atual = chat.queryForMap("SELECT nome, telefone, cpf FROM lead WHERE id=? FOR UPDATE", leadId);
+        String cpfAtual = (String) atual.get("cpf");
+        if (cpfColetado != null && cpfAtual != null && !cpfAtual.isBlank()
+                && !cpfColetado.equals(cpfAtual.replaceAll("\\D", ""))) return ResultadoCampo.IGNORADO_JA_PREENCHIDO;
+        String existente = (String) atual.get("nome");
+        if (existente != null && !existente.isBlank() && !existente.equals(atual.get("telefone"))) {
+            return ResultadoCampo.IGNORADO_JA_PREENCHIDO;
+        }
+        chat.update("UPDATE lead SET nome=? WHERE id=?", nome, leadId);
+        eventos.publishEvent(new com.synapse.crm.core.domain.evento.DadosCadastraisDoLeadAlterados(leadId));
+        return ResultadoCampo.APLICADO;
+    }
+
+    @Override
     public EscritaPreenchimento aplicarPreenchimento(
             UUID leadId,
             String email,
@@ -115,6 +135,9 @@ class AutomacaoEv05LeadRepositorioJdbc implements AutomacaoEv05LeadRepositorio {
                     !invalidos.contains("empresa"), vazioParaNulo(empresa),
                     !invalidos.contains("localizacao"), vazioParaNulo(localizacao),
                     Timestamp.from(quando), leadId);
+            if (rCpf == ResultadoCampo.APLICADO) {
+                eventos.publishEvent(new com.synapse.crm.core.domain.evento.DadosCadastraisDoLeadAlterados(leadId));
+            }
             return new EscritaPreenchimento(leadId, rEmail, rCpf, rEmpresa, rLocalizacao, quando);
         } catch (EmptyResultDataAccessException erro) {
             throw new LeadEv05NaoEncontradoException(leadId);

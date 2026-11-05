@@ -150,9 +150,23 @@ public class Ev05LeadUseCase {
             String empresa,
             String localizacao,
             String chave) {
+        return preencherCampos(leadId, email, cpf, empresa, localizacao, chave, null);
+    }
+
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    @com.synapse.crm.sharedkernel.auditoria.Auditable(acao = "PREENCHER_DADOS_CLIENTE_PELA_AUTOMACAO", entidadeTipo = "LEAD", capturarDados = false, atorTipo = "AUTOMACAO")
+    public ResultadoPreenchimento preencherDadosCliente(UUID leadId, String email, String cpf,
+            String empresa, String localizacao, String chave, String nome) {
+        return preencherCampos(leadId, email, cpf, empresa, localizacao, chave, nome);
+    }
+
+    private ResultadoPreenchimento preencherCampos(UUID leadId, String email, String cpf,
+            String empresa, String localizacao, String chave, String nome) {
         exigirChave(chave);
         Valores valores = normalizarValores(email, cpf, empresa, localizacao);
-        String hash = hash(OPERACAO_PREENCHIMENTO + "\n" + leadId + "\n" + valores);
+        String hash = hash(OPERACAO_PREENCHIMENTO + "\n" + leadId + "\n" + valores
+                + (nome == null ? "" : "\nnome=" + nome));
         var existente = idempotencia.buscar(chave);
         if (existente.isPresent()) {
             var atendimentoAtual = atendimentos.porLeadEmAtendimento(leadId);
@@ -180,7 +194,15 @@ public class Ev05LeadUseCase {
         var escrito = leads.aplicarPreenchimento(
                 leadId, valores.email(), valores.cpf(), valores.empresa(), valores.localizacao(), agora,
                 valores.invalidos());
-        var resultado = ResultadoPreenchimento.de(escrito);
+        var rNome = AutomacaoEv05LeadRepositorio.ResultadoCampo.AUSENTE;
+        if (nome != null && !nome.isBlank()) {
+            String normalizado = null;
+            try { normalizado = com.synapse.crm.core.domain.lead.NomeDoLead.normalizar(nome); }
+            catch (IllegalArgumentException invalido) { rNome = AutomacaoEv05LeadRepositorio.ResultadoCampo.IGNORADO_INVALIDO; }
+            if (valores.invalidos().contains("cpf")) rNome = AutomacaoEv05LeadRepositorio.ResultadoCampo.IGNORADO_INVALIDO;
+            else if (normalizado != null) rNome = leads.aplicarNomeColetado(leadId, normalizado, valores.cpf());
+        }
+        var resultado = ResultadoPreenchimento.de(escrito, rNome);
         idempotencia.concluir(chave, serializar(resultado));
         return resultado;
     }
@@ -354,10 +376,11 @@ public class Ev05LeadUseCase {
             AutomacaoEv05LeadRepositorio.ResultadoCampo cpf,
             AutomacaoEv05LeadRepositorio.ResultadoCampo empresa,
             AutomacaoEv05LeadRepositorio.ResultadoCampo localizacao,
-            Instant avaliadoEm) {
-        static ResultadoPreenchimento de(AutomacaoEv05LeadRepositorio.EscritaPreenchimento valor) {
+            Instant avaliadoEm,
+            AutomacaoEv05LeadRepositorio.ResultadoCampo nome) {
+        static ResultadoPreenchimento de(AutomacaoEv05LeadRepositorio.EscritaPreenchimento valor, AutomacaoEv05LeadRepositorio.ResultadoCampo nome) {
             return new ResultadoPreenchimento(
-                    valor.leadId(), valor.email(), valor.cpf(), valor.empresa(), valor.localizacao(), valor.avaliadoEm());
+                    valor.leadId(), valor.email(), valor.cpf(), valor.empresa(), valor.localizacao(), valor.avaliadoEm(), nome);
         }
     }
 }

@@ -448,7 +448,8 @@ export type TipoEventoEstadoAtendimento =
   | "PARTICIPANTE_SAIU"
   | "LEITURA_DO_RESPONSAVEL"
   | "CLASSIFICACAO_NEGOCIACAO_ALTERADA"
-  | "RESULTADO_VENDA_ATUALIZADO";
+  | "RESULTADO_VENDA_ATUALIZADO"
+  | "DADOS_CLIENTE_ATUALIZADOS";
 
 export interface EstadoAtendimentoTempoReal {
   atendimentoId: string;

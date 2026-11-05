@@ -634,6 +634,10 @@ necessariamente o mesmo do `java -version`. Ajuste o `JAVA_HOME` se preciso.
 
 ## Documentação
 
+Dados locais do cliente na ficha de Atendimentos: [origens, contratos da automação e habilitação](docs/dados-cliente-ficha.md).
+A capacidade `dados_cliente_ficha` inicia OFF; habilitação operacional somente na instância autorizada.
+Não depende de Darwin, não acrescenta variável no Dokploy e não importa histórico.
+
 `CLAUDE.md` tem as regras não negociáveis do projeto. A arquitetura completa está em `/docs`
 (01 a 08) — esses arquivos ficam fora do versionamento por conterem material interno, mas precisam
 estar presentes na pasta durante o desenvolvimento.

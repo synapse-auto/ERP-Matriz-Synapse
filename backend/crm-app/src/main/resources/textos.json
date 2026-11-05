@@ -952,6 +952,12 @@
       "origemMidia": "Origem"
     }
   },
+  "dadosCliente": {
+    "titulo": "Dados do cliente",
+    "cpf": "CPF",
+    "nascimento": "Data de nascimento",
+    "naoInformado": "Não informado"
+  },
   "painelLead": {
     "titulo": "Ficha do lead",
     "fechar": "Fechar ficha do lead",

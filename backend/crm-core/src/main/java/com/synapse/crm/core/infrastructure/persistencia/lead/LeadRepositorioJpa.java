@@ -13,6 +13,7 @@ import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Root;
 
 import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
@@ -49,15 +50,17 @@ class LeadRepositorioJpa implements LeadRepositorio {
     private final EntityManager em;
     private final UsuarioContext usuarioContext;
     private final Clock relogio;
+    private final ApplicationEventPublisher eventos;
 
     LeadRepositorioJpa(
-            LeadJpaRepository jpa, EntityManager em, UsuarioContext usuarioContext, Clock relogio) {
+            LeadJpaRepository jpa, EntityManager em, UsuarioContext usuarioContext, Clock relogio, ApplicationEventPublisher eventos) {
         this.jpa = jpa;
         this.em = em;
         this.usuarioContext = usuarioContext;
         // O filtro "sem retorno ha N dias" precisa saber que horas sao. Vem do relogio
         // injetado, e nao de Instant.now() espalhado, para o teste conseguir fixar a data.
         this.relogio = relogio;
+        this.eventos = eventos;
     }
 
     /**
@@ -215,11 +218,19 @@ class LeadRepositorioJpa implements LeadRepositorio {
         // Carrega pelo predicado de visibilidade: editar lead de colega nao encontra
         // nada para editar, e o caso de uso responde 404 como na leitura.
         return entidadeVisivel(lead.id()).map(entidade -> {
+            Lead anterior = entidade.paraDominio();
             entidade.aplicar(lead);
             try {
                 // O banco arbitra duplicidade, inclusive sob concorrencia/RLS. Flush aqui permite
                 // traduzir somente este conflito antes do commit, sem consultar o cadastro oculto.
-                return jpa.saveAndFlush(entidade).paraDominio();
+                Lead salvo = jpa.saveAndFlush(entidade).paraDominio();
+                if (!java.util.Objects.equals(anterior.nome(), salvo.nome())
+                        || !java.util.Objects.equals(anterior.cpf(), salvo.cpf())
+                        || !java.util.Objects.equals(anterior.telefone(), salvo.telefone())
+                        || !java.util.Objects.equals(anterior.dadosCustomizados().get("data_nascimento"), salvo.dadosCustomizados().get("data_nascimento"))) {
+                    eventos.publishEvent(new com.synapse.crm.core.domain.evento.DadosCadastraisDoLeadAlterados(salvo.id()));
+                }
+                return salvo;
             } catch (DataIntegrityViolationException erro) {
                 for (Throwable causa = erro; causa != null; causa = causa.getCause()) {
                     if (causa instanceof ConstraintViolationException violacao

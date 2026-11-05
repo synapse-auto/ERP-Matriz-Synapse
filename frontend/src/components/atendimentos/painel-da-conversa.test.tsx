@@ -8,6 +8,8 @@ import type { EtapaAtendimento, MidiaDoLead } from "@/lib/lead/types";
 import type { Lembrete, MensagemProgramada } from "@/lib/suporte/types";
 
 type LeadTeste = {
+  cpf?: string | null;
+  dadosCustomizados?: Record<string, unknown>;
   id: string;
   nome: string;
   fotoUrl: string | null;
@@ -42,6 +44,8 @@ const leadState = vi.hoisted(() => ({
     notas: "",
   } as LeadTeste,
 }));
+const funcionalidades = vi.hoisted(() => ({ data: [] as string[] }));
+vi.mock("@/lib/config/use-funcionalidades", () => ({ useFuncionalidadesHabilitadas: () => funcionalidades }));
 const etapasState = vi.hoisted(() => ({
   data: [
     { id: "etapa-0", nome: "Novo contato", ordem: 1, corVisual: "var(--muted)" },
@@ -78,6 +82,7 @@ vi.mock("@/lib/auth/auth-store", () => ({
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
+    dadosCliente: { titulo: "Dados do cliente", cpf: "CPF", nascimento: "Data de nascimento", naoInformado: "Não informado" },
     atendimentos: {
       media: { baixar: "Baixar", imagem: "Imagem", audio: "Áudio", visualizador: { abrirMidia: "Abrir {nome}" } },
       painel: {
@@ -232,6 +237,7 @@ function obterControleDaSecao(titulo: string) {
 
 describe("painel da conversa", () => {
   beforeEach(() => {
+    funcionalidades.data = [];
     authState.papel = "ADMINISTRADOR";
     salvarFichaState.mutate.mockClear();
     solicitarResumoState.mutate.mockClear();
@@ -263,6 +269,17 @@ describe("painel da conversa", () => {
       { id: "etapa-1", nome: "Orçamento", ordem: 2, corVisual: "var(--primary)" },
       { id: "etapa-2", nome: "Negociação", ordem: 3, corVisual: "var(--accent)" },
     ];
+  });
+  it("capacidade ativa exibe cadastro local e nao oferece pesquisa manual como fluxo principal", () => {
+    funcionalidades.data = ["dados_cliente_ficha"];
+    leadState.data.cpf = "52998224725";
+    leadState.data.dadosCustomizados = { data_nascimento: "1990-05-21T00:00:00Z" };
+    renderizarPainel("lead-1", "Ana");
+    expect(screen.getByLabelText("Nome")).toHaveValue("Marcos Vinícius");
+    expect(screen.getAllByText("(61) 99999-0000")).toHaveLength(1);
+    expect(screen.getByText("529.982.247-25")).toBeInTheDocument();
+    expect(screen.getByText("21/05/1990")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Consultar na Darwin" })).not.toBeInTheDocument();
   });
   it("mantém identidades distintas para edição de código e consulta Darwin ao trocar a ficha", () => {
     const erros = vi.spyOn(console, "error").mockImplementation(() => {});

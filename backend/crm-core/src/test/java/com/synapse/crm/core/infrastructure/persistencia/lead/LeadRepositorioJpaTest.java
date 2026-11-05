@@ -53,10 +53,13 @@ class LeadRepositorioJpaTest {
         var jpa = mock(LeadJpaRepository.class);
         var usuario = mock(UsuarioContext.class);
         when(usuario.atual()).thenReturn(new UsuarioAutenticado(UUID.randomUUID(), PapelUsuario.GESTOR, false));
+        var entidade = new LeadEntity();
+        org.springframework.test.util.ReflectionTestUtils.setField(entidade, "id", UUID.randomUUID());
+        entidade.aplicar(Lead.apenasParaVisibilidade(UUID.randomUUID(), "Sintetico", StatusBasicoLead.IA, null));
         when(jpa.findOne(org.mockito.ArgumentMatchers.<Specification<LeadEntity>>any()))
-                .thenReturn(Optional.of(new LeadEntity()));
+                .thenReturn(Optional.of(entidade));
         when(jpa.saveAndFlush(any(LeadEntity.class))).thenThrow(erro);
-        var repositorio = new LeadRepositorioJpa(jpa, mock(EntityManager.class), usuario, Clock.systemUTC());
+        var repositorio = new LeadRepositorioJpa(jpa, mock(EntityManager.class), usuario, Clock.systemUTC(), mock(org.springframework.context.ApplicationEventPublisher.class));
         repositorio.salvar(Lead.apenasParaVisibilidade(UUID.randomUUID(), "Sintetico", StatusBasicoLead.IA, null));
     }
 }

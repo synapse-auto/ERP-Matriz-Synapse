@@ -65,7 +65,7 @@ public class AtualizarLeadUseCase {
     @PreAuthorize("isAuthenticated() and @capacidades.permite('contatos.editar')")
     @Transactional
     public Optional<Lead> executar(UUID id, DadosDeAtualizacaoLead dados) {
-        return leads.porId(id).flatMap(atual -> {
+        return leads.porIdParaAtualizacao(id).flatMap(atual -> {
             Lead atualizado = dados.aplicarEm(atual, telefoneCanonico);
             // dadosCustomizados so e tocado quando o cliente efetivamente mandou algo: ausencia no
             // corpo do PUT significa "nao mexa", igual a qualquer outro campo desta ficha.

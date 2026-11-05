@@ -558,6 +558,9 @@ export function PaginaAtendimentosCliente({
 
   const processarEventoCanonico = useCallback(
     (evento: EventoCanonicoAtendimentoTempoReal) => {
+      if (evento.dados.eventoTipo === "DADOS_CLIENTE_ATUALIZADOS") {
+        void cache.invalidateQueries({ queryKey: ["lead", evento.dados.leadId] });
+      }
       const selecionado = evento.dados.atendimentoId === selecaoAtualRef.current.id;
       if (!selecionado) {
         reconciliador.registrarSemSnapshot(evento);
@@ -592,7 +595,7 @@ export function PaginaAtendimentosCliente({
           }
         });
     },
-    [indisponibilizarAtendimento, reconciliador],
+    [cache, indisponibilizarAtendimento, reconciliador],
   );
 
   const { conexao, estado, ciclo } = useConexaoTempoReal(
@@ -770,6 +773,8 @@ export function PaginaAtendimentosCliente({
   const cicloDosArquivos = useRef<number | null>(null);
   useEffect(() => {
     if (estado === "conectado" && leadDosArquivos) {
+      // Recupera alteracoes de cadastro perdidas durante a desconexao, sem polling.
+      void cache.invalidateQueries({queryKey: ["lead", leadDosArquivos]}, {cancelRefetch: false});
       const reconectou = cicloDosArquivos.current !== null && cicloDosArquivos.current !== ciclo;
       cicloDosArquivos.current = ciclo;
       if (reconectou) {
