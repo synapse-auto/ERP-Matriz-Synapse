@@ -49,15 +49,18 @@ class ColetaDarwinCacheRlsIT extends PostgresIT {
             });
         }
         ApoioRls.sair();
-        assertThat(transacao.execute(s->jdbc.queryForObject("SELECT count(*) FROM lead_coleta_cadastral WHERE lead_id=?",Integer.class,lead))).isZero();
-        assertThat(comoServico(()->jdbc.queryForObject("SELECT estado FROM lead_coleta_cadastral WHERE lead_id=?",String.class,lead))).isEqualTo("AGUARDANDO");
+        int anonimo=transacao.execute(s->jdbc.queryForObject("SELECT count(*) FROM lead_coleta_cadastral WHERE lead_id=?",Integer.class,lead));
+        assertThat(anonimo).isZero();
+        String estado=comoServico(()->jdbc.queryForObject("SELECT estado FROM lead_coleta_cadastral WHERE lead_id=?",String.class,lead));
+        assertThat(estado).isEqualTo("AGUARDANDO");
     }
     @Test void humanoNaoInsereReservaForjadaMasServicoPodeAtualizar() {
         ApoioRls.entrarComo(usuario,PapelUsuario.GESTOR);
         assertThatThrownBy(()->transacao.executeWithoutResult(s->jdbc.update("INSERT INTO lead_coleta_cadastral(lead_id,identidade_hash,token,estado,proxima_consulta,repeticao_manual) VALUES (?,repeat('0',64),?,'FORJADO',now(),now())",outro,UUID.randomUUID())))
                 .isInstanceOfSatisfying(DataAccessException.class, erro ->
                         assertThat(((java.sql.SQLException) erro.getRootCause()).getSQLState()).isEqualTo("42501"));
-        assertThat(comoServico(()->jdbc.update("UPDATE lead_coleta_cadastral SET estado='ATUALIZADO' WHERE lead_id=?",lead))).isEqualTo(1);
+        int alterados=comoServico(()->jdbc.update("UPDATE lead_coleta_cadastral SET estado='ATUALIZADO' WHERE lead_id=?",lead));
+        assertThat(alterados).isEqualTo(1);
     }
     private <T> T comoServico(Supplier<T> acao) {
         return ContextoDeServico.buscarComo("teste-rls-coleta-darwin",()->transacao.execute(s->acao.get()));
