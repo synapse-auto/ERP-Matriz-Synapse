@@ -495,7 +495,7 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `CHAT_INTERNO_DOWNLOAD_CONCORRENCIA` | `2` | Downloads binários simultâneos do chat interno por réplica; excedentes recebem 503 recuperável, sem esperar. |
 | `CHAT_INTERNO_DOWNLOAD_CB_JANELA`, `CHAT_INTERNO_DOWNLOAD_CB_MINIMO`, `CHAT_INTERNO_DOWNLOAD_CB_LIMIAR`, `CHAT_INTERNO_DOWNLOAD_CB_ESPERA` | `10`, `5`, `50`, `30s` | Circuit breaker exclusivo do download interno. Opcionais; sem ação obrigatória no Dokploy. |
 | `FEATURE_CAMPANHAS` | `false` | Só ligar quando a aba de Campanhas entrar no escopo. |
-| `DARWIN_HABILITADO` | `false` | Darwin médico: consulta manual por CPF **conhecido**, na ficha do lead. Habilitar somente na Fêmina após homologação. Não descobre CPF por telefone. [Contrato e roteiro](docs/darwin-identidade-lead.md). |
+| `DARWIN_HABILITADO` | `false` | Darwin médico: consulta manual por CPF **conhecido**, com prévia de nome, CPF e e-mail e confirmação antes de aplicar na ficha do lead. Habilitar somente na Fêmina após homologação. Não descobre CPF por telefone. [Contrato e roteiro](docs/darwin-identidade-lead.md). |
 | `DARWIN_URL` | `https://developers.darwin.med.br` | Origem exata da coleção Darwin médica; somente HTTPS nesse host em produção. Não utilizar a API de outro produto chamado Darwin. |
 | `DARWIN_TOKEN` | vazio | Bearer token médico exclusivo do backend, com escopo do local/profissional. Nunca no frontend/banco/logs. Opcional com recurso OFF. |
 | `DARWIN_CONCORRENCIA` | `2` | Consultas simultâneas por réplica, sem fila de espera. |

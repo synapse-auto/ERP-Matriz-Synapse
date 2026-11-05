@@ -64,6 +64,10 @@ class DarwinHttpAdapter implements DarwinGateway {
     }
 
     @Override public boolean habilitado() { return config.habilitado() && pronta(); }
+    @Override public DadosDarwin.EstadoIntegracao estadoIntegracao() {
+        if (!config.habilitado()) return DadosDarwin.EstadoIntegracao.DESABILITADA;
+        return pronta() ? DadosDarwin.EstadoIntegracao.DISPONIVEL : DadosDarwin.EstadoIntegracao.CONFIGURACAO_INCOMPLETA;
+    }
     private boolean pronta() { return config.pronta() && (ambienteLocal || "developers.darwin.med.br".equals(config.url().getHost())); }
     @Override public void exigirDisponivel() {
         if (!config.habilitado()) throw falha(FalhaDarwin.Codigo.DESABILITADA);
@@ -97,8 +101,39 @@ class DarwinHttpAdapter implements DarwinGateway {
             try { nome = NomeDoLead.normalizar(campoNome.asText()); }
             catch (IllegalArgumentException erro) { throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA); }
         }
+        var email = email(paciente);
         // Não há ID de sessão/paciente neste contrato. Nunca inferir IDs nem usar campos clínicos.
-        return new DadosDarwin.Resultado(List.of(new DadosDarwin.Candidato(null, nome, retornado, false)), false);
+        return new DadosDarwin.Resultado(List.of(new DadosDarwin.Candidato(null, nome, retornado, false,
+                email.valor(), email.invalido())), false);
+    }
+
+    private record EmailCadastro(String valor, boolean invalido) {}
+
+    private static EmailCadastro email(JsonNode paciente) {
+        var campo = paciente.get("email");
+        if (campo == null || campo.isNull()) return new EmailCadastro(null, false);
+        if (!campo.isTextual()) throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
+        String valor = campo.asText().trim();
+        if (valor.isEmpty()) return new EmailCadastro(null, false);
+        return emailValido(valor) ? new EmailCadastro(valor, false) : new EmailCadastro(null, true);
+    }
+
+    private static boolean emailValido(String valor) {
+        if (valor.length() > 200 || valor.chars().anyMatch(Character::isISOControl)
+                || valor.chars().anyMatch(Character::isWhitespace)) return false;
+        int arroba = valor.indexOf('@');
+        if (arroba < 1 || arroba != valor.lastIndexOf('@') || arroba > 64 || arroba == valor.length() - 1) return false;
+        String local = valor.substring(0, arroba);
+        String dominio;
+        try { dominio = java.net.IDN.toASCII(valor.substring(arroba + 1), java.net.IDN.USE_STD3_ASCII_RULES); }
+        catch (IllegalArgumentException erro) { return false; }
+        if (local.startsWith(".") || local.endsWith(".") || local.contains("..")
+                || dominio.length() > 253 || !dominio.contains(".") || dominio.startsWith(".")
+                || dominio.endsWith(".") || dominio.contains("..")) return false;
+        for (String rotulo : dominio.split("\\.")) {
+            if (rotulo.isEmpty() || rotulo.length() > 63 || rotulo.startsWith("-") || rotulo.endsWith("-")) return false;
+        }
+        return local.matches("[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+");
     }
 
     private JsonNode get(String caminho) {
@@ -128,7 +163,7 @@ class DarwinHttpAdapter implements DarwinGateway {
     @Override public String comprovar(UUID usuarioId, Lead lead, DadosDarwin.Candidato candidato) {
         exigirDisponivel();
         try {
-            var recibo = new DadosDarwin.Recibo(usuarioId, lead.id(), lead.telefone(), lead.nome(), lead.cpf(), candidato,
+            var recibo = new DadosDarwin.Recibo(usuarioId, lead.id(), lead.telefone(), lead.nome(), lead.cpf(), lead.email(), candidato,
                     Instant.now(relogio).plus(config.validadePrevia()), config.url().toString());
             String corpo = BASE64.encodeToString(json.writeValueAsBytes(recibo));
             return corpo + "." + BASE64.encodeToString(assinar(corpo));

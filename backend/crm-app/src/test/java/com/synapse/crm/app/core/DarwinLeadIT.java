@@ -40,7 +40,7 @@ class DarwinLeadIT extends PostgresIT {
     private static volatile String telefone;
     private static volatile int status = 200;
     private static volatile String paciente;
-    private static final String PACIENTE = "{\"cpf\":\"529.982.247-25\",\"name\":\"Pessoa Sintética Darwin\",\"phoneNumber\":null,\"motherName\":\"Campo não utilizado\"}";
+    private static final String PACIENTE = "{\"cpf\":\"529.982.247-25\",\"name\":\"Pessoa Sintética Darwin\",\"email\":\"sintetica@example.invalid\",\"phoneNumber\":null,\"motherName\":\"Campo não utilizado\"}";
 
     private static HttpServer servidor() {
         try {
@@ -111,28 +111,34 @@ class DarwinLeadIT extends PostgresIT {
         return json.readTree(resposta.getBody());
     }
     private ResponseEntity<String> aplicar(String token, UUID id, JsonNode previa, boolean nome, boolean cpf) {
-        return pedido(token,HttpMethod.POST,rota(id,"aplicacoes"),Map.of("confirmacao",previa.path("confirmacao").asText(),"nome",nome,"cpf",cpf));
+        return aplicar(token,id,previa,nome,cpf,false);
+    }
+    private ResponseEntity<String> aplicar(String token, UUID id, JsonNode previa, boolean nome, boolean cpf, boolean email) {
+        return pedido(token,HttpMethod.POST,rota(id,"aplicacoes"),Map.of("confirmacao",previa.path("confirmacao").asText(),"nome",nome,"cpf",cpf,"email",email));
     }
 
     @Test void consultaNaoGravaEConfirmacaoPersistePelaFichaComAuditoriaSanitizada() throws Exception {
-        assertThat(pedido(ana,HttpMethod.GET,"/api/v1/leads/integracoes/darwin",null).getBody()).contains("\"habilitada\":true");
+        assertThat(pedido(ana,HttpMethod.GET,"/api/v1/leads/integracoes/darwin",null).getBody())
+                .contains("\"habilitada\":true", "\"estado\":\"DISPONIVEL\"");
         assertThat(CHAMADAS).hasValue(0);
         var p = previa();
         assertThat(p.path("estado").asText()).isEqualTo("ENCONTRADO");
         assertThat(p.path("cpfAtual").isNull()).isTrue();
+        assertThat(p.path("emailAtual").isNull()).isTrue();
         assertThat(p.path("candidatos").get(0).path("sessaoId").isNull()).isTrue();
+        assertThat(p.path("candidatos").get(0).path("email").asText()).isEqualTo("sintetica@example.invalid");
         assertThat(p.toString()).doesNotContain("motherName", "phoneNumber", "Campo não utilizado");
         assertThat(jdbc.queryForObject("SELECT cpf FROM lead WHERE id=?",String.class,lead)).isNull();
         assertThat(jdbc.queryForObject("SELECT nome FROM lead WHERE id=?",String.class,lead)).isEqualTo("Identificação atual");
-        var aplicado = aplicar(ana,lead,p,true,true);
+        var aplicado = aplicar(ana,lead,p,true,true,true);
         assertThat(aplicado.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(aplicado.getBody()).contains("DARWIN_MEDICO");
         var ficha = pedido(ana,HttpMethod.GET,"/api/v1/leads/"+lead,null);
-        assertThat(ficha.getBody()).contains("Pessoa Sintética Darwin","52998224725","Nota preservada","Resumo preservado",telefone);
-        assertThat(aplicar(ana,lead,p,true,true).getBody()).contains("\"camposAlterados\":[]");
+        assertThat(ficha.getBody()).contains("Pessoa Sintética Darwin","52998224725","sintetica@example.invalid","Nota preservada","Resumo preservado",telefone);
+        assertThat(aplicar(ana,lead,p,true,true,true).getBody()).contains("\"camposAlterados\":[]");
         assertThat(CHAMADAS).hasValue(1); // aplicação/reload não consultam o provedor.
         var auditoria = jdbc.queryForList("SELECT dados_depois::text FROM audit_log WHERE acao='APLICAR_DADOS_DARWIN' AND entidade_id=?",String.class,lead);
-        assertThat(auditoria).hasSize(2).allSatisfy(a -> assertThat(a).contains("DARWIN_MEDICO","camposAlterados").doesNotContain("52998224725","Pessoa Sintética Darwin",telefone,"confirmacao","token-medico-sintetico"));
+        assertThat(auditoria).hasSize(2).allSatisfy(a -> assertThat(a).contains("DARWIN_MEDICO","camposAlterados").doesNotContain("52998224725","Pessoa Sintética Darwin","sintetica@example.invalid",telefone,"confirmacao","token-medico-sintetico"));
     }
     @Test void colegaInexistenteESemLoginNaoConsultamNemAplicam() throws Exception {
         for (UUID id : java.util.List.of(outro,UUID.randomUUID())) {
@@ -242,6 +248,28 @@ class DarwinLeadIT extends PostgresIT {
         assertThat(jdbc.queryForObject("SELECT nome FROM lead WHERE id=?",String.class,lead)).isEqualTo("Identificação atual");
     }
 
+    @Test void emailPodeSerConfirmadoEEdicaoConcorrenteNaoEhSobrescrita() throws Exception {
+        var p=previa();
+        var aplicada=aplicar(ana,lead,p,false,false,true);
+        assertThat(aplicada.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(aplicada.getBody()).contains("email");
+        assertThat(jdbc.queryForObject("SELECT email FROM lead WHERE id=?",String.class,lead)).isEqualTo("sintetica@example.invalid");
+
+        p=previa();
+        pedido(ana,HttpMethod.PUT,"/api/v1/leads/"+lead,Map.of("email","manual@example.invalid"));
+        assertThat(aplicar(ana,lead,p,false,false,true).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jdbc.queryForObject("SELECT email FROM lead WHERE id=?",String.class,lead)).isEqualTo("manual@example.invalid");
+    }
+
+    @Test void emailMalformadoDaDarwinFicaIndisponivelEEndpointRecusaSelecaoDireta() throws Exception {
+        paciente="{\"cpf\":\"52998224725\",\"name\":\"Pessoa Sintética Darwin\",\"email\":\"não é e-mail\"}";
+        var p=previa();
+        assertThat(p.path("candidatos").get(0).path("email").isNull()).isTrue();
+        assertThat(p.path("candidatos").get(0).path("emailInvalido").asBoolean()).isTrue();
+        assertThat(aplicar(ana,lead,p,false,false,true).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(jdbc.queryForObject("SELECT email FROM lead WHERE id=?",String.class,lead)).isNull();
+    }
+
     @Test void openApiDocumentaConsultaPorCpfConhecidoSemPrometerBuscaPorTelefone() throws Exception {
         var resposta = pedido(ana,HttpMethod.GET,"/v3/api-docs",null);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -253,6 +281,11 @@ class DarwinLeadIT extends PostgresIT {
         String referencia = esquema.path("$ref").asText();
         if (!referencia.isEmpty()) esquema = contrato.at(referencia.substring(1));
         assertThat(esquema.path("properties").has("cpf")).isTrue();
+        var aplicacao = contrato.path("paths").path("/api/v1/leads/{id}/darwin/aplicacoes").path("post")
+                .path("requestBody").path("content").path("application/json").path("schema");
+        String referenciaAplicacao = aplicacao.path("$ref").asText();
+        if (!referenciaAplicacao.isEmpty()) aplicacao = contrato.at(referenciaAplicacao.substring(1));
+        assertThat(aplicacao.path("properties").has("email")).isTrue();
         assertThat(CHAMADAS).hasValue(0);
     }
 }

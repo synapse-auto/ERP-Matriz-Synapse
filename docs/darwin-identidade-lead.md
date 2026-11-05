@@ -15,7 +15,7 @@ Nenhuma requisição foi executada a partir dela ou contra conta produtiva.
 | Base `https://developers.darwin.med.br` | Origem HTTPS permitida; sem path, query, userinfo ou porta alternativa. |
 | `GET /api/patients/find/cpf?cpf=000.000.000-00` | Consulta de CPF conhecido; normalização e verificação dos dígitos antes de enviar a máscara exigida. |
 | `Authorization: Bearer <token>` | Segredo somente no backend; sem `X-API-KEY`. |
-| 200: objeto raiz com `name` e `cpf` | Somente estes dois campos são aproveitados. CPF deve ser válido e exatamente igual ao consultado. |
+| 200: objeto raiz com `name`, `cpf` e `email` | Nome/CPF já eram aproveitados; e-mail passa a ser opcional, validado e apresentado para confirmação. CPF deve ser válido e exatamente igual ao consultado. |
 | Campos não preenchidos: `null` | Nome ausente não é inventado nem aplicado. CPF ausente/inválido impede qualquer aplicação. |
 | 404 | Nenhum paciente **no escopo do token**; não prova inexistência global do paciente. |
 | 400 documentado | Erro sanitizado; não encaminhar corpo do fornecedor ao navegador. |
@@ -48,9 +48,9 @@ Endpoints existentes, documentados no OpenAPI dos controllers:
 
 | Endpoint | Contrato |
 |---|---|
-| `GET /api/v1/leads/integracoes/darwin` | `{habilitada:boolean}`; não expõe configuração e não chama fornecedor. |
+| `GET /api/v1/leads/integracoes/darwin` | `{habilitada:boolean, estado}`; não expõe configuração e não chama fornecedor. |
 | `POST /api/v1/leads/{id}/darwin/consultas` | Corpo opcional `{cpf:string}`. Sem CPF no corpo, utiliza o CPF persistido; se nenhum disponível, `SEM_IDENTIDADE`, sem HTTP externo. CPF inválido retorna 400. |
-| `POST /api/v1/leads/{id}/darwin/aplicacoes` | `{confirmacao,nome:boolean,cpf:boolean}`; não aceita valores arbitrários. Retorna `{leadId,origem:"DARWIN_MEDICO",camposAlterados}`. Não consulta novamente o fornecedor. |
+| `POST /api/v1/leads/{id}/darwin/aplicacoes` | `{confirmacao,nome:boolean,cpf:boolean,email:boolean}`; não aceita valores arbitrários. Retorna `{leadId,origem:"DARWIN_MEDICO",camposAlterados}`. Não consulta novamente o fornecedor. |
 
 Mantida compatibilidade estrutural da prévia: `sessaoId` fica **null/deprecated**,
 `limiteAtingido=false`, e enum legado `AMBIGUO` não é produzido pelo adaptador médico.
@@ -119,3 +119,42 @@ Testes usam CPF e cadastro sintéticos, transporte HTTP simulado e PostgreSQL/Te
 não comprovam credencial, dados ou disponibilidade da conta real. As capturas históricas da
 PR #340 estão [explicitamente obsoletas](evidencias/darwin-identidade/README.md) para este contrato.
 Descoberta telefone→CPF depende de contrato oficial adicional; não foi entregue nem simulada.
+
+## Auditoria da coleção médica e melhoria cadastral
+
+A coleção fornecida `Darwin-API.postman_collection.json` declara API de integração médica v1.0.9,
+gerada de OpenAPI 3.0.3; seu SHA-256 está registrado acima. Autenticação é Bearer. Foram
+inventariadas as operações da coleção sem executar chamadas à conta Darwin. Capacidades de leitura
+confirmadas:
+
+- Paciente: somente `GET /api/patients/find/cpf?cpf=...`; exige CPF no formato `000.000.000-00`,
+  retorna 404 quando não há paciente no escopo do token. Não existe busca por telefone, nome ou
+  outro identificador demonstrado pela coleção.
+- A resposta cadastral tem `name`, `cpf`, `email`, `phoneNumber`, `extraPhones`, `birthDate`,
+  `address` e outros campos pessoais/sensíveis. No CRM, `nome`, `cpf`, `email` e `telefone` existem.
+Nome/CPF já eram suportados; esta melhoria passa a oferecer **e-mail** em prévia e seleção
+  explícita. E-mail que não passa a validação conservadora é omitido e marcado inválido; o endpoint
+  de aplicação também o rejeita se for selecionado diretamente. Telefone não é aplicado porque é identidade de roteamento do WhatsApp; os demais
+  campos não são importados por não terem correspondência direta necessária na ficha.
+- A coleção também documenta leitura de agendamentos de um paciente por CPF e intervalo/status;
+  profissionais, locais, grades/horários disponíveis, procedimentos e convênios. Procedimentos e
+  convênios incluem paginação `page`/`amount` (máximo 100). Essas leituras não foram integradas:
+  expor histórico de saúde/agenda na ficha demanda escopo operacional, autorização e benefício
+  aprovados separadamente.
+- Existem operações de escrita para criação/edição/remoção de agendamentos, cadastro de pacientes,
+  grades e resultados de exames. Todas permanecem fora desta integração. Não há endpoint de
+  cancelamento separado: a coleção documenta `DELETE /api/schedules/delete`, uma escrita excluída
+  desta tarefa.
+- A coleção não define webhook/assinatura para atualização de paciente, busca por CPF em lote,
+  paginação de pacientes nem uma cota/limite geral de consultas. Não inferimos esses contratos.
+  O HTTP de leitura continua sem retry, com circuit breaker, bulkhead, timeout e limite de resposta.
+
+`GET /api/v1/leads/integracoes/darwin` agora mantém `habilitada` e acrescenta `estado` (`DESABILITADA`,
+`CONFIGURACAO_INCOMPLETA`, `DISPONIVEL`). O estado não revela qual campo ambiental falta nem valores;
+permite que a ficha mostre orientação de configuração em vez de ocultar silenciosamente a ação.
+O endpoint permanece protegido pelas capacidades `clientes.acessar` e `contatos.editar`.
+
+A configuração `DARWIN_HABILITADO`, `DARWIN_URL` e `DARWIN_TOKEN` já é repassada pelo serviço
+backend em `docker/dokploy-stack.yml`, com flag padrão `false` e token opcional vazio. O código
+versionado não permite comprovar quais valores estão salvos no Dokploy nem a imagem implantada na
+Fêmina; essa conferência exige leitura do serviço implantado. Nenhuma variável nova foi criada.

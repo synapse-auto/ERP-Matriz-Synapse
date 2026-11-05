@@ -9,19 +9,20 @@ public final class DadosDarwin {
     private DadosDarwin() {}
     // Campo legado apenas por compatibilidade do JSON CRM; médico não retorna sessão.
     public record Candidato(@io.swagger.v3.oas.annotations.media.Schema(deprecated = true, nullable = true) String sessaoId,
-                            String nome, String cpf, boolean cpfInvalido) {
+                            String nome, String cpf, boolean cpfInvalido, String email, boolean emailInvalido) {
         @Override public String toString() { return "CandidatoDarwin[redigido]"; }
     }
     public record Resultado(List<Candidato> candidatos, boolean limiteAtingido) {
         public Resultado { candidatos = List.copyOf(candidatos); }
     }
     public enum Estado { ENCONTRADO, SEM_RESULTADO, AMBIGUO, SEM_IDENTIDADE }
+    public enum EstadoIntegracao { DESABILITADA, CONFIGURACAO_INCOMPLETA, DISPONIVEL }
     public record Previa(Estado estado, List<Candidato> candidatos, boolean limiteAtingido,
-                         String nomeAtual, String cpfAtual, String confirmacao) {
+                         String nomeAtual, String cpfAtual, String emailAtual, String confirmacao) {
         @Override public String toString() { return "PreviaDarwin[redigido]"; }
     }
     public record Recibo(UUID usuarioId, UUID leadId, String telefone, String nomeAnterior,
-                         String cpfAnterior, Candidato candidato, Instant expiraEm,
+                         String cpfAnterior, String emailAnterior, Candidato candidato, Instant expiraEm,
                          String origem) {
         @Override public String toString() { return "ReciboDarwin[redigido]"; }
     }

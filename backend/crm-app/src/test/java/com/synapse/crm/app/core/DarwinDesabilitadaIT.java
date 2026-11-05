@@ -24,7 +24,7 @@ class DarwinDesabilitadaIT extends PostgresIT {
         var headers = new HttpHeaders(); headers.setBearerAuth(token); headers.setContentType(MediaType.APPLICATION_JSON);
         var disponibilidade = http.exchange("/api/v1/leads/integracoes/darwin",HttpMethod.GET,new HttpEntity<>(headers),String.class);
         assertThat(disponibilidade.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(disponibilidade.getBody()).isEqualTo("{\"habilitada\":false}");
+        assertThat(disponibilidade.getBody()).isEqualTo("{\"habilitada\":false,\"estado\":\"DESABILITADA\"}");
         for (String acao : java.util.List.of("consultas","aplicacoes")) {
             var resposta = http.exchange("/api/v1/leads/"+UUID.randomUUID()+"/darwin/"+acao,HttpMethod.POST,
                     new HttpEntity<>(Map.of("confirmacao","invalida","nome",true),headers),String.class);

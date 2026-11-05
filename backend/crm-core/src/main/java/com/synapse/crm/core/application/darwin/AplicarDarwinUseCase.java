@@ -29,18 +29,19 @@ public class AplicarDarwinUseCase {
     @PreAuthorize("isAuthenticated() and @capacidades.permite('clientes.acessar') and @capacidades.permite('contatos.editar')")
     @Auditable(acao = "APLICAR_DADOS_DARWIN", entidadeTipo = "LEAD_DARWIN")
     @Transactional
-    public DadosDarwin.Aplicacao executar(UUID id, String confirmacao, boolean nome, boolean cpf) {
+    public DadosDarwin.Aplicacao executar(UUID id, String confirmacao, boolean nome, boolean cpf, boolean email) {
         darwin.exigirDisponivel();
         // Verifica acesso antes mesmo de interpretar o comprovante; colega/inexistente seguem 404.
         var atual = leads.porIdParaAtualizacao(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         var recibo = darwin.verificar(confirmacao);
-        if (!id.equals(recibo.leadId()) || !usuarios.atual().id().equals(recibo.usuarioId()) || (!nome && !cpf)) invalido();
+        if (!id.equals(recibo.leadId()) || !usuarios.atual().id().equals(recibo.usuarioId()) || (!nome && !cpf && !email)) invalido();
         if (!Objects.equals(atual.telefone(), recibo.telefone())) conflito();
         var encontrado = recibo.candidato();
         // Troca concorrente de CPF invalida também a aplicação só do nome.
         // Reaplicar o mesmo resultado continua idempotente.
         if (!Objects.equals(atual.cpf(), recibo.cpfAnterior()) && !Objects.equals(atual.cpf(), encontrado.cpf())) conflito();
         if ((nome && encontrado.nome() == null) || (cpf && (encontrado.cpfInvalido() || Cpf.validoOuNulo(encontrado.cpf()) == null))) invalido();
+        if (email && (encontrado.emailInvalido() || encontrado.email() == null)) invalido();
         var campos = new ArrayList<String>();
         if (nome && !Objects.equals(atual.nome(), encontrado.nome())) {
             if (!Objects.equals(atual.nome(), recibo.nomeAnterior())) conflito();
@@ -50,8 +51,13 @@ public class AplicarDarwinUseCase {
             if (!Objects.equals(atual.cpf(), recibo.cpfAnterior())) conflito();
             campos.add("cpf");
         }
+        if (email && !Objects.equals(atual.email(), encontrado.email())) {
+            if (!Objects.equals(atual.email(), recibo.emailAnterior())) conflito();
+            campos.add("email");
+        }
         if (!campos.isEmpty()) atualizar.executar(id, new DadosDeAtualizacaoLead(
-                campos.contains("nome") ? encontrado.nome() : null, null, null, null,
+                campos.contains("nome") ? encontrado.nome() : null, null, null,
+                campos.contains("email") ? encontrado.email() : null,
                 campos.contains("cpf") ? encontrado.cpf() : null, null, null, null, null, null, null, null, null))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         return new DadosDarwin.Aplicacao(id, "DARWIN_MEDICO", java.util.List.copyOf(campos));

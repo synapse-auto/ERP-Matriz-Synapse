@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /** Fallback local para catálogos de instâncias ainda anteriores à integração. */
 export const TEXTOS_DARWIN = {
-  versaoContrato: "darwin-medico-cpf-v1",
+  versaoContrato: "darwin-medico-cpf-v2",
   consultar: "Consultar na Darwin", titulo: "Consultar Darwin médico",
   descricao: "Consulte um CPF conhecido, confira o cadastro e confirme somente os campos que deseja aplicar.",
   cpfConsulta: "CPF para consulta", buscarCpf: "Buscar por CPF", cadastroConsultado: "Cadastro correspondente ao CPF consultado",
@@ -10,9 +10,10 @@ export const TEXTOS_DARWIN = {
   cpfConsultaInvalido: "Informe um CPF válido, com 11 dígitos ou no formato 000.000.000-00.",
   carregando: "Consultando dados na Darwin…", aplicar: "Aplicar seleção", cancelar: "Cancelar",
   novamente: "Consultar novamente", sucesso: "Dados aplicados à ficha.",
-  nome: "Nome", cpf: "CPF", atual: "Atual", encontrado: "Encontrado", ausente: "Não informado",
-  selecionarNome: "Aplicar nome", selecionarCpf: "Aplicar CPF",
+  nome: "Nome", cpf: "CPF", email: "E-mail", atual: "Atual", encontrado: "Encontrado", ausente: "Não informado",
+  selecionarNome: "Aplicar nome", selecionarCpf: "Aplicar CPF", selecionarEmail: "Aplicar e-mail",
   cpfInvalido: "CPF inválido na origem; não será aplicado.",
+  emailInvalido: "E-mail inválido na origem; não será aplicado.",
   SEM_RESULTADO: "Nenhum paciente com esse CPF foi encontrado no escopo da credencial Darwin.",
   AMBIGUO: "A resposta não identifica um cadastro único. Nenhum dado será aplicado.",
   SEM_IDENTIDADE: "É necessário informar um CPF conhecido para consultar o Darwin médico.",
