@@ -956,7 +956,15 @@
     "titulo": "Dados do cliente",
     "cpf": "CPF",
     "nascimento": "Data de nascimento",
-    "naoInformado": "Não informado"
+    "naoInformado": "Não informado",
+    "consultar": "Atualizar dados cadastrais",
+    "consultando": "Consultando cadastro…",
+    "identificacaoPendente": "Identificação do paciente pendente",
+    "revisao": "Dados divergentes. Revise o cadastro antes de alterar.",
+    "atualizado": "Cadastro consultado",
+    "parcial": "Cadastro consultado com dados parciais",
+    "naoEncontrado": "Paciente não encontrado no cadastro disponível",
+    "falhaColeta": "Não foi possível consultar agora. Tente novamente mais tarde."
   },
   "painelLead": {
     "titulo": "Ficha do lead",

@@ -642,6 +642,7 @@ describe("PaginaAtendimentosCliente", () => {
     act(() => callbacks.eventoEstado?.(evento));
     await waitFor(() => expect(invalidar).toHaveBeenCalledWith({queryKey: ["lead", "lead-1"], exact: true}));
     expect(invalidar).not.toHaveBeenCalledWith({queryKey: ["lead"]});
+    expect(invalidar).toHaveBeenCalledWith({queryKey: ["darwin-coleta", "lead-1"]});
   });
 
   it("evento de mídia invalida só os anexos do lead, sem invalidar por texto", async () => {

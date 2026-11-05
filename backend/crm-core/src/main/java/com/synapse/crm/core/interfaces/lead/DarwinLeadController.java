@@ -23,8 +23,25 @@ class DarwinLeadController {
     private final ConsultarDarwinUseCase consultar;
     private final AplicarDarwinUseCase aplicar;
     private final DarwinGateway darwin;
-    DarwinLeadController(ConsultarDarwinUseCase consultar, AplicarDarwinUseCase aplicar, DarwinGateway darwin) {
-        this.consultar = consultar; this.aplicar = aplicar; this.darwin = darwin;
+    private final LerLeadParaDarwinUseCase acesso;
+    private final ColetaDarwin coleta;
+    DarwinLeadController(ConsultarDarwinUseCase consultar, AplicarDarwinUseCase aplicar, DarwinGateway darwin,
+            LerLeadParaDarwinUseCase acesso, ColetaDarwin coleta) {
+        this.consultar = consultar; this.aplicar = aplicar; this.darwin = darwin; this.acesso=acesso; this.coleta=coleta;
+    }
+
+    @GetMapping("/{id}/darwin/coleta")
+    ColetaDarwin.Situacao estadoColeta(@PathVariable UUID id) {
+        acesso.executar(id);
+        return coleta.situacao(id);
+    }
+
+    @PostMapping("/{id}/darwin/coleta")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    void tentarColeta(@PathVariable UUID id) {
+        acesso.executar(id);
+        darwin.exigirDisponivel();
+        coleta.solicitar(id,true);
     }
     record Disponibilidade(boolean habilitada, DadosDarwin.EstadoIntegracao estado) {}
     record Confirmacao(@NotBlank @Size(max = 8192) String confirmacao, boolean nome, boolean cpf, boolean email) {}

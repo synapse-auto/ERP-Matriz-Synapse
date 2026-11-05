@@ -1,5 +1,8 @@
 # Darwin médico — consulta cadastral por CPF conhecido
 
+> A coleta **assíncrona real**, seus gatilhos, cache, preenchimento de nascimento e limites estão em
+> [coleta cadastral Darwin](darwin-coleta-cadastral.md). Este documento descreve a consulta manual anterior.
+
 > A consulta manual não é a entrega de “Dados do cliente”. Com `dados_cliente_ficha` habilitada,
 > Atendimentos exibe CPF/nascimento locais junto do nome e telefone existentes, sem esse modal
 > e sem depender da Darwin. Ver [origens e contratos da ficha](dados-cliente-ficha.md).

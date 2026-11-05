@@ -44,6 +44,8 @@ public final class DarwinIdentidadeLocal {
         System.setProperty("synapse.tempo-real.origens-permitidas","http://localhost:3014");
         System.setProperty("synapse.seguranca.frontend-origem","http://localhost:3014");
         var estado = new AtomicReference<>("sucesso");
+        boolean coletaVisual = "true".equals(System.getenv("DARWIN_COLETA_VISUAL_LOCAL"));
+        if (coletaVisual) estado.set("lento");
         var liberar = new AtomicReference<CompletableFuture<Void>>(new CompletableFuture<>());
         var banco = new AtomicReference<JdbcTemplate>();
         var publicarFicha = new AtomicReference<Runnable>(() -> {});
@@ -63,7 +65,7 @@ public final class DarwinIdentidadeLocal {
         fake.createContext("/", troca -> {
             try {
                 if ("lento".equals(estado.get())) liberar.get().get(20,TimeUnit.SECONDS);
-                String corpo = "{\"cpf\":\"529.982.247-25\",\"name\":\"Pessoa Darwin Sintética\",\"email\":\"pessoa.sintetica@example.invalid\"}";
+                String corpo = "{\"cpf\":\"529.982.247-25\",\"name\":\"Pessoa Darwin Sintética\",\"birthDate\":\"1990-05-21T00:00:00.000Z\",\"email\":\"pessoa.sintetica@example.invalid\"}";
                 int status = "erro".equals(estado.get()) ? 403 : "vazio".equals(estado.get()) ? 404 : 200;
                 byte[] bytes = corpo.getBytes(StandardCharsets.UTF_8);
                 troca.getResponseHeaders().set("Content-Type","application/json");
@@ -87,13 +89,14 @@ public final class DarwinIdentidadeLocal {
         // Schedulers globais permanecem OFF. O teste visual pode acionar apenas o worker real da ficha.
         publicarFicha.set(contexto.getBean(com.synapse.crm.atendimento.infrastructure.outbox.PublicadorEventoEstadoOutbox.class)::publicarPendentes);
         if (!"darwin_visual".equals(jdbc.queryForObject("SELECT current_database()",String.class))) throw new IllegalStateException("fixture fora do banco descartável");
-        if (cadastroLocal) {
+        if (cadastroLocal || coletaVisual) {
             jdbc.update("UPDATE feature_flag SET habilitado=true WHERE chave='dados_cliente_ficha'");
             jdbc.update("INSERT INTO campo_customizado(chave,rotulo,tipo,obrigatorio,filtravel,ordem) VALUES ('data_nascimento','Data de nascimento','DATA',false,false,99) ON CONFLICT DO NOTHING");
         }
         UUID ana = jdbc.queryForObject("SELECT id FROM usuario WHERE email='ana@dev.local'",UUID.class);
         UUID atendimento = UUID.fromString("da000000-0000-4000-8000-000000000002");
         jdbc.update("INSERT INTO lead(id,nome,telefone,status_basico,atendente_responsavel_id,num_atendimentos) VALUES (?,?,?,'EM_ATENDIMENTO',?,1)",lead,"Contato sintético Darwin","5561999900777",ana);
+        if (coletaVisual) jdbc.update("UPDATE lead SET nome=telefone, cpf='52998224725' WHERE id=?",lead);
         jdbc.update("INSERT INTO atendimento(id,lead_id,canal_id,atendente_id,status,iniciado_em) VALUES (?,?,'ca000000-0000-4000-8000-000000000001',?,'EM_ATENDIMENTO',now())",atendimento,lead,ana);
         jdbc.update("INSERT INTO mensagem(atendimento_id,remetente_tipo,tipo,conteudo,enviado_em,status_entrega) VALUES (?,'LEAD','TEXTO','Conversa sintética para validação local.',now(),'ENTREGUE')",atendimento);
         Files.createDirectories(Path.of("..","output"));
