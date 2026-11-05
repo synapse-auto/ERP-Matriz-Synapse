@@ -1,6 +1,7 @@
 export interface ConfiguracaoAutomacao {
   readonly host: string;
   readonly port: number;
+  readonly automacaoHabilitada: boolean;
   readonly followUpHabilitado: boolean;
 }
 
@@ -21,12 +22,16 @@ function lerPorta(valor: string | undefined): number {
 }
 
 export function carregarConfiguracao(env: NodeJS.ProcessEnv): ConfiguracaoAutomacao {
+  const automacaoHabilitada = lerBooleano('AUTOMACAO_HABILITADA', env.AUTOMACAO_HABILITADA);
+  // Validar ambas mesmo com a chave geral desligada evita esconder erros de configuracao.
+  const followUpSolicitado = lerBooleano(
+    'AUTOMACAO_FOLLOWUP_HABILITADO',
+    env.AUTOMACAO_FOLLOWUP_HABILITADO,
+  );
   return {
     host: env.AUTOMACAO_HOST || '127.0.0.1',
     port: lerPorta(env.AUTOMACAO_PORT),
-    followUpHabilitado: lerBooleano(
-      'AUTOMACAO_FOLLOWUP_HABILITADO',
-      env.AUTOMACAO_FOLLOWUP_HABILITADO,
-    ),
+    automacaoHabilitada,
+    followUpHabilitado: automacaoHabilitada && followUpSolicitado,
   };
 }

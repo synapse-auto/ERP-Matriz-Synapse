@@ -6,7 +6,10 @@ export function criarAplicacao(configuracao: ConfiguracaoAutomacao) {
 
   app.get('/health/liveness', async () => ({
     status: 'UP',
-    capacidades: { followUpHabilitado: configuracao.followUpHabilitado },
+    capacidades: {
+      automacaoHabilitada: configuracao.automacaoHabilitada,
+      followUpHabilitado: configuracao.followUpHabilitado,
+    },
   }));
 
   return app;
