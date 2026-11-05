@@ -2313,6 +2313,9 @@
         },
         "localizacao" : {
           "type" : "string"
+        },
+        "nome" : {
+          "type" : "string"
         }
       },
       "type" : "object"
@@ -2656,6 +2659,10 @@
           "type" : "string"
         },
         "localizacao" : {
+          "enum" : [ "APLICADO", "IGNORADO_JA_PREENCHIDO", "IGNORADO_INVALIDO", "AUSENTE" ],
+          "type" : "string"
+        },
+        "nome" : {
           "enum" : [ "APLICADO", "IGNORADO_JA_PREENCHIDO", "IGNORADO_INVALIDO", "AUSENTE" ],
           "type" : "string"
         }
