@@ -69,6 +69,11 @@ O worker existente publica no Redis fora da transacao. Entrega WebSocket revalid
 o browser invalida somente a ficha do lead e busca novamente pelo REST autorizado. Reconexao
 rele a ficha selecionada; chaves por lead impedem mistura na troca de conversa. Sem polling novo.
 Nenhum CPF, nascimento ou nome e incluido no sinal. Auditoria de nascimento nao captura valores.
+Uma leitura de permissoes pode vincular tambem uma conexao passiva do outro pool ao thread.
+Sinal e outbox identificam a conexao transacional ja vinculada (autocommit desligado), sem
+abrir outra conexao nem alterar RLS/autocommit. Dois vinculos nao significam duas transacoes;
+zero ou duas conexoes de escrita efetivas continuam recusadas. Testes cobrem ambos os pools,
+vinculo passivo e atomicidade de commit/rollback com PostgreSQL real.
 O preenchimento EV05 tambem registra ator AUTOMACAO, acao e leadId sem capturar valores pessoais.
 O sinal cobre atendimentos abertos; consultas historicas continuam lendo o cadastro atual via REST.
 

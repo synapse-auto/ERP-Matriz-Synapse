@@ -43,12 +43,7 @@ class OutboxEventoEstadoRepositorioJdbc {
 
     void enfileirar(EventoCanonicoDeAtendimento evento) {
         TransacaoObrigatoria.exigir("enfileirarEventoEstadoAtendimento");
-        var escrita = org.springframework.transaction.support.TransactionSynchronizationManager.hasResource(chatDataSource)
-                ? chat : new JdbcTemplate(geral);
-        if (!org.springframework.transaction.support.TransactionSynchronizationManager.hasResource(chatDataSource)
-                && !org.springframework.transaction.support.TransactionSynchronizationManager.hasResource(geral)) {
-            throw new IllegalStateException("outbox exige a conexao da transacao corrente");
-        }
+        var escrita = new JdbcTemplate(ConexaoDaTransacaoAtual.exigir(geral, chatDataSource));
         escrita.update(
                 "INSERT INTO outbox_evento (id, tipo, payload, criado_em, proxima_tentativa_em)"
                         + " VALUES (?, ?, ?::jsonb, ?, ?)",

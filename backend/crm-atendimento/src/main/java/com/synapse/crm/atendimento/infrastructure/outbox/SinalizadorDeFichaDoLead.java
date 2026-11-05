@@ -11,7 +11,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.core.domain.evento.DadosCadastraisDoLeadAlterados;
@@ -32,13 +31,7 @@ class SinalizadorDeFichaDoLead {
 
     @EventListener
     void sinalizar(DadosCadastraisDoLeadAlterados alteracao) {
-        if (TransactionSynchronizationManager.hasResource(chat) && TransactionSynchronizationManager.hasResource(geral)) {
-            throw new IllegalStateException("sinal de ficha com pools concorrentes nao possui transacao inequivoca");
-        }
-        DataSource ativa = TransactionSynchronizationManager.hasResource(chat) ? chat : geral;
-        if (!TransactionSynchronizationManager.isActualTransactionActive() || !TransactionSynchronizationManager.hasResource(ativa)) {
-            throw new IllegalStateException("alteracao de ficha exige transacao do cadastro");
-        }
+        DataSource ativa = ConexaoDaTransacaoAtual.exigir(geral, chat);
         new JdbcTemplate(ativa).query("UPDATE atendimento SET versao_evento = versao_evento + 1 "
                         + "WHERE lead_id = ? AND finalizado_em IS NULL RETURNING id, versao_evento",
                 (rs, indice) -> EventoCanonicoDeAtendimento.criar(EventoCanonicoDeAtendimento.Tipo.DADOS_CLIENTE_ATUALIZADOS,

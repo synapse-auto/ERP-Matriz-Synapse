@@ -26,6 +26,9 @@ import com.synapse.crm.app.PostgresIT;
 class DadosClienteFichaIT extends PostgresIT {
     @Autowired TestRestTemplate http;
     @Autowired JdbcTemplate jdbc;
+    @Autowired org.springframework.context.ApplicationEventPublisher eventos;
+    @Autowired org.springframework.transaction.PlatformTransactionManager transacoes;
+    @Autowired @org.springframework.beans.factory.annotation.Qualifier(com.synapse.crm.sharedkernel.persistencia.Pools.CHAT_DATA_SOURCE) javax.sql.DataSource chat;
     UUID lead;
     UUID atendimento;
     String ana;
@@ -82,6 +85,27 @@ class DadosClienteFichaIT extends PostgresIT {
         var r = http.postForEntity("/internal/v1/leads/"+lead+"/data-nascimento",Map.of("dataNascimento","1990-05-21"),String.class);
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(ficha(ana).getBody()).doesNotContain("1990-05-21");
+    }
+
+    @Test void vinculoPassivoDePermissoesPreservaCommitERollbackDaOutbox() {
+        var tx = new org.springframework.transaction.support.TransactionTemplate(transacoes);
+        com.synapse.crm.sharedkernel.identidade.ContextoDeServico.executarComo("teste-ficha-pool-passivo", () -> {
+            tx.executeWithoutResult(estado -> {
+                var passiva = org.springframework.jdbc.datasource.DataSourceUtils.getConnection(chat);
+                try { assertThat(passiva.getAutoCommit()).isTrue(); }
+                catch (java.sql.SQLException erro) { throw new AssertionError(erro); }
+                jdbc.update("UPDATE lead SET cpf='52998224725' WHERE id=?",lead);
+                eventos.publishEvent(new com.synapse.crm.core.domain.evento.DadosCadastraisDoLeadAlterados(lead));
+            });
+            tx.executeWithoutResult(estado -> {
+                org.springframework.jdbc.datasource.DataSourceUtils.getConnection(chat);
+                jdbc.update("UPDATE lead SET cpf='11144477735' WHERE id=?",lead);
+                eventos.publishEvent(new com.synapse.crm.core.domain.evento.DadosCadastraisDoLeadAlterados(lead));
+                estado.setRollbackOnly();
+            });
+        });
+        assertThat(ficha(ana).getBody()).contains("52998224725").doesNotContain("11144477735");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_evento WHERE payload::jsonb->>'leadId'=? AND payload::jsonb->>'eventoTipo'='DADOS_CLIENTE_ATUALIZADOS'",Long.class,lead.toString())).isEqualTo(1L);
     }
     @Test void nomeColetadoCompletaApenasFallbackERejeitaDivergenciaDeIdentidade() {
         jdbc.update("UPDATE lead SET nome=telefone WHERE id=?",lead);
