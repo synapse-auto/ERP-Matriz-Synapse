@@ -24,8 +24,9 @@ export function DadosClienteLocais({ lead }: { lead: LeadFicha }) {
 function dataLocal(valor: unknown): string | null {
   if (typeof valor !== "string") return null;
   // Valor civil, nao instante: nao deslocar nascimento pelo fuso do browser.
-  const partes = /^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.000)?Z)?$/.exec(valor);
+  const partes = /^(\d{4})-(\d{2})-(\d{2})(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z)?$/.exec(valor);
   if (!partes) return null;
+  if (valor.includes("T") && !Number.isFinite(Date.parse(valor))) return null;
   const [, ano, mes, dia] = partes;
   const data = new Date(`${ano}-${mes}-${dia}T00:00:00Z`);
   if (!Number.isFinite(data.getTime()) || data.toISOString().slice(0, 10) !== `${ano}-${mes}-${dia}`) return null;

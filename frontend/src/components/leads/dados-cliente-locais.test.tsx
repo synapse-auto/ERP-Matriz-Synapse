@@ -9,8 +9,8 @@ vi.mock("@/lib/config/textos-provider", () => ({ useTextos: () => ({ dadosClient
 
 const ficha = (cpf: string | null, data?: unknown) => ({ id: "sintetico", cpf, dadosCustomizados: data === undefined ? {} : { data_nascimento: data } }) as LeadFicha;
 describe("dados locais do cliente", () => {
-  it("formata CPF e data civil sem consultar Darwin", () => {
-    render(<DadosClienteLocais lead={ficha("52998224725", "1990-05-21")} />);
+  it.each(["1990-05-21", "1990-05-21T03:00:00Z", "1990-05-21T00:00:00.123456789Z"])("formata CPF e data civil %s sem consultar Darwin", (data) => {
+    render(<DadosClienteLocais lead={ficha("52998224725", data)} />);
     expect(screen.getByText("529.982.247-25")).toBeInTheDocument();
     expect(screen.getByText("21/05/1990")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
