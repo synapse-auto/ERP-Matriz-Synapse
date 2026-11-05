@@ -635,12 +635,12 @@ describe("PaginaAtendimentosCliente", () => {
     const {queryClient} = renderPagina("atendimento-1");
     const invalidar = vi.spyOn(queryClient, "invalidateQueries");
     await waitFor(() => expect(callbacks.eventoEstado).toBeDefined());
-    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({queryKey: ["lead", "lead-1"]}, {cancelRefetch: false}));
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({queryKey: ["lead", "lead-1"], exact: true}, {cancelRefetch: false}));
     invalidar.mockClear();
     const evento = eventoCanonico("atendimento-1", 3);
     evento.dados.eventoTipo = "DADOS_CLIENTE_ATUALIZADOS";
     act(() => callbacks.eventoEstado?.(evento));
-    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({queryKey: ["lead", "lead-1"]}));
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({queryKey: ["lead", "lead-1"], exact: true}));
     expect(invalidar).not.toHaveBeenCalledWith({queryKey: ["lead"]});
   });
 
