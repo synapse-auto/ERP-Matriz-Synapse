@@ -1,5 +1,10 @@
 import { apiFetch } from "@/lib/api/http-client";
 
+export const estadoColetaDarwin = (id: string, signal?: AbortSignal) =>
+  apiFetch<{ estado: string }>(`/api/v1/leads/${encodeURIComponent(id)}/darwin/coleta`, { signal });
+export const tentarColetaDarwin = (id: string) =>
+  apiFetch<void>(`/api/v1/leads/${encodeURIComponent(id)}/darwin/coleta`, { method: "POST" });
+
 export interface CandidatoDarwin { sessaoId: string | null; nome: string | null; cpf: string | null; cpfInvalido: boolean; email: string | null; emailInvalido: boolean }
 export interface PreviaDarwin {
   estado: "ENCONTRADO" | "SEM_RESULTADO" | "AMBIGUO" | "SEM_IDENTIDADE";

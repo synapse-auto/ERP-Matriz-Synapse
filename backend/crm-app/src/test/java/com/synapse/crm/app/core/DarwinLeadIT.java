@@ -63,6 +63,7 @@ class DarwinLeadIT extends PostgresIT {
     @DynamicPropertySource
     static void configurar(DynamicPropertyRegistry r) {
         r.add("synapse.integracoes.darwin.habilitado", () -> "true");
+        r.add("synapse.integracoes.darwin.coleta.habilitada", () -> "false"); // Esta suite cobre o fluxo manual.
         r.add("synapse.integracoes.darwin.url", () -> "http://127.0.0.1:" + DARWIN.getAddress().getPort());
         r.add("synapse.integracoes.darwin.token", () -> "token-medico-sintetico");
         // Isola o teste de falhas do histórico do circuito compartilhado entre métodos.

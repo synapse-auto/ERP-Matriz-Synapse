@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
+import com.synapse.crm.core.domain.evento.ColetaCadastralDoLeadAtualizada;
 import com.synapse.crm.core.domain.evento.DadosCadastraisDoLeadAlterados;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -31,11 +32,20 @@ class SinalizadorDeFichaDoLead {
 
     @EventListener
     void sinalizar(DadosCadastraisDoLeadAlterados alteracao) {
+        sinalizar(alteracao.leadId());
+    }
+
+    @EventListener
+    void sinalizar(ColetaCadastralDoLeadAtualizada alteracao) {
+        sinalizar(alteracao.leadId());
+    }
+
+    private void sinalizar(UUID leadId) {
         DataSource ativa = ConexaoDaTransacaoAtual.exigir(geral, chat);
         new JdbcTemplate(ativa).query("UPDATE atendimento SET versao_evento = versao_evento + 1 "
                         + "WHERE lead_id = ? AND finalizado_em IS NULL RETURNING id, versao_evento",
                 (rs, indice) -> EventoCanonicoDeAtendimento.criar(EventoCanonicoDeAtendimento.Tipo.DADOS_CLIENTE_ATUALIZADOS,
-                        rs.getObject("id", UUID.class), alteracao.leadId(), rs.getLong("versao_evento"), Instant.now(relogio)),
-                alteracao.leadId()).forEach(eventos::publishEvent);
+                        rs.getObject("id", UUID.class), leadId, rs.getLong("versao_evento"), Instant.now(relogio)),
+                leadId).forEach(eventos::publishEvent);
     }
 }

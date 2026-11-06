@@ -9,7 +9,11 @@ public final class DadosDarwin {
     private DadosDarwin() {}
     // Campo legado apenas por compatibilidade do JSON CRM; médico não retorna sessão.
     public record Candidato(@io.swagger.v3.oas.annotations.media.Schema(deprecated = true, nullable = true) String sessaoId,
-                            String nome, String cpf, boolean cpfInvalido, String email, boolean emailInvalido) {
+                            String nome, String cpf, boolean cpfInvalido, String email, boolean emailInvalido,
+                            java.time.LocalDate nascimento) {
+        public Candidato(String sessaoId, String nome, String cpf, boolean cpfInvalido, String email, boolean emailInvalido) {
+            this(sessaoId, nome, cpf, cpfInvalido, email, emailInvalido, null);
+        }
         @Override public String toString() { return "CandidatoDarwin[redigido]"; }
     }
     public record Resultado(List<Candidato> candidatos, boolean limiteAtingido) {

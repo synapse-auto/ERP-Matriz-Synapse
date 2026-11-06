@@ -104,7 +104,22 @@ class DarwinHttpAdapter implements DarwinGateway {
         var email = email(paciente);
         // Não há ID de sessão/paciente neste contrato. Nunca inferir IDs nem usar campos clínicos.
         return new DadosDarwin.Resultado(List.of(new DadosDarwin.Candidato(null, nome, retornado, false,
-                email.valor(), email.invalido())), false);
+                email.valor(), email.invalido(), nascimento(paciente))), false);
+    }
+
+    private java.time.LocalDate nascimento(JsonNode paciente) {
+        var campo = paciente.get("birthDate");
+        if (campo == null || campo.isNull()) return null;
+        if (!campo.isTextual()) throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
+        try {
+            // Data civil documentada como date-time UTC à meia-noite; nunca converter pelo fuso local.
+            var valor = java.time.OffsetDateTime.parse(campo.asText());
+            if (!valor.getOffset().equals(java.time.ZoneOffset.UTC)
+                    || !valor.toLocalTime().equals(java.time.LocalTime.MIDNIGHT)
+                    || valor.toLocalDate().isAfter(java.time.LocalDate.now(relogio)))
+                throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA);
+            return valor.toLocalDate();
+        } catch (java.time.DateTimeException erro) { throw falha(FalhaDarwin.Codigo.RESPOSTA_INVALIDA); }
     }
 
     private record EmailCadastro(String valor, boolean invalido) {}

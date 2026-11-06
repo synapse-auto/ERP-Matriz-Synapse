@@ -501,6 +501,9 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `DARWIN_CONCORRENCIA` | `2` | Consultas simultâneas por réplica, sem fila de espera. |
 | `DARWIN_TIMEOUT_CONEXAO`, `DARWIN_TIMEOUT_CONSULTA` | `2s`, `10s` | Conexão e prazo da consulta única por CPF, sem retries automáticos. |
 | `DARWIN_VALIDADE_PREVIA`, `DARWIN_MAX_RESPOSTA_BYTES` | `5m`, `524288` | Validade da confirmação e limite do corpo de cada resposta HTTP. |
+| `DARWIN_COLETA_CACHE` | `24h` | Cache persistente da coleta por lead/CPF; abrir a ficha não repete o HTTP durante esse período. |
+| `DARWIN_COLETA_HABILITADA` | `true` | Coleta automática, subordinada a `DARWIN_HABILITADO=false` por padrão. Permite desativar só a coleta sem remover consultas manuais existentes. |
+| `DARWIN_COLETA_INTERVALO_ERRO` | `5m` | Intervalo mínimo após falhas e entre tentativas manuais; sem retry automático em loop. |
 | `DARWIN_CIRCUITO_MINIMO`, `DARWIN_CIRCUITO_LIMIAR`, `DARWIN_CIRCUITO_ESPERA` | `5`, `50`, `30s` | Circuito exclusivo Darwin por réplica: chamadas mínimas, percentual de falha e espera. |
 | `FEATURE_CHAT_INTERNO`, `FEATURE_FIDELIZACAO` | `true` | Corte de capacidade por filho. |
 | `BACKEND_REPLICAS`, `FRONTEND_REPLICAS` | `1` | Escala horizontal; o Redis já é o backplane do WebSocket. |

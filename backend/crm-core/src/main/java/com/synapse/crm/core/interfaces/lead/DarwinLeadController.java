@@ -23,8 +23,27 @@ class DarwinLeadController {
     private final ConsultarDarwinUseCase consultar;
     private final AplicarDarwinUseCase aplicar;
     private final DarwinGateway darwin;
-    DarwinLeadController(ConsultarDarwinUseCase consultar, AplicarDarwinUseCase aplicar, DarwinGateway darwin) {
-        this.consultar = consultar; this.aplicar = aplicar; this.darwin = darwin;
+    private final LerLeadParaDarwinUseCase acesso;
+    private final ColetaDarwin coleta;
+    DarwinLeadController(ConsultarDarwinUseCase consultar, AplicarDarwinUseCase aplicar, DarwinGateway darwin,
+            LerLeadParaDarwinUseCase acesso, ColetaDarwin coleta) {
+        this.consultar = consultar; this.aplicar = aplicar; this.darwin = darwin; this.acesso=acesso; this.coleta=coleta;
+    }
+
+    @GetMapping("/{id}/darwin/coleta")
+    @Operation(summary="Ler estado da coleta cadastral Darwin", description="Exige acesso ao lead, clientes.acessar e contatos.editar. Retorna somente estado sanitizado do cache; não consulta o provedor nem devolve CPF ou configuração.")
+    ColetaDarwin.Situacao estadoColeta(@PathVariable UUID id) {
+        acesso.executar(id);
+        return coleta.situacao(id);
+    }
+
+    @PostMapping("/{id}/darwin/coleta")
+    @Operation(summary="Solicitar nova coleta cadastral Darwin", description="Agenda consulta assíncrona por CPF já persistido, sem exigir CPF no corpo. Exige visibilidade e contatos.editar. Respeita lease e intervalo mínimo; 202 não comprova conclusão. Não modifica dados na Darwin.")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    void tentarColeta(@PathVariable UUID id) {
+        acesso.executar(id);
+        darwin.exigirDisponivel();
+        coleta.solicitar(id,true);
     }
     record Disponibilidade(boolean habilitada, DadosDarwin.EstadoIntegracao estado) {}
     record Confirmacao(@NotBlank @Size(max = 8192) String confirmacao, boolean nome, boolean cpf, boolean email) {}

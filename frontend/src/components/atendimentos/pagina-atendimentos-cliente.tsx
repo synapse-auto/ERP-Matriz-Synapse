@@ -560,6 +560,7 @@ export function PaginaAtendimentosCliente({
     (evento: EventoCanonicoAtendimentoTempoReal) => {
       if (evento.dados.eventoTipo === "DADOS_CLIENTE_ATUALIZADOS") {
         void cache.invalidateQueries({ queryKey: ["lead", evento.dados.leadId], exact: true });
+        void cache.invalidateQueries({ queryKey: ["darwin-coleta", evento.dados.leadId] });
       }
       const selecionado = evento.dados.atendimentoId === selecaoAtualRef.current.id;
       if (!selecionado) {

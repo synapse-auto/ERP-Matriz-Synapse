@@ -69,6 +69,7 @@ import { FormularioMensagemProgramada } from "../mensagens-programadas/formulari
 import { CampoNomeDoLead } from "../leads/campo-nome-do-lead";
 import { ConsultaDarwin } from "../leads/consulta-darwin";
 import { DadosClienteLocais } from "../leads/dados-cliente-locais";
+import { ColetaDarwin } from "../leads/coleta-darwin";
 import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import { EditorTelefoneDoLead } from "../leads/editor-telefone-do-lead";
 import { ContadorDoPainel } from "../ui/contador-do-painel";
@@ -190,6 +191,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
               )}
             />
             {dadosClienteAtivos && <DadosClienteLocais lead={lead.data} />}
+            {dadosClienteAtivos && <ColetaDarwin key={`coleta:${leadId}`} leadId={leadId} permitido={capacidades.pode("contatos.editar")} />}
             <InformacaoDoPainel
               icone={<Mail className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.email}
