@@ -68,6 +68,8 @@ npx playwright test --config=playwright.frontend-v2.config.ts
 
 **Verificado:** os testes de navegador usam apenas loopback, payloads sintéticos e handshake simulado; não certificam autorização ou provedores reais no backend. Alterar modo não dispara outra leitura de dados; alterar período usa o endpoint existente com os parâmetros reais.
 
+**Verificado — correção após CI:** a run `42276955163` revelou uma suíte que o recorte focado não exercitava: `src/app/(shell)/layout.test.tsx` importava o novo carregador Geist sem simulação do transformador do Next. O teste do layout recebeu os mesmos limites de fonte e flags usados nos testes do shell; seus dois cenários passaram. A correção afeta apenas preparação de teste. Os resultados da suíte completa e do novo CI são registrados no PR e no relatório final, com o SHA correspondente.
+
 | Captura | Link |
 |---|---|
 | Referência completa do ZIP, 1920×1080 | [Mockup](mockup-dashboard-1920.png) |
