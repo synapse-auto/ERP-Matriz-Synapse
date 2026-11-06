@@ -117,6 +117,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
 
   return (
     <aside
+      data-slot="painel-detalhes-lead"
       id="painel-detalhes-lead"
       className="flex h-full min-h-0 w-[344px] shrink-0 flex-col overflow-hidden border-l border-border bg-background"
     >

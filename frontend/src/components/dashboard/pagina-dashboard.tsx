@@ -9,6 +9,7 @@ import {
   CircleDollarSign,
   Clock3,
   Handshake,
+  House,
   LayoutGrid,
   ListFilter,
   Lock,
@@ -32,6 +33,8 @@ import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Seletor } from "@/components/ui/seletor";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
+import { fonteFrontendV2 } from "@/lib/config/fonte-frontend-v2";
 import {
   faixaDaHora,
   resumoDoHorario,
@@ -43,6 +46,8 @@ import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn, iniciaisDoNome } from "@/lib/utils";
 
 import { GraficoKpi, type CampoSerie } from "./grafico-kpi";
+import estilosV2 from "./dashboard-v2.module.css";
+
 
 const ANOS_DISPONIVEIS = 7;
 const HORAS_DO_DIA = Array.from({ length: 24 }, (_, hora) => hora);
@@ -128,7 +133,10 @@ function fracaoPercentual(parte: number, total: number): number {
 }
 
 export function PaginaDashboard() {
-  const textos = useTextos().dashboard;
+  const catalogo = useTextos();
+  const textos = catalogo.dashboard;
+  const funcionalidades = useFuncionalidadesHabilitadas();
+  const layoutV2 = funcionalidades.data?.includes("dashboard_layout_v2") ?? false;
   const telaEstreita = useTelaEstreita();
   const anoAtual = new Date().getFullYear();
   const [ano, setAno] = useState(anoAtual);
@@ -140,6 +148,7 @@ export function PaginaDashboard() {
   const [periodo, setPeriodo] = useState<PeriodoEnxuto>("mes");
   const [avisoComputadorAberto, setAvisoComputadorAberto] = useState(false);
   const [modo, setModo] = useState<ModoDashboard>("compacta");
+  const [filtrosAvancadosAbertos, setFiltrosAvancadosAbertos] = useState(false);
 
   const filtro = useMemo(
     () => ({
@@ -209,9 +218,22 @@ export function PaginaDashboard() {
   return (
     <div
       data-testid="dashboard-conteudo"
-      className="flex min-h-full flex-col gap-5 bg-background p-6 lg:p-7 max-sm:gap-4 max-sm:p-4"
+      data-layout={layoutV2 ? "v2" : "legado"}
+      data-modo={modo}
+      className={cn("flex min-h-full flex-col gap-5 bg-background p-6 lg:p-7 max-sm:gap-4 max-sm:p-4", layoutV2 && [estilosV2.pagina, fonteFrontendV2.variable])}
     >
-      <header className="-mx-6 -mt-6 border-b bg-card px-6 pt-7 lg:-mx-7 lg:-mt-7 lg:px-7 max-sm:-mx-4 max-sm:-mt-4 max-sm:px-4">
+      {layoutV2 && (
+        <nav data-slot="dashboard-caminho" aria-label={textos.titulo}>
+          <a href="/atendimentos" aria-label={catalogo.menu.itens.atendimentos}>
+            <House className="size-4" aria-hidden />
+          </a>
+          <span aria-hidden>/</span>
+          <span>{catalogo.menu.grupoGestao}</span>
+          <span aria-hidden>/</span>
+          <span aria-current="page">{textos.titulo}</span>
+        </nav>
+      )}
+      <header data-slot="dashboard-cabecalho" className="-mx-6 -mt-6 border-b bg-card px-6 pt-7 lg:-mx-7 lg:-mt-7 lg:px-7 max-sm:-mx-4 max-sm:-mt-4 max-sm:px-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-foreground">{textos.titulo}</h1>
@@ -223,15 +245,21 @@ export function PaginaDashboard() {
               variant="outline"
               size="sm"
               className="rounded-full"
-              onClick={() => setAvisoComputadorAberto(true)}
+              aria-expanded={layoutV2 ? filtrosAvancadosAbertos : undefined}
+              aria-controls={layoutV2 ? "dashboard-filtros" : undefined}
+              onClick={() => layoutV2
+                ? setFiltrosAvancadosAbertos((abertos) => !abertos)
+                : setAvisoComputadorAberto(true)}
             >
-              <Lock className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+              {layoutV2
+                ? <ListFilter className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+                : <Lock className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />}
               {textos.filtros.rotulo}
             </Button>
           )}
         </div>
         {/* As abas futuras continuam desabilitadas até terem dados e comportamento reais. */}
-        <nav className="mt-3 flex flex-wrap items-end gap-1" aria-label={textos.abas.rotulo}>
+        <nav data-slot="dashboard-areas" className="mt-3 flex flex-wrap items-end gap-1" aria-label={textos.abas.rotulo}>
           <Aba ativa>{textos.abas.visaoGeral}</Aba>
           {[textos.abas.operacional, textos.abas.comercial].map((aba) => (
             <Aba key={aba}>{`${aba} · ${textos.abas.depois}`}</Aba>
@@ -240,8 +268,9 @@ export function PaginaDashboard() {
         </nav>
       </header>
 
+      <div data-slot="dashboard-corpo" className={layoutV2 ? estilosV2.corpo : "contents"}>
       {telaEstreita && (
-        <div className="flex flex-wrap gap-2" role="group" aria-label={textos.periodos.rotulo}>
+        <div data-slot="dashboard-periodos" className="flex flex-wrap gap-2" role="group" aria-label={textos.periodos.rotulo}>
           {(["hoje", "seteDias", "mes", "ano"] as const).map((item) => (
             <Button
               key={item}
@@ -262,7 +291,10 @@ export function PaginaDashboard() {
       )}
 
       <section
-        className="hidden rounded-2xl border bg-card p-4 sm:block"
+        id="dashboard-filtros"
+        data-slot="dashboard-filtros"
+        hidden={layoutV2 && telaEstreita && !filtrosAvancadosAbertos ? true : undefined}
+        className={cn("rounded-2xl border bg-card p-4", !layoutV2 && "hidden sm:block")}
         aria-label={textos.filtros.rotulo}
       >
         <div className="flex flex-wrap items-center gap-2">
@@ -289,7 +321,7 @@ export function PaginaDashboard() {
               Pílulas suaves com contorno: só o que está selecionado ganha destaque. Doze pílulas
               azuis sólidas liam como "tudo selecionado" e viravam parede de azul.
             */}
-            <div className="flex flex-wrap gap-1">
+            <div data-slot="dashboard-meses" className="flex flex-wrap gap-1">
               <Button
                 type="button"
                 size="sm"
@@ -368,7 +400,7 @@ export function PaginaDashboard() {
             />
           </div>
         </div>
-        {meses.length === 0 && (
+        {meses.length === 0 && !(inicio && fim) && (
           <p role="alert" className="mt-3 text-sm text-destructive">
             {textos.filtros.selecioneMes}
           </p>
@@ -380,7 +412,7 @@ export function PaginaDashboard() {
         )}
       </section>
 
-      {consulta.isLoading && <p className="text-sm text-muted-foreground">{textos.carregando}</p>}
+      {consulta.isLoading && <p role="status" className="text-sm text-muted-foreground">{textos.carregando}</p>}
       {consulta.isError && (
         <ErroDeCarregamento mensagem={textos.erro} onTentarNovamente={() => consulta.refetch()} />
       )}
@@ -390,8 +422,10 @@ export function PaginaDashboard() {
           modo={modo}
           telaEstreita={telaEstreita}
           atualizadoEm={consulta.dataUpdatedAt ?? 0}
+          layoutV2={layoutV2}
         />
       )}
+      </div>
       <Dialog open={avisoComputadorAberto} onOpenChange={setAvisoComputadorAberto}>
         <DialogContent>
           <DialogHeader>
@@ -498,11 +532,13 @@ function ConteudoDashboard({
   modo,
   telaEstreita,
   atualizadoEm,
+  layoutV2,
 }: {
   dados: VisaoGeralDashboard;
   modo: ModoDashboard;
   telaEstreita: boolean;
   atualizadoEm: number;
+  layoutV2: boolean;
 }) {
   const textos = useTextos().dashboard;
   const duracao = dados.tempoMedioAtendimento.segundos;
@@ -514,6 +550,7 @@ function ConteudoDashboard({
 
       {/* Indicadores com fonte confirmada; NPS continua sem coleta própria. */}
       <section
+        data-slot="dashboard-indicadores"
         className={cn(
           "grid grid-cols-1 sm:grid-cols-2",
           modo === "compacta" ? "gap-3" : "gap-4",
@@ -534,6 +571,7 @@ function ConteudoDashboard({
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="atendimentos"
+          layoutV2={layoutV2}
         />
         <Kpi
           titulo={textos.kpis.novosLeads}
@@ -545,6 +583,7 @@ function ConteudoDashboard({
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="novosLeads"
+          layoutV2={layoutV2}
         />
         <Kpi
           titulo={textos.kpis.tempoMedio}
@@ -557,6 +596,7 @@ function ConteudoDashboard({
           quedaPositiva
           serie={dados.seriesMensais ?? []}
           campoSerie="tempoMedioSegundos"
+          layoutV2={layoutV2}
         />
         <Kpi
           titulo={textos.kpis.vendas}
@@ -570,6 +610,7 @@ function ConteudoDashboard({
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="vendasFechadas"
+          layoutV2={layoutV2}
         />
         <Kpi
           titulo={textos.kpis.conversao}
@@ -588,6 +629,7 @@ function ConteudoDashboard({
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="taxaConversao"
+          layoutV2={layoutV2}
         />
         <Kpi
           titulo={textos.kpis.csat}
@@ -603,6 +645,7 @@ function ConteudoDashboard({
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="avaliacaoMedia"
+          layoutV2={layoutV2}
         />
         <Kpi
           titulo={textos.kpis.resolucaoIa}
@@ -618,10 +661,11 @@ function ConteudoDashboard({
           modo={modo}
           serie={dados.seriesMensais ?? []}
           campoSerie="resolucaoPorIa"
+          layoutV2={layoutV2}
         />
       </section>
 
-      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-12">
+      <div data-slot="dashboard-analises" className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-12">
         <div className="min-w-0 xl:col-span-7">
           <Funil dados={dados} />
         </div>
@@ -631,7 +675,7 @@ function ConteudoDashboard({
       </div>
       <Equipe dados={dados} />
       <HorarioDePico dados={dados} />
-      {telaEstreita && (
+      {telaEstreita && !layoutV2 && (
         <p className="flex items-start gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 px-3 py-3 text-xs text-muted-foreground">
           <Monitor className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" aria-hidden />
           {textos.avisoComputador}
@@ -642,6 +686,7 @@ function ConteudoDashboard({
 }
 
 interface KpiProps {
+  layoutV2: boolean;
   titulo: string;
   valor: string;
   apoio: string;
@@ -655,6 +700,7 @@ interface KpiProps {
 }
 
 function Kpi({
+  layoutV2,
   titulo,
   valor,
   apoio,
@@ -691,6 +737,7 @@ function Kpi({
   // O mesmo agregado mensal alimenta a sparkline compacta e o gráfico detalhado expandido.
   return (
     <Card
+      data-dashboard-kpi={campoSerie}
       className={cn(modo === "compacta" ? "min-h-22 gap-1 py-2" : "min-h-60 gap-1.5 py-5")}
       style={{ "--tom": tom } as React.CSSProperties}
     >
@@ -710,7 +757,7 @@ function Kpi({
           </CardTitle>
           {modo === "expandida" && (
             <div className="mt-0.5 flex items-center gap-2">
-              <p className="text-2xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>
+              <p data-slot="dashboard-kpi-valor" className="text-2xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>
                 {valor}
               </p>
               {comparativo && (
@@ -727,7 +774,7 @@ function Kpi({
           Sem comparativo, sem selo. A API só devolve variação quando existe período anterior
           comparável; calcular no cliente daria selo inventado em painel executivo.
         */}
-        {modo === "compacta" && comparativo && (
+        {modo === "compacta" && !layoutV2 && comparativo && (
           <SeloDeTendencia
             comparativo={comparativo}
             quedaPositiva={quedaPositiva}
@@ -736,6 +783,19 @@ function Kpi({
         )}
       </CardHeader>
       <CardContent className="px-4">
+        {modo === "compacta" && layoutV2 ? (
+          <div data-slot="dashboard-kpi-leitura" className="flex min-w-0 items-end justify-between gap-3.5">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <p data-slot="dashboard-kpi-valor" className="font-semibold" data-testid={`kpi-${titulo}`}>{valor}</p>
+                {comparativo && <SeloDeTendencia comparativo={comparativo} quedaPositiva={quedaPositiva} sufixo={textos.kpis.periodoAnterior} />}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">{apoio}</p>
+            </div>
+            <GraficoKpi pontos={serie} campo={campoSerie} compacto titulo={titulo}
+              meses={textos.meses} semDado={textos.semDado} formatar={formatarValor} />
+          </div>
+        ) : <>
         {modo === "compacta" && (
           <div className="float-right mt-0.5 ml-2">
             <GraficoKpi pontos={serie} campo={campoSerie} compacto titulo={titulo}
@@ -743,7 +803,7 @@ function Kpi({
           </div>
         )}
         {modo === "compacta" && (
-          <p className="text-2xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>
+          <p data-slot="dashboard-kpi-valor" className="text-2xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>
             {valor}
           </p>
         )}
@@ -754,6 +814,7 @@ function Kpi({
           <GraficoKpi pontos={serie} campo={campoSerie} compacto={false} titulo={titulo}
             meses={textos.meses} semDado={textos.semDado} formatar={formatarValor} />
         )}
+        </>}
       </CardContent>
     </Card>
   );
@@ -821,14 +882,15 @@ function FaixaAoVivo({
   // em colunas iguais pela largura. São quatro colunas, não sete, pelo motivo do Javadoc acima.
   return (
     <section
+      data-slot="dashboard-agora"
       aria-label={textos.agora.rotulo}
       className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl bg-sidebar px-5 py-4 text-sidebar-foreground"
     >
-      <span className="inline-flex shrink-0 items-center gap-2 border-sidebar-foreground/15 pr-5 text-xs font-bold tracking-wider uppercase sm:border-r">
+      <span data-slot="dashboard-agora-rotulo" className="inline-flex shrink-0 items-center gap-2 border-sidebar-foreground/15 pr-5 text-xs font-bold tracking-wider uppercase sm:border-r">
         <span className="size-2 rounded-full bg-[var(--cor-sucesso)]" aria-hidden />
         {textos.agora.rotulo}
       </span>
-      <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 xl:grid-cols-5">
+      <div data-slot="dashboard-agora-contagens" className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 xl:grid-cols-5">
         <ItemAoVivo rotulo={textos.agora.emIa} valor={status.emIa} />
         <ItemAoVivo rotulo={textos.agora.emAtendimento} valor={status.emAtendimento} />
         <ItemAoVivo rotulo={textos.agora.leadsNovosHoje} valor={status.leadsNovosHoje} />
@@ -838,7 +900,7 @@ function FaixaAoVivo({
           valor={`${status.atendentesOnline.online}/${status.atendentesOnline.total}`}
         />
       </div>
-      <span className="shrink-0 text-[11px] text-sidebar-foreground/70">{rotuloAtualizado}</span>
+      <span data-slot="dashboard-atualizacao" className="shrink-0 text-[11px] text-sidebar-foreground/70">{rotuloAtualizado}</span>
     </section>
   );
 }

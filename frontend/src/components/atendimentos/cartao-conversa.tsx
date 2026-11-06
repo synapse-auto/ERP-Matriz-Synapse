@@ -34,6 +34,7 @@ export function CartaoConversa({
     );
     return (
       <button
+        data-slot="cartao-conversa"
         type="button"
         onClick={onAbrirAtendimento}
         aria-current={selecionado ? "true" : undefined}
@@ -88,6 +89,7 @@ export function CartaoConversa({
 
   return (
     <button
+      data-slot="cartao-conversa"
       type="button"
       onClick={onAbrirAtendimento}
       aria-current={selecionado ? "true" : undefined}

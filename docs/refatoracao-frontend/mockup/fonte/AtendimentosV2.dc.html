@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Atendimentos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./assets/353f820191996dc96fc441c7bfb0d360.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#E9EBEF;font-family:'Geist',system-ui,sans-serif}
+a{color:#1F5FD6;text-decoration:none}a:hover{color:#1A50B8}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#D9DCE1;border-radius:20px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+textarea,input,select{font-family:inherit}
+</style>
+</helmet>
+<div style="width:1920px;height:1080px;margin:0 auto;display:flex;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.16)),url(./assets/27ad40ddb18eb2a5105f4af911ec42a5.jpg) left bottom/1920px 2400px no-repeat;color:#0E1220;overflow:hidden;position:relative;font-size:14px;font-variant-numeric:tabular-nums">
+<dc-import name="SidebarV2" active="atendimentos" on-active-click="{{ openPainel }}" hint-size="88px,100%" style="width:88px;flex:none;height:100%;position:relative;z-index:60"></dc-import>
+
+<div style="flex:1;min-width:0;display:flex;gap:10px;padding:10px;margin:10px 10px 10px 0;border-radius:24px;background:#EEF0F3;position:relative;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.7),0 30px 80px -40px rgba(11,19,36,.5)">
+
+<section style="width:360px;flex:none;background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);display:flex;flex-direction:column;overflow:hidden">
+  <div style="padding:18px 16px 0">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div onClick="{{ openPainel }}" title="Abrir painel" style="flex:1;min-width:0;font-size:20px;font-weight:600;letter-spacing:-.03em;cursor:pointer;display:flex;align-items:center;gap:8px" style-hover="color:#1F5FD6">Atendimentos<i class="ri-dashboard-3-line" style="font-size:16px;color:#B4BAC6"></i></div>
+      <button onClick="{{ toggleNotif }}" title="Notificações" style="position:relative;width:36px;height:36px;border-radius:11px;border:1px solid #E6E7EB;background:#fff;color:#3A4354;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(16,24,40,.05);flex:none" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220"><i class="ri-notification-3-line"></i><sc-if value="{{ hasUnreadNotif }}" hint-placeholder-val="{{ true }}"><span style="position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#F97316;color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center;justify-content:center;border:2px solid #fff;font-family:'Geist',sans-serif">{{ unreadNotifCount }}</span></sc-if></button>
+      <div style="position:relative;display:flex;flex:none"><button onClick="{{ toggleFiltros }}" title="Filtros" aria-label="Filtros" style="width:36px;height:36px;border-radius:11px;border:1px solid #E6E7EB;background:#fff;color:#3A4354;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(16,24,40,.05);flex:none" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220"><i class="ri-equalizer-2-line"></i></button><sc-if value="{{ menuFiltros }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:calc(100% + 8px);right:0;width:276px;background:#fff;border:1px solid #E6E7EB;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 20px 44px -18px rgba(16,24,40,.42);padding:6px;z-index:95"><div style="font-size:10.5px;font-weight:600;letter-spacing:.07em;color:#9CA3B0;padding:8px 10px 4px">SITUAÇÃO</div><sc-for list="{{ fItems }}" as="ff" hint-placeholder-count="4"><button onClick="{{ ff.onClick }}" style="{{ ff.style }}" style-hover="background:#F5F6F8;color:#0E1220"><i class="{{ ff.icon }}" style="font-size:16.5px;color:#6B7385;flex:none"></i>{{ ff.label }}<span style="margin-left:auto;font-size:12px;color:#9CA3B0;font-variant-numeric:tabular-nums">{{ ff.count }}</span></button></sc-for><div style="height:1px;background:#F1F2F4;margin:5px 8px"></div><div style="font-size:10.5px;font-weight:600;letter-spacing:.07em;color:#9CA3B0;padding:8px 10px 4px">ATENDENTE</div><div style="max-height:180px;overflow-y:auto"><sc-for list="{{ fAgents }}" as="fa" hint-placeholder-count="4"><button onClick="{{ fa.onClick }}" style="{{ fa.style }}" style-hover="background:#F5F6F8;color:#0E1220"><span style="{{ fa.avatarStyle }}">{{ fa.ini }}</span>{{ fa.name }}<span style="margin-left:auto;font-size:12px;color:#9CA3B0;font-variant-numeric:tabular-nums">{{ fa.count }}</span></button></sc-for></div><div style="height:1px;background:#F1F2F4;margin:5px 8px"></div><button onClick="{{ clearFiltros }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#C8352A;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-filter-off-line" style="font-size:16.5px;color:#C8352A;flex:none"></i>Limpar filtros</button></div></sc-if></div>
+      <button onClick="{{ openGrupos }}" title="Grupos internos" aria-label="Grupos internos" style="width:36px;height:36px;border-radius:11px;border:1px solid #E6E7EB;background:#fff;color:#3A4354;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(16,24,40,.05);flex:none" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220"><i class="ri-group-line"></i></button>
+      <button onClick="{{ openNovo }}" title="Novo atendimento" aria-label="Novo atendimento" style="width:36px;height:36px;border-radius:11px;border:0;background:#1F5FD6;color:#fff;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 6px 14px -6px rgba(31,95,214,.8)" style-hover="background:#1A50B8"><i class="ri-add-line"></i></button>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px;height:40px;padding:0 6px 0 12px;margin-top:14px;background:#F6F7F8;border:1px solid #ECEDF0;border-radius:12px">
+      <i class="ri-search-line" style="font-size:16px;color:#8B91A0"></i>
+      <input value="{{ lq }}" onChange="{{ onLq }}" placeholder="Buscar cliente ou protocolo…" style="border:0;background:transparent;outline:none;flex:1;min-width:0;font-size:13.5px;color:#0E1220">
+      <span style="height:24px;min-width:24px;padding:0 6px;border-radius:7px;background:#fff;border:1px solid #E6E7EB;font-size:11px;color:#5B6274;display:flex;align-items:center;justify-content:center;font-family:'Geist Mono',monospace">/</span>
+    </div>
+    <sc-if value="{{ showChips }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:10px">
+        <sc-for list="{{ chips }}" as="ch" hint-placeholder-count="1">
+          <span style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 4px 0 10px;border-radius:999px;background:#EDF2FD;color:#1F5FD6;font-size:12.5px;font-weight:500"><i class="{{ ch.icon }}" style="font-size:13px"></i>{{ ch.label }}<button onClick="{{ ch.onClear }}" title="Remover filtro" style="width:20px;height:20px;border:0;border-radius:50%;background:transparent;color:#1F5FD6;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;padding:0" style-hover="background:#DCE6FB"><i class="ri-close-line"></i></button></span>
+        </sc-for>
+        <button onClick="{{ clearChips }}" style="border:0;background:transparent;color:#8B91A0;font-size:12.5px;cursor:pointer;padding:0 4px" style-hover="color:#1F5FD6">Limpar</button>
+      </div>
+    </sc-if>
+    <div style="display:flex;gap:2px;margin-top:14px;background:#F1F2F4;border-radius:13px;padding:3px">
+      <sc-for list="{{ listTabs }}" as="t" hint-placeholder-count="5">
+        <div onClick="{{ t.onClick }}" style="{{ t.style }}"><span style="{{ t.countStyle }}">{{ t.count }}</span><span>{{ t.label }}</span></div>
+      </sc-for>
+    </div>
+  </div>
+  <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 10px 14px">
+    <sc-for list="{{ listItems }}" as="c" hint-placeholder-count="7">
+      <div onClick="{{ c.onSelect }}" style="{{ c.rowStyle }}" style-hover="background:#F6F7F9">
+        <div style="position:relative;flex:none">
+          <div style="{{ c.avatarStyle }}">{{ c.initials }}</div>
+          <span style="position:absolute;right:-2px;bottom:-2px;width:17px;height:17px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1px #ECEDF0"><i class="ri-whatsapp-fill" style="font-size:11px;color:#22A35A"></i></span>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="{{ c.nameStyle }}">{{ c.name }}</span>
+            <span style="margin-left:auto;font-size:12px;color:#9CA3B0;flex:none">{{ c.time }}</span>
+          </div>
+          <div style="font-size:13px;color:#5B6274;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.preview }}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:9px">
+            <span style="{{ c.tagStyle }}">{{ c.tagLabel }}</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:6px">
+              <sc-if value="{{ c.showWait }}" hint-placeholder-val="{{ false }}"><span title="Sem resposta" style="display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:999px;background:#FDEDEB;color:#C8352A;font-size:11.5px;font-weight:600"><i class="ri-alarm-line" style="font-size:13px"></i>{{ c.waitLabel }}</span></sc-if>
+              <sc-if value="{{ c.showAgent }}" hint-placeholder-val="{{ true }}"><span style="{{ c.agentStyle }}" title="Atendente responsável">{{ c.agent }}</span></sc-if>
+              <sc-if value="{{ c.showUnread }}" hint-placeholder-val="{{ false }}"><span style="min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#1F5FD6;color:#fff;font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:center">{{ c.unread }}</span></sc-if>
+              <button onClick="{{ c.onMenu }}" title="Ações do atendimento" aria-label="Ações do atendimento" style="{{ c.menuBtn }}" style-hover="background:#E7EAEF;color:#0E1220"><i class="ri-more-2-fill"></i></button>
+            </span>
+          </div>
+        </div>
+        <sc-if value="{{ c.menuOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ c.menuStyle }}">
+            <button onClick="{{ c.onUnread }}" style="{{ c.miStyle }}" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-mail-unread-line" style="font-size:16px;color:#6B7385;flex:none"></i>{{ c.unreadLabel }}</button>
+            <button onClick="{{ c.onPin }}" style="{{ c.miStyle }}" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-pushpin-line" style="font-size:16px;color:#6B7385;flex:none"></i>Fixar no topo</button>
+            <button onClick="{{ c.onMute }}" style="{{ c.miStyle }}" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-notification-off-line" style="font-size:16px;color:#6B7385;flex:none"></i>Silenciar</button>
+            <button onClick="{{ c.onTransfer }}" style="{{ c.miStyle }}" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-arrow-left-right-line" style="font-size:16px;color:#6B7385;flex:none"></i>Transferir</button>
+            <div style="height:1px;background:#F1F2F4;margin:5px 8px"></div>
+            <button onClick="{{ c.onFinish }}" style="{{ c.miDanger }}" style-hover="background:#FDEDEB"><i class="ri-check-double-line" style="font-size:16px;color:#C8352A;flex:none"></i>Finalizar atendimento</button>
+          </div>
+        </sc-if>
+      </div>
+    </sc-for>
+    <sc-if value="{{ listEmpty }}" hint-placeholder-val="{{ false }}"><div style="padding:36px 12px;text-align:center;font-size:13px;color:#9CA3B0"><i class="ri-inbox-line" style="display:block;font-size:26px;margin-bottom:8px;color:#C4C9D2"></i>Nenhum atendimento com esses filtros</div></sc-if>
+  </div>
+</section>
+
+<sc-if value="{{ isPainel }}" hint-placeholder-val="{{ true }}">
+<section style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+  <div style="flex:none;display:flex;align-items:flex-end;gap:10px;padding:12px 8px 18px">
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#8B91A0;margin-bottom:8px"><i class="ri-home-5-line" style="font-size:15px"></i><span style="color:#CDD1D8">/</span><span>Atendimentos</span><span style="color:#CDD1D8">/</span><span style="color:#0E1220;font-weight:500">Visão geral</span></div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:28px;font-weight:600;letter-spacing:-.04em;line-height:1.1">Visão geral</span>
+        <span style="display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 10px;border-radius:999px;background:#E7F6EE;color:#12855A;font-size:12.5px;font-weight:500"><span style="width:7px;height:7px;border-radius:50%;background:#22A35A;box-shadow:0 0 0 3px rgba(34,163,90,.2)"></span>Tempo real · {{ updatedAt }}</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px;width:300px;height:38px;padding:0 12px;background:#fff;border:1px solid #E6E7EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04)">
+      <i class="ri-search-line" style="font-size:16px;color:#8B91A0"></i>
+      <input value="{{ dq }}" onChange="{{ onDq }}" placeholder="Pesquisar atendente…" style="border:0;background:transparent;outline:none;flex:1;min-width:0;font-size:13.5px;color:#0E1220">
+    </div>
+    <div style="position:relative">
+      <select value="{{ dview }}" onChange="{{ onDview }}" style="appearance:none;-webkit-appearance:none;height:38px;padding:0 34px 0 34px;border:1px solid #E6E7EB;border-radius:12px;background:#fff;color:#1A2233;font-size:13px;font-weight:500;cursor:pointer;outline:none;min-width:230px;box-shadow:0 1px 2px rgba(16,24,40,.04)">
+        <option value="todos">Todos os atendentes</option>
+        <option value="online">Somente online</option>
+        <option value="pend">Com pendentes</option>
+        <option value="sem">Com sem resposta +20 min</option>
+      </select>
+      <i class="ri-filter-3-line" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;color:#5B6274;pointer-events:none"></i>
+      <i class="ri-arrow-down-s-line" style="position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:15px;color:#8B91A0;pointer-events:none"></i>
+    </div>
+    <button onClick="{{ toggleHide }}" title="{{ eyeTitle }}" style="width:38px;height:38px;border-radius:12px;border:1px solid #E6E7EB;background:#fff;color:#3A4354;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(16,24,40,.04)" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220"><i class="{{ eyeIcon }}"></i></button>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:0 2px 8px">
+    <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px">
+      <div onClick="{{ kpi.online }}" style="background:linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,.4) 45%,rgba(255,255,255,.62)),radial-gradient(120% 90% at 0% 0%,rgba(13,148,136,.16),rgba(13,148,136,0) 65%),rgba(13,148,136,.04);backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);border:1px solid rgba(255,255,255,.75);border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 14px 30px -20px rgba(13,148,136,.45);padding:18px 18px 16px;cursor:pointer;display:flex;flex-direction:column;min-width:0" style-hover="box-shadow:0 1px 2px rgba(16,24,40,.05),0 16px 32px -20px rgba(13,148,136,.6)">
+  <div style="display:flex;align-items:center;gap:11px"><span style="width:38px;height:38px;border-radius:50%;background:#0D9488;color:#fff;border:0;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;box-shadow:none"><i class="ri-user-follow-line"></i></span><span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;color:#0F766E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Atendentes online</span></div>
+  <div style="font-size:34px;font-weight:600;letter-spacing:-.045em;line-height:1;color:#0F766E;margin-top:18px">{{ kpi.onlineN }}</div>
+  <div style="font-size:12.5px;color:#0F766E;display:flex;align-items:center;gap:4px;margin-top:10px">de {{ kpi.teamN }} atendentes<i class="ri-arrow-right-up-line" style="margin-left:auto;font-size:15px"></i></div>
+</div>
+      <div onClick="{{ kpi.pot }}" style="background:linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,.4) 45%,rgba(255,255,255,.62)),radial-gradient(120% 90% at 0% 0%,rgba(124,58,237,.16),rgba(124,58,237,0) 65%),rgba(124,58,237,.04);backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);border:1px solid rgba(255,255,255,.75);border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 14px 30px -20px rgba(124,58,237,.45);padding:18px 18px 16px;cursor:pointer;display:flex;flex-direction:column;min-width:0" style-hover="box-shadow:0 1px 2px rgba(16,24,40,.05),0 16px 32px -20px rgba(124,58,237,.6)">
+  <div style="display:flex;align-items:center;gap:11px"><span style="width:38px;height:38px;border-radius:50%;background:#7C3AED;color:#fff;border:0;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;box-shadow:none"><i class="ri-inbox-2-line"></i></span><span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;color:#6D28D9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Potenciais</span></div>
+  <div style="font-size:34px;font-weight:600;letter-spacing:-.045em;line-height:1;color:#6D28D9;margin-top:18px">{{ kpi.potN }}</div>
+  <div style="font-size:12.5px;color:#6D28D9;display:flex;align-items:center;gap:4px;margin-top:10px">Na fila, sem atendente<i class="ri-arrow-right-up-line" style="margin-left:auto;font-size:15px"></i></div>
+</div>
+      <div onClick="{{ kpi.novas }}" style="background:linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,.4) 45%,rgba(255,255,255,.62)),radial-gradient(120% 90% at 0% 0%,rgba(22,163,74,.16),rgba(22,163,74,0) 65%),rgba(22,163,74,.04);backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);border:1px solid rgba(255,255,255,.75);border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 14px 30px -20px rgba(22,163,74,.45);padding:18px 18px 16px;cursor:pointer;display:flex;flex-direction:column;min-width:0" style-hover="box-shadow:0 1px 2px rgba(16,24,40,.05),0 16px 32px -20px rgba(22,163,74,.6)">
+  <div style="display:flex;align-items:center;gap:11px"><span style="width:38px;height:38px;border-radius:50%;background:#16A34A;color:#fff;border:0;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;box-shadow:none"><i class="ri-message-3-line"></i></span><span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;color:#15803D;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Novas mensagens</span></div>
+  <div style="font-size:34px;font-weight:600;letter-spacing:-.045em;line-height:1;color:#15803D;margin-top:18px">{{ kpi.novasN }}</div>
+  <div style="font-size:12.5px;color:#15803D;display:flex;align-items:center;gap:4px;margin-top:10px">Em {{ kpi.novasConv }} conversas<i class="ri-arrow-right-up-line" style="margin-left:auto;font-size:15px"></i></div>
+</div>
+      <div onClick="{{ kpi.ativos }}" style="background:linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,.4) 45%,rgba(255,255,255,.62)),radial-gradient(120% 90% at 0% 0%,rgba(37,99,235,.16),rgba(37,99,235,0) 65%),rgba(37,99,235,.04);backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);border:1px solid rgba(255,255,255,.75);border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 14px 30px -20px rgba(37,99,235,.45);padding:18px 18px 16px;cursor:pointer;display:flex;flex-direction:column;min-width:0" style-hover="box-shadow:0 1px 2px rgba(16,24,40,.05),0 16px 32px -20px rgba(37,99,235,.6)">
+  <div style="display:flex;align-items:center;gap:11px"><span style="width:38px;height:38px;border-radius:50%;background:#2563EB;color:#fff;border:0;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;box-shadow:none"><i class="ri-chat-check-line"></i></span><span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;color:#1D4ED8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ativos</span></div>
+  <div style="font-size:34px;font-weight:600;letter-spacing:-.045em;line-height:1;color:#1D4ED8;margin-top:18px">{{ kpi.ativosN }}</div>
+  <div style="font-size:12.5px;color:#1D4ED8;display:flex;align-items:center;gap:4px;margin-top:10px">Em andamento<i class="ri-arrow-right-up-line" style="margin-left:auto;font-size:15px"></i></div>
+</div>
+      <div onClick="{{ kpi.pend }}" style="background:linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,.4) 45%,rgba(255,255,255,.62)),radial-gradient(120% 90% at 0% 0%,rgba(217,119,6,.16),rgba(217,119,6,0) 65%),rgba(217,119,6,.04);backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);border:1px solid rgba(255,255,255,.75);border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 14px 30px -20px rgba(217,119,6,.45);padding:18px 18px 16px;cursor:pointer;display:flex;flex-direction:column;min-width:0" style-hover="box-shadow:0 1px 2px rgba(16,24,40,.05),0 16px 32px -20px rgba(217,119,6,.6)">
+  <div style="display:flex;align-items:center;gap:11px"><span style="width:38px;height:38px;border-radius:50%;background:#D97706;color:#fff;border:0;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;box-shadow:none"><i class="ri-pause-circle-line"></i></span><span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;color:#B45309;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Pendentes</span></div>
+  <div style="font-size:34px;font-weight:600;letter-spacing:-.045em;line-height:1;color:#B45309;margin-top:18px">{{ kpi.pendN }}</div>
+  <div style="font-size:12.5px;color:#B45309;display:flex;align-items:center;gap:4px;margin-top:10px">Aguardando retomada<i class="ri-arrow-right-up-line" style="margin-left:auto;font-size:15px"></i></div>
+</div>
+      <div onClick="{{ kpi.sem }}" style="background:linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,.4) 45%,rgba(255,255,255,.62)),radial-gradient(120% 90% at 0% 0%,rgba(255,77,82,.16),rgba(255,77,82,0) 65%),rgba(255,77,82,.04);backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);border:1px solid rgba(255,255,255,.75);border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 14px 30px -20px rgba(255,77,82,.45);padding:18px 18px 16px;cursor:pointer;display:flex;flex-direction:column;min-width:0" style-hover="box-shadow:0 1px 2px rgba(16,24,40,.05),0 16px 32px -20px rgba(229,56,59,.6)">
+  <div style="display:flex;align-items:center;gap:11px"><span style="width:38px;height:38px;border-radius:50%;background:#E5383B;color:#fff;border:0;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;box-shadow:none"><i class="ri-alarm-line"></i></span><span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;color:#D92D20;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Sem resposta +20 min</span></div>
+  <div style="font-size:34px;font-weight:600;letter-spacing:-.045em;line-height:1;color:#D92D20;margin-top:18px">{{ kpi.semN }}</div>
+  <div style="font-size:12.5px;color:#D92D20;display:flex;align-items:center;gap:4px;margin-top:10px">{{ kpi.semHint }}<i class="ri-arrow-right-up-line" style="margin-left:auto;font-size:15px"></i></div>
+</div>
+    </div>
+
+    <div style="margin-top:10px;background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;padding:18px 20px 14px">
+        <div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em">Equipe</div><div style="font-size:13px;color:#8B91A0;margin-top:3px">Clique em um número para abrir a fila filtrada · use a seta para ver os atendimentos</div></div>
+        <button onClick="{{ onExportEquipe }}" style="display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 13px;border-radius:11px;border:1px solid #E6E7EB;background:#fff;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.05);white-space:nowrap" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220"><i class="ri-download-2-line" style="font-size:15px"></i>Exportar</button>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(250px,1.8fr) 130px repeat(5,minmax(104px,1fr)) 80px 56px;align-items:center;height:38px;margin:0 12px;background:#F7F8FA;border-radius:10px;font-size:12.5px;font-weight:500;color:#8B91A0">
+        <div style="padding:0 10px">Atendente</div><div>Status</div>
+        <div style="text-align:center">Novas mensagens</div><div style="text-align:center">Ativos</div><div style="text-align:center">Pendentes</div>
+        <div style="text-align:center;color:#C8352A">Sem resposta +20</div><div style="text-align:center">Finalizados</div><div style="text-align:center">Total</div><div></div>
+      </div>
+      <div style="padding:4px 12px 8px">
+      <sc-for list="{{ agentRows }}" as="a" hint-placeholder-count="8">
+      <div style="{{ a.wrapStyle }}">
+        <div style="display:grid;grid-template-columns:minmax(250px,1.8fr) 130px repeat(5,minmax(104px,1fr)) 80px 56px;align-items:center;min-height:62px">
+          <div onClick="{{ a.onToggle }}" style="display:flex;align-items:center;gap:12px;padding:10px;min-width:0;cursor:pointer">
+            <div style="{{ a.avatarStyle }}">{{ a.initials }}<i class="{{ a.icon }}"></i></div>
+            <div style="min-width:0"><div style="font-size:14px;font-weight:500;color:#0E1220;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.name }}</div><div style="font-size:12.5px;color:#8B91A0;margin-top:1px">{{ a.role }}</div></div>
+          </div>
+          <div><span style="{{ a.pillStyle }}"><span style="{{ a.dotStyle }}"></span><span style="{{ a.statusStyle }}">{{ a.statusLabel }}</span></span></div>
+          <div style="display:flex;justify-content:center;padding:0 8px">
+  <sc-if value="{{ a.hasNovas }}" hint-placeholder-val="{{ false }}"><button onClick="{{ a.onNovas }}" title="Abrir novas mensagens" style="min-width:56px;height:30px;padding:0 12px;border:0;border-radius:999px;font-family:inherit;font-weight:600;font-size:13.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;background:#16A34A;color:#fff;box-shadow:none" style-hover="filter:brightness(1.08)"><i class="ri-message-3-line" style="font-size:14px"></i>{{ a.novas }}</button></sc-if>
+  <sc-if value="{{ a.noNovas }}" hint-placeholder-val="{{ true }}"><span style="font-size:13.5px;color:#C4C9D2">{{ a.novas }}</span></sc-if>
+</div>
+          <div style="display:flex;justify-content:center;padding:0 8px">
+  <sc-if value="{{ a.hasAtivos }}" hint-placeholder-val="{{ false }}"><button onClick="{{ a.onAtivos }}" title="Abrir atendimentos ativos" style="min-width:56px;height:30px;padding:0 12px;border:0;border-radius:999px;font-family:inherit;font-weight:600;font-size:13.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;background:#2563EB;color:#fff;box-shadow:none" style-hover="filter:brightness(1.08)"><i class="ri-chat-check-line" style="font-size:14px"></i>{{ a.ativos }}</button></sc-if>
+  <sc-if value="{{ a.noAtivos }}" hint-placeholder-val="{{ true }}"><span style="font-size:13.5px;color:#C4C9D2">{{ a.ativos }}</span></sc-if>
+</div>
+          <div style="display:flex;justify-content:center;padding:0 8px">
+  <sc-if value="{{ a.hasPend }}" hint-placeholder-val="{{ false }}"><button onClick="{{ a.onPend }}" title="Abrir atendimentos pendentes" style="min-width:56px;height:30px;padding:0 12px;border:0;border-radius:999px;font-family:inherit;font-weight:600;font-size:13.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;background:#C2650A;color:#fff;box-shadow:none" style-hover="filter:brightness(1.08)"><i class="ri-pause-circle-line" style="font-size:14px"></i>{{ a.pend }}</button></sc-if>
+  <sc-if value="{{ a.noPend }}" hint-placeholder-val="{{ true }}"><span style="font-size:13.5px;color:#C4C9D2">{{ a.pend }}</span></sc-if>
+</div>
+          <div style="display:flex;justify-content:center;padding:0 8px">
+  <sc-if value="{{ a.hasSem }}" hint-placeholder-val="{{ false }}"><button onClick="{{ a.onSem }}" title="Abrir sem resposta" style="min-width:56px;height:30px;padding:0 12px;border:0;border-radius:999px;font-family:inherit;font-weight:600;font-size:13.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;background:#E5383B;color:#fff;box-shadow:none" style-hover="background:#EC4245"><i class="ri-alarm-line" style="font-size:14px"></i>{{ a.sem }}</button></sc-if>
+  <sc-if value="{{ a.noSem }}" hint-placeholder-val="{{ true }}"><span style="font-size:13.5px;color:#C4C9D2">{{ a.sem }}</span></sc-if>
+</div>
+          <div style="display:flex;justify-content:center;padding:0 8px">
+  <sc-if value="{{ a.hasFin }}" hint-placeholder-val="{{ false }}"><button onClick="{{ a.onFin }}" title="Abrir atendimentos finalizados" style="min-width:56px;height:30px;padding:0 12px;border:0;border-radius:999px;font-family:inherit;font-weight:600;font-size:13.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;background:#2A3040;color:#fff;box-shadow:none" style-hover="filter:brightness(1.08)"><i class="ri-check-double-line" style="font-size:14px"></i>{{ a.fin }}</button></sc-if>
+  <sc-if value="{{ a.noFin }}" hint-placeholder-val="{{ true }}"><span style="font-size:13.5px;color:#C4C9D2">{{ a.fin }}</span></sc-if>
+</div>
+          <div style="display:flex;justify-content:center"><button onClick="{{ a.onTotal }}" title="Abrir todos" style="border:0;background:transparent;font-size:14px;font-weight:600;color:#0E1220;cursor:pointer;padding:6px 10px;border-radius:9px" style-hover="background:#F1F2F4;color:#1F5FD6">{{ a.total }}</button></div>
+          <div style="display:flex;justify-content:center"><button onClick="{{ a.onToggle }}" title="Ver atendimentos" style="width:32px;height:32px;border-radius:10px;border:1px solid #E6E7EB;background:#fff;color:#3A4354;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220"><i class="{{ a.chevIcon }}"></i></button></div>
+        </div>
+        <sc-if value="{{ a.open }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:4px 10px 16px 62px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+            <sc-for list="{{ a.ddTabs }}" as="dt" hint-placeholder-count="5"><button onClick="{{ dt.onClick }}" style="{{ dt.style }}">{{ dt.label }}<span style="{{ dt.countStyle }}">{{ dt.count }}</span></button></sc-for>
+            <button onClick="{{ a.onOpenAll }}" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;border:0;background:transparent;color:#1F5FD6;font-size:13px;font-weight:500;cursor:pointer" style-hover="background:#EDF2FD"><i class="ri-arrow-left-line"></i>Filtrar na lista</button>
+          </div>
+          <div style="background:#fff;border:1px solid #ECEDF0;border-radius:14px;overflow:hidden">
+            <div style="display:grid;grid-template-columns:minmax(220px,1.4fr) 150px 110px minmax(160px,2fr) 170px 56px 24px;align-items:center;height:36px;padding:0 14px;background:#FAFAFB;font-size:12.5px;font-weight:500;color:#8B91A0">
+              <div>Lead</div><div>Etapa</div><div>Situação</div><div>Última mensagem</div><div>Espera</div><div>Hora</div><div></div>
+            </div>
+            <sc-for list="{{ a.ddItems }}" as="it" hint-placeholder-count="3">
+              <div onClick="{{ it.onOpen }}" style="display:grid;grid-template-columns:minmax(220px,1.4fr) 150px 110px minmax(160px,2fr) 170px 56px 24px;align-items:center;padding:10px 14px;border-top:1px solid #F1F2F4;cursor:pointer" style-hover="background:#F7F9FD">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                  <div style="position:relative;flex:none"><div style="{{ it.avatarStyle }}">{{ it.initials }}</div>
+                    <sc-if value="{{ it.showUnread }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:-5px;top:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:#1F5FD6;color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center;justify-content:center;border:2px solid #fff">{{ it.unread }}</span></sc-if></div>
+                  <div style="min-width:0"><div style="font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div><div style="font-size:12px;color:#8B91A0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.company }}</div></div>
+                </div>
+                <div><span style="{{ it.stageStyle }}">{{ it.stage }}</span></div>
+                <div><span style="{{ it.bucketStyle }}">{{ it.bucket }}</span></div>
+                <div style="font-size:13px;color:#5B6274;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:14px">{{ it.preview }}</div>
+                <div><span style="{{ it.waitStyle }}"><i class="{{ it.waitIcon }}" style="font-size:12px"></i>{{ it.waitLabel }}</span></div>
+                <div style="font-size:12.5px;color:#8B91A0">{{ it.time }}</div>
+                <div style="color:#B4BAC6;font-size:16px;display:flex"><i class="ri-arrow-right-up-line"></i></div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ a.ddEmpty }}" hint-placeholder-val="{{ false }}"><div style="padding:20px;text-align:center;font-size:13px;color:#9CA3B0;border-top:1px solid #F1F2F4">Nenhum atendimento nesta visão</div></sc-if>
+          </div>
+        </div>
+        </sc-if>
+      </div>
+      </sc-for>
+      </div>
+      <sc-if value="{{ noRows }}" hint-placeholder-val="{{ false }}"><div style="padding:30px;text-align:center;font-size:13px;color:#9CA3B0">Nenhum atendente encontrado com esse filtro</div></sc-if>
+    </div>
+  </div>
+</section>
+</sc-if>
+
+<sc-if value="{{ isConversas }}" hint-placeholder-val="{{ false }}">
+<section style="flex:1;min-width:0;display:flex;flex-direction:column;background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:hidden;position:relative">
+  <div style="height:74px;flex:none;display:flex;align-items:center;gap:13px;padding:0 18px 0 20px;border-bottom:1px solid #F1F2F4">
+    <div style="{{ conv.avatarStyle }}">{{ conv.initials }}</div>
+    <div style="min-width:0;flex:1">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:16px;font-weight:600;letter-spacing:-.02em">{{ conv.name }}</span>
+        <span title="WhatsApp" style="display:inline-flex;align-items:center;justify-content:center;color:#12855A;background:#E7F6EE;height:22px;width:22px;border-radius:999px"><i class="ri-whatsapp-fill" style="font-size:13px"></i></span>
+      </div>
+      <div style="font-size:12.5px;color:#8B91A0;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ conv.phone }} · Atendido por <span style="color:#0E1220;font-weight:500">{{ conv.atendente }}</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex:none">
+      <button onClick="{{ toggleConvSearch }}" title="Buscar na conversa" aria-label="Buscar na conversa" style="width:36px;height:36px;border-radius:11px;border:0;background:transparent;color:#5B6274;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex:none" style-hover="background:#F1F2F4;color:#0E1220"><i class="ri-search-line"></i></button><div style="position:relative;display:flex;flex:none"><button onClick="{{ toggleEtiq }}" title="Etiquetar" aria-label="Etiquetar" style="width:36px;height:36px;border-radius:11px;border:0;background:transparent;color:#5B6274;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex:none" style-hover="background:#F1F2F4;color:#0E1220"><i class="ri-price-tag-3-line"></i></button><sc-if value="{{ menuEtiq }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:calc(100% + 8px);right:0;width:262px;background:#fff;border:1px solid #E6E7EB;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 20px 44px -18px rgba(16,24,40,.42);padding:6px;z-index:95"><div style="font-size:10.5px;font-weight:600;letter-spacing:.07em;color:#9CA3B0;padding:8px 10px 4px">ETIQUETAS DESTE LEAD</div><div style="max-height:260px;overflow-y:auto"><sc-for list="{{ tagCat }}" as="tg" hint-placeholder-count="5"><button onClick="{{ tg.onClick }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><span style="{{ tg.dot }}"></span>{{ tg.label }}<sc-if value="{{ tg.on }}" hint-placeholder-val="{{ false }}"><i class="ri-check-line" style="margin-left:auto;font-size:16px;color:#1F5FD6"></i></sc-if></button></sc-for></div><div style="height:1px;background:#F1F2F4;margin:5px 8px"></div><a href="TagsV2.dc.html" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer;text-decoration:none" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-price-tag-3-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Gerenciar etiquetas<i class="ri-arrow-right-up-line" style="margin-left:auto;font-size:14px;color:#B4BAC6"></i></a></div></sc-if></div><div style="position:relative;display:flex;flex:none"><button onClick="{{ toggleLigar }}" title="Ligar" aria-label="Ligar" style="width:36px;height:36px;border-radius:11px;border:0;background:transparent;color:#5B6274;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex:none" style-hover="background:#F1F2F4;color:#0E1220"><i class="ri-phone-line"></i></button><sc-if value="{{ menuLigar }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:calc(100% + 8px);right:0;width:258px;background:#fff;border:1px solid #E6E7EB;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 20px 44px -18px rgba(16,24,40,.42);padding:6px;z-index:95"><div style="padding:9px 10px 7px"><div style="font-size:11px;font-weight:600;letter-spacing:.07em;color:#9CA3B0">TELEFONE</div><div style="font-size:15px;font-weight:600;letter-spacing:-.01em;margin-top:3px">{{ conv.phone }}</div></div><div style="height:1px;background:#F1F2F4;margin:5px 8px"></div><button onClick="{{ onCall }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-phone-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Chamada de voz WhatsApp</button><button onClick="{{ onCopyPhone }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-file-copy-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Copiar número</button><button onClick="{{ onLogCall }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-pulse-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Registrar ligação feita</button></div></sc-if></div>
+      <div style="width:1px;height:22px;background:#ECEDF0;margin:0 4px"></div>
+      <div style="position:relative;display:flex;flex:none"><button onClick="{{ toggleConvidar }}" style="display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 13px;border-radius:11px;border:1px solid #E6E7EB;background:#fff;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.05);white-space:nowrap" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220"><i class="ri-user-add-line" style="font-size:15px;color:#5B6274"></i>Convidar</button><sc-if value="{{ menuConvidar }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:calc(100% + 8px);right:0;width:278px;background:#fff;border:1px solid #E6E7EB;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 20px 44px -18px rgba(16,24,40,.42);padding:6px;z-index:95"><div style="font-size:10.5px;font-weight:600;letter-spacing:.07em;color:#9CA3B0;padding:8px 10px 4px">CONTATO</div><button onClick="{{ onAddAgenda }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-contacts-book-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Adicionar à agenda</button><button onClick="{{ onCreateGroup }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-group-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Criar grupo com o cliente</button><button onClick="{{ onShareCard }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-share-forward-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Encaminhar contato</button><div style="height:1px;background:#F1F2F4;margin:5px 8px"></div><div style="font-size:10.5px;font-weight:600;letter-spacing:.07em;color:#9CA3B0;padding:8px 10px 4px">CONVIDAR ATENDENTE</div><div style="max-height:176px;overflow-y:auto"><sc-for list="{{ inviteAgents }}" as="ia" hint-placeholder-count="4"><button onClick="{{ ia.onClick }}" style="display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><span style="{{ ia.avatarStyle }}">{{ ia.ini }}</span><span style="flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3"><span>{{ ia.name }}</span><span style="font-size:11px;font-weight:400;color:#9CA3B0">{{ ia.role }}</span></span><i class="ri-add-line" style="font-size:16px;color:#1F5FD6;flex:none"></i></button></sc-for></div></div></sc-if></div>
+      <div style="position:relative;display:flex;flex:none"><button onClick="{{ toggleTransf }}" style="display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 13px;border-radius:11px;border:1px solid #E6E7EB;background:#fff;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.05);white-space:nowrap" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220"><i class="ri-arrow-left-right-line" style="font-size:15px;color:#5B6274"></i>Transferir</button><sc-if value="{{ menuTransf }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:calc(100% + 8px);right:0;width:282px;background:#fff;border:1px solid #E6E7EB;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 20px 44px -18px rgba(16,24,40,.42);padding:6px;z-index:95"><div style="font-size:10.5px;font-weight:600;letter-spacing:.07em;color:#9CA3B0;padding:8px 10px 4px">TRANSFERIR PARA O ATENDENTE</div><div style="max-height:186px;overflow-y:auto"><sc-for list="{{ transfAgents }}" as="ta" hint-placeholder-count="4"><button onClick="{{ ta.onClick }}" style="display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><span style="{{ ta.avatarStyle }}">{{ ta.ini }}</span><span style="flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3"><span>{{ ta.name }}</span><span style="font-size:11px;font-weight:400;color:#9CA3B0">{{ ta.sub }}</span></span><span style="{{ ta.dot }}"></span></button></sc-for></div><div style="height:1px;background:#F1F2F4;margin:5px 8px"></div><div style="font-size:10.5px;font-weight:600;letter-spacing:.07em;color:#9CA3B0;padding:8px 10px 4px">OU PARA UM SETOR</div><sc-for list="{{ transfSetores }}" as="ts" hint-placeholder-count="4"><button onClick="{{ ts.onClick }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-building-2-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>{{ ts.label }}<span style="margin-left:auto;font-size:11.5px;color:#9CA3B0">{{ ts.count }}</span></button></sc-for></div></sc-if></div>
+      <button onClick="{{ onFinalizar }}" style="display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:11px;border:0;background:#1F5FD6;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 6px 14px -6px rgba(31,95,214,.8)" style-hover="background:#1A50B8"><i class="ri-check-double-line" style="font-size:16px"></i>Finalizar</button>
+      <sc-if value="{{ leadClosed }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ openLead }}" title="Abrir detalhes do lead" aria-label="Abrir detalhes do lead" style="width:36px;height:36px;border-radius:11px;border:1px solid #E6E7EB;background:#fff;color:#5B6274;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 1px 2px rgba(16,24,40,.05)" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220"><i class="ri-layout-right-2-line"></i></button>
+      </sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{ convSearchOpen }}" hint-placeholder-val="{{ false }}"><div style="flex:none;display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid #F1F2F4;background:#FAFAFB"><i class="ri-search-line" style="font-size:16px;color:#8B91A0;flex:none"></i><input value="{{ convQ }}" onChange="{{ onConvQ }}" placeholder="Buscar nesta conversa…" style="flex:1;min-width:0;border:0;background:transparent;outline:none;font-family:inherit;font-size:13.5px;color:#0E1220"><span style="font-size:12px;color:#8B91A0;flex:none">{{ convQCount }}</span><button onClick="{{ closeConvSearch }}" aria-label="Fechar busca" style="width:30px;height:30px;border-radius:9px;border:1px solid #E6E7EB;background:#fff;color:#5B6274;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none" style-hover="background:#F1F2F4;color:#0E1220"><i class="ri-close-line"></i></button></div></sc-if>
+
+  <div ref="{{ msgRef }}" style="flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 28px 170px;background:#FAFAFB">
+    <div style="max-width:760px;margin:0 auto">
+      <sc-for list="{{ messages }}" as="m" hint-placeholder-count="6">
+        <div style="{{ m.rowStyle }}">
+          <sc-if value="{{ m.isDate }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:12px;font-weight:500;color:#5B6274;background:#fff;border:1px solid #ECEDF0;padding:4px 12px;border-radius:999px">{{ m.text }}</span>
+          </sc-if>
+          <sc-if value="{{ m.isSystem }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:12px;color:#9CA3B0;display:inline-flex;align-items:center;gap:6px"><i class="ri-shield-check-line" style="font-size:13px"></i>{{ m.text }}</span>
+          </sc-if>
+          <sc-if value="{{ m.isBubble }}" hint-placeholder-val="{{ true }}">
+            <div style="{{ m.bubbleStyle }}">
+              <sc-if value="{{ m.showAuthor }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;font-weight:600;color:rgba(255,255,255,.78);margin-bottom:3px">{{ m.author }}</div></sc-if>
+              <sc-if value="{{ m.isText }}" hint-placeholder-val="{{ true }}"><div style="font-size:14px;line-height:1.5">{{ m.text }}</div></sc-if>
+              <sc-if value="{{ m.isImage }}" hint-placeholder-val="{{ false }}">
+                <div style="width:240px;height:156px;border-radius:12px;background:repeating-linear-gradient(135deg,#E8EAED,#E8EAED 9px,#F2F3F5 9px,#F2F3F5 18px);display:flex;align-items:flex-end;overflow:hidden">
+                  <span style="font-family:'Geist Mono',monospace;font-size:11px;color:#5B6274;background:rgba(255,255,255,.9);padding:3px 8px;margin:8px;border-radius:7px"><i class="ri-image-line"></i> {{ m.fileName }}</span></div>
+                <div style="{{ m.captionStyle }}">{{ m.caption }}</div>
+              </sc-if>
+              <sc-if value="{{ m.isAudio }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:11px;width:244px;padding:3px 0">
+                  <span style="{{ m.audioBtn }}"><i class="ri-play-fill"></i></span>
+                  <span style="{{ m.audioTrack }}"><span style="{{ m.audioDot }}"></span></span>
+                  <span style="{{ m.audioMeta }}">{{ m.audioDur }}</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ m.isFile }}" hint-placeholder-val="{{ false }}">
+                <div style="{{ m.fileWrap }}">
+                  <div style="width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:19px;flex:none"><i class="ri-file-pdf-2-line"></i></div>
+                  <div style="min-width:0;flex:1"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.fileName }}</div><div style="{{ m.fileMetaStyle }}">{{ m.fileMeta }}</div></div>
+                  <i class="ri-download-2-line" style="font-size:18px;opacity:.85"></i>
+                </div>
+              </sc-if>
+              <div style="{{ m.metaStyle }}">{{ m.time }}<sc-if value="{{ m.showCheck }}" hint-placeholder-val="{{ false }}"><i class="ri-check-double-line" style="font-size:14px"></i></sc-if></div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;padding:12px 20px 18px;pointer-events:none;z-index:5">
+    <div style="pointer-events:auto;max-width:800px;margin:0 auto;background:linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,.44));backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);border:1px solid rgba(255,255,255,.85);border-radius:22px;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 0 0 1px rgba(16,24,40,.06),0 20px 44px -20px rgba(16,24,40,.38);padding:6px">
+      <sc-if value="{{ recOn }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:10px;margin:2px 2px 0;padding:8px 10px 8px 12px;border-radius:17px;background:#FDEDEB;border:1px solid #F7D6D2"><span style="width:9px;height:9px;border-radius:50%;background:#C8352A;flex:none"></span><span style="font-size:13px;font-weight:600;color:#C8352A;font-variant-numeric:tabular-nums;flex:none">{{ recTime }}</span><span style="flex:1;display:flex;align-items:center;gap:2px;height:22px;overflow:hidden"><sc-for list="{{ recBars }}" as="rb" hint-placeholder-count="20"><span style="{{ rb.style }}"></span></sc-for></span><button onClick="{{ cancelRec }}" style="height:32px;padding:0 12px;border-radius:10px;border:1px solid #E6E7EB;background:#fff;color:#5B6274;font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer;flex:none" style-hover="background:#F7F8FA;color:#0E1220">Cancelar</button><button onClick="{{ sendRec }}" style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 13px;border-radius:10px;border:0;background:#1F5FD6;color:#fff;font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer;flex:none" style-hover="background:#1A50B8"><i class="ri-send-plane-2-fill" style="font-size:14px"></i>Enviar áudio</button></div></sc-if><textarea value="{{ composer }}" onChange="{{ onComposer }}" onKeyDown="{{ onKey }}" placeholder="Escreva uma mensagem…  (Enter para enviar)" rows="1" style="width:100%;border:0;outline:none;resize:none;background:transparent;font-size:14px;line-height:1.5;color:#0E1220;padding:11px 12px 4px;min-height:46px;max-height:120px"></textarea>
+      <div style="display:flex;align-items:center;gap:4px;padding:2px 4px">
+        <div style="position:relative;display:flex;flex:none"><button onClick="{{ toggleAnexar }}" title="Anexar" aria-label="Anexar" style="width:40px;height:40px;border-radius:12px;border:0;background:transparent;color:#5B6274;cursor:pointer;font-size:21.6px;display:flex;align-items:center;justify-content:center;flex:none" style-hover="background:#F1F2F4;color:#0E1220"><i class="ri-attachment-2"></i></button><sc-if value="{{ menuAnexar }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;bottom:calc(100% + 10px);left:0;width:256px;background:#fff;border:1px solid #E6E7EB;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 20px 44px -18px rgba(16,24,40,.42);padding:6px;z-index:95"><button onClick="{{ onAttachPhoto }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-image-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Foto ou vídeo</button><button onClick="{{ onAttachDoc }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-file-text-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Documento</button><a href="BancoArquivosV2.dc.html" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer;text-decoration:none" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-folder-5-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Banco de arquivos<i class="ri-arrow-right-up-line" style="margin-left:auto;font-size:14px;color:#B4BAC6"></i></a><button onClick="{{ onAttachLoc }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-map-pin-2-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Localização</button><button onClick="{{ onAttachContact }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-contacts-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Contato</button></div></sc-if></div>
+        <div style="position:relative;display:flex;flex:none"><button onClick="{{ toggleRapidas }}" style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.6);color:#1A2233;cursor:pointer;font-size:12.5px;font-weight:500;box-shadow:0 1px 2px rgba(16,24,40,.06)" style-hover="background:rgba(255,255,255,.9);color:#0E1220"><i class="ri-flashlight-line" style="font-size:15px;color:#1F5FD6"></i>Respostas rápidas</button><sc-if value="{{ menuRapidas }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;bottom:calc(100% + 10px);left:0;width:342px;background:#fff;border:1px solid #E6E7EB;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 20px 44px -18px rgba(16,24,40,.42);padding:6px;z-index:95"><div style="display:flex;align-items:center;gap:7px;padding:8px 10px 6px"><i class="ri-flashlight-line" style="font-size:15px;color:#1F5FD6"></i><span style="font-size:12.5px;font-weight:600;color:#1A2233">Respostas rápidas</span><a href="MensagensRapidasV2.dc.html" style="margin-left:auto;font-size:11.5px;font-weight:500;text-decoration:none">Gerenciar</a></div><div style="max-height:264px;overflow-y:auto"><sc-for list="{{ quickList }}" as="q" hint-placeholder-count="4"><button onClick="{{ q.onClick }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;padding:8px 10px;border:0;border-radius:10px;background:transparent;cursor:pointer;text-align:left;font-family:inherit" style-hover="background:#F5F6F8;color:#0E1220"><span style="font-size:12px;font-weight:600;color:#1F5FD6">{{ q.short }}</span><span style="font-size:12.5px;color:#5B6274;line-height:1.45">{{ q.text }}</span></button></sc-for></div></div></sc-if></div>
+        <div style="position:relative;display:flex;flex:none"><button onClick="{{ toggleEmoji }}" title="Emoji" aria-label="Inserir emoji" style="width:40px;height:40px;border-radius:12px;border:0;background:transparent;color:#5B6274;cursor:pointer;font-size:21.6px;display:flex;align-items:center;justify-content:center;flex:none" style-hover="background:#F1F2F4;color:#0E1220"><i class="ri-emotion-line"></i></button><sc-if value="{{ menuEmoji }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;bottom:calc(100% + 10px);left:0;width:292px;background:#fff;border:1px solid #E6E7EB;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 20px 44px -18px rgba(16,24,40,.42);padding:6px;z-index:95"><div style="display:grid;grid-template-columns:repeat(8, minmax(0, 1fr));gap:2px;padding:2px"><sc-for list="{{ emojis }}" as="em" hint-placeholder-count="24"><button onClick="{{ em.onClick }}" aria-label="Inserir emoji" style="height:32px;border:0;border-radius:8px;background:transparent;font-size:18px;line-height:1;cursor:pointer;padding:0" style-hover="background:#F1F2F4">{{ em.ch }}</button></sc-for></div></div></sc-if></div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+          <button onClick="{{ startRec }}" title="Gravar áudio" aria-label="Gravar áudio" style="width:40px;height:40px;border-radius:12px;border:0;background:transparent;color:#5B6274;cursor:pointer;font-size:21.6px;display:flex;align-items:center;justify-content:center;flex:none" style-hover="background:#F1F2F4;color:#0E1220"><i class="ri-mic-line"></i></button>
+          <button onClick="{{ onSend }}" title="Enviar" style="width:40px;height:40px;border-radius:50%;border:0;background:#1F5FD6;color:#fff;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 16px -6px rgba(31,95,214,.8)" style-hover="background:#1A50B8"><i class="ri-arrow-up-line"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<sc-if value="{{ leadOpen }}" hint-placeholder-val="{{ true }}">
+<aside style="width:340px;flex:none;background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);display:flex;flex-direction:column;overflow:hidden">
+  <div style="flex:none;display:flex;align-items:center;justify-content:space-between;padding:16px 16px 0">
+    <span style="font-size:15.5px;font-weight:600;letter-spacing:-.015em">Detalhes do lead</span>
+    <button onClick="{{ closeLead }}" title="Fechar painel" aria-label="Fechar painel do lead" style="width:30px;height:30px;border-radius:9px;border:1px solid #E6E7EB;background:#fff;color:#5B6274;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex:none" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220"><i class="ri-close-line"></i></button>
+  </div>
+  <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 16px 20px">
+    <div style="display:flex;justify-content:center;padding:6px 0 14px">
+      <div style="position:relative">
+        <div style="{{ conv.bigAvatarStyle }}">{{ conv.initials }}</div>
+      </div>
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:18px;font-weight:600;letter-spacing:-.025em">{{ conv.name }}</div>
+
+    </div>
+    <div style="height:18px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px">
+      <div style="border:1px solid #ECEDF0;border-radius:14px;padding:12px 14px"><div style="font-size:12.5px;font-weight:500;color:#8B91A0">Atendimentos</div><div style="font-size:24px;font-weight:600;letter-spacing:-.035em;margin-top:6px">{{ detail.atendCount }}</div></div>
+      <div style="border:1px solid #ECEDF0;border-radius:14px;padding:12px 14px"><div style="font-size:12.5px;font-weight:500;color:#8B91A0">Mensagens</div><div style="font-size:24px;font-weight:600;letter-spacing:-.035em;margin-top:6px">{{ detail.msgCount }}</div></div>
+    </div>
+
+    <div style="font-size:12.5px;font-weight:500;color:#8B91A0;margin:0 2px 8px">Informações gerais</div>
+    <div style="background:#F7F8FA;border-radius:14px;padding:4px 12px;margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:10px;height:40px;border-bottom:1px solid #ECEDF0"><i class="ri-phone-line" style="font-size:15px;color:#8B91A0"></i><span style="font-size:13.5px;color:#1A2233">{{ conv.phone }}</span></div>
+      <div style="display:flex;align-items:center;gap:10px;height:40px;border-bottom:1px solid #ECEDF0"><i class="ri-mail-line" style="font-size:15px;color:#8B91A0"></i><span style="font-size:13.5px;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ detail.email }}</span></div>
+      <div style="display:flex;align-items:center;gap:10px;height:40px;border-bottom:1px solid #ECEDF0"><i class="ri-map-pin-2-line" style="font-size:15px;color:#8B91A0"></i><span style="font-size:13.5px;color:#1A2233">{{ detail.local }}</span></div>
+      <div style="display:flex;align-items:center;gap:10px;height:40px"><i class="ri-user-star-line" style="font-size:15px;color:#8B91A0"></i><span style="font-size:13.5px;color:#1A2233">Responsável · {{ detail.resp }}</span></div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:0 2px 10px">
+      <span style="font-size:12.5px;font-weight:500;color:#8B91A0">Etapa do atendimento</span><span style="{{ detail.stagePillStyle }}">{{ detail.stageName }}</span>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:8px">
+      <sc-for list="{{ detail.segs }}" as="s" hint-placeholder-count="6"><div style="{{ s.style }}"></div></sc-for>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:#9CA3B0;margin-bottom:18px">
+      <span>Novo contato</span><span style="font-weight:500;color:#3A4354">{{ detail.stageStep }}</span><span>Pós-venda</span>
+    </div>
+
+    <div style="font-size:12.5px;font-weight:500;color:#8B91A0;margin:0 2px 9px">Etiquetas</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px">
+      <sc-for list="{{ detail.tags }}" as="tg" hint-placeholder-count="3"><span style="{{ tg.style }}">{{ tg.label }}</span></sc-for>
+      <div style="position:relative;display:flex"><button onClick="{{ toggleEtiq2 }}" aria-label="Adicionar etiqueta" style="display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 10px;border-radius:999px;border:1px dashed #D3D6DC;background:#fff;color:#8B91A0;font-size:12px;font-weight:500;cursor:pointer" style-hover="border-color:#1F5FD6;color:#1F5FD6"><i class="ri-add-line"></i>Tag</button><sc-if value="{{ menuEtiq2 }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:calc(100% + 8px);right:0;width:250px;background:#fff;border:1px solid #E6E7EB;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 20px 44px -18px rgba(16,24,40,.42);padding:6px;z-index:95"><div style="font-size:10.5px;font-weight:600;letter-spacing:.07em;color:#9CA3B0;padding:8px 10px 4px">APLICAR ETIQUETA</div><div style="max-height:240px;overflow-y:auto"><sc-for list="{{ tagCat }}" as="tg2" hint-placeholder-count="5"><button onClick="{{ tg2.onClick }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><span style="{{ tg2.dot }}"></span>{{ tg2.label }}<sc-if value="{{ tg2.on }}" hint-placeholder-val="{{ false }}"><i class="ri-check-line" style="margin-left:auto;font-size:16px;color:#1F5FD6"></i></sc-if></button></sc-for></div></div></sc-if></div>
+    </div>
+
+    <div onClick="{{ toggleResumo }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid #ECEDF0;border-radius:14px;cursor:pointer;margin-bottom:8px;background:#fff" style-hover="background:#FAFAFB;border-color:#E2E4E8">
+  <span style="width:32px;height:32px;border-radius:10px;background:#EDF2FD;color:#1F5FD6;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none"><i class="ri-sparkling-2-line"></i></span>
+  <span style="flex:1;font-size:13.5px;font-weight:500;color:#0E1220">Resumo por IA</span>
+
+  <i class="ri-arrow-down-s-line" style="{{ resumoChevronStyle }}"></i>
+</div>
+    <div style="{{ resumoWrap }}"><div style="overflow:hidden;min-height:0">
+      <sc-if value="{{ showResumo }}" hint-placeholder-val="{{ true }}">
+      <div style="border-radius:16px;padding:14px;margin:0 0 14px;background:#1F5FD6;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 12px 24px -16px rgba(31,95,214,.9)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <i class="ri-sparkling-2-fill" style="font-size:15px"></i>
+          <span style="font-size:13px;font-weight:600">Resumo do atendimento</span>
+          <span style="font-size:11px;font-weight:500;background:rgba(255,255,255,.18);padding:2px 8px;border-radius:999px;margin-left:auto">IA</span>
+        </div>
+        <div style="font-size:13px;line-height:1.6;color:rgba(255,255,255,.92)">{{ detail.summary }}</div>
+      </div>
+      </sc-if>
+    </div></div>
+
+    <div onClick="{{ toggleNotas }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid #ECEDF0;border-radius:14px;cursor:pointer;margin-bottom:8px;background:#fff" style-hover="background:#FAFAFB;border-color:#E2E4E8">
+  <span style="width:32px;height:32px;border-radius:10px;background:#EDF2FD;color:#1F5FD6;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none"><i class="ri-sticky-note-line"></i></span>
+  <span style="flex:1;font-size:13.5px;font-weight:500;color:#0E1220">Notas internas</span>
+
+  <i class="ri-arrow-down-s-line" style="{{ notasChevronStyle }}"></i>
+</div>
+    <div style="{{ notasWrap }}"><div style="overflow:hidden;min-height:0">
+      <div style="border:1px solid #F3E6C8;background:#FFFBF2;border-radius:14px;padding:12px 13px;font-size:13px;line-height:1.55;color:#5B4A22;display:flex;gap:8px;margin:0 0 14px">
+        <i class="ri-sticky-note-line" style="color:#C98A1E;font-size:15px;flex:none"></i><span>{{ detail.notas }}</span></div>
+    </div></div>
+
+    <div onClick="{{ toggleMidia }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid #ECEDF0;border-radius:14px;cursor:pointer;margin-bottom:8px;background:#fff" style-hover="background:#FAFAFB;border-color:#E2E4E8">
+  <span style="width:32px;height:32px;border-radius:10px;background:#EDF2FD;color:#1F5FD6;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none"><i class="ri-image-2-line"></i></span>
+  <span style="flex:1;font-size:13.5px;font-weight:500;color:#0E1220">Mídias</span>
+  <span style="min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:#F1F2F4;color:#3A4354;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">14</span>
+  <i class="ri-arrow-down-s-line" style="{{ midiaChevronStyle }}"></i>
+</div>
+    <div style="{{ midiaWrap }}"><div style="overflow:hidden;min-height:0">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0 0 14px">
+        <div style="aspect-ratio:1;border-radius:12px;background:repeating-linear-gradient(135deg,#E8EAED,#E8EAED 8px,#F2F3F5 8px,#F2F3F5 16px)"></div><div style="aspect-ratio:1;border-radius:12px;background:repeating-linear-gradient(135deg,#E8EAED,#E8EAED 8px,#F2F3F5 8px,#F2F3F5 16px)"></div><div style="aspect-ratio:1;border-radius:12px;background:repeating-linear-gradient(135deg,#E8EAED,#E8EAED 8px,#F2F3F5 8px,#F2F3F5 16px)"></div><div style="aspect-ratio:1;border-radius:12px;background:repeating-linear-gradient(135deg,#E8EAED,#E8EAED 8px,#F2F3F5 8px,#F2F3F5 16px)"></div><div style="aspect-ratio:1;border-radius:12px;background:repeating-linear-gradient(135deg,#E8EAED,#E8EAED 8px,#F2F3F5 8px,#F2F3F5 16px)"></div>
+        <div onClick="{{ onVerMidia }}" title="Ver toda a mídia" style="aspect-ratio:1;border-radius:12px;background:#F4F5F7;display:flex;align-items:center;justify-content:center;color:#3A4354;font-size:13px;font-weight:600;cursor:pointer" style-hover="background:#E7EAEF;color:#0E1220">+9</div>
+      </div>
+    </div></div>
+
+    <div onClick="{{ toggleArq }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid #ECEDF0;border-radius:14px;cursor:pointer;margin-bottom:8px;background:#fff" style-hover="background:#FAFAFB;border-color:#E2E4E8">
+  <span style="width:32px;height:32px;border-radius:10px;background:#EDF2FD;color:#1F5FD6;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none"><i class="ri-folder-3-line"></i></span>
+  <span style="flex:1;font-size:13.5px;font-weight:500;color:#0E1220">Arquivos</span>
+  <span style="min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:#F1F2F4;color:#3A4354;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">4</span>
+  <i class="ri-arrow-down-s-line" style="{{ arqChevronStyle }}"></i>
+</div>
+    <div style="{{ arqWrap }}"><div style="overflow:hidden;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:6px;margin:0 0 14px">
+        <div onClick="{{ onOpenArquivo0 }}" title="Abrir Orcamento_2231.pdf" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:#F7F8FA;cursor:pointer" style-hover="background:#F1F2F4"><span style="width:34px;height:34px;border-radius:10px;background:#E5484D;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;font-family:'Geist Mono',monospace">PDF</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Orcamento_2231.pdf</div><div style="font-size:12px;color:#8B91A0;margin-top:1px">PDF · 184 KB · hoje</div></div><i class="ri-download-2-line" style="font-size:16px;color:#8B91A0"></i></div>
+        <div onClick="{{ onOpenArquivo1 }}" title="Abrir Contrato_servico.pdf" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:#F7F8FA;cursor:pointer" style-hover="background:#F1F2F4"><span style="width:34px;height:34px;border-radius:10px;background:#E5484D;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;font-family:'Geist Mono',monospace">PDF</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Contrato_servico.pdf</div><div style="font-size:12px;color:#8B91A0;margin-top:1px">PDF · 92 KB · ontem</div></div><i class="ri-download-2-line" style="font-size:16px;color:#8B91A0"></i></div>
+        <div onClick="{{ onOpenArquivo2 }}" title="Abrir Medidas_vaos.xlsx" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:#F7F8FA;cursor:pointer" style-hover="background:#F1F2F4"><span style="width:34px;height:34px;border-radius:10px;background:#16A34A;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;font-family:'Geist Mono',monospace">XLS</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Medidas_vaos.xlsx</div><div style="font-size:12px;color:#8B91A0;margin-top:1px">Planilha · 24 KB · seg</div></div><i class="ri-download-2-line" style="font-size:16px;color:#8B91A0"></i></div>
+        <div onClick="{{ onOpenArquivo3 }}" title="Abrir Projeto_box.dwg" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:#F7F8FA;cursor:pointer" style-hover="background:#F1F2F4"><span style="width:34px;height:34px;border-radius:10px;background:#1F5FD6;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;font-family:'Geist Mono',monospace">DWG</span><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Projeto_box.dwg</div><div style="font-size:12px;color:#8B91A0;margin-top:1px">Projeto · 1,2 MB · 12/07</div></div><i class="ri-download-2-line" style="font-size:16px;color:#8B91A0"></i></div>
+      </div>
+    </div></div>
+
+    <div onClick="{{ toggleProg }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid #ECEDF0;border-radius:14px;cursor:pointer;margin-bottom:8px;background:#fff" style-hover="background:#FAFAFB;border-color:#E2E4E8">
+  <span style="width:32px;height:32px;border-radius:10px;background:#EDF2FD;color:#1F5FD6;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none"><i class="ri-calendar-schedule-line"></i></span>
+  <span style="flex:1;font-size:13.5px;font-weight:500;color:#0E1220">Mensagens programadas</span>
+  <span style="min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:#F1F2F4;color:#3A4354;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">{{ detail.progCount }}</span>
+  <i class="ri-arrow-down-s-line" style="{{ progChevronStyle }}"></i>
+</div>
+    <div style="{{ progWrap }}"><div style="overflow:hidden;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:6px;margin:0 0 14px">
+        <sc-for list="{{ detail.scheduled }}" as="p" hint-placeholder-count="1">
+          <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:12px;background:#F7F8FA">
+            <i class="ri-time-line" style="font-size:15px;color:#1F5FD6;margin-top:1px"></i>
+            <div style="min-width:0"><div style="font-size:13px;font-weight:500;color:#1A2233">{{ p.text }}</div><div style="font-size:12px;color:#8B91A0;margin-top:2px">{{ p.when }}</div></div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ detail.progEmpty }}" hint-placeholder-val="{{ false }}"><div style="padding:10px;text-align:center;color:#9CA3B0;font-size:12.5px">Nenhuma mensagem programada</div></sc-if>
+      </div>
+    </div></div>
+
+    <div onClick="{{ toggleLemb }}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid #ECEDF0;border-radius:14px;cursor:pointer;margin-bottom:8px;background:#fff" style-hover="background:#FAFAFB;border-color:#E2E4E8">
+  <span style="width:32px;height:32px;border-radius:10px;background:#EDF2FD;color:#1F5FD6;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none"><i class="ri-notification-3-line"></i></span>
+  <span style="flex:1;font-size:13.5px;font-weight:500;color:#0E1220">Lembretes</span>
+  <span style="min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:#F1F2F4;color:#3A4354;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">{{ detail.lembCount }}</span>
+  <i class="ri-arrow-down-s-line" style="{{ lembChevronStyle }}"></i>
+</div>
+    <div style="{{ lembWrap }}"><div style="overflow:hidden;min-height:0">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <sc-for list="{{ detail.reminders }}" as="r" hint-placeholder-count="1">
+          <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:12px;background:#F7F8FA">
+            <i class="ri-alarm-line" style="font-size:15px;color:#B4690E;margin-top:1px"></i>
+            <div style="min-width:0"><div style="font-size:13px;font-weight:500;color:#1A2233">{{ r.text }}</div><div style="font-size:12px;color:#8B91A0;margin-top:2px">{{ r.when }}</div></div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ detail.lembEmpty }}" hint-placeholder-val="{{ false }}"><div style="padding:10px;text-align:center;color:#9CA3B0;font-size:12.5px">Nenhum lembrete</div></sc-if>
+      </div>
+    </div></div>
+  </div>
+</aside>
+</sc-if>
+</sc-if>
+
+<div style="width:64px;flex:none;background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:8px">
+  <div onClick="{{ openInternal }}" title="Chat interno da equipe" style="width:42px;height:42px;border-radius:50%;background:#1F5FD6;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;position:relative;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 16px -6px rgba(31,95,214,.8)"><i class="ri-chat-private-line"></i>
+    <span style="position:absolute;right:-3px;top:-3px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:#E5484D;color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center;justify-content:center;border:2px solid #fff">3</span></div>
+  <div style="width:28px;height:1px;background:#ECEDF0;margin:4px 0"></div>
+  <sc-for list="{{ team }}" as="tm" hint-placeholder-count="6">
+    <div title="{{ tm.name }}" onClick="{{ tm.onClick }}" style="{{ tm.wrapStyle }}">
+      <div style="{{ tm.avatarStyle }}">{{ tm.initials }}<span style="{{ tm.dotStyle }}"></span></div>
+      <sc-if value="{{ tm.showUnread }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;right:-4px;top:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:#1F5FD6;color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center;justify-content:center;border:2px solid #fff">{{ tm.unread }}</span></sc-if>
+    </div>
+  </sc-for>
+  <div style="margin-top:auto;position:relative;display:flex"><div onClick="{{ toggleRail }}" title="Adicionar" style="width:42px;height:42px;border-radius:50%;border:1.5px dashed #D3D6DC;display:flex;align-items:center;justify-content:center;color:#9CA3B0;font-size:18px;cursor:pointer" style-hover="border-color:#1F5FD6;color:#1F5FD6"><i class="ri-add-line"></i></div><sc-if value="{{ menuRail }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;bottom:0;left:calc(100% + 12px);width:252px;background:#fff;border:1px solid #E6E7EB;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 20px 44px -18px rgba(16,24,40,.42);padding:6px;z-index:95"><button onClick="{{ onNovoGrupo }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-group-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Novo grupo interno</button><button onClick="{{ onConvidarMembro }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-user-add-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Convidar membro</button><div style="height:1px;background:#F1F2F4;margin:5px 8px"></div><a href="GestaoV2.dc.html" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer;text-decoration:none" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-team-line" style="font-size:16.5px;color:#6B7385;flex:none"></i>Gerenciar equipe<i class="ri-arrow-right-up-line" style="margin-left:auto;font-size:14px;color:#B4BAC6"></i></a></div></sc-if></div>
+</div>
+
+<sc-if value="{{ internalOpen }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;top:10px;right:84px;bottom:10px;width:350px;background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 30px 70px -24px rgba(16,24,40,.45);display:flex;flex-direction:column;overflow:hidden;z-index:20">
+  <div style="display:flex;align-items:center;gap:10px;padding:14px 14px 14px 16px;border-bottom:1px solid #F1F2F4;flex:none">
+    <span style="font-size:15px;font-weight:600;flex:1;letter-spacing:-.015em">Chat da equipe</span>
+    <div style="display:inline-flex;background:#F1F2F4;border-radius:10px;padding:3px;gap:2px">
+      <button onClick="{{ intGoConv }}" style="{{ intTabC }}">Conversas</button>
+      <button onClick="{{ intGoGroups }}" style="{{ intTabG }}">Grupos<sc-if value="{{ intHasUnread }}" hint-placeholder-val="{{ true }}"><span style="min-width:16px;height:16px;margin-left:5px;border-radius:999px;background:#1F5FD6;color:#fff;font-size:10px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;padding:0 4px">{{ intUnread }}</span></sc-if></button>
+    </div>
+    <button onClick="{{ closeInternal }}" style="width:30px;height:30px;border-radius:9px;border:1px solid #E6E7EB;background:#fff;color:#5B6274;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220"><i class="ri-close-line"></i></button>
+  </div>
+  <sc-if value="{{ intIsConv }}" hint-placeholder-val="{{ true }}">
+  <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #F1F2F4;flex:none">
+    <div style="{{ internalPerson.avatarStyle }}">{{ internalPerson.initials }}<span style="{{ internalPerson.dotStyle }}"></span></div>
+    <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600">{{ internalPerson.name }}</div><div style="{{ internalPerson.statusStyle }}">{{ internalPerson.statusText }}</div></div>
+  </div>
+  </sc-if>
+  <sc-if value="{{ intIsGroupChat }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;align-items:center;gap:10px;padding:12px 16px 12px 10px;border-bottom:1px solid #F1F2F4;flex:none">
+    <button onClick="{{ intBackToGroups }}" aria-label="Voltar aos grupos" style="width:30px;height:30px;border-radius:9px;border:0;background:transparent;color:#5B6274;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;flex:none" style-hover="background:#F1F2F4;color:#0E1220"><i class="ri-arrow-left-s-line"></i></button>
+    <div style="width:36px;height:36px;border-radius:11px;background:#EDF2FD;color:#1F5FD6;display:flex;align-items:center;justify-content:center;font-size:18px;flex:none"><i class="ri-group-line"></i></div>
+    <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ intGroup.name }}</div><div style="font-size:11.5px;color:#8B91A0">{{ intGroup.membersLabel }}</div></div>
+  </div>
+  </sc-if>
+  <sc-if value="{{ intIsGroupList }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;overflow-y:auto;padding:8px;background:#fff">
+    <sc-for list="{{ intGroups }}" as="g" hint-placeholder-count="4">
+      <button onClick="{{ g.onClick }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:10px;border:0;border-radius:12px;background:transparent;cursor:pointer;text-align:left;font-family:inherit;margin-bottom:2px" style-hover="background:#F5F6F8">
+        <span style="width:40px;height:40px;border-radius:12px;background:#EDF2FD;color:#1F5FD6;display:flex;align-items:center;justify-content:center;font-size:19px;flex:none"><i class="ri-group-line"></i></span>
+        <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+          <span style="display:flex;align-items:center;gap:7px"><span style="font-size:13.5px;font-weight:600;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.name }}</span><span style="font-size:11px;color:#9CA3B0;flex:none">{{ g.membersLabel }}</span></span>
+          <span style="font-size:12px;color:#8B91A0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:214px">{{ g.last }}</span>
+        </span>
+        <sc-if value="{{ g.showUnread }}" hint-placeholder-val="{{ false }}"><span style="min-width:19px;height:19px;border-radius:999px;background:#1F5FD6;color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center;justify-content:center;padding:0 5px;flex:none">{{ g.unread }}</span></sc-if>
+      </button>
+    </sc-for>
+    <button onClick="{{ onNovoGrupo }}" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px;border:0;border-radius:12px;background:transparent;color:#1F5FD6;cursor:pointer;text-align:left;font-family:inherit;font-size:13px;font-weight:500;margin-top:4px" style-hover="background:#F5F6F8">
+      <span style="width:40px;height:40px;border-radius:12px;border:1.5px dashed #CBD5E5;display:flex;align-items:center;justify-content:center;font-size:19px;flex:none"><i class="ri-add-line"></i></span>Novo grupo interno</button>
+  </div>
+  </sc-if>
+  <sc-if value="{{ intShowThread }}" hint-placeholder-val="{{ true }}">
+  <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:16px;display:flex;flex-direction:column;gap:10px;background:#FAFAFB">
+    <sc-for list="{{ intMsgs }}" as="im" hint-placeholder-count="4">
+      <div style="{{ im.wrap }}">
+        <sc-if value="{{ im.isSystem }}" hint-placeholder-val="{{ false }}">
+          <span style="font-size:11.5px;color:#8B91A0;background:#fff;border:1px solid #ECEDF0;padding:3px 10px;border-radius:999px">{{ im.text }}</span>
+        </sc-if>
+        <sc-if value="{{ im.isBubble }}" hint-placeholder-val="{{ true }}">
+          <div style="max-width:100%">
+            <sc-if value="{{ im.showAuthor }}" hint-placeholder-val="{{ false }}"><div style="font-size:11px;font-weight:600;color:#1F5FD6;margin:0 0 3px 2px">{{ im.author }}</div></sc-if>
+            <div style="{{ im.bubble }}">{{ im.text }}</div>
+            <div style="{{ im.meta }}">{{ im.time }}</div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-for>
+  </div>
+  </sc-if>
+  <sc-if value="{{ intShowThread }}" hint-placeholder-val="{{ true }}">
+  <div style="padding:12px;border-top:1px solid #F1F2F4;display:flex;align-items:center;gap:8px;flex:none">
+    <input value="{{ intDraft }}" onChange="{{ onIntDraft }}" onKeyDown="{{ onIntKey }}" placeholder="Mensagem para a equipe…" aria-label="Mensagem para a equipe" style="flex:1;min-width:0;height:40px;background:#F6F7F8;border:1px solid #ECEDF0;border-radius:12px;padding:0 12px;color:#0E1220;font-family:inherit;font-size:13px;outline:none">
+    <button onClick="{{ sendInt }}" aria-label="Enviar mensagem" style="width:40px;height:40px;border-radius:50%;border:0;background:#1F5FD6;color:#fff;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;flex:none" style-hover="background:#1A50B8"><i class="ri-arrow-up-line"></i></button>
+  </div>
+  </sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ toggleNotif }}" style="position:absolute;inset:0;z-index:70;background:rgba(11,19,36,.18)">
+  <aside onClick="{{ stopNotif }}" style="position:absolute;top:10px;right:10px;bottom:10px;width:420px;background:#fff;border-radius:20px;box-shadow:0 0 0 1px rgba(16,24,40,.05),0 40px 100px -30px rgba(11,19,36,.55);display:flex;flex-direction:column;overflow:hidden">
+    <div style="flex:none;display:flex;align-items:center;gap:10px;padding:20px 20px 14px">
+      <div style="flex:1;min-width:0"><div style="font-size:19px;font-weight:600;letter-spacing:-.025em">Notificações</div><div style="font-size:13px;color:#8B91A0;margin-top:3px">{{ notifSub }}</div></div>
+      <span onClick="{{ markAllNotif }}" title="Marcar todas como lidas" style="height:32px;padding:0 10px;border-radius:10px;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;color:#1F5FD6;cursor:pointer;white-space:nowrap" style-hover="background:#EDF2FD"><i class="ri-check-double-line" style="font-size:15px"></i>Marcar lidas</span>
+      <span onClick="{{ toggleNotif }}" style="width:34px;height:34px;border-radius:10px;border:1px solid #E6E7EB;display:flex;align-items:center;justify-content:center;color:#5B6274;cursor:pointer;flex:none" style-hover="background:#F5F6F8;color:#0E1220"><i class="ri-close-line" style="font-size:18px"></i></span>
+    </div>
+    <div style="flex:none;display:flex;gap:6px;padding:0 20px 12px;border-bottom:1px solid #F0F1F3">
+      <sc-for list="{{ notifTabs }}" as="t" hint-placeholder-count="3"><span onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</span></sc-for>
+    </div>
+    <div style="flex:1;min-height:0;overflow-y:auto;padding:8px 10px 14px">
+      <sc-for list="{{ notifs }}" as="n" hint-placeholder-count="6">
+        <div onClick="{{ n.onClick }}" style="{{ n.rowStyle }}" style-hover="background:#F6F7F9">
+          <div style="{{ n.iconWrap }}"><i class="{{ n.icon }}" style="font-size:17px"></i></div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:baseline;gap:8px"><span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;color:#0E1220">{{ n.title }}</span><span style="font-size:12px;color:#9CA3B0;flex:none">{{ n.time }}</span></div>
+            <div style="font-size:13px;color:#5B6274;line-height:1.45;margin-top:3px">{{ n.text }}</div>
+          </div>
+          <sc-if value="{{ n.unread }}" hint-placeholder-val="{{ false }}"><span style="width:8px;height:8px;border-radius:50%;background:#1F5FD6;flex:none;margin-top:6px"></span></sc-if>
+        </div>
+      </sc-for>
+      <sc-if value="{{ notifEmpty }}" hint-placeholder-val="{{ false }}"><div style="padding:60px 20px;text-align:center;font-size:13px;color:#9CA3B0"><i class="ri-notification-off-line" style="display:block;font-size:28px;margin-bottom:8px;color:#C4C9D2"></i>Nenhuma notificação</div></sc-if>
+    </div>
+  </aside>
+</div>
+</sc-if>
+
+<sc-if value="{{ novoOpen }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ closeNovo }}" style="position:absolute;inset:0;background:rgba(14,18,32,.34);backdrop-filter:blur(2px);z-index:120;display:flex;align-items:center;justify-content:center">
+  <div onClick="{{ stopNotif }}" style="width:520px;background:#fff;border-radius:20px;box-shadow:0 40px 100px -28px rgba(14,18,32,.6);overflow:hidden">
+    <div style="display:flex;align-items:center;gap:12px;padding:20px 22px 16px;border-bottom:1px solid #F1F2F4">
+      <div style="width:40px;height:40px;border-radius:12px;background:#EDF2FD;color:#1F5FD6;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none"><i class="ri-chat-new-line"></i></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:16px;font-weight:600;letter-spacing:-.02em">Novo atendimento</div>
+        <div style="font-size:12.5px;color:#8B91A0;margin-top:2px">Inicie uma conversa pelo WhatsApp Business</div>
+      </div>
+      <button onClick="{{ closeNovo }}" aria-label="Fechar" style="width:32px;height:32px;border-radius:10px;border:1px solid #E6E7EB;background:#fff;color:#5B6274;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;flex:none" style-hover="background:#F7F8FA;color:#0E1220"><i class="ri-close-line"></i></button>
+    </div>
+    <div style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;gap:12px">
+        <label style="flex:1;min-width:0"><span style="font-size:11.5px;font-weight:600;color:#6B7385;margin-bottom:6px;display:block">Nome do contato</span><input value="{{ nfName }}" onChange="{{ onNfName }}" placeholder="Ex.: Marcos Vinícius" style="width:100%;height:42px;border:1px solid #E1E4EA;border-radius:12px;padding:0 13px;font-family:inherit;font-size:13.5px;color:#0E1220;outline:none;background:#fff"></label>
+        <label style="width:190px;flex:none"><span style="font-size:11.5px;font-weight:600;color:#6B7385;margin-bottom:6px;display:block">WhatsApp</span><input value="{{ nfPhone }}" onChange="{{ onNfPhone }}" placeholder="(61) 9 0000-0000" style="width:100%;height:42px;border:1px solid #E1E4EA;border-radius:12px;padding:0 13px;font-family:inherit;font-size:13.5px;color:#0E1220;outline:none;background:#fff"></label>
+      </div>
+      <label style="display:block"><span style="font-size:11.5px;font-weight:600;color:#6B7385;margin-bottom:6px;display:block">Setor responsável</span>
+        <select value="{{ nfSetor }}" onChange="{{ onNfSetor }}" style="width:100%;height:42px;border:1px solid #E1E4EA;border-radius:12px;padding:0 13px;font-family:inherit;font-size:13.5px;color:#0E1220;outline:none;background:#fff">
+          <option>Comercial</option><option>Projetos</option><option>Obras</option><option>Pós-venda</option>
+        </select>
+      </label>
+      <label style="display:block"><span style="font-size:11.5px;font-weight:600;color:#6B7385;margin-bottom:6px;display:block">Primeira mensagem</span>
+        <textarea value="{{ nfMsg }}" onChange="{{ onNfMsg }}" rows="3" placeholder="Escreva a mensagem de abertura…" style="width:100%;border:1px solid #E1E4EA;border-radius:12px;padding:11px 13px;font-family:inherit;font-size:13.5px;line-height:1.5;color:#0E1220;outline:none;resize:vertical"></textarea>
+      </label>
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:11px 13px;border-radius:12px;background:#F7F8FA;color:#5B6274;font-size:12px;line-height:1.5">
+        <i class="ri-information-line" style="font-size:15px;color:#8B91A0;flex:none;margin-top:1px"></i>Fora da janela de 24h, só é possível abrir a conversa com um template aprovado pela Meta.
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;background:#FAFAFB;border-top:1px solid #F1F2F4">
+      <button onClick="{{ closeNovo }}" style="height:40px;padding:0 16px;border-radius:12px;border:1px solid #E1E4EA;background:#fff;color:#5B6274;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer" style-hover="background:#F1F2F4;color:#0E1220">Cancelar</button>
+      <button onClick="{{ criarNovo }}" style="display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 17px;border-radius:12px;border:0;background:#1F5FD6;color:#fff;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 18px -8px rgba(31,95,214,.8)" style-hover="background:#1A50B8"><i class="ri-send-plane-2-fill" style="font-size:15px"></i>Iniciar atendimento</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;bottom:26px;left:50%;transform:translateX(-50%);z-index:130;display:flex;align-items:center;gap:10px;background:#0E1220;color:#fff;height:46px;padding:0 20px 0 16px;border-radius:14px;box-shadow:0 24px 54px -18px rgba(0,0,0,.55);font-size:13.5px;font-weight:500;white-space:nowrap">
+  <i class="{{ toastIcon }}" style="font-size:18px;color:#7FB2FF"></i>{{ toast }}
+</div>
+</sc-if>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1920,&quot;height&quot;:1080}}">
+class Component extends DCLogic {
+  state = { leadOpen:true, menu:null, novoOpen:false, novoF:{name:'',phone:'',setor:'Comercial',msg:'Olá! Aqui é a Estrutural Vidros. Em que podemos ajudar?'}, convSearchOpen:false, convQ:'', recOn:false, recSec:0, intTab:'conversas', intGroup:null, intDraft:'', intExtra:{}, intRead:{}, toast:null, toastIcon:'ri-checkbox-circle-fill', notifOpen:false, notifTab:'all', notifRead:{}, sel:'c1', tab:'todos', composer:'', internalOpen:false, internalPersonKey:null, arqOpen:false, resumoOpen:true, notasOpen:false, midiaOpen:false, progOpen:false, lembOpen:false, autoOpen:false, mode:null, agentFilter:null, flag:null, flagIds:null, lq:'', dq:'', dview:'todos', hideEmpty:false, openRows:{} };
+
+  NOTIFS=[
+    {id:'n1',type:'group',icon:'ri-group-line',c:['#EDF2FD','#1F5FD6'],title:'Adicionado a um grupo interno',text:'Ana Beatriz adicionou você ao grupo “Obras · Horizonte”.',time:'08:41'},
+    {id:'n2',type:'msg',icon:'ri-chat-3-line',c:['#E7F6EE','#12855A'],title:'Nova mensagem de Daiane',text:'“Consegue assumir a Fernanda? Ela pediu o orçamento do box.”',time:'08:36'},
+    {id:'n3',type:'atend',icon:'ri-user-shared-line',c:['#EEEDFD','#4F46E5'],title:'Atendimento transferido para você',text:'Clayton transferiu Marcos Vinícius · Vidraçaria Cristal Clara.',time:'08:22'},
+    {id:'n4',type:'atend',icon:'ri-at-line',c:['#FDF3E2','#B4690E'],title:'Você foi mencionado',text:'Eduarda mencionou você em uma nota de Camila Nunes.',time:'08:10'},
+    {id:'n5',type:'atend',icon:'ri-alarm-line',c:['#FDEDEB','#C8352A'],title:'Cliente sem resposta há 25 min',text:'Ricardo Moura aguarda retorno no atendimento.',time:'07:58'},
+    {id:'n6',type:'atend',icon:'ri-notification-3-line',c:['#E8F3FB','#1C6FA8'],title:'Lembrete para hoje às 17:00',text:'Confirmar data de instalação do box com o cliente.',time:'07:30'},
+    {id:'n7',type:'group',icon:'ri-group-line',c:['#EDF2FD','#1F5FD6'],title:'Nova mensagem em “Plantão sábado”',text:'Jardel Souza: “Quem cobre o turno das 10h?”',time:'Ontem'},
+    {id:'n8',type:'msg',icon:'ri-chat-3-line',c:['#E7F6EE','#12855A'],title:'Nova mensagem de Nayara',text:'“Enviei a tabela de revenda atualizada.”',time:'Ontem'}
+  ];
+  chev(o){ return `font-size:18px;color:#9CA3B0;transition:transform .3s cubic-bezier(.2,.7,.2,1);transform:rotate(${o?0:-90}deg)`; }
+  wrap(o){ return `display:grid;grid-template-rows:${o?'1fr':'0fr'};opacity:${o?1:0};transition:grid-template-rows .32s cubic-bezier(.2,.7,.2,1),opacity .25s ease`; }
+  now(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+  data(){ if(!this._d){ this._d = this.build(); } return this._d; }
+
+  select(id){ const c=this.data().find(x=>x.id===id); if(c) c.unread=0; this.setState({ sel:id, mode:'conversas' }); this._scroll=true; }
+  onComposer(e){ this.setState({ composer:e.target.value }); }
+  onKey(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); this.send(); } }
+  send(){ const t=(this.state.composer||'').trim(); if(!t) return; const c=this.data().find(x=>x.id===this.state.sel); if(c){ c.messages.push({kind:'text',side:'out',author:'Jardel',text:t,time:this.now(),read:false}); c.lastInAt=null; c.time=this.now(); } this.setState({ composer:'' }); this._scroll=true; }
+
+  componentDidMount(){ this._scrollNow(); this._tick=setInterval(()=>this.forceUpdate(),15000);
+    let q=''; try{ q=new URLSearchParams(location.search).get('filtro')||''; const s=sessionStorage.getItem('ev_nav_query'); if(s){ q=new URLSearchParams(s).get('filtro')||q; sessionStorage.removeItem('ev_nav_query'); } }catch(e){}
+    if(q) this.applyFiltro(q); }
+  filtros(){ return {
+    ia:{label:'Em IA',icon:'ri-robot-2-line',fn:c=>c.atendente==='—'&&c.bucket!=='finalizados'},
+    humano:{label:'Em atendimento humano',icon:'ri-user-voice-line',fn:c=>c.atendente!=='—'&&c.bucket==='ativos'},
+    aguardando:{label:'Aguardando 1ª resposta',icon:'ri-time-line',fn:c=>c.bucket!=='finalizados'&&this.waitMin(c)!=null},
+    esquecidos:{label:'Esquecidos +1 hora',icon:'ri-alarm-warning-line',fn:c=>c.bucket!=='finalizados'&&(this.waitMin(c)||0)>=60},
+    novos:{label:'Leads novos hoje',icon:'ri-user-add-line',fn:c=>c.stage===1&&c.bucket!=='finalizados'},
+    vendas:{label:'Vendas hoje',icon:'ri-shopping-bag-3-line',fn:c=>c.stage===5},
+    novas:{label:'Novas mensagens',icon:'ri-message-3-line'},
+    sem:{label:'Sem resposta +20 min',icon:'ri-alarm-line'} }; }
+  applyFiltro(k){
+    if(k==='online'){ this.setState({mode:'painel', dview:'online'}); return; }
+    const F=this.filtros()[k]; if(!F||!F.fn) return;
+    const ids=this.data().filter(F.fn).map(c=>c.id);
+    this.setState({ mode:'conversas', tab:'__all', agentFilter:null, flag:k, flagIds:ids, lq:'', sel:ids[0]||this.state.sel }); this._scroll=true;
+  }
+  componentWillUnmount(){ clearInterval(this._rec); clearTimeout(this._tt); clearInterval(this._tick); }
+  finalizar(){ const c=this.data().find(x=>x.id===this.state.sel); if(!c||c.bucket==='finalizados') return; if(c.atendente==='—'){ c.atendente='Jardel'; c.agent='JS'; c.resp='Jardel'; } c.bucket='finalizados'; c.lastInAt=null; c.unread=0; c.messages.push({kind:'system',text:'Atendimento finalizado por '+c.atendente+' · '+this.now()}); this.forceUpdate(); this._scroll=true; }
+  componentDidUpdate(){ if(this._scroll){ this._scroll=false; this._scrollNow(); } }
+  _scrollNow(){ if(this._msg){ this._msg.scrollTop=this._msg.scrollHeight; } }
+
+  pill(tone){ const M={ sky:['#EDF2FD','#1F5FD6'], blue:['#EDF2FD','#1A50B8'], warn:['#FDF3E2','#B4690E'], indigo:['#EEF0FB','#4C55B8'], ok:['#E7F6EE','#12855A'], teal:['#E6F4F2','#1F7A72'], gray:['#F1F2F4','#5B6274'] }; const c=M[tone]||M.gray; return { display:'inline-flex', alignItems:'center', gap:'5px', padding:'3px 10px', borderRadius:'999px', fontSize:'12px', fontWeight:500, background:c[0], color:c[1], lineHeight:1.25, whiteSpace:'nowrap' }; }
+
+  build(){
+    const S=['Novo Contato','Aguardando Medidas','Orçamento','Negociação','Fechado','Pós-venda'];
+    const base=[
+      { id:'c1', initials:'MV', tint:'#2C6BB8', name:'Marcos Vinícius', company:'Vidraçaria Cristal Clara', phone:'(61) 9 9812-3345', time:'08:26', unread:0, agent:'JS', online:true, bucket:'ativos', atendente:'Jardel',
+        tag:{label:'Orçamento',tone:'blue'}, stage:3,
+        summary:'Marcos (Vidraçaria Cristal Clara) pediu orçamento de 2 boxes em vidro temperado 8mm incolor. Medidas confirmadas e orçamento nº 2231 enviado (R$ 1.480). Cliente aprovou — aguardando definir data de instalação.',
+        aiDraft:'Consigo sim, Marcos! A produção do box leva de 3 a 5 dias úteis. Posso agendar a instalação para quinta-feira (17/07) pela manhã — fica bom pra você?',
+        pend:[{done:true,label:'Confirmar medidas dos vãos'},{done:false,label:'Definir data de instalação'},{done:false,label:'Enviar contrato de serviço'}],
+        email:'marcos@cristalclara.com.br', local:'Taguatinga · DF', resp:'Jardel Souza',
+        orc:{items:[{q:'2x',label:'Box temperado 8mm incolor',price:'R$ 1.180'},{q:'1x',label:'Kit alumínio + instalação',price:'R$ 300'}],total:'R$ 1.480,00',status:'Enviado',statusTone:'blue',val:'7 dias'},
+        tags:[{label:'Box de Banheiro',tone:'blue'},{label:'Vidro Temperado',tone:'sky'},{label:'Cliente Recorrente',tone:'teal'}],
+        pedidos:12, histTotal:'R$ 48.200', notas:'Cliente antigo, sempre paga à vista. Prefere atendimento pela manhã.', atendCount:6,
+        scheduled:[{when:'Qui, 17/07 · 09:00',text:'Confirmação da instalação do box'}], reminders:[{when:'Hoje · 17:00',text:'Confirmar data de instalação com Marcos'}],
+        messages:[
+          {kind:'date',text:'Hoje'},
+          {kind:'system',text:'Atendimento recebido · WhatsApp · Jardel'},
+          {kind:'text',side:'in',text:'Bom dia! Queria um orçamento pra fechar o box do banheiro da suíte e do social.',time:'08:02'},
+          {kind:'text',side:'out',author:'Jardel',text:'Bom dia, Marcos! Claro. Você já tem as medidas dos vãos?',time:'08:05',read:true},
+          {kind:'text',side:'in',text:'Tenho sim. Suíte: 1,90 x 1,50. Social: 1,80 x 1,40.',time:'08:07'},
+          {kind:'image',side:'in',fileName:'medida-suite.jpg',caption:'Foto da medida da suíte',time:'08:08'},
+          {kind:'text',side:'out',author:'Jardel',text:'Perfeito. Vou montar no temperado 8mm incolor com kit alumínio e já te envio o orçamento.',time:'08:12',read:true},
+          {kind:'file',side:'out',author:'Jardel',fileName:'Orcamento_2231.pdf',fileMeta:'Box temperado 8mm · 2 vãos · R$ 1.480,00',time:'08:20',read:true},
+          {kind:'text',side:'in',text:'Fechou! Pode seguir. Consegue instalar semana que vem?',time:'08:26'}
+        ] },
+      { id:'c2', initials:'CN', tint:'#4C55B8', name:'Camila Nunes', company:'Construtora Horizonte', phone:'(61) 9 9740-1188', time:'09:12', unread:2, agent:'AB', online:true, bucket:'ativos', atendente:'Ana Beatriz',
+        tag:{label:'Negociação',tone:'indigo'}, stage:4,
+        summary:'Construtora avalia fornecimento de pele de vidro (~120 m²) para licitação. Orçamento enviado; cliente pediu revisão de valor por volume. Em negociação.',
+        aiDraft:'Claro, Camila. Fechando os 120 m² de uma vez, consigo aplicar 8% de desconto no vidro. Posso refazer a proposta com esse valor e já anexar a ficha técnica?',
+        pend:[{done:false,label:'Revisar proposta por volume'},{done:false,label:'Enviar ficha técnica do vidro'}],
+        email:'compras@horizonte.eng.br', local:'Águas Claras · DF', resp:'Ana Beatriz',
+        orc:{items:[{q:'120m²',label:'Pele de vidro laminado',price:'R$ 96.000'},{q:'1x',label:'Projeto + instalação',price:'R$ 18.000'}],total:'R$ 114.000,00',status:'Em revisão',statusTone:'warn',val:'15 dias'},
+        tags:[{label:'Fachada',tone:'blue'},{label:'Obra',tone:'sky'},{label:'B2B',tone:'indigo'}],
+        pedidos:3, histTotal:'R$ 210.000', notas:'Compra por licitação. Precisa de nota e ficha técnica ABNT.', atendCount:2,
+        scheduled:[{when:'Sex, 10/07 · 10:00',text:'Reenvio da proposta revisada'}], reminders:[{when:'Amanhã · 09:00',text:'Follow-up sobre desconto por volume'}],
+        messages:[
+          {kind:'date',text:'Hoje'},
+          {kind:'text',side:'in',text:'Bom dia! Recebi o orçamento da fachada de vidro. Podemos revisar o valor?',time:'09:05'},
+          {kind:'text',side:'out',author:'Ana Beatriz',text:'Bom dia, Camila! Posso sim. Qual o volume que fecharíamos?',time:'09:10',read:true},
+          {kind:'text',side:'in',text:'Fachada completa, aprox. 120m². Preciso fechar pra licitação.',time:'09:12'}
+        ] },
+      { id:'c3', initials:'AP', tint:'#3E8FD0', name:'Ana Paula Ferreira', company:'Cliente final', phone:'(61) 9 9333-2210', time:'10:41', unread:1, agent:'—', online:true, bucket:'potenciais', atendente:'—',
+        tag:{label:'Novo Contato',tone:'sky'}, stage:1,
+        summary:'Lead via WhatsApp interessada em espelho bisotê sob medida (1,20 × 0,80 m) para a sala. Aguardando primeiro contato do atendente.',
+        aiDraft:'Oi, Ana Paula! Fazemos sim espelho bisotê sob medida. Para 1,20 × 0,80 m eu já consigo te passar um valor. Prefere instalação com botão ou colado na parede?',
+        pend:[{done:false,label:'Responder primeiro contato'},{done:false,label:'Coletar medidas e ambiente'}],
+        email:'—', local:'Ceilândia · DF', resp:'—',
+        orc:{items:[],total:'—',status:'Não iniciado',statusTone:'gray',val:'—'},
+        tags:[{label:'Espelho',tone:'sky'},{label:'Bisotê',tone:'blue'},{label:'Lead novo',tone:'teal'}],
+        pedidos:0, histTotal:'R$ 0', notas:'Chegou pelo anúncio do Instagram.', atendCount:1,
+        scheduled:[], reminders:[{when:'Hoje · 11:30',text:'Responder primeiro contato'}],
+        messages:[
+          {kind:'date',text:'Hoje'},
+          {kind:'text',side:'in',text:'Oi! Vocês fazem espelho sob medida com moldura bisotê?',time:'10:40'},
+          {kind:'text',side:'in',text:'É pra sala, 1,20 x 0,80.',time:'10:41'}
+        ] },
+      { id:'c4', initials:'SI', tint:'#2F8F86', name:'Serralheria Dois Irmãos', company:'Roberto · Revenda', phone:'(61) 9 9521-7788', time:'Ontem', unread:0, agent:'JS', online:false, bucket:'ativos', atendente:'Jardel',
+        tag:{label:'Aguardando Medidas',tone:'warn'}, stage:2,
+        summary:'Serralheria parceira solicitou 6 chapas de temperado 10mm. Atendente aguarda as medidas dos vãos para cubar o pedido.',
+        aiDraft:'Perfeito, Roberto! Assim que chegarem as medidas eu cubico na hora e te devolvo o valor fechado com o prazo de produção.',
+        pend:[{done:true,label:'Confirmar espessura (10mm)'},{done:false,label:'Receber medidas dos 6 vãos'}],
+        email:'doisirmaos@serralheria.com', local:'Gama · DF', resp:'Jardel Souza',
+        orc:{items:[{q:'6x',label:'Chapa temperado 10mm',price:'a definir'}],total:'a definir',status:'Aguardando',statusTone:'warn',val:'—'},
+        tags:[{label:'Temperado',tone:'sky'},{label:'Revenda',tone:'blue'},{label:'Parceiro',tone:'teal'}],
+        pedidos:27, histTotal:'R$ 132.400', notas:'Parceiro frequente. Fatura mensal (boleto 15 dias).', atendCount:14,
+        scheduled:[{when:'Qua, 09/07 · 08:00',text:'Cobrar medidas dos vãos'}], reminders:[],
+        messages:[
+          {kind:'date',text:'Ontem'},
+          {kind:'text',side:'in',text:'Preciso de chapa temperada 10mm pra 6 portas.',time:'16:30'},
+          {kind:'text',side:'out',author:'Jardel',text:'Fechado, Roberto! Me manda as medidas de cada vão que eu já cubico.',time:'16:35',read:true},
+          {kind:'text',side:'in',text:'Te mando as medidas ainda hoje.',time:'16:40'}
+        ] },
+      { id:'c5', initials:'FL', tint:'#64748B', name:'Fernanda Lima', company:'Cliente final', phone:'(61) 9 9410-5566', time:'Ontem', unread:0, agent:'AB', online:false, bucket:'pendentes', atendente:'Ana Beatriz',
+        tag:{label:'Fechado',tone:'ok'}, stage:5,
+        summary:'Pedido de porta pivotante de vidro temperado aprovado e em produção. Instalação em até 5 dias úteis. Falta agendar a instalação.',
+        aiDraft:'Oi, Fernanda! Passando pra avisar que sua porta entrou em produção hoje. Assim que estiver pronta eu já agendo a instalação com você.',
+        pend:[{done:true,label:'Aprovar orçamento'},{done:true,label:'Enviar para produção'},{done:false,label:'Agendar instalação'}],
+        email:'fernanda.lima@gmail.com', local:'Sobradinho · DF', resp:'Ana Beatriz',
+        orc:{items:[{q:'1x',label:'Porta pivotante temperado 10mm',price:'R$ 2.350'}],total:'R$ 2.350,00',status:'Aprovado',statusTone:'ok',val:'Fechado'},
+        tags:[{label:'Porta',tone:'blue'},{label:'Temperado',tone:'sky'},{label:'Fechado',tone:'ok'}],
+        pedidos:1, histTotal:'R$ 2.350', notas:'Primeira compra. Indicação da arquiteta Júlia.', atendCount:1,
+        scheduled:[{when:'Sex, 10/07 · 14:00',text:'Confirmar data de instalação'}], reminders:[],
+        messages:[
+          {kind:'date',text:'Ontem'},
+          {kind:'text',side:'in',text:'Aprovado o orçamento da porta de vidro!',time:'14:10'},
+          {kind:'text',side:'out',author:'Ana Beatriz',text:'Que ótimo, Fernanda! Já coloquei em produção. Instalação em 5 dias úteis.',time:'14:15',read:true},
+          {kind:'text',side:'in',text:'Perfeito, obrigada! Fico no aguardo.',time:'14:16'}
+        ] },
+      { id:'c6', initials:'PS', tint:'#1F5AA0', name:'Cond. Parque Sul', company:'Síndico Paulo', phone:'(61) 9 9877-0043', time:'Seg', unread:0, agent:'JS', online:false, bucket:'ativos', atendente:'Jardel',
+        tag:{label:'Pós-venda',tone:'teal'}, stage:6,
+        summary:'Guarda-corpo de vidro laminado instalado no condomínio. Cliente satisfeito. Atendimento em pós-venda com garantia de 5 anos ativa.',
+        aiDraft:'Que bom que gostou, Paulo! Vou te enviar a pesquisa de satisfação e o certificado de garantia. Precisando de qualquer manutenção, é só chamar.',
+        pend:[{done:true,label:'Instalação concluída'},{done:false,label:'Enviar pesquisa de satisfação'}],
+        email:'sindico@parquesul.com.br', local:'Lago Norte · DF', resp:'Jardel Souza',
+        orc:{items:[{q:'48m',label:'Guarda-corpo vidro laminado',price:'R$ 38.400'}],total:'R$ 38.400,00',status:'Concluído',statusTone:'ok',val:'Entregue'},
+        tags:[{label:'Guarda-corpo',tone:'blue'},{label:'Laminado',tone:'sky'},{label:'Pós-venda',tone:'teal'}],
+        pedidos:5, histTotal:'R$ 96.700', notas:'Condomínio grande. Potencial para trocar as janelas do hall.', atendCount:3,
+        scheduled:[{when:'Seg, 13/07 · 10:00',text:'Enviar pesquisa de satisfação'}], reminders:[],
+        messages:[
+          {kind:'date',text:'Segunda-feira'},
+          {kind:'text',side:'in',text:'Instalaram o guarda-corpo de vidro hoje. Ficou excelente!',time:'11:20'},
+          {kind:'text',side:'out',author:'Jardel',text:'Maravilha, Paulo! Qualquer manutenção é só chamar. Garantia de 5 anos.',time:'11:25',read:true}
+        ] },
+      { id:'c7', initials:'LA', tint:'#5566A8', name:'Lucas Andrade', company:'Cliente final', phone:'(61) 9 9120-8834', time:'Seg', unread:0, agent:'AB', online:false, bucket:'pendentes', atendente:'Ana Beatriz',
+        tag:{label:'Aguardando Medidas',tone:'warn'}, stage:2,
+        summary:'Cliente quer box de canto para banheiro. Atendente pediu medidas das paredes e altura. Sem retorno do cliente há 2 dias.',
+        aiDraft:'Oi, Lucas! Tudo certo? Se quiser, te mando um passo a passo com fotos de como medir o box de canto — assim já adianto seu orçamento.',
+        pend:[{done:false,label:'Reenviar lembrete de medidas'}],
+        email:'—', local:'Taguatinga · DF', resp:'Ana Beatriz',
+        orc:{items:[],total:'—',status:'Aguardando',statusTone:'warn',val:'—'},
+        tags:[{label:'Box de Banheiro',tone:'blue'},{label:'Follow-up',tone:'warn'}],
+        pedidos:0, histTotal:'R$ 0', notas:'Respondeu devagar. Tentar ligação se não retornar hoje.', atendCount:1,
+        scheduled:[], reminders:[{when:'Hoje · 15:00',text:'Reenviar lembrete de medidas'}],
+        messages:[
+          {kind:'date',text:'Segunda-feira'},
+          {kind:'text',side:'in',text:'Quero um box de canto pro banheiro.',time:'09:00'},
+          {kind:'text',side:'out',author:'Ana Beatriz',text:'Legal, Lucas! Me passa as medidas do box (largura das duas paredes e altura).',time:'09:05',read:true},
+          {kind:'text',side:'in',text:'Vou medir e te retorno.',time:'09:10'}
+        ] },
+      { id:'c8', initials:'DR', tint:'#2E8C8C', name:'Diego · V. Reflexo', company:'Vidraçaria Reflexo', phone:'(61) 9 9655-2299', time:'Seg', unread:3, agent:'—', online:false, bucket:'potenciais', atendente:'—',
+        tag:{label:'Novo Contato',tone:'sky'}, stage:1,
+        summary:'Potencial cliente B2B (vidraçaria em Anápolis-GO) pergunta sobre fornecimento de chapas para revenda e a tabela de preços. Ainda sem atendimento.',
+        aiDraft:'Boa tarde, Diego! Sim, atendemos revenda e temos tabela especial para vidraçarias. Para Anápolis conseguimos frete semanal. Posso te enviar a tabela agora?',
+        pend:[{done:false,label:'Enviar tabela de revenda'},{done:false,label:'Verificar frete para GO'}],
+        email:'—', local:'Anápolis · GO', resp:'—',
+        orc:{items:[],total:'—',status:'Não iniciado',statusTone:'gray',val:'—'},
+        tags:[{label:'Revenda',tone:'blue'},{label:'B2B',tone:'indigo'},{label:'Lead novo',tone:'teal'}],
+        pedidos:0, histTotal:'R$ 0', notas:'Fora do DF — confirmar viabilidade de frete antes de cotar.', atendCount:1,
+        scheduled:[], reminders:[{when:'Amanhã · 09:00',text:'Enviar tabela de revenda'}],
+        messages:[
+          {kind:'date',text:'Segunda-feira'},
+          {kind:'text',side:'in',text:'Boa tarde! Vocês fornecem chapa pra revenda?',time:'15:40'},
+          {kind:'text',side:'in',text:'Sou de Anápolis-GO.',time:'15:41'},
+          {kind:'text',side:'in',text:'Qual a tabela de vocês?',time:'15:42'}
+        ] }
+    ];
+    return this.extend(base);
+  }
+
+  hm(t){ const d=new Date(t); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+  waitMin(c){ return c.lastInAt==null?null:Math.max(0,Math.floor((Date.now()-c.lastInAt)/60000)); }
+  isSem(c){ const w=this.waitMin(c); return w!=null && w>=20; }
+  fmtWait(w){ if(w==null) return ''; if(w<60) return w+' min'; const h=Math.floor(w/60), m=w%60; return h+'h'+(m?' '+String(m).padStart(2,'0'):''); }
+  agents(){ return [
+    {key:'Jardel',name:'Jardel Souza',ini:'JS',tint:'#1F5FD6',st:'on',role:'Comercial · você'},
+    {key:'Ana Beatriz',name:'Ana Beatriz',ini:'AB',tint:'#2C6BB8',st:'on',role:'Comercial'},
+    {key:'Daiane',name:'Daiane Rocha',ini:'DA',tint:'#2F8F86',st:'on',role:'Comercial'},
+    {key:'Clayton',name:'Clayton Melo',ini:'CL',tint:'#5566A8',st:'away',role:'Projetos'},
+    {key:'Eduarda',name:'Eduarda Lins',ini:'ED',tint:'#3E8FD0',st:'on',role:'Comercial'},
+    {key:'Rafael',name:'Rafael Torres',ini:'RA',tint:'#64748B',st:'off',role:'Obras'},
+    {key:'Nayara',name:'Nayara Dias',ini:'NA',tint:'#1F5AA0',st:'on',role:'Pós-venda'} ]; }
+
+  extend(base){
+    const now=Date.now();
+    const S=['Novo Contato','Aguardando Medidas','Orçamento','Negociação','Fechado','Pós-venda'];
+    const tones={'Novo Contato':'sky','Aguardando Medidas':'warn','Orçamento':'blue','Negociação':'indigo','Fechado':'ok','Pós-venda':'teal'};
+    const W={c1:24,c2:8,c3:42,c8:95};
+    base.forEach(c=>{ const w=W[c.id]; c.lastInAt=w==null?null:now-w*60000; if(w!=null){ const li=[...c.messages].reverse().find(m=>m.side==='in'); if(li) li.time=this.hm(c.lastInAt); c.time=this.hm(c.lastInAt); } });
+    const AGI={}; this.agents().forEach(a=>AGI[a.key]=a.ini);
+    const X=[
+      ['Rita Moraes','Cliente final','Daiane','ativos',1,6,'Pode ser vidro fumê no lugar do incolor?','Orçamento'],
+      ['Hotel Planalto','Gerência · Sr. Edson','Daiane','ativos',0,null,'Ok, aguardo a visita técnica.','Aguardando Medidas'],
+      ['Bruno Teixeira','Cliente final','Daiane','pendentes',2,31,'Alguém pode me responder, por favor?','Orçamento'],
+      ['Clínica Sorriso','Recepção · Mara','Daiane','pendentes',0,null,'Obrigada, vou ver com a doutora.','Negociação'],
+      ['Marcelo Pires','Arquiteto','Clayton','ativos',0,22,'Conseguiu ver o projeto que mandei?','Orçamento'],
+      ['Vidros & Cia','Revenda · Telma','Clayton','pendentes',1,58,'Tem 6mm verde em estoque?','Novo Contato'],
+      ['Juliana Prado','Cliente final','Clayton','pendentes',0,null,'Vou conversar com meu marido.','Negociação'],
+      ['Gustavo Rezende','Cliente final','Eduarda','ativos',3,4,'Mandei as fotos agora','Aguardando Medidas'],
+      ['Ed. Monte Verde','Síndica Lúcia','Eduarda','ativos',0,null,'Perfeito, combinado.','Fechado'],
+      ['Patrícia Gomes','Cliente final','Eduarda','ativos',1,27,'E o prazo de entrega, qual seria?','Orçamento'],
+      ['Thiago Martins','Cliente final','Eduarda','pendentes',0,null,'Depois te chamo.','Novo Contato'],
+      ['Academia Vértice','Sócio · Renan','Eduarda','pendentes',0,null,'Recebi o orçamento, vou analisar.','Negociação'],
+      ['Sérgio Alencar','Construtor','Rafael','pendentes',1,140,'Bom dia, alguma novidade da obra?','Negociação'],
+      ['Loja Vitrine Shop','Gerente · Kátia','Rafael','pendentes',0,null,'Vou aprovar amanhã.','Orçamento'],
+      ['Renata Costa','Cliente final','Nayara','ativos',2,12,'Quanto fica o espelho de 1,5m?','Orçamento'],
+      ['Lima & Rocha Adv.','Adm. Vera','Nayara','ativos',0,21,'Podemos agendar a medição?','Aguardando Medidas'],
+      ['Paulo Henrique','Cliente final','Nayara','pendentes',0,null,'Ok, obrigado pela ajuda.','Pós-venda'],
+      ['Igreja Batista Central','Pr. Samuel','Jardel','ativos',1,3,'Pode mandar o PDF do orçamento?','Orçamento'],
+      ['Mariana Freitas','Designer de interiores','Jardel','pendentes',0,null,'Vou levar para a cliente.','Negociação'],
+      ['Felipe Duarte','Cliente final','Ana Beatriz','ativos',0,null,'Show, valeu!','Fechado'],
+      ['Padaria Pão Dourado','Sr. Antônio','Ana Beatriz','pendentes',1,36,'Ainda fazem vitrine curva?','Orçamento'],
+      ['Carla Mendes','Cliente final','—','potenciais',2,26,'Oi, vocês atendem em Valparaíso?','Novo Contato'],
+      ['Rodrigo Alves','Cliente final','—','potenciais',1,9,'Quero orçar um box de banheiro.','Novo Contato'],
+      ['Studio Pilates Ar','Sócia · Bia','—','potenciais',1,64,'Fazem parede inteira de espelho?','Novo Contato'],
+      ['Otávio Brandão','Cliente final','Jardel','finalizados',0,null,'Recebi a nota, obrigado!','Fechado'],
+      ['Vidraçaria Lumen','Revenda · Caio','Jardel','finalizados',0,null,'Pedido conferido, tudo certo.','Fechado'],
+      ['Sônia Ribeiro','Cliente final','Jardel','finalizados',0,null,'Ficou lindo o espelho!','Pós-venda'],
+      ['Cond. Jardins','Síndico Marcos','Ana Beatriz','finalizados',0,null,'Pode encerrar, obrigado.','Fechado'],
+      ['Leandro Viana','Cliente final','Ana Beatriz','finalizados',0,null,'Desisti por enquanto.','Negociação'],
+      ['Café Aroma','Sócia · Lia','Daiane','finalizados',0,null,'Vitrine instalada, perfeito.','Pós-venda'],
+      ['Henrique Costa','Cliente final','Daiane','finalizados',0,null,'Valeu pela atenção!','Fechado'],
+      ['Beatriz Nogueira','Arquiteta','Eduarda','finalizados',0,null,'Projeto aprovado pelo cliente.','Fechado'],
+      ['Auto Center Sul','Gerente · Ivo','Eduarda','finalizados',0,null,'Recebido, obrigado.','Fechado'],
+      ['Larissa Campos','Cliente final','Eduarda','finalizados',0,null,'Tudo certo com a instalação.','Pós-venda'],
+      ['Clínica Vida','Adm. Rose','Nayara','finalizados',0,null,'Garantia recebida.','Pós-venda'],
+      ['Ricardo Saraiva','Construtor','Clayton','finalizados',0,null,'Fechamos com outro fornecedor.','Negociação']
+    ];
+    const tints=['#2C6BB8','#4C55B8','#3E8FD0','#2F8F86','#64748B','#1F5AA0','#5566A8','#2E8C8C'];
+    const ini=n=>n.replace(/[^A-Za-zÀ-ú ]/g,' ').split(' ').filter(Boolean).slice(0,2).map(p=>p[0].toUpperCase()).join('');
+    X.forEach(([name,company,ag,bucket,unread,w,preview,tag],i)=>{
+      const at=w==null?null:now-w*60000; const t0=now-((w||0)+12+i*6)*60000; const none=ag==='—';
+      const msgs=[{kind:'date',text:'Hoje'},{kind:'system',text:'Atendimento recebido · WhatsApp'+(none?'':' · '+ag)}];
+      if(!none) msgs.push({kind:'text',side:'out',author:ag,text:'Olá! Aqui é '+ag.split(' ')[0]+', da Estrutural Vidros. Como posso ajudar?',time:this.hm(t0),read:true});
+      msgs.push({kind:'text',side:'in',text:preview,time:this.hm(at||t0+120000)});
+      if(w==null) msgs.push({kind:'text',side:'out',author:ag,text:'Combinado! Qualquer dúvida estou à disposição.',time:this.hm(t0+300000),read:true});
+      if(bucket==='finalizados') msgs.push({kind:'system',text:'Atendimento finalizado por '+ag});
+      const tg={label:tag,tone:tones[tag]};
+      base.push({ id:'x'+i, initials:ini(name), tint:tints[i%8], name, company,
+        phone:'(61) 9 9'+String(300+((i*137)%600))+'-'+String(1000+((i*2731)%9000)),
+        time:this.hm(at||t0+300000), unread, agent:none?'—':AGI[ag], online:false, bucket, atendente:ag,
+        tag:tg, stage:S.indexOf(tag)+1, summary:'Atendimento via WhatsApp. Última mensagem do cliente: “'+preview+'”',
+        email:'—', local:'Brasília · DF', resp:none?'—':ag, tags:[tg], notas:'Sem notas internas.', atendCount:1,
+        scheduled:[], reminders:[], messages:msgs, lastInAt:at });
+    });
+    return base;
+  }
+
+  filterConvs(st){ const lq=(st.lq||'').toLowerCase(); let l=this.data().filter(c=>(!st.agentFilter||c.atendente===st.agentFilter)&&(!st.flagIds||st.flagIds.includes(c.id))&&(!lq||(c.name+' '+c.company).toLowerCase().includes(lq))); if(st.tab==='todos'||!st.tab) l=l.filter(c=>c.bucket!=='finalizados'); else if(st.tab!=='__all') l=l.filter(c=>c.bucket===st.tab); if(st.flag==='sem') l=[...l].sort((a,b)=>(this.waitMin(b)||0)-(this.waitMin(a)||0)); return l; }
+  flagIdsFor(flag,agent){ return this.data().filter(c=>(!agent||c.atendente===agent)&&(flag==='novas'?c.unread>0:this.isSem(c))).map(c=>c.id); }
+  go(o){
+    const s={tab:o.tab||'todos',agentFilter:o.agent||null,flag:o.flag||null,flagIds:o.flag?this.flagIdsFor(o.flag,o.agent):null,lq:''};
+    const id=o.sel;
+    if(id){ s.mode='conversas'; s.sel=id; const c=this.data().find(x=>x.id===id); if(c) c.unread=0; }
+    this.setState(s); this._scroll=true;
+  }
+
+  dashVals(convs){
+    const mode=this.state.mode||'painel';
+    const AG=this.agents();
+    const stC={on:'#22C55E',away:'#F59E0B',off:'#9CA3B0'}, stL={on:'Online',away:'Ausente',off:'Offline'}, stT={on:'#15803D',away:'#B45309',off:'#6B7385'};
+    const stat=l=>({ novas:l.reduce((s,c)=>s+c.unread,0), novasConv:l.filter(c=>c.unread>0).length, ativos:l.filter(c=>c.bucket==='ativos').length, pend:l.filter(c=>c.bucket==='pendentes').length, sem:l.filter(c=>this.isSem(c)).length, fin:l.filter(c=>c.bucket==='finalizados').length, total:l.filter(c=>c.bucket!=='finalizados').length });
+    const all=stat(convs);
+    const semW=convs.filter(c=>this.isSem(c)).map(c=>this.waitMin(c)); const maxW=semW.length?Math.max(...semW):null;
+    const kpi={ onlineN:AG.filter(a=>a.st==='on').length, teamN:AG.length, potN:convs.filter(c=>c.bucket==='potenciais').length,
+      novasN:all.novas, novasConv:all.novasConv, ativosN:all.ativos, pendN:all.pend, semN:all.sem,
+      semHint:maxW!=null?'Maior espera: '+this.fmtWait(maxW):'Nenhum cliente esperando',
+      online:()=>this.setState({dview:'online'}), pot:()=>this.go({tab:'potenciais'}), novas:()=>this.go({flag:'novas'}),
+      ativos:()=>this.go({tab:'ativos'}), pend:()=>this.go({tab:'pendentes'}), sem:()=>this.go({flag:'sem'}) };
+    const dq=(this.state.dq||'').toLowerCase(), dv=this.state.dview||'todos', openRows=this.state.openRows||{};
+    const groups=[...AG.map(a=>({...a,queue:false})),{key:'—',name:'Fila de entrada',ini:'',tint:'#EDF2FD',st:null,role:'Potenciais · sem atendente',queue:true}];
+    const B={ativos:['Ativo','blue'],pendentes:['Pendente','warn'],potenciais:['Potencial','sky'],finalizados:['Finalizado','ok']};
+    const tabSt=(act)=>({ display:'inline-flex', alignItems:'center', gap:'6px', height:'30px', padding:'0 12px', borderRadius:'999px', border:act?'1px solid #1F5FD6':'1px solid #E6E7EB', background:act?'#1F5FD6':'#fff', color:act?'#fff':'#3A4354', fontFamily:'inherit', fontSize:'12.5px', fontWeight:500, cursor:'pointer' });
+    const cntSt=(act)=>({ fontSize:'11px', fontWeight:600, padding:'0 6px', borderRadius:'20px', background:act?'rgba(255,255,255,.18)':'#F1F2F4', color:act?'#fff':'#5B6274' });
+    const agentRows=groups.map(a=>({a,l:convs.filter(c=>c.atendente===a.key)})).map(r=>({...r,s:stat(r.l)}))
+      .filter(({a,s})=>(!dq||a.name.toLowerCase().includes(dq)) && (dv==='todos'||(dv==='online'&&(a.queue||a.st==='on'))||(dv==='pend'&&s.pend>0)||(dv==='sem'&&s.sem>0)) && (!this.state.hideEmpty||s.total>0))
+      .map(({a,l,s})=>{
+        const ddKey=openRows[a.key]; const open=ddKey!=null;
+        const lo=l.filter(c=>c.bucket!=='finalizados');
+        const defs=[['todos','Em aberto',lo],['novas','Novas mensagens',l.filter(c=>c.unread>0)]];
+        if(!a.queue) defs.push(['ativos','Ativos',l.filter(c=>c.bucket==='ativos')],['pendentes','Pendentes',l.filter(c=>c.bucket==='pendentes')]);
+        defs.push(['sem','Sem resposta +20 min',l.filter(c=>this.isSem(c))]);
+        if(!a.queue) defs.push(['finalizados','Finalizados',l.filter(c=>c.bucket==='finalizados')]);
+        const cur=defs.find(d=>d[0]===ddKey)||defs[0];
+        const rank=c=>{ const w=this.waitMin(c); return this.isSem(c)?1e6+w:(c.unread>0?1e3+c.unread:(w!=null?500:0)); };
+        const ddItems=open?[...cur[2]].sort((x,y)=>rank(y)-rank(x)).map(c=>{
+          const w=this.waitMin(c), sem=this.isSem(c), b=B[c.bucket];
+          const last=(c.messages.filter(m=>m.kind==='text').slice(-1)[0]||{});
+          return { name:c.name, company:c.company, initials:c.initials, unread:c.unread, showUnread:c.unread>0, time:c.time,
+            preview:(last.side==='out'?'Você: ':'')+(last.text||''),
+            avatarStyle:{ width:'34px', height:'34px', borderRadius:'50%', background:c.tint, color:'#fff', fontWeight:600, fontSize:'12.5px', display:'flex', alignItems:'center', justifyContent:'center' },
+            stage:c.tag.label, stageStyle:this.pill(c.tag.tone), bucket:b[0], bucketStyle:this.pill(b[1]),
+            waitLabel: c.bucket==='finalizados'?'Encerrado':(sem?this.fmtWait(w)+' sem resposta':(w!=null?'há '+this.fmtWait(w):'Respondido')),
+            waitIcon: c.bucket==='finalizados'?'ri-checkbox-circle-line':(sem?'ri-alarm-warning-fill':(w!=null?'ri-time-line':'ri-check-double-line')),
+            waitStyle: Object.assign(this.pill(sem?'gray':'gray'), sem?{background:'#FDEDEB',color:'#C8352A'}:(w!=null?{background:'#FDF3E2',color:'#9A6A0E'}:{background:'transparent',color:'#8B91A0',padding:'3px 0'})),
+            onOpen:(e)=>{ e&&e.stopPropagation&&e.stopPropagation(); this.go({agent:a.key,sel:c.id}); } };
+        }):[];
+        const setDD=k=>this.setState(st=>({openRows:{...(st.openRows||{}),[a.key]:k}}));
+        const openAll={todos:{},novas:{flag:'novas'},ativos:{tab:'ativos'},pendentes:{tab:'pendentes'},sem:{flag:'sem'},finalizados:{tab:'finalizados'}}[cur[0]];
+        return { key:a.key, name:a.name, role:a.role, initials:a.ini, icon:a.queue?'ri-inbox-2-line':'',
+          avatarStyle:{ width:'40px', height:'40px', borderRadius:'50%', background:a.tint, color:a.queue?'#1F5FD6':'#fff', fontWeight:600, fontSize:a.queue?'19px':'14px', display:'flex', alignItems:'center', justifyContent:'center', flex:'none' },
+          wrapStyle:{ borderTop:a.queue?'1px dashed #DCDFE4':'1px solid #F1F2F4', background:open?'#FAFAFB':'#fff' },
+          statusLabel:a.queue?'—':stL[a.st], dotStyle:{ width:'8px', height:'8px', borderRadius:'50%', background:a.queue?'transparent':stC[a.st], flex:'none' }, statusStyle:{ color:a.queue?'#B4BAC6':stT[a.st] }, pillStyle:{ display:'inline-flex', alignItems:'center', gap:'7px', height:'26px', padding:'0 10px', borderRadius:'999px', background:a.queue?'transparent':({on:'rgba(34,197,94,.12)',away:'rgba(245,158,11,.14)',off:'rgba(14,18,32,.05)'})[a.st], boxShadow:a.queue?'none':'inset 0 0 0 1px '+({on:'rgba(34,197,94,.34)',away:'rgba(245,158,11,.4)',off:'rgba(14,18,32,.12)'})[a.st], fontSize:'12.5px', fontWeight:600 },
+          novas:s.novas, hasNovas:s.novas>0, noNovas:!(s.novas>0),
+          ativos:a.queue?'—':s.ativos, hasAtivos:!a.queue&&s.ativos>0, noAtivos:a.queue||!(s.ativos>0),
+          pend:a.queue?'—':s.pend, hasPend:!a.queue&&s.pend>0, noPend:a.queue||!(s.pend>0),
+          sem:s.sem, hasSem:s.sem>0, noSem:!(s.sem>0), total:s.total,
+          fin:a.queue?'—':s.fin, hasFin:!a.queue&&s.fin>0, noFin:a.queue||!(s.fin>0), onFin:()=>this.go({agent:a.key,tab:'finalizados'}),
+          onNovas:()=>this.go({agent:a.key,flag:'novas'}), onAtivos:()=>this.go({agent:a.key,tab:'ativos'}), onPend:()=>this.go({agent:a.key,tab:'pendentes'}),
+          onSem:()=>this.go({agent:a.key,flag:'sem'}), onTotal:()=>this.go({agent:a.key}),
+          open, chevIcon:open?'ri-arrow-down-s-line':'ri-arrow-right-s-line',
+          onToggle:()=>this.setState(st=>{ const o={...(st.openRows||{})}; if(a.key in o) delete o[a.key]; else o[a.key]='todos'; return {openRows:o}; }),
+          ddTabs:defs.map(d=>({ label:d[1], count:d[2].length, onClick:()=>setDD(d[0]), style:tabSt(d[0]===cur[0]), countStyle:cntSt(d[0]===cur[0]) })),
+          ddItems, ddEmpty:open&&ddItems.length===0, onOpenAll:()=>this.go({agent:a.key,...openAll}) };
+      });
+    const chips=[];
+    if(this.state.agentFilter){ const ag=AG.find(x=>x.key===this.state.agentFilter); chips.push({ label:this.state.agentFilter==='—'?'Fila de entrada':(ag?ag.name:this.state.agentFilter), icon:'ri-user-3-line', onClear:()=>this.setState({agentFilter:null}) }); }
+    if(this.state.flag){ const FL=this.filtros()[this.state.flag]||{label:this.state.flag,icon:'ri-filter-3-line'}; chips.push({ label:FL.label, icon:FL.icon, onClear:()=>this.setState(s=>({flag:null,flagIds:null,tab:s.tab==='__all'?'todos':s.tab})) }); }
+    return { leadOpen:this.state.leadOpen!==false, leadClosed:this.state.leadOpen===false, closeLead:()=>this.setState({leadOpen:false}), openLead:()=>this.setState({leadOpen:true}),
+      isPainel:mode==='painel', isConversas:mode!=='painel', updatedAt:this.hm(Date.now()), kpi, agentRows, noRows:agentRows.length===0,
+      dq:this.state.dq, onDq:e=>this.setState({dq:e.target.value}), dview:dv, onDview:e=>this.setState({dview:e.target.value}),
+      eyeIcon:this.state.hideEmpty?'ri-eye-off-line':'ri-eye-line', eyeTitle:this.state.hideEmpty?'Mostrar atendentes sem atendimentos':'Ocultar atendentes sem atendimentos', toggleHide:()=>this.setState(s=>({hideEmpty:!s.hideEmpty})),
+      openConversas:()=>this.setState({mode:'conversas',agentFilter:null,flag:null,flagIds:null,tab:'todos'}), openPainel:()=>this.setState({mode:'painel'}),
+      chips, showChips:chips.length>0, clearChips:()=>this.setState(s=>({agentFilter:null,flag:null,flagIds:null,tab:s.tab==='__all'?'todos':s.tab})) };
+  }
+
+  TAGCAT=[['Box de Banheiro','blue'],['Vidro Temperado','sky'],['Espelho','indigo'],['Guarda-corpo','warn'],['Pele de Vidro','teal'],['Revenda','ok'],['Cliente Recorrente','teal'],['Obra em andamento','warn'],['Orçamento enviado','blue']];
+  QUICK=[['/orcamento','Segue o orçamento solicitado em anexo. Qualquer dúvida, estou à disposição!'],['/medidas','Para seguir com o orçamento, preciso das medidas do vão (largura x altura). Pode me enviar?'],['/prazo','O prazo de produção é de 3 a 5 dias úteis após a confirmação do pedido.'],['/pagamento','Aceitamos PIX, cartão em até 12x e boleto. A entrada é de 50% e o restante na instalação.'],['/visita','Posso agendar uma visita técnica gratuita para conferir as medidas. Qual o melhor dia?'],['/horario','Atendemos de segunda a sexta, das 8h às 18h, e sábado até as 12h.'],['/garantia','Todos os serviços têm 1 ano de garantia contra defeitos de instalação.']];
+  EMOJI=['😀','😃','🙂','😉','😍','🤝','👍','👏','🙏','💪','🎉','✅','❗','❓','📍','📞','📅','📄','💰','🚚','🪟','🔧','⭐','❤️'];
+  SETORES=[['Comercial',4],['Projetos',2],['Obras',1],['Pós-venda',2]];
+  INTGROUPS=[
+    {id:'g1',name:'Obras · Horizonte',members:5,unread:2,last:'Ana Beatriz: Medição amanhã às 9h',msgs:[
+      {author:'Ana Beatriz',text:'Pessoal, a medição da fachada ficou pra amanhã às 9h.',time:'08:14'},
+      {author:'Rafael Torres',text:'Consigo ir. Levo o kit de medição.',time:'08:16'},
+      {me:true,text:'Perfeito. Mando o projeto atualizado hoje à noite.',time:'08:19'}]},
+    {id:'g2',name:'Plantão sábado',members:4,unread:1,last:'Jardel Souza: Quem cobre o turno das 10h?',msgs:[
+      {author:'Jardel Souza',text:'Quem cobre o turno das 10h no sábado?',time:'Ontem'},
+      {author:'Daiane Rocha',text:'Posso cobrir até as 12h.',time:'Ontem'}]},
+    {id:'g3',name:'Comercial · metas',members:7,unread:0,last:'Nayara Dias: Fechamos 12 vendas hoje',msgs:[
+      {author:'Nayara Dias',text:'Fechamos 12 vendas hoje, meta do dia batida.',time:'17:40'},
+      {me:true,text:'Boa! Amanhã foco nos orçamentos parados.',time:'17:45'}]},
+    {id:'g4',name:'Instalação · rota',members:3,unread:0,last:'Rafael Torres: Box do Marcos carregado',msgs:[
+      {author:'Rafael Torres',text:'Box do Marcos carregado, saindo para Taguatinga.',time:'07:52'}]}
+  ];
+  showToast(m,icon){ this.setState({toast:m,toastIcon:icon||'ri-checkbox-circle-fill'}); clearTimeout(this._tt); this._tt=setTimeout(()=>this.setState({toast:null}),2800); }
+  mclose(){ this.setState({menu:null}); }
+  mtoggle(k){ this.setState(s=>({menu:s.menu===k?null:k})); }
+  insComposer(t){ this.setState(s=>({composer:(s.composer?s.composer.replace(/\s+$/,'')+' ':'')+t, menu:null})); }
+  pushMsg(m){ const c=this.data().find(x=>x.id===this.state.sel); if(c) c.messages.push(m); this._scroll=true; }
+  transferir(key){ const AG=this.agents().find(a=>a.key===key); const c=this.data().find(x=>x.id===this.state.sel);
+    if(c){ c.atendente=key; c.agent=AG?AG.ini:key.slice(0,2).toUpperCase(); c.resp=AG?AG.name:key; c.bucket=c.bucket==='finalizados'?c.bucket:'ativos';
+      c.messages.push({kind:'system',text:'Atendimento transferido para '+(AG?AG.name:key)}); }
+    this.setState({menu:null}); this._scroll=true; this.showToast('Transferido para '+(AG?AG.name:key),'ri-user-shared-line'); }
+  transferirSetor(st){ const c=this.data().find(x=>x.id===this.state.sel);
+    if(c){ c.atendente='—'; c.agent='—'; c.bucket='pendentes'; c.messages.push({kind:'system',text:'Atendimento enviado para a fila do setor '+st}); }
+    this.setState({menu:null}); this._scroll=true; this.showToast('Enviado para a fila de '+st,'ri-building-2-line'); }
+  toggleTag(label,tone){ const c=this.data().find(x=>x.id===this.state.sel); if(!c) return;
+    const i=(c.tags||[]).findIndex(t=>t.label===label);
+    if(i>=0){ c.tags.splice(i,1); this.showToast('Etiqueta removida','ri-price-tag-3-line'); }
+    else { c.tags.push({label,tone}); this.showToast('Etiqueta “'+label+'” aplicada','ri-price-tag-3-line'); }
+    this.forceUpdate(); }
+  mmss(n){ return Math.floor(n/60)+':'+String(n%60).padStart(2,'0'); }
+  startRec(){ if(this.state.recOn) return; this.setState({recOn:true,recSec:0,menu:null});
+    clearInterval(this._rec); this._rec=setInterval(()=>this.setState(s=>({recSec:s.recSec+1})),1000); }
+  cancelRec(){ clearInterval(this._rec); this.setState({recOn:false,recSec:0}); }
+  sendRec(){ const d=this.mmss(Math.max(1,this.state.recSec)); clearInterval(this._rec);
+    this.pushMsg({kind:'audio',side:'out',author:'Jardel',dur:d,time:this.now(),read:false});
+    this.setState({recOn:false,recSec:0}); this.showToast('Áudio de '+d+' enviado','ri-mic-line'); }
+  nf(k,v){ this.setState(s=>({novoF:Object.assign({},s.novoF,{[k]:v})})); }
+  criarNovo(){ const f=this.state.novoF||{}; const nome=(f.name||'').trim();
+    if(!nome){ this.showToast('Informe o nome do contato','ri-error-warning-fill'); return; }
+    const ini=nome.replace(/[^A-Za-zÀ-ú ]/g,' ').split(' ').filter(Boolean).slice(0,2).map(p=>p[0].toUpperCase()).join('');
+    const id='nv'+Date.now(); const tg={label:'Novo Contato',tone:'sky'};
+    const msgs=[{kind:'date',text:'Hoje'},{kind:'system',text:'Atendimento iniciado por Jardel Souza · WhatsApp'}];
+    const txt=(f.msg||'').trim(); if(txt) msgs.push({kind:'text',side:'out',author:'Jardel',text:txt,time:this.now(),read:false});
+    this.data().unshift({ id, initials:ini||'NC', tint:'#1F5FD6', name:nome, company:(f.setor||'Comercial')+' · novo contato',
+      phone:(f.phone||'').trim()||'—', time:this.now(), unread:0, agent:'JS', online:false, bucket:'ativos', atendente:'Jardel',
+      tag:tg, stage:1, summary:'Atendimento iniciado manualmente por Jardel Souza pelo botão “Novo atendimento”.',
+      email:'—', local:'—', resp:'Jardel Souza', tags:[tg], notas:'Sem notas internas.', atendCount:1,
+      scheduled:[], reminders:[], messages:msgs, lastInAt:null, preview:txt||'Conversa iniciada' });
+    this.setState({ novoOpen:false, mode:'conversas', sel:id, tab:'todos', agentFilter:null, flag:null, flagIds:null, lq:'',
+      novoF:{name:'',phone:'',setor:'Comercial',msg:'Olá! Aqui é a Estrutural Vidros. Em que podemos ajudar?'} });
+    this._scroll=true; this.showToast('Atendimento iniciado com '+nome,'ri-chat-new-line'); }
+  intKey(){ return (this.state.intTab==='grupos'&&this.state.intGroup)?('g:'+this.state.intGroup):('p:'+(this.state.internalPersonKey||'AB')); }
+  sendInt(){ const t=(this.state.intDraft||'').trim(); if(!t) return; const k=this.intKey(); const now=this.now();
+    this.setState(s=>{ const ex=Object.assign({},s.intExtra||{}); ex[k]=(ex[k]||[]).concat([{me:true,text:t,time:now}]); return {intExtra:ex,intDraft:''}; }); }
+  finalizarRow(id){ const c=this.data().find(x=>x.id===id); this.setState({menu:null});
+    if(!c||c.bucket==='finalizados') return;
+    if(c.atendente==='—'){ c.atendente='Jardel'; c.agent='JS'; c.resp='Jardel'; }
+    c.bucket='finalizados'; c.lastInAt=null; c.unread=0;
+    c.messages.push({kind:'system',text:'Atendimento finalizado por '+c.atendente+' · '+this.now()});
+    this.showToast('Atendimento de '+c.name+' finalizado','ri-check-double-line'); }
+  fixarRow(id){ const l=this.data(); const i=l.findIndex(x=>x.id===id); if(i>0){ const c=l.splice(i,1)[0]; l.unshift(c); }
+    this.setState({menu:null}); this.showToast('Conversa fixada no topo','ri-pushpin-fill'); }
+  menuVals(sel){
+    const st=this.state, M=st.menu, AG=this.agents(), convs=this.data(), F=this.filtros();
+    const mi=on=>'display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:10px;background:'+(on?'#EDF2FD':'transparent')+';color:'+(on?'#1A50B8':'#1A2233')+';font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer';
+    const mi2=on=>'display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border:0;border-radius:10px;background:'+(on?'#EDF2FD':'transparent')+';color:'+(on?'#1A50B8':'#1A2233')+';font-family:inherit;font-size:13px;font-weight:500;text-align:left;cursor:pointer';
+    const av=t=>'width:26px;height:26px;border-radius:50%;background:'+t+';color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none';
+    const fItems=['novas','sem','ia','humano','esquecidos','novos'].map(k=>{ const f=F[k], on=st.flag===k;
+      const count=f.fn?convs.filter(f.fn).length:this.flagIdsFor(k,null).length;
+      return { label:f.label, icon:f.icon, count, style:mi(on), onClick:()=>{
+        if(on){ this.setState(s=>({flag:null,flagIds:null,menu:null,tab:s.tab==='__all'?'todos':s.tab})); }
+        else if(f.fn){ this.applyFiltro(k); this.mclose(); }
+        else { this.setState({mode:'conversas',tab:'__all',agentFilter:null,flag:k,flagIds:this.flagIdsFor(k,null),lq:'',menu:null}); this._scroll=true; } } }; });
+    const fAgents=[{key:'—',name:'Fila de entrada · IA',ini:'IA',tint:'#64748B'}].concat(AG).map(a=>{ const on=st.agentFilter===a.key;
+      return { ini:a.ini, name:a.name, count:convs.filter(c=>c.atendente===a.key).length, style:mi2(on), avatarStyle:av(a.tint),
+        onClick:()=>{ if(on) this.setState({agentFilter:null,menu:null}); else { this.go({agent:a.key,tab:'__all'}); this.mclose(); } } }; });
+    const cur=(sel.tags||[]).map(t=>t.label);
+    const tagCat=this.TAGCAT.map(t=>({ label:t[0], on:cur.indexOf(t[0])>=0,
+      dot:'width:10px;height:10px;border-radius:50%;flex:none;background:'+this.pill(t[1]).color,
+      onClick:()=>this.toggleTag(t[0],t[1]) }));
+    const inviteAgents=AG.filter(a=>a.key!==sel.atendente).map(a=>({ ini:a.ini, name:a.name, role:a.role, avatarStyle:av(a.tint),
+      onClick:()=>{ this.pushMsg({kind:'system',text:a.name+' foi convidado para a conversa'}); this.setState({menu:null}); this.showToast(a.name+' convidado para a conversa','ri-user-add-line'); } }));
+    const dotS=x=>'width:9px;height:9px;border-radius:50%;flex:none;background:'+(x==='on'?'#22A35A':(x==='away'?'#E0A61C':'#C4C9D2'));
+    const transfAgents=AG.filter(a=>a.key!==sel.atendente).map(a=>({ ini:a.ini, name:a.name, avatarStyle:av(a.tint), dot:dotS(a.st),
+      sub:a.role+' · '+convs.filter(c=>c.atendente===a.key&&c.bucket!=='finalizados').length+' em atendimento',
+      onClick:()=>this.transferir(a.key) }));
+    const transfSetores=this.SETORES.map(x=>({ label:x[0], count:x[1]+' na fila', onClick:()=>this.transferirSetor(x[0]) }));
+    const quickList=this.QUICK.map(q=>({ short:q[0], text:q[1], onClick:()=>this.insComposer(q[1]) }));
+    const emojis=this.EMOJI.map(ch=>({ ch, onClick:()=>this.insComposer(ch) }));
+    const recBars=[];
+    for(var i=0;i<22;i++){ const h=4+Math.round(13*Math.abs(Math.sin((i+st.recSec*1.7)*0.9)));
+      recBars.push({ style:'flex:1;min-width:2px;height:'+h+'px;border-radius:2px;background:#DD7A6E' }); }
+    const q=(st.convQ||'').trim().toLowerCase();
+    const nm=q?sel.messages.filter(m=>((m.text||'')+' '+(m.fileName||'')).toLowerCase().indexOf(q)>=0).length:0;
+    const tabS=on=>'height:26px;padding:0 10px;border-radius:7px;border:0;font-family:inherit;font-size:12.5px;font-weight:'+(on?600:500)+';color:'+(on?'#0E1220':'#6B7385')+';background:'+(on?'#fff':'transparent')+';box-shadow:'+(on?'0 1px 2px rgba(16,24,40,.08)':'none')+';display:flex;align-items:center;cursor:pointer';
+    const read=st.intRead||{};
+    const intGroups=this.INTGROUPS.map(g=>({ name:g.name, membersLabel:g.members+' participantes', last:g.last, unread:g.unread,
+      showUnread:g.unread>0&&!read[g.id], onClick:()=>this.setState(s=>({intGroup:g.id,intRead:Object.assign({},s.intRead||{},{[g.id]:1})})) }));
+    const curG=this.INTGROUPS.find(g=>g.id===st.intGroup);
+    const isGroupChat=st.intTab==='grupos'&&!!curG;
+    const PT=[{author:'Ana Beatriz',text:'Consegue assumir o Marcos? Tô com 4 na fila.',time:'08:22'},
+      {me:true,text:'Assumo sim, pode passar.',time:'08:23'},
+      {author:'Ana Beatriz',text:'Fechou, valeu! Já transferi pra você.',time:'08:23'},
+      {sys:true,text:'Marcos transferido para Jardel'}];
+    const src=isGroupChat?curG.msgs:PT;
+    const extras=(st.intExtra||{})[this.intKey()]||[];
+    const intMsgs=src.concat(extras).map(m=>({ text:m.text, time:m.time, author:m.author||'',
+      isSystem:!!m.sys, isBubble:!m.sys, showAuthor:isGroupChat&&!m.me&&!!m.author,
+      wrap:'display:flex;flex-direction:column;max-width:84%;align-self:'+(m.sys?'center':(m.me?'flex-end':'flex-start')),
+      bubble:m.me?'background:#1F5FD6;color:#fff;border-radius:16px 16px 6px 16px;padding:9px 12px;font-size:13.5px;line-height:1.45'
+                 :'background:#fff;border:1px solid #ECEDF0;border-radius:16px 16px 16px 6px;padding:9px 12px;font-size:13.5px;line-height:1.45;color:#1A2233',
+      meta:'font-size:11px;color:#9CA3B0;margin-top:3px;padding:0 4px;text-align:'+(m.me?'right':'left') }));
+    const unreadGroups=this.INTGROUPS.filter(g=>g.unread>0&&!read[g.id]).reduce((a,g)=>a+g.unread,0);
+    return {
+      menuFiltros:M==='filtros', menuEtiq:M==='etiq', menuEtiq2:M==='etiq2', toggleEtiq2:()=>this.mtoggle('etiq2'), menuLigar:M==='ligar', menuConvidar:M==='convidar',
+      menuTransf:M==='transf', menuAnexar:M==='anexar', menuRapidas:M==='rapidas', menuEmoji:M==='emoji', menuRail:M==='rail',
+      toggleFiltros:()=>this.mtoggle('filtros'), toggleEtiq:()=>this.mtoggle('etiq'), toggleLigar:()=>this.mtoggle('ligar'),
+      toggleConvidar:()=>this.mtoggle('convidar'), toggleTransf:()=>this.mtoggle('transf'), toggleAnexar:()=>this.mtoggle('anexar'),
+      toggleRapidas:()=>this.mtoggle('rapidas'), toggleEmoji:()=>this.mtoggle('emoji'), toggleRail:()=>this.mtoggle('rail'),
+      fItems, fAgents, clearFiltros:()=>this.setState(s=>({agentFilter:null,flag:null,flagIds:null,menu:null,lq:'',tab:s.tab==='__all'?'todos':s.tab})),
+      tagCat, inviteAgents, transfAgents, transfSetores, quickList, emojis,
+      onCall:()=>{ this.mclose(); this.showToast('Chamando '+sel.name+' pelo WhatsApp…','ri-phone-fill'); },
+      onCopyPhone:()=>{ this.mclose(); this.showToast('Número copiado · '+sel.phone,'ri-file-copy-line'); },
+      onLogCall:()=>{ this.pushMsg({kind:'system',text:'Ligação registrada · 3 min'}); this.setState({menu:null}); this.showToast('Ligação registrada no histórico','ri-pulse-line'); },
+      onAddAgenda:()=>{ this.mclose(); this.showToast(sel.name+' adicionado à agenda','ri-contacts-book-line'); },
+      onCreateGroup:()=>{ this.mclose(); this.showToast('Grupo criado com '+sel.name,'ri-group-line'); },
+      onShareCard:()=>{ this.mclose(); this.showToast('Escolha o atendimento para encaminhar','ri-share-forward-line'); },
+      onAttachPhoto:()=>{ this.pushMsg({kind:'image',side:'out',author:'Jardel',fileName:'medida-vao-01.jpg',caption:'Foto da medida do vão',time:this.now(),read:false}); this.setState({menu:null}); this.showToast('Foto enviada','ri-image-line'); },
+      onAttachDoc:()=>{ this.pushMsg({kind:'file',side:'out',author:'Jardel',fileName:'Orçamento 2231.pdf',fileMeta:'PDF · 240 KB',time:this.now(),read:false}); this.setState({menu:null}); this.showToast('Documento enviado','ri-file-text-line'); },
+      onAttachLoc:()=>{ this.pushMsg({kind:'text',side:'out',author:'Jardel',text:'📍 Estrutural Vidros · SIA Trecho 3, Brasília · DF',time:this.now(),read:false}); this.setState({menu:null}); this.showToast('Localização enviada','ri-map-pin-2-line'); },
+      onAttachContact:()=>{ this.pushMsg({kind:'text',side:'out',author:'Jardel',text:'Contato: Jardel Souza · (61) 9 9679-1022',time:this.now(),read:false}); this.setState({menu:null}); this.showToast('Contato enviado','ri-contacts-line'); },
+      onNovoGrupo:()=>{ this.setState({menu:null,internalOpen:true,intTab:'grupos',intGroup:null}); this.showToast('Escolha os participantes do novo grupo','ri-group-line'); },
+      onConvidarMembro:()=>{ this.mclose(); this.showToast('Convite enviado por e-mail','ri-mail-send-line'); },
+      openGrupos:()=>this.setState({internalOpen:true,intTab:'grupos',intGroup:null,menu:null}),
+      openNovo:()=>this.setState({novoOpen:true,menu:null}), closeNovo:()=>this.setState({novoOpen:false}),
+      nfName:(st.novoF||{}).name, nfPhone:(st.novoF||{}).phone, nfSetor:(st.novoF||{}).setor, nfMsg:(st.novoF||{}).msg,
+      onNfName:e=>this.nf('name',e.target.value), onNfPhone:e=>this.nf('phone',e.target.value),
+      onNfSetor:e=>this.nf('setor',e.target.value), onNfMsg:e=>this.nf('msg',e.target.value),
+      novoOpen:st.novoOpen, criarNovo:()=>this.criarNovo(),
+      convSearchOpen:st.convSearchOpen, convQ:st.convQ,
+      toggleConvSearch:()=>this.setState(s=>({convSearchOpen:!s.convSearchOpen,convQ:'',menu:null})),
+      closeConvSearch:()=>this.setState({convSearchOpen:false,convQ:''}),
+      onConvQ:e=>this.setState({convQ:e.target.value}),
+      convQCount: q?(nm+(nm===1?' resultado':' resultados')):'',
+      recOn:st.recOn, recTime:this.mmss(st.recSec), recBars, startRec:()=>this.startRec(), cancelRec:()=>this.cancelRec(), sendRec:()=>this.sendRec(),
+      intTabC:tabS(st.intTab!=='grupos'), intTabG:tabS(st.intTab==='grupos'),
+      intGoConv:()=>this.setState({intTab:'conversas',intGroup:null}), intGoGroups:()=>this.setState({intTab:'grupos',intGroup:null}),
+      intIsConv:st.intTab!=='grupos', intIsGroupList:st.intTab==='grupos'&&!curG, intIsGroupChat:isGroupChat,
+      intShowThread:st.intTab!=='grupos'||isGroupChat, intBackToGroups:()=>this.setState({intGroup:null}),
+      intGroups, intGroup:{ name:curG?curG.name:'', membersLabel:curG?(curG.members+' participantes'):'' }, intMsgs,
+      intHasUnread:unreadGroups>0, intUnread:unreadGroups,
+      intDraft:st.intDraft, onIntDraft:e=>this.setState({intDraft:e.target.value}),
+      onIntKey:e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); this.sendInt(); } }, sendInt:()=>this.sendInt(),
+      openInternal:()=>this.setState({internalOpen:true,intTab:'conversas',intGroup:null,menu:null}),
+      onVerMidia:()=>this.showToast('Abrindo galeria de mídia do atendimento','ri-image-line'),
+      onOpenArquivo0:()=>this.showToast('Abrindo arquivo do atendimento','ri-external-link-line'),
+      onOpenArquivo1:()=>this.showToast('Abrindo arquivo do atendimento','ri-external-link-line'),
+      onOpenArquivo2:()=>this.showToast('Abrindo arquivo do atendimento','ri-external-link-line'),
+      onOpenArquivo3:()=>this.showToast('Abrindo arquivo do atendimento','ri-external-link-line'),
+      onExportEquipe:()=>this.showToast('Relatório da equipe exportado (.csv)','ri-download-2-line'),
+      toast:st.toast, toastIcon:st.toastIcon
+    };
+  }
+
+  renderVals(){
+    const S=['Novo Contato','Aguardando Medidas','Orçamento','Negociação','Fechado','Pós-venda'];
+    const convs=this.data();
+    const sel=convs.find(c=>c.id===this.state.sel)||convs[0];
+    const compact=true;
+    const showResumo=true;
+
+    // list tabs
+    const pre=this.filterConvs({...this.state, tab:'__all'});
+    const cnt=k=>k==='todos'?pre.filter(c=>c.bucket!=='finalizados').length:pre.filter(c=>c.bucket===k).length;
+    const tabsDef=[['todos','Todos',cnt('todos')],['ativos','Ativos',cnt('ativos')],['pendentes','Pendentes',cnt('pendentes')],['potenciais','Potenciais',cnt('potenciais')],['finalizados','Finalizados',cnt('finalizados')]];
+    const listTabs=tabsDef.map(([key,label,count])=>{ const active=this.state.tab===key; return {
+      key,label,count,
+      onClick:()=>this.setState({tab:key}),
+      style:{ flex:'1 1 0', minWidth:0, display:'flex', flexDirection:'column', alignItems:'center', gap:'1px', padding:'6px 0 5px', borderRadius:'10px', fontSize:'11.5px', fontWeight:500, color: active?'#0E1220':'#6B7385', cursor:'pointer', whiteSpace:'nowrap', background: active?'#fff':'transparent', boxShadow: active?'0 1px 2px rgba(16,24,40,.08),0 0 0 1px rgba(16,24,40,.03)':'none' },
+      countStyle:{ fontSize:'16px', fontWeight:600, lineHeight:1.15, letterSpacing:'-.02em', color: active?'#1F5FD6':'#3A4354' }
+    };});
+
+    // list items
+    const filtered=this.filterConvs(this.state);
+    const inPainel=(this.state.mode||'painel')==='painel';
+    const listItems=filtered.map((c,_i)=>{ const isSel=!inPainel && c.id===sel.id; return {
+      id:c.id, initials:c.initials, name:c.name, company:c.company, preview:c.preview||(c.messages.filter(m=>m.kind==='text').slice(-1)[0]||{}).text||'', time:c.time, unread:c.unread,
+      showWait:this.isSem(c), waitLabel:this.fmtWait(this.waitMin(c)),
+      showUnread: c.unread>0 && !isSel, showAgent: c.agent && c.agent!=='—', agent:c.agent,
+      onSelect:()=>this.select(c.id),
+      menuOpen:this.state.menu==='row:'+c.id,
+      menuBtn:'width:24px;height:24px;border-radius:7px;border:0;background:'+(this.state.menu==='row:'+c.id?'#E7EAEF':'transparent')+';color:#8B91A0;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none;padding:0',
+      menuStyle:'position:absolute;right:10px;'+(_i>5?'bottom:calc(100% - 14px)':'top:calc(100% - 14px)')+';width:232px;background:#fff;border:1px solid #E6E7EB;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 20px 44px -18px rgba(16,24,40,.42);padding:6px;z-index:95;text-align:left',
+      miStyle:'display:flex;align-items:center;gap:10px;width:100%;height:36px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#1A2233;font-family:inherit;font-size:12.5px;font-weight:500;text-align:left;cursor:pointer',
+      miDanger:'display:flex;align-items:center;gap:10px;width:100%;height:36px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#C8352A;font-family:inherit;font-size:12.5px;font-weight:500;text-align:left;cursor:pointer',
+      unreadLabel:c.unread>0?'Marcar como lida':'Marcar como não lida',
+      onMenu:(e)=>{ e.stopPropagation(); this.setState(st=>({menu:st.menu==='row:'+c.id?null:'row:'+c.id})); },
+      onUnread:()=>{ c.unread=c.unread>0?0:1; this.setState({menu:null}); this.showToast(c.unread>0?'Marcada como não lida':'Marcada como lida','ri-mail-unread-line'); },
+      onPin:()=>this.fixarRow(c.id),
+      onMute:()=>{ this.setState({menu:null}); this.showToast('Notificações silenciadas para '+c.name,'ri-notification-off-line'); },
+      onTransfer:()=>{ this.select(c.id); this.setState({menu:'transf'}); },
+      onFinish:()=>this.finalizarRow(c.id),
+      rowStyle:{ position:'relative', display:'flex', gap:'12px', padding:'12px', borderRadius:'14px', cursor:'pointer', marginBottom:'2px', border: isSel?'1px solid #1F5FD6':'1px solid transparent', background: isSel?'#E6EEFC':'transparent', boxShadow: isSel?'0 0 0 1px #1F5FD6, 0 6px 16px -8px rgba(31,95,214,.45)':'none' },
+      avatarStyle:{ width:'42px', height:'42px', borderRadius:'50%', background:c.tint, color:'#fff', fontWeight:600, fontSize:'14px', display:'flex', alignItems:'center', justifyContent:'center', flex:'none' },
+      nameStyle:{ fontSize:'13.5px', fontWeight:600, color: isSel?'#0E1220':'#1A2233', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:'160px' },
+      tagStyle:this.pill(c.tag.tone), tagLabel:c.tag.label,
+      agentStyle:{ width:'22px', height:'22px', borderRadius:'50%', background:'#F1F2F4', color:'#3A4354', border:'1px solid #E6E7EB', fontSize:'9.5px', fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center' }
+    };});
+
+    // conv header + avatars
+    const convVals={ initials:sel.initials, name:sel.name, company:sel.company, phone:sel.phone, atendente:sel.atendente,
+      avatarStyle:{ width:'44px', height:'44px', borderRadius:'50%', background:sel.tint, color:'#fff', fontWeight:600, fontSize:'15px', display:'flex', alignItems:'center', justifyContent:'center', flex:'none' },
+      bigAvatarStyle:{ width:'84px', height:'84px', borderRadius:'50%', background:sel.tint, color:'#fff', fontWeight:600, fontSize:'28px', boxShadow:'0 0 0 5px #fff,0 0 0 6px #ECEDF0', display:'flex', alignItems:'center', justifyContent:'center' } };
+
+    // messages
+    const _q=(this.state.convQ||'').trim().toLowerCase();
+    const _src=_q?sel.messages.filter(m=>((m.text||'')+' '+(m.fileName||'')).toLowerCase().indexOf(_q)>=0):sel.messages;
+    const messages=_src.map(m=>{
+      const out=m.side==='out'; const isBubble=m.kind==='text'||m.kind==='file'||m.kind==='image'||m.kind==='audio';
+      const base={ text:m.text, author:m.author, time:m.time,
+        isDate:m.kind==='date', isSystem:m.kind==='system', isBubble,
+        isText:m.kind==='text', isFile:m.kind==='file', isImage:m.kind==='image', isAudio:m.kind==='audio', audioDur:m.dur,
+        audioBtn:'width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:17px;background:'+(out?'rgba(255,255,255,.22)':'#EDF2FD')+';color:'+(out?'#fff':'#1F5FD6'),
+        audioTrack:'position:relative;flex:1;height:4px;border-radius:999px;background:'+(out?'rgba(255,255,255,.34)':'#E3E7EE'),
+        audioDot:'position:absolute;left:0;top:-3px;width:10px;height:10px;border-radius:50%;background:'+(out?'#fff':'#1F5FD6'),
+        audioMeta:'font-size:11.5px;flex:none;color:'+(out?'rgba(255,255,255,.85)':'#8B91A0'),
+        showAuthor: out && (m.kind==='text'||m.kind==='file'||m.kind==='audio'), showCheck: out && !!m.read,
+        fileName:m.fileName, fileMeta:m.fileMeta, caption:m.caption,
+        rowStyle:{ display:'flex', justifyContent: (m.kind==='date'||m.kind==='system')?'center': (out?'flex-end':'flex-start'), margin:'0 0 12px' },
+        bubbleStyle:{ maxWidth:'72%', padding:'10px 14px', borderRadius: out?'18px 18px 6px 18px':'18px 18px 18px 6px', background: out?'#1F5FD6':'#fff', color: out?'#fff':'#0E1220', border: out?'0':'1px solid #ECEDF0', boxShadow: out?'inset 0 1px 0 rgba(255,255,255,.16),0 8px 18px -12px rgba(31,95,214,.8)':'0 1px 2px rgba(16,24,40,.04)' },
+        metaStyle:{ display:'flex', alignItems:'center', gap:'5px', justifyContent:'flex-end', fontSize:'10.5px', marginTop:'4px', color: out?'rgba(255,255,255,.75)':'#9CA3B0' },
+        fileWrap:{ display:'flex', alignItems:'center', gap:'11px', width:'270px', padding:'4px 2px' },
+        fileMetaStyle:{ fontSize:'11.5px', marginTop:'2px', color: out?'rgba(255,255,255,.8)':'#8B91A0' },
+        captionStyle:{ fontSize:'12.5px', marginTop:'6px', color: out?'rgba(255,255,255,.85)':'#67788A' }
+      };
+      return base;
+    });
+
+    // detail
+    const segs=S.map((_,i)=>({ style:{ flex:1, height:'8px', borderRadius:'999px', background: i<sel.stage?'#1F5FD6':'#ECEDF0' } }));
+    const detail={
+      summary:sel.summary,
+      stageName:S[sel.stage-1], stageStep:sel.stage+' de 6', segs,
+      stagePillStyle:this.pill(sel.tag.tone),
+      tags:sel.tags.map(t=>({label:t.label, style:this.pill(t.tone)})),
+      email:sel.email, local:sel.local, resp:sel.resp, notas:sel.notas,
+      atendCount:sel.atendCount, msgCount:sel.messages.filter(m=>m.kind==='text'||m.kind==='file'||m.kind==='image').length,
+      scheduled:sel.scheduled||[], progCount:(sel.scheduled||[]).length, progEmpty:(sel.scheduled||[]).length===0,
+      reminders:sel.reminders||[], lembCount:(sel.reminders||[]).length, lembEmpty:(sel.reminders||[]).length===0
+    };
+
+    // team rail
+    const TEAM=[['AB','Ana Beatriz','#2C6BB8','on',2,true],['DA','Daiane','#2F8F86','on',0,false],['CL','Clayton','#5566A8','away',0,false],['ED','Eduarda','#3E8FD0','on',1,false],['RA','Rafael','#64748B','off',0,false],['NA','Nayara','#1F5AA0','on',0,false]];
+    const statusLabel={on:'online',away:'ausente',off:'offline'};
+    const team=TEAM.map(([initials,name,tint,st,unread,active])=>({
+      initials,name,unread, showUnread:unread>0,
+      onClick:()=>this.setState({internalOpen:true, internalPersonKey:initials}),
+      wrapStyle:{ position:'relative', width:'42px', height:'42px', borderRadius:'50%', padding: active?'2px':'0', background: active?'#fff':'transparent', boxShadow: active?'0 0 0 2px #1F5FD6':'none', cursor:'pointer' },
+      avatarStyle:{ width:'100%', height:'100%', borderRadius:'50%', background:tint, color:'#fff', fontWeight:600, fontSize:'14px', display:'flex', alignItems:'center', justifyContent:'center', position:'relative' },
+      dotStyle:{ position:'absolute', right:'-1px', bottom:'-1px', width:'12px', height:'12px', borderRadius:'50%', background: st==='on'?'#22A35A':(st==='away'?'#E0A61C':'#C4C9D2'), border:'2px solid #fff' }
+    }));
+    const tmSel=TEAM.find(t=>t[0]===this.state.internalPersonKey)||TEAM[0];
+    const internalPerson={
+      initials:tmSel[0], name:tmSel[1],
+      avatarStyle:{ width:'36px', height:'36px', borderRadius:'50%', background:tmSel[2], color:'#fff', fontWeight:600, fontSize:'13px', display:'flex', alignItems:'center', justifyContent:'center', position:'relative', flex:'none' },
+      dotStyle:{ position:'absolute', right:'-2px', bottom:'-2px', width:'11px', height:'11px', borderRadius:'50%', background: tmSel[3]==='on'?'#22A35A':(tmSel[3]==='away'?'#E0A61C':'#C4C9D2'), border:'2px solid #fff' },
+      statusText:statusLabel[tmSel[3]]+' · Comercial',
+      statusStyle:{ fontSize:'11px', fontWeight:600, color: tmSel[3]==='on'?'#22A35A':(tmSel[3]==='away'?'#B4690E':'#9CA3B0') }
+    };
+
+    return {
+      ...this.menuVals(sel), ...this.dashVals(convs), listEmpty:filtered.length===0, onFinalizar:()=>this.finalizar(), lq:this.state.lq, onLq:e=>this.setState({lq:e.target.value}),
+      listTabs, listItems, conv:convVals, messages,
+      msgRef:(el)=>{ this._msg=el; },
+      composer:this.state.composer, onComposer:(e)=>this.onComposer(e), onKey:(e)=>this.onKey(e), onSend:()=>this.send(),
+      showResumo, detail,
+      resumoOpen:this.state.resumoOpen, toggleResumo:()=>this.setState(s=>({resumoOpen:!s.resumoOpen})), resumoChevronStyle:this.chev(this.state.resumoOpen), resumoWrap:this.wrap(this.state.resumoOpen),
+      notasOpen:this.state.notasOpen, toggleNotas:()=>this.setState(s=>({notasOpen:!s.notasOpen})), notasChevronStyle:this.chev(this.state.notasOpen), notasWrap:this.wrap(this.state.notasOpen), midiaOpen:this.state.midiaOpen, toggleMidia:()=>this.setState(s=>({midiaOpen:!s.midiaOpen})), midiaChevronStyle:this.chev(this.state.midiaOpen), midiaWrap:this.wrap(this.state.midiaOpen), arqOpen:this.state.arqOpen, toggleArq:()=>this.setState(s=>({arqOpen:!s.arqOpen})), arqChevronStyle:this.chev(this.state.arqOpen), arqWrap:this.wrap(this.state.arqOpen),
+      progOpen:this.state.progOpen, toggleProg:()=>this.setState(s=>({progOpen:!s.progOpen})), progChevronStyle:this.chev(this.state.progOpen), progWrap:this.wrap(this.state.progOpen),
+      lembOpen:this.state.lembOpen, toggleLemb:()=>this.setState(s=>({lembOpen:!s.lembOpen})), lembChevronStyle:this.chev(this.state.lembOpen), lembWrap:this.wrap(this.state.lembOpen),
+      toggleNotif:()=>this.setState(s=>({notifOpen:!s.notifOpen})), stopNotif:e=>e.stopPropagation(),
+      ...(()=>{ const rd=this.state.notifRead, tab=this.state.notifTab; const un=this.NOTIFS.filter(n=>!rd[n.id]).length;
+        const tabs=[['all','Todas'],['unread','Não lidas'],['group','Grupos'],['msg','Mensagens']];
+        const list=this.NOTIFS.filter(n=>tab==='all'||(tab==='unread'?!rd[n.id]:n.type===tab||(tab==='msg'&&false)));
+        return { hasUnreadNotif:un>0, unreadNotifCount:un, notifSub:un?un+(un>1?' não lidas':' não lida'):'Tudo em dia',
+          markAllNotif:()=>{ const m={}; this.NOTIFS.forEach(n=>m[n.id]=true); this.setState({notifRead:m}); },
+          notifTabs:tabs.map(([k,label])=>({label,onClick:()=>this.setState({notifTab:k}),style:`display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;font-size:12.5px;font-weight:500;cursor:pointer;border:1px solid ${tab===k?'#0E1220':'#E6E7EB'};background:${tab===k?'#0E1220':'#fff'};color:${tab===k?'#fff':'#1A2233'}`})),
+          notifs:list.map(n=>({title:n.title,text:n.text,time:n.time,icon:n.icon,unread:!rd[n.id],onClick:()=>this.setState(s=>({notifRead:{...s.notifRead,[n.id]:true}})),
+            rowStyle:`display:flex;align-items:flex-start;gap:12px;padding:12px 10px;border-radius:14px;cursor:pointer;background:${rd[n.id]?'transparent':'#F8FAFE'}`,
+            iconWrap:`width:38px;height:38px;border-radius:50%;background:${n.c[0]};color:${n.c[1]};display:flex;align-items:center;justify-content:center;flex:none`})),
+          notifEmpty:list.length===0, notifOpen:this.state.notifOpen }; })(),
+      team, internalOpen:this.state.internalOpen, internalPerson, closeInternal:()=>this.setState({internalOpen:false}),
+      autoOpen:this.state.autoOpen, toggleAuto:()=>this.setState(s=>({autoOpen:!s.autoOpen})), autoChevron:this.state.autoOpen?'ri-arrow-down-s-line':'ri-arrow-right-s-line'
+    };
+  }
+}
+</script>
+</body>
+</html>

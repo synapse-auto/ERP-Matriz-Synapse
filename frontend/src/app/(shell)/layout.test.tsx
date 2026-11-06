@@ -7,6 +7,12 @@ vi.mock("next/headers", () => ({
 
 vi.mock("next/navigation", () => ({ redirect: vi.fn(), usePathname: () => "/atendimentos" }));
 
+// O carregador de fontes é transformado pelo Next no build, fora do runtime do Vitest.
+vi.mock("next/font/google", () => ({ Geist: () => ({ variable: "fonte-v2-de-teste" }) }));
+vi.mock("@/lib/config/use-funcionalidades", () => ({
+  useFuncionalidadesHabilitadas: () => ({ data: [] }),
+}));
+
 vi.mock("@/components/shell/sidebar", () => ({
   Sidebar: () => <aside>Menu</aside>,
 }));

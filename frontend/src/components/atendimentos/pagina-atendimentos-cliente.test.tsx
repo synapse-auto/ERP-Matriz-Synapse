@@ -538,6 +538,36 @@ function emitirNotificacao(notificacao: NotificacaoTempoReal) {
 }
 
 describe("PaginaAtendimentosCliente", () => {
+  it("mantém o layout legado quando a instância não habilitou a nova apresentação", async () => {
+    const pagina = renderPagina();
+    const grade = pagina.container.querySelector('[data-slot="pagina-atendimentos"]');
+    expect(grade).toHaveAttribute("data-layout", "legado");
+    act(() => pagina.queryClient.setQueryData(["config", "features"], ["chat_interno"]));
+    await waitFor(() => expect(grade).toHaveAttribute("data-layout", "legado"));
+  });
+
+  it("habilita e reverte o visual sem remontar conversa, composer ou conexão", async () => {
+    const pagina = renderPagina();
+    act(() => callbacks.abrir?.(cartaoInicial));
+    const historico = await screen.findByTestId("historico");
+    const composer = screen.getByTestId("composer");
+    const grade = pagina.container.querySelector('[data-slot="pagina-atendimentos"]');
+    const clientes = [...stomp.clientes];
+
+    act(() => pagina.queryClient.setQueryData(["config", "features"], ["atendimentos_layout_v2"]));
+    await waitFor(() => expect(grade).toHaveAttribute("data-layout", "v2"));
+    expect(screen.getByTestId("historico")).toBe(historico);
+    expect(screen.getByTestId("composer")).toBe(composer);
+    expect(callbacks.mensagens?.historico).toBe("atendimento-1");
+    expect(stomp.clientes).toEqual(clientes);
+
+    act(() => pagina.queryClient.setQueryData(["config", "features"], []));
+    await waitFor(() => expect(grade).toHaveAttribute("data-layout", "legado"));
+    expect(screen.getByTestId("historico")).toBe(historico);
+    expect(screen.getByTestId("composer")).toBe(composer);
+    expect(stomp.clientes).toEqual(clientes);
+  });
+
   it("uma resposta 404 atrasada de A não fecha B nem apresenta revogação de B", async () => {
     renderPagina();
     act(() => callbacks.abrir?.(cartaoInicial));

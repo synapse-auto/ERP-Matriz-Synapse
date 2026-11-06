@@ -367,8 +367,8 @@ function ListaConversasBase({
     : -1;
 
   return (
-    <div className={cn("flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background", painelOperacionalPermitido && "bg-card", className)}>
-      <div className="px-4 pt-4">
+    <div data-slot="lista-conversas" className={cn("flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background", painelOperacionalPermitido && "bg-card", className)}>
+      <div data-slot="lista-conversas-cabecalho" className="px-4 pt-4">
         <div className="flex items-center justify-between gap-3">
           <h1 className={cn("text-lg font-bold tracking-tight text-foreground", painelOperacionalPermitido && "text-sm text-primary")}>{onVoltarPainel
             ? <button type="button" onClick={onVoltarPainel} className="rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={catalogo.painelOperacional.voltar}>{catalogo.menu.itens.atendimentos}</button>
@@ -470,6 +470,7 @@ function ListaConversasBase({
         }}
       >
         <TabsList
+          data-slot="abas-conversas"
           variant="line"
           className={cn(
             "mx-4 mt-3 flex h-auto w-[calc(100%-2rem)] justify-start gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden p-0 md:grid md:gap-1 md:overflow-x-hidden",

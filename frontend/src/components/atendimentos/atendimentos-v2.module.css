@@ -1,0 +1,186 @@
+/*
+ * Alternativa A: somente a raiz com a flag recebe esta classe. As mesmas árvores de
+ * dados, permissões, mensagens e composer continuam montadas; nenhum alias global
+ * de tema é sobrescrito. Cores, fontes, raios e sombras pertencem à instância.
+ */
+.pagina {
+  gap: calc(var(--spacing) * 2.5);
+  padding: calc(var(--spacing) * 2.5);
+  background: var(--muted);
+  font-family: var(--fonte-base);
+}
+
+.pagina > :global([data-slot="lista-conversas"]),
+.pagina > :global([data-slot="coluna-conversa"]),
+.pagina > :global([data-slot="coluna-detalhes"]) {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--raio-xl);
+  background: var(--card);
+  box-shadow: var(--sombra-md);
+}
+
+.pagina :global([data-slot="lista-conversas-cabecalho"]) {
+  padding-top: calc(var(--spacing) * 4.5);
+}
+
+.pagina :global([data-slot="lista-conversas-cabecalho"]) h1 {
+  font-size: var(--texto-2xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--chat-texto-forte);
+}
+
+.pagina :global([data-slot="lista-conversas-cabecalho"]) input {
+  border-color: var(--border);
+  border-radius: var(--raio-md);
+  background: var(--muted);
+}
+
+.pagina :global([data-slot="abas-conversas"]) {
+  display: flex;
+  height: auto;
+  min-height: calc(var(--spacing) * 13);
+  gap: 0;
+  padding: calc(var(--spacing) * 0.75);
+  border-radius: var(--raio-lg);
+  background: var(--muted);
+  overflow-x: auto;
+}
+
+.pagina :global([data-slot="abas-conversas"]) :global([data-slot="tabs-trigger"]) {
+  flex: 1 0 auto;
+  flex-direction: column-reverse;
+  min-height: calc(var(--spacing) * 11);
+  height: auto;
+  gap: calc(var(--spacing) * 0.5);
+  padding: calc(var(--spacing) * 1.5);
+  border: 0;
+  border-radius: var(--raio-md);
+  color: var(--muted-foreground);
+  background: transparent;
+  font-size: var(--texto-xs);
+}
+
+.pagina :global([data-slot="abas-conversas"]) :global([data-slot="tabs-trigger"])::after {
+  display: none;
+}
+
+.pagina :global([data-slot="abas-conversas"]) :global([data-slot="tabs-trigger"][data-active]) {
+  color: var(--chat-texto-forte);
+  background: var(--card);
+  box-shadow: var(--sombra-md);
+}
+
+.pagina :global([data-slot="abas-conversas"]) :global([data-slot="badge"]) {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: var(--texto-md);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pagina :global([data-slot="abas-conversas"]) :global([data-active]) :global([data-slot="badge"]) {
+  color: var(--primary);
+}
+
+.pagina :global([data-slot="lista-conversas-itens"]) {
+  padding-top: calc(var(--spacing) * 2);
+}
+
+.pagina :global([data-slot="cartao-conversa"]) {
+  border-radius: var(--raio-lg);
+  border: 1px solid transparent;
+  box-shadow: none;
+}
+
+.pagina :global([data-slot="cartao-conversa"][aria-current="true"]) {
+  border-color: var(--primary);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.pagina :global([data-slot="cartao-conversa"]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.pagina :global([data-slot="cabecalho-conversa"]) {
+  background: var(--card);
+}
+
+.pagina :global([data-slot="historico-mensagens"]) {
+  background: var(--background);
+}
+
+.pagina :global([data-slot="composer"]) {
+  padding-inline: calc(var(--spacing) * 4);
+  padding-bottom: max(calc(var(--spacing) * 4), env(safe-area-inset-bottom));
+}
+
+.pagina :global([data-slot="composer"]) > div > div {
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-md);
+}
+
+.pagina :global([data-slot="painel-detalhes-lead"]) {
+  width: 100%;
+  min-width: 0;
+  border-left: 0;
+  background: var(--card);
+}
+
+.pagina :global([data-slot="secao-colapsavel"]) {
+  border-radius: var(--raio-lg);
+}
+
+.pagina :global(.painel-operacional) {
+  background: var(--muted);
+}
+
+.pagina :global(.painel-operacional) > header {
+  background: var(--card);
+}
+
+.pagina :global(.painel-operacional) h2 {
+  font-size: var(--texto-2xl);
+  letter-spacing: -0.03em;
+}
+
+/* A lista operacional reutiliza o mesmo read model e a mesma paginação. */
+.pagina :global([data-slot="cartao-fila-operacional"]) {
+  margin: calc(var(--spacing) * 1.5);
+  width: calc(100% - var(--spacing) * 3);
+  padding: calc(var(--spacing) * 3);
+  border: 1px solid transparent;
+  border-radius: var(--raio-lg);
+}
+
+.pagina :global([data-slot="cartao-fila-operacional"][aria-current="true"]) {
+  border-color: var(--primary);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+/* Coluna única é decidida pela largura útil medida, não pela largura fixa do mockup. */
+@media (max-width: 639px) {
+  .pagina {
+    gap: 0;
+    padding: 0;
+  }
+
+  .pagina > :global([data-slot="lista-conversas"]),
+  .pagina > :global([data-slot="coluna-conversa"]),
+  .pagina > :global([data-slot="coluna-detalhes"]) {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .pagina :global([data-slot="composer"]) {
+    padding-inline: calc(var(--spacing) * 2);
+    padding-bottom: max(calc(var(--spacing) * 2), env(safe-area-inset-bottom));
+  }
+}
