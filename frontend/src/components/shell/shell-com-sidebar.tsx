@@ -10,6 +10,9 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { ProvedorConversaEmTelaCheia, useConversaEmTelaCheia } from "@/lib/navegacao/conversa-em-tela-cheia";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn } from "@/lib/utils";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
+import { fonteFrontendV2 } from "@/lib/config/fonte-frontend-v2";
+import estilosV2 from "./shell-v2.module.css";
 
 import { estiloDaLarguraDoSlot, useExpansaoDaSidebar } from "./expansao-da-sidebar";
 
@@ -24,12 +27,15 @@ export function ShellComSidebar({ children }: { children: React.ReactNode }) {
 function ShellInterno({ children }: { children: React.ReactNode }) {
   const expansao = useExpansaoDaSidebar();
   const pathname = usePathname();
-  const [dashboardFixada, setDashboardFixada] = useState(true);
+  const funcionalidades = useFuncionalidadesHabilitadas();
+  const dashboardV2 = funcionalidades.data?.includes("dashboard_layout_v2") ?? false;
+  const [dashboardFixada, setDashboardFixada] = useState<boolean | null>(null);
   const noDashboard = pathname === "/dashboard";
-  const fixada = noDashboard ? dashboardFixada : expansao.fixada;
-  const expandida = noDashboard ? dashboardFixada || expansao.expandida : expansao.expandida;
+  const visualV2 = noDashboard && dashboardV2;
+  const fixada = noDashboard ? dashboardFixada ?? !dashboardV2 : expansao.fixada;
+  const expandida = noDashboard ? fixada || expansao.expandida : expansao.expandida;
   const alternarFixacao = noDashboard
-    ? () => setDashboardFixada((atual) => !atual)
+    ? () => setDashboardFixada((atual) => !(atual ?? !dashboardV2))
     : expansao.alternarFixacao;
   const telaEstreita = useTelaEstreita();
   const { ativa: conversaEmTelaCheia } = useConversaEmTelaCheia();
@@ -37,19 +43,22 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="flex min-h-0 flex-1 overflow-hidden bg-[var(--fundo-canvas)]"
+      className={cn("flex min-h-0 flex-1 overflow-hidden bg-[var(--fundo-canvas)]", visualV2 && [estilosV2.canvas, fonteFrontendV2.variable])}
       data-slot="page-canvas"
     >
       {!telaEstreita && (
         <div
           className="relative h-full shrink-0"
-          style={estiloDaLarguraDoSlot(fixada)}
+          style={visualV2
+            ? { ...estiloDaLarguraDoSlot(fixada), width: fixada ? 288 : 88 }
+            : estiloDaLarguraDoSlot(fixada)}
           data-slot="sidebar-slot"
           data-fixada={fixada ? "true" : "false"}
           data-expandida={expandida ? "true" : "false"}
           data-sobreposta={expandida && !fixada ? "true" : "false"}
         >
           <Sidebar
+            visualV2={visualV2}
             retraida={!expandida}
             fixada={fixada}
             onAlternar={alternarFixacao}

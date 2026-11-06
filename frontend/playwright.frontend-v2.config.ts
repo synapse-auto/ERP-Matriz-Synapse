@@ -3,8 +3,10 @@ import { defineConfig } from "@playwright/test";
 // Suíte isolada: não depende de banco, Docker, credencial ou instância de cliente.
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: "atendimentos-v2.visual.ts",
+  testMatch: ["atendimentos-v2.visual.ts", "dashboard-v2.visual.ts"],
   workers: 1,
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   reporter: "line",
   use: {
     baseURL: "http://127.0.0.1:3105",

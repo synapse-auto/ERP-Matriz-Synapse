@@ -1,3 +1,5 @@
+> Continuação: a Etapa 2 do Dashboard está registrada em [dashboard/entrega.md](dashboard/entrega.md). Este documento preserva os resultados da primeira entrega.
+
 # Alternativa A — primeira entrega de Atendimentos
 
 ## 1. Estado e revisão

@@ -1,0 +1,354 @@
+/* Alternativa A: todos os seletores dependem da raiz habilitada por instância.
+   Geometria extraída do HTML de referência; cores continuam nos tokens da marca. */
+.pagina {
+  --fonte-base-carregada: var(--fonte-frontend-v2);
+  container: dashboard-v2 / inline-size;
+  min-width: 0;
+  height: calc(100% - 20px);
+  min-height: 0;
+  margin: 10px 10px 10px 0;
+  gap: 16px;
+  padding: 16px 28px 0;
+  border-radius: calc(var(--raio-xl) * 1.2);
+  background: var(--background);
+  font-family: var(--fonte-frontend-v2), var(--fonte-base), sans-serif;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--sombra-xl);
+}
+
+.corpo {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding-bottom: 36px;
+  scrollbar-width: auto;
+}
+
+.corpo > * {
+  flex-shrink: 0;
+}
+
+.corpo::-webkit-scrollbar {
+  width: 10px;
+}
+
+.pagina :global([data-slot="dashboard-caminho"]) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  margin-bottom: -16px;
+  color: var(--muted-foreground);
+  font-size: 13.5px;
+}
+
+.pagina :global([data-slot="dashboard-caminho"]) :global([aria-current="page"]) {
+  color: var(--chat-texto-forte);
+  font-weight: 500;
+}
+
+.pagina :global([data-slot="dashboard-cabecalho"]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0;
+  padding: 22px 0 2px;
+  border: 0;
+  background: transparent;
+}
+
+.pagina :global([data-slot="dashboard-cabecalho"]) > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.pagina :global([data-slot="dashboard-cabecalho"]) h1 {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  color: var(--chat-texto-forte);
+}
+
+.pagina :global([data-slot="dashboard-areas"]) {
+  margin: 0;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 13px;
+  background: var(--muted);
+}
+
+.pagina :global([data-slot="dashboard-areas"]) button {
+  height: 34px;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 12.5px;
+}
+
+.pagina :global([data-slot="dashboard-areas"]) :global([aria-current="page"]) {
+  color: var(--foreground);
+  background: var(--card);
+  box-shadow: var(--sombra-md);
+}
+
+.pagina :global([data-slot="dashboard-filtros"]) {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.pagina :global([data-slot="dashboard-filtros"]) > div {
+  gap: 10px;
+}
+
+.pagina :global([data-slot="dashboard-meses"]) {
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--muted);
+}
+
+.pagina :global([data-slot="dashboard-meses"]) button {
+  height: 38px;
+  min-width: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+
+.pagina :global([data-slot="dashboard-meses"]) :global([aria-pressed="true"]) {
+  color: var(--foreground);
+  background: var(--card);
+  box-shadow: var(--sombra-md);
+}
+
+.pagina :global([data-slot="card"]) {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--raio-xl) * 0.9);
+  background: var(--card);
+  box-shadow: var(--sombra-md);
+}
+
+.pagina :global([data-slot="card-title"]) {
+  color: var(--chat-texto-forte);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.pagina :global([data-slot="dashboard-indicadores"]) {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.pagina :global([data-dashboard-kpi]) {
+  min-height: 142px;
+  gap: 18px;
+  padding: 18px 0;
+}
+
+.pagina :global([data-dashboard-kpi]) :global([data-slot="card-header"]),
+.pagina :global([data-dashboard-kpi]) :global([data-slot="card-content"]) {
+  padding-inline: 20px;
+}
+
+.pagina :global([data-dashboard-kpi]) :global([data-slot="card-header"]) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pagina :global([data-dashboard-kpi]) :global([data-slot="card-header"]) > span:first-child {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: var(--raio-pill);
+  background: color-mix(in srgb, var(--tom) 10%, var(--card));
+}
+
+.pagina :global([data-dashboard-kpi]) :global([data-slot="card-title"]) {
+  font-size: 13.5px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--foreground);
+}
+
+.pagina :global([data-slot="dashboard-kpi-valor"]) {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.pagina :global([data-slot="dashboard-kpi-leitura"]) > div > p {
+  margin-top: 9px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.pagina :global([data-slot="dashboard-agora"]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  color: var(--foreground);
+  background: var(--card);
+}
+
+.pagina :global([data-slot="dashboard-agora-rotulo"]) {
+  align-self: stretch;
+  padding: 14px 22px;
+  border: 0;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 14px;
+}
+
+.pagina :global([data-slot="dashboard-agora-contagens"]) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+}
+
+.pagina :global([data-slot="dashboard-agora-contagens"]) > div {
+  min-width: 0;
+  padding: 14px 18px;
+  border-left: 1px solid var(--border);
+}
+
+.pagina :global([data-slot="dashboard-agora-contagens"]) p:first-child,
+.pagina :global([data-slot="dashboard-atualizacao"]) {
+  color: var(--muted-foreground);
+}
+
+.pagina :global([data-slot="dashboard-agora-contagens"]) p:first-child {
+  font-size: 12.5px;
+}
+
+.pagina :global([data-slot="dashboard-agora-contagens"]) p:last-child {
+  margin-top: 5px;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--chat-texto-forte);
+}
+
+.pagina :global([data-slot="dashboard-atualizacao"]) {
+  padding: 0 18px 10px;
+  font-size: 11px;
+}
+
+@container dashboard-v2 (min-width: 600px) {
+  .pagina :global([data-slot="dashboard-indicadores"]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .pagina :global([data-slot="dashboard-agora-contagens"]) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container dashboard-v2 (min-width: 960px) {
+  .pagina[data-modo="compacta"] :global([data-slot="dashboard-indicadores"]) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .pagina[data-modo="compacta"] :global([data-dashboard-kpi="atendimentos"]) {
+    grid-column: span 2;
+  }
+  .pagina :global([data-slot="dashboard-agora"]) {
+    grid-template-columns: 150px minmax(0, 1fr);
+    grid-template-rows: 43px 30px;
+    margin-bottom: -2px;
+  }
+  .pagina :global([data-slot="dashboard-agora-rotulo"]) {
+    grid-column: 1;
+    grid-row: 1;
+    padding-bottom: 4px;
+  }
+  .pagina :global([data-slot="dashboard-agora-contagens"]) {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .pagina :global([data-slot="dashboard-atualizacao"]) {
+    grid-column: 1;
+    grid-row: 2;
+    padding: 0 22px 14px;
+    color: var(--primary-foreground);
+    background: var(--primary);
+  }
+}
+
+@container dashboard-v2 (min-width: 1300px) {
+  .pagina[data-modo="compacta"] :global([data-slot="dashboard-indicadores"]) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .pagina[data-modo="compacta"] :global([data-dashboard-kpi="novosLeads"]) {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .pagina[data-modo="compacta"] :global([data-dashboard-kpi="tempoMedioSegundos"]) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .pagina[data-modo="compacta"] :global([data-dashboard-kpi="vendasFechadas"]) {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .pagina[data-modo="compacta"] :global([data-dashboard-kpi="taxaConversao"]) {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .pagina[data-modo="compacta"] :global([data-dashboard-kpi="avaliacaoMedia"]) {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .pagina[data-modo="compacta"] :global([data-dashboard-kpi="resolucaoPorIa"]) {
+    grid-column: 2;
+    grid-row: 3;
+  }
+}
+
+@media (max-width: 639px) {
+  .pagina {
+    height: 100%;
+    margin: 0;
+    padding: 20px 14px 0;
+    border-radius: 0;
+  }
+  .pagina :global([data-slot="dashboard-cabecalho"]) h1 {
+    font-size: 26px;
+  }
+  .pagina :global([data-slot="dashboard-areas"]) {
+    width: 100%;
+  }
+  .pagina :global([data-slot="dashboard-areas"]) button {
+    flex: 1;
+    padding-inline: 6px;
+    font-size: 11px;
+  }
+  .pagina :global([data-slot="dashboard-filtros"]) {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--raio-lg);
+    background: var(--card);
+  }
+}

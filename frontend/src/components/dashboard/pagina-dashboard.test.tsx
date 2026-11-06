@@ -1,8 +1,14 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useDashboardMock = vi.fn();
 const telaEstreita = { atual: false };
+const funcionalidades = vi.hoisted(() => ({ flags: [] as string[] }));
+
+vi.mock("next/font/google", () => ({ Geist: () => ({ variable: "fonte-v2-de-teste" }) }));
+vi.mock("@/lib/config/use-funcionalidades", () => ({
+  useFuncionalidadesHabilitadas: () => ({ data: funcionalidades.flags }),
+}));
 
 vi.mock("@/lib/dashboard/use-dashboard", () => ({
   useVisaoGeralDashboard: (filtro: unknown) => useDashboardMock(filtro),
@@ -14,6 +20,8 @@ vi.mock("@/lib/navegacao/tela-estreita", () => ({
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
+    estados: { tentarNovamente: "Tentar novamente", erroGenerico: "Erro" },
+    menu: { grupoGestao: "Gestão", itens: { atendimentos: "Atendimentos" } },
     dashboard: {
       titulo: "Dashboard", descricao: "Visão consolidada", carregando: "Carregando", erro: "Erro", semDado: "Sem dados",
       abas: { rotulo: "Áreas", visaoGeral: "Visão Geral", operacional: "Operacional", comercial: "Comercial", iaAutomacao: "IA e Automação", depois: "Em breve" },
@@ -108,6 +116,69 @@ function seloComTexto(variacao: string): HTMLElement {
 }
 
 describe("PaginaDashboard", () => {
+  beforeEach(() => {
+    funcionalidades.flags = [];
+    telaEstreita.atual = false;
+  });
+
+  it("mantém o legado sem a flag específica do Dashboard", () => {
+    funcionalidades.flags = ["atendimentos_layout_v2"];
+    useDashboardMock.mockReturnValue({ data: PAYLOAD_COM_DADOS, isLoading: false, isError: false });
+    render(<PaginaDashboard />);
+    expect(screen.getByTestId("dashboard-conteudo")).toHaveAttribute("data-layout", "legado");
+  });
+
+  it("troca a apresentação sem perder meses selecionados nem o modo expandido", () => {
+    useDashboardMock.mockReturnValue({ data: PAYLOAD_COM_DADOS, isLoading: false, isError: false });
+    const pagina = render(<PaginaDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Jan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Expandida" }));
+    const antes = useDashboardMock.mock.lastCall?.[0];
+    const indicador = screen.getByTestId("kpi-Atendimentos");
+    funcionalidades.flags = ["dashboard_layout_v2"];
+    pagina.rerender(<PaginaDashboard />);
+    expect(screen.getByTestId("dashboard-conteudo")).toHaveAttribute("data-layout", "v2");
+    expect(screen.getByRole("button", { name: "Expandida" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("kpi-Atendimentos")).toBe(indicador);
+    expect(useDashboardMock.mock.lastCall?.[0]).toEqual(antes);
+    funcionalidades.flags = [];
+    pagina.rerender(<PaginaDashboard />);
+    expect(screen.getByTestId("dashboard-conteudo")).toHaveAttribute("data-layout", "legado");
+    expect(useDashboardMock.mock.lastCall?.[0]).toEqual(antes);
+  });
+
+  it("oferece filtros reais no celular em v2 e não mostra o bloqueio de computador", () => {
+    funcionalidades.flags = ["dashboard_layout_v2"];
+    telaEstreita.atual = true;
+    useDashboardMock.mockReturnValue({ data: PAYLOAD_COM_DADOS, isLoading: false, isError: false });
+    render(<PaginaDashboard />);
+    const botao = screen.getByRole("button", { name: "Filtros" });
+    expect(botao).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById("dashboard-filtros")).toHaveAttribute("hidden");
+    fireEvent.click(botao);
+    expect(botao).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById("dashboard-filtros")).not.toHaveAttribute("hidden");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Hoje" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(useDashboardMock.mock.lastCall?.[0]).toEqual(expect.objectContaining({ meses: [], inicio: expect.any(String), fim: expect.any(String) }));
+    fireEvent.click(botao);
+    expect(document.getElementById("dashboard-filtros")).toHaveAttribute("hidden");
+  });
+
+  it("anuncia carregamento e permite recuperar erro na nova apresentação", () => {
+    funcionalidades.flags = ["dashboard_layout_v2"];
+    const refetch = vi.fn();
+    useDashboardMock.mockReturnValue({ isLoading: true, isError: false });
+    const pagina = render(<PaginaDashboard />);
+    expect(screen.getByRole("status")).toHaveTextContent("Carregando");
+    useDashboardMock.mockReturnValue({ isLoading: false, isError: true, refetch });
+    pagina.rerender(<PaginaDashboard />);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /tentar/i }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
   it("renderiza dados reais do payload, abas futuras desabilitadas e gráficos em CSS", () => {
     useDashboardMock.mockReturnValue({ data: PAYLOAD_COM_DADOS, isLoading: false, isError: false });
 

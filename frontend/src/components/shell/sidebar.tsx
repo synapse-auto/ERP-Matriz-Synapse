@@ -123,6 +123,7 @@ async function encerrarSessao() {
 }
 
 interface SidebarProps {
+  visualV2?: boolean;
   retraida: boolean;
   fixada?: boolean;
   onAlternar: () => void;
@@ -133,6 +134,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({
+  visualV2 = false,
   retraida,
   fixada = false,
   onAlternar,
@@ -200,7 +202,10 @@ export function Sidebar({
           fixada ? "w-full" : "absolute inset-y-0 left-0 z-40",
           !retraida && sobreposta && "shadow-[4px_0_24px_rgba(0,0,0,0.22)]",
         )}
-        style={fixada ? undefined : estiloDaLarguraDaSidebar(!retraida)}
+        style={fixada ? undefined : {
+          ...estiloDaLarguraDaSidebar(!retraida),
+          ...(visualV2 ? { width: retraida ? 68 : 268 } : {}),
+        }}
         data-slot="sidebar"
         data-state={retraida ? "collapsed" : "expanded"}
         data-fixada={fixada ? "true" : "false"}

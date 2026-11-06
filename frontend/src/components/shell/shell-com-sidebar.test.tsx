@@ -19,6 +19,11 @@ const estadoSidebar = vi.hoisted(() => ({
   onFocoFora: undefined as undefined | (() => void),
 }));
 const rota = vi.hoisted(() => ({ atual: "/atendimentos" }));
+const funcionalidades = vi.hoisted(() => ({ flags: [] as string[] }));
+vi.mock("@/lib/config/use-funcionalidades", () => ({
+  useFuncionalidadesHabilitadas: () => ({ data: funcionalidades.flags }),
+}));
+vi.mock("next/font/google", () => ({ Geist: () => ({ variable: "fonte-v2-de-teste" }) }));
 
 vi.mock("next/navigation", () => ({ usePathname: () => rota.atual }));
 
@@ -89,6 +94,7 @@ describe("ShellComSidebar", () => {
   let notificarMudanca: (() => void) | undefined;
 
   beforeEach(() => {
+    funcionalidades.flags = [];
     rota.atual = "/atendimentos";
     telaEstreita = false;
     notificarMudanca = undefined;
@@ -121,6 +127,20 @@ describe("ShellComSidebar", () => {
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-fixada", "false");
     expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
     expect(screen.queryByTestId("navegacao-inferior")).not.toBeInTheDocument();
+  });
+
+  it("usa a geometria da referência no Dashboard v2 sem alterar Atendimentos", () => {
+    funcionalidades.flags = ["dashboard_layout_v2"];
+    rota.atual = "/dashboard";
+    const shell = render(<ShellComSidebar><p>Dashboard</p></ShellComSidebar>);
+    expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "collapsed");
+    expect(slotDaSidebar()).toHaveStyle({ width: "88px" });
+    fireEvent.click(screen.getByRole("button", { name: "pin" }));
+    expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "expanded");
+    expect(slotDaSidebar()).toHaveStyle({ width: "288px" });
+    rota.atual = "/atendimentos";
+    shell.rerender(<ShellComSidebar><p>Atendimentos</p></ShellComSidebar>);
+    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
   });
 
   it("abre a sidebar no Dashboard sem mudar o estado inicial de Atendimentos", () => {

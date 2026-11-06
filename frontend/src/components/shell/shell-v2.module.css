@@ -1,0 +1,30 @@
+.canvas {
+  --fonte-base-carregada: var(--fonte-frontend-v2);
+  background-image: url("/images/frontend-v2-canvas.jpg");
+  background-position: left bottom;
+  background-size: 1920px 2400px;
+  font-family: var(--fonte-frontend-v2), var(--fonte-base), sans-serif;
+}
+
+.canvas :global([data-slot="sidebar"]) {
+  top: 10px;
+  bottom: 10px;
+  left: 10px;
+  height: calc(100% - 20px);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--sidebar) 84%, transparent);
+  backdrop-filter: blur(24px);
+}
+
+.canvas :global([data-slot="sidebar"][data-fixada="true"]) {
+  position: absolute;
+  width: calc(100% - 20px);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .canvas :global([data-slot="sidebar"]) {
+    background: var(--sidebar);
+    backdrop-filter: none;
+  }
+}
