@@ -54,7 +54,7 @@ class DefinirDataNascimentoDoLeadPelaAutomacaoUseCaseTest {
     @Test
     void leadSemValorPrevioGravaOValorCanonicalizado() {
         when(camposCustomizados.porChave(CHAVE)).thenReturn(Optional.of(campoData));
-        when(leads.porId(leadId)).thenReturn(Optional.of(leadComDados(Map.of())));
+        when(leads.porIdParaAtualizacao(leadId)).thenReturn(Optional.of(leadComDados(Map.of())));
         when(leads.salvar(any())).thenAnswer(chamada -> Optional.of(chamada.getArgument(0)));
 
         var resultado = usecase.executar(leadId, "1990-05-21", "chave-1");
@@ -71,7 +71,7 @@ class DefinirDataNascimentoDoLeadPelaAutomacaoUseCaseTest {
     @Test
     void leadComValorJaPreenchidoNaoESobrescrito() {
         when(camposCustomizados.porChave(CHAVE)).thenReturn(Optional.of(campoData));
-        when(leads.porId(leadId))
+        when(leads.porIdParaAtualizacao(leadId))
                 .thenReturn(Optional.of(leadComDados(Map.of(CHAVE, "1985-01-02T00:00:00Z"))));
 
         var resultado = usecase.executar(leadId, "1999-12-31", "chave-2");
@@ -89,7 +89,7 @@ class DefinirDataNascimentoDoLeadPelaAutomacaoUseCaseTest {
         assertThatThrownBy(() -> usecase.executar(leadId, "1990-05-21", "chave-3"))
                 .isInstanceOf(CampoDataNascimentoNaoCadastradoException.class);
 
-        verify(leads, never()).porId(any());
+        verify(leads, never()).porIdParaAtualizacao(any());
         verify(idempotencia, never()).reservar(any(), any(), any(), any());
     }
 
@@ -110,13 +110,13 @@ class DefinirDataNascimentoDoLeadPelaAutomacaoUseCaseTest {
         assertThatThrownBy(() -> usecase.executar(leadId, "31 de dezembro", "chave-5"))
                 .isInstanceOf(DadosCustomizadosInvalidosException.class);
 
-        verify(leads, never()).porId(any());
+        verify(leads, never()).porIdParaAtualizacao(any());
     }
 
     @Test
     void leadInexistenteLancaExcecao() {
         when(camposCustomizados.porChave(CHAVE)).thenReturn(Optional.of(campoData));
-        when(leads.porId(leadId)).thenReturn(Optional.empty());
+        when(leads.porIdParaAtualizacao(leadId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> usecase.executar(leadId, "1990-05-21", "chave-6"))
                 .isInstanceOf(LeadDaAutomacaoNaoEncontradoException.class);

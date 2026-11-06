@@ -11,6 +11,9 @@ public interface AutomacaoEv05LeadRepositorio {
 
     EstadoPreenchimento preenchimento(UUID leadId);
 
+    /** Preenche apenas nome ausente ou fallback igual ao telefone; nunca substitui nome valido. */
+    ResultadoCampo aplicarNomeColetado(UUID leadId, String nome, String cpfColetado);
+
     EscritaResumo gravarResumo(UUID leadId, String resumo, Instant contextoGeradoEm, Instant quando);
 
     EscritaPreenchimento aplicarPreenchimento(

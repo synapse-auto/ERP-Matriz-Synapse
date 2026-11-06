@@ -46,11 +46,15 @@ public final class DarwinIdentidadeLocal {
         var estado = new AtomicReference<>("sucesso");
         var liberar = new AtomicReference<CompletableFuture<Void>>(new CompletableFuture<>());
         var banco = new AtomicReference<JdbcTemplate>();
+        var publicarFicha = new AtomicReference<Runnable>(() -> {});
         UUID lead = UUID.fromString("da000000-0000-4000-8000-000000000001");
         var fake = HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
         fake.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
         fake.createContext("/controle", troca -> {
             String modo = troca.getRequestURI().getRawQuery();
+            if ("publicar-ficha".equals(modo)) {
+                publicarFicha.get().run(); troca.sendResponseHeaders(204,-1); troca.close(); return;
+            }
             estado.set(modo);
             if ("lento".equals(modo)) liberar.set(new CompletableFuture<>()); else liberar.get().complete(null);
             if ("conflito".equals(modo)) banco.get().update("UPDATE lead SET nome='Correção manual sintética' WHERE id=?",lead);
@@ -73,9 +77,20 @@ public final class DarwinIdentidadeLocal {
         System.setProperty("synapse.integracoes.darwin.url",urlFake);
         System.setProperty("synapse.integracoes.darwin.token","token-medico-sintetico");
         System.setProperty("synapse.integracoes.darwin.timeout-consulta","30s");
+        boolean cadastroLocal = "true".equals(System.getenv("DADOS_CLIENTE_VISUAL_LOCAL"));
+        if (cadastroLocal) {
+            System.setProperty("synapse.integracoes.darwin.habilitado", "false");
+            System.setProperty("synapse.seguranca.token-interno", "token-interno-sintetico");
+        }
         var contexto = SpringApplication.run(SynapseCrmApplication.class,"--spring.profiles.active=dev","--server.address=127.0.0.1","--server.port=8094");
         var jdbc = contexto.getBean(JdbcTemplate.class); banco.set(jdbc);
+        // Schedulers globais permanecem OFF. O teste visual pode acionar apenas o worker real da ficha.
+        publicarFicha.set(contexto.getBean(com.synapse.crm.atendimento.infrastructure.outbox.PublicadorEventoEstadoOutbox.class)::publicarPendentes);
         if (!"darwin_visual".equals(jdbc.queryForObject("SELECT current_database()",String.class))) throw new IllegalStateException("fixture fora do banco descartável");
+        if (cadastroLocal) {
+            jdbc.update("UPDATE feature_flag SET habilitado=true WHERE chave='dados_cliente_ficha'");
+            jdbc.update("INSERT INTO campo_customizado(chave,rotulo,tipo,obrigatorio,filtravel,ordem) VALUES ('data_nascimento','Data de nascimento','DATA',false,false,99) ON CONFLICT DO NOTHING");
+        }
         UUID ana = jdbc.queryForObject("SELECT id FROM usuario WHERE email='ana@dev.local'",UUID.class);
         UUID atendimento = UUID.fromString("da000000-0000-4000-8000-000000000002");
         jdbc.update("INSERT INTO lead(id,nome,telefone,status_basico,atendente_responsavel_id,num_atendimentos) VALUES (?,?,?,'EM_ATENDIMENTO',?,1)",lead,"Contato sintético Darwin","5561999900777",ana);

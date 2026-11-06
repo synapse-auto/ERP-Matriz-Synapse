@@ -68,6 +68,8 @@ import { FormularioLembrete } from "../lembretes/formulario-lembrete";
 import { FormularioMensagemProgramada } from "../mensagens-programadas/formulario-mensagem-programada";
 import { CampoNomeDoLead } from "../leads/campo-nome-do-lead";
 import { ConsultaDarwin } from "../leads/consulta-darwin";
+import { DadosClienteLocais } from "../leads/dados-cliente-locais";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import { EditorTelefoneDoLead } from "../leads/editor-telefone-do-lead";
 import { ContadorDoPainel } from "../ui/contador-do-painel";
 import { SomenteAdministrador } from "../administracao/somente-administrador";
@@ -97,6 +99,9 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
   const lead = useLead(leadId);
   const etapas = useEtapas();
   const capacidades = useCapacidades();
+  const funcionalidades = useFuncionalidadesHabilitadas();
+  const dadosClienteAtivos = funcionalidades.data?.includes("dados_cliente_ficha") ?? false;
+  const textosDadosCliente = useTextos().dadosCliente;
 
   if (!lead.data) return null;
 
@@ -167,7 +172,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
 
         <div>
           <p className="mb-3 px-0.5 text-xs font-bold tracking-wide text-muted-foreground uppercase">
-            {textos.informacoesGerais}
+            {dadosClienteAtivos ? textosDadosCliente.titulo : textos.informacoesGerais}
           </p>
           <div className="space-y-3">
             <CampoCodigoDoLead key={leadId} leadId={leadId} valorAtual={lead.data.codigo} />
@@ -184,12 +189,13 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
                 />
               )}
             />
+            {dadosClienteAtivos && <DadosClienteLocais lead={lead.data} />}
             <InformacaoDoPainel
               icone={<Mail className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.email}
               valor={lead.data.email}
             />
-            <ConsultaDarwin key={`darwin:${leadId}`} leadId={leadId} cpfAtual={lead.data.cpf} permitido={capacidades.pode("contatos.editar")} />
+            {!dadosClienteAtivos && <ConsultaDarwin key={`darwin:${leadId}`} leadId={leadId} cpfAtual={lead.data.cpf} permitido={capacidades.pode("contatos.editar")} />}
             <InformacaoDoPainel
               icone={<MapPin className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.localizacao}

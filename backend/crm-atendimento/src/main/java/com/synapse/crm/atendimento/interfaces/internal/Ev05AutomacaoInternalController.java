@@ -200,9 +200,9 @@ class Ev05AutomacaoInternalController {
         validarLeadDoCorpo(leadId, requisicao.leadId());
         return ContextoDeServico.buscarComo(
                 "gravar-preenchimento-ev05",
-                () -> leads.preencher(
+                () -> leads.preencherDadosCliente(
                         leadId, requisicao.email(), requisicao.cpf(), requisicao.empresa(),
-                        requisicao.localizacao(), chave));
+                        requisicao.localizacao(), chave, requisicao.nome()));
     }
 
     private static void validarLeadDoCorpo(UUID path, UUID corpo) {
@@ -272,7 +272,7 @@ class Ev05AutomacaoInternalController {
     }
 
     record PreenchimentoRequisicao(
-            UUID leadId, String email, String cpf, String empresa, String localizacao) {}
+            UUID leadId, String email, String cpf, String empresa, String localizacao, String nome) {}
 
     record CandidatosResposta(List<ItemResposta> itens, int pagina, int tamanho, boolean temMais) {
         static CandidatosResposta de(CandidatosEv05Repositorio.Pagina pagina) {

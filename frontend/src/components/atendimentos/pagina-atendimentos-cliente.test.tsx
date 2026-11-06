@@ -631,6 +631,19 @@ describe("PaginaAtendimentosCliente", () => {
     expect(callbacks.mensagens?.historico).toBe("atendimento-B");
   });
 
+  it("evento de cadastro invalida somente a ficha identificada e reconexao recupera dados locais", async () => {
+    const {queryClient} = renderPagina("atendimento-1");
+    const invalidar = vi.spyOn(queryClient, "invalidateQueries");
+    await waitFor(() => expect(callbacks.eventoEstado).toBeDefined());
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({queryKey: ["lead", "lead-1"], exact: true}, {cancelRefetch: false}));
+    invalidar.mockClear();
+    const evento = eventoCanonico("atendimento-1", 3);
+    evento.dados.eventoTipo = "DADOS_CLIENTE_ATUALIZADOS";
+    act(() => callbacks.eventoEstado?.(evento));
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({queryKey: ["lead", "lead-1"], exact: true}));
+    expect(invalidar).not.toHaveBeenCalledWith({queryKey: ["lead"]});
+  });
+
   it("evento de mídia invalida só os anexos do lead, sem invalidar por texto", async () => {
     const {queryClient} = renderPagina("atendimento-1");
     const invalidar = vi.spyOn(queryClient, "invalidateQueries");

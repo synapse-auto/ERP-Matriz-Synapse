@@ -28,17 +28,23 @@ class OutboxEventoEstadoRepositorioJdbc {
     static final String TIPO = "tempo-real.atendimento.estado.v1";
     private static final int LIMITE_ERRO = 500;
     private final JdbcTemplate chat;
+    private final DataSource geral;
+    private final DataSource chatDataSource;
     private final ObjectMapper json;
 
     OutboxEventoEstadoRepositorioJdbc(
-            @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource dataSource, ObjectMapper json) {
+            @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource dataSource,
+            @Qualifier(Pools.GENERAL_DATA_SOURCE) DataSource geral, ObjectMapper json) {
         this.chat = new JdbcTemplate(dataSource);
+        this.chatDataSource = dataSource;
+        this.geral = geral;
         this.json = json;
     }
 
     void enfileirar(EventoCanonicoDeAtendimento evento) {
         TransacaoObrigatoria.exigir("enfileirarEventoEstadoAtendimento");
-        chat.update(
+        var escrita = new JdbcTemplate(ConexaoDaTransacaoAtual.exigir(geral, chatDataSource));
+        escrita.update(
                 "INSERT INTO outbox_evento (id, tipo, payload, criado_em, proxima_tentativa_em)"
                         + " VALUES (?, ?, ?::jsonb, ?, ?)",
                 evento.eventoId(),

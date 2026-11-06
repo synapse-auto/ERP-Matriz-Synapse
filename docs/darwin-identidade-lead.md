@@ -1,5 +1,9 @@
 # Darwin médico — consulta cadastral por CPF conhecido
 
+> A consulta manual não é a entrega de “Dados do cliente”. Com `dados_cliente_ficha` habilitada,
+> Atendimentos exibe CPF/nascimento locais junto do nome e telefone existentes, sem esse modal
+> e sem depender da Darwin. Ver [origens e contratos da ficha](dados-cliente-ficha.md).
+
 ## Correção do fornecedor e fonte primária
 
 A Fêmina utiliza **Darwin médico (`darwin.med.br`)**, não `getdarwin.ai`.

@@ -85,7 +85,7 @@ public class DefinirDataNascimentoDoLeadPelaAutomacaoUseCase {
                 Map.of(CHAVE_DATA_NASCIMENTO, dataNascimento), List.of(campo))
                 .get(CHAVE_DATA_NASCIMENTO);
 
-        Lead atual = leads.porId(leadId).orElseThrow(() -> new LeadDaAutomacaoNaoEncontradoException(leadId));
+        Lead atual = leads.porIdParaAtualizacao(leadId).orElseThrow(() -> new LeadDaAutomacaoNaoEncontradoException(leadId));
 
         var reserva = idempotencia.reservar(chave, OPERACAO, leadId, hash);
         if (!reserva.nova()) {

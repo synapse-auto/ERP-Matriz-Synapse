@@ -71,6 +71,7 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
         properties = {
             "synapse.canal.outbox.intervalo-ms=3600000",
             "synapse.tempo-real.outbox.intervalo-ms=3600000",
+            "synapse.seguranca.token-interno=teste-ficha-tempo-real",
             // Sem credencial real da Meta configurada neste teste; o provedor
             // falso (ja usado pela E05) aceita o envio e devolve ENVIADO.
             "synapse.canal.whatsapp.provedor=fake",
@@ -261,6 +262,30 @@ class TempoRealIT extends PostgresIT {
     @Nested
     @DisplayName("evento canonico e RLS com duas sessoes de atendente")
     class EventoCanonicoComDoisAtendentes {
+
+        @Test
+        void nascimentoPelaAutomacaoAtualizaFichaSemVazarDadosAoColega() throws Exception {
+            UUID atendimentoId = abrirAtendimentoComoAna();
+            publicadorEstado.publicarPendentes();
+            Captura ana = assinar(conectar(tokenDe("ana@dev.local")), atendimentoId);
+            Captura bruno = assinarSemConfirmacao(conectar(tokenDe("bruno@dev.local")), atendimentoId);
+            int novo = jdbc.update("INSERT INTO campo_customizado(chave,rotulo,tipo,obrigatorio,filtravel,ordem) VALUES ('data_nascimento','Data de nascimento','DATA',false,false,99) ON CONFLICT DO NOTHING");
+            try {
+                var headers = new org.springframework.http.HttpHeaders();
+                headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+                headers.set("X-Synapse-Token", "teste-ficha-tempo-real");
+                headers.set("Idempotency-Key", UUID.randomUUID().toString());
+                var resposta = http.postForEntity("/internal/v1/leads/" + leadDaAna + "/data-nascimento",
+                        new org.springframework.http.HttpEntity<>(java.util.Map.of("dataNascimento", "1990-05-21"), headers), String.class);
+                assertThat(resposta.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.OK);
+                publicadorEstado.publicarPendentes();
+                assertThat(ana.aguardarContendo("DADOS_CLIENTE_ATUALIZADOS", ESPERA_CURTA))
+                        .contains(leadDaAna.toString()).doesNotContain("1990-05-21");
+                assertThat(bruno.aguardarSemTrecho("DADOS_CLIENTE_ATUALIZADOS", ESPERA_NEGATIVA)).isTrue();
+            } finally {
+                if (novo == 1) jdbc.update("DELETE FROM campo_customizado WHERE chave='data_nascimento'");
+            }
+        }
 
         @Test
         @DisplayName("automacao atribui para A e transferencia posterior revoga A em favor de B")

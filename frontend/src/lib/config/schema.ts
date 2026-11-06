@@ -989,6 +989,12 @@ export const TextosSchema = z.object({
       origemMidia: z.string(),
     }),
   }),
+  dadosCliente: z.object({
+    titulo: z.string().default("Dados do cliente"),
+    cpf: z.string().default("CPF"),
+    nascimento: z.string().default("Data de nascimento"),
+    naoInformado: z.string().default("Não informado"),
+  }).prefault({}),
   painelLead: z.object({
     titulo: z.string(),
     fechar: z.string(),
