@@ -81,6 +81,8 @@ import { useConversaEmTelaCheia } from "@/lib/navegacao/conversa-em-tela-cheia";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn } from "@/lib/utils";
 
+import estilosV2 from "./atendimentos-v2.module.css";
+
 interface Props {
   leadInicialId: string | null;
   atendimentoInicialId: string | null;
@@ -172,12 +174,22 @@ export function PaginaAtendimentosCliente({
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
   // Perda de acesso causada pela transferência que o próprio usuário fez: confirmação, não alerta.
   const [avisoTransferencia, setAvisoTransferencia] = useState<string | null>(null);
+  // A mesma consulta já alimenta o chat interno; o rollout não adiciona requisição nem polling.
+  const { data: flags } = useQuery({ queryKey: ["config", "features"], queryFn: () => apiFetch<string[]>("/api/v1/config/features") });
+  const layoutV2 = flags?.includes("atendimentos_layout_v2") ?? false;
   const telaEstreita = useTelaEstreita();
   useLayoutEffect(() => {
     const grade = gradeRef.current;
     if (!grade) return;
     const atualizar = () => {
-      const largura = grade.getBoundingClientRect().width;
+      const estilo = getComputedStyle(grade);
+      // O novo layout separa as superfícies. Descontar a moldura e os dois vãos evita
+      // comprimir a conversa abaixo de 320px na transição entre três e duas colunas.
+      const moldura = layoutV2
+        ? (parseFloat(estilo.paddingLeft) || 0) + (parseFloat(estilo.paddingRight) || 0)
+          + 2 * (parseFloat(estilo.columnGap) || 0)
+        : 0;
+      const largura = grade.getBoundingClientRect().width - moldura;
       if (largura > 0) setModoGrade(modoDaGrade(largura));
     };
     atualizar();
@@ -188,10 +200,9 @@ export function PaginaAtendimentosCliente({
     const observador = new ResizeObserver(atualizar);
     observador.observe(grade);
     return () => observador.disconnect();
-  }, []);
+  }, [layoutV2]);
   const { definir: definirConversaEmTelaCheia } = useConversaEmTelaCheia();
   const { data: configuracao } = useConfiguracaoComposer();
-  const { data: flags } = useQuery({ queryKey: ["config", "features"], queryFn: () => apiFetch<string[]>("/api/v1/config/features") });
   const chatInternoHabilitado = flags?.includes("chat_interno") ?? false;
   const contatosInternos = useQuery({ queryKey: ["chat-interno", "contatos"], queryFn: listarContatosChat, enabled: chatInternoHabilitado });
   const abrirConversaInterna = useMutation({
@@ -989,7 +1000,9 @@ export function PaginaAtendimentosCliente({
     <ProvedorDeAberturaDeConversa valor={aberturaDeConversaDoContato}>
     <div
       ref={gradeRef}
-      className={`relative grid h-full min-h-0 flex-1 ${colunasDoPainel} grid-rows-[minmax(0,1fr)] overflow-hidden`}
+      data-slot="pagina-atendimentos"
+      data-layout={layoutV2 ? "v2" : "legado"}
+      className={cn(`relative grid h-full min-h-0 flex-1 ${colunasDoPainel} grid-rows-[minmax(0,1fr)] overflow-hidden`, layoutV2 && estilosV2.pagina)}
     >
       {(falhasDeMidia.length > 0 || notificacao || erroDeAbertura) && (
         <div className="pointer-events-none absolute right-4 top-4 z-30 flex w-80 max-w-[calc(100%-2rem)] flex-col gap-2">
@@ -1128,7 +1141,7 @@ export function PaginaAtendimentosCliente({
         className={cn((listaOculta || (acessoPainel.permitido && conversaEmColunaUnica && !conversaAberta && !filtroOperacional)) && "hidden")}
       />
 
-      <div className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden", conversaEmColunaUnica && !conversaAberta && (!acessoPainel.permitido || filtroOperacional) && "hidden")}>
+      <div data-slot="coluna-conversa" className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden", conversaEmColunaUnica && !conversaAberta && (!acessoPainel.permitido || filtroOperacional) && "hidden")}>
         {atendimentoSelecionadoId && (estadoSelecionadoQuery.isError || falhaDeSincronizacao === atendimentoSelecionadoId) && (
           <div role="alert" className="flex items-center justify-between gap-2 bg-cor-atencao/10 px-3 py-2 text-sm text-foreground">
             <span>{textos.tempoReal.sincronizacaoFalhou}</span>
@@ -1280,7 +1293,7 @@ export function PaginaAtendimentosCliente({
       </div>
 
       {conversa && painelVisivel && (
-        <div className={cn("h-full min-h-0 overflow-hidden", conversaEmColunaUnica && "absolute inset-0 z-20 bg-background")}>
+        <div data-slot="coluna-detalhes" className={cn("h-full min-h-0 overflow-hidden", conversaEmColunaUnica && "absolute inset-0 z-20 bg-background")}>
           <PainelDaConversa
             leadId={conversa.leadId}
             atendimentoId={conversa.atendimentoId}

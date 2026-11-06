@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./assets/353f820191996dc96fc441c7bfb0d360.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#E9EBEF;font-family:'Geist',system-ui,sans-serif}
+a{color:#1F5FD6;text-decoration:none}a:hover{color:#1A50B8}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#D9DCE1;border-radius:20px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+<div style="width:1920px;height:1080px;margin:0 auto;display:flex;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.16)),url(./assets/27ad40ddb18eb2a5105f4af911ec42a5.jpg) left bottom/1920px 2400px no-repeat;color:#0E1220;overflow:hidden;position:relative;font-size:14px;font-variant-numeric:tabular-nums">
+<dc-import name="SidebarV2" active="dashboard" hint-size="88px,100%" style="width:88px;flex:none;height:100%;position:relative;z-index:60"></dc-import>
+<section style="flex:1;min-width:0;display:flex;flex-direction:column;margin:10px 10px 10px 0;border-radius:24px;overflow:hidden;background:#F4F5F7;position:relative;box-shadow:0 0 0 1px rgba(255,255,255,.7),0 30px 80px -40px rgba(11,19,36,.5)">
+
+  <div style="flex:none;display:flex;align-items:center;gap:10px;padding:16px 28px 0">
+    <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:#8B91A0"><i class="ri-home-5-line" style="font-size:16px"></i><span style="color:#CDD1D8">/</span><span>Gestão</span><span style="color:#CDD1D8">/</span><span style="color:#0E1220;font-weight:500">Dashboard</span></div>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:9px;width:360px;height:38px;padding:0 6px 0 13px;background:#fff;border:1px solid #E6E7EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04)">
+      <i class="ri-search-line" style="font-size:16px;color:#8B91A0"></i><span style="flex:1;font-size:13.5px;color:#9CA3B0">Buscar leads, atendentes, relatórios…</span>
+      <span style="height:24px;padding:0 7px;border-radius:7px;background:#F4F5F7;border:1px solid #E6E7EB;font-size:11px;color:#5B6274;display:flex;align-items:center;font-family:'Geist Mono',monospace">⌘K</span>
+    </div>
+    <dc-import name="NotificacoesV2" hint-size="38px,38px" style="flex:none;display:flex"></dc-import>
+  </div>
+
+  <div style="flex:none;display:flex;align-items:flex-end;gap:14px;padding:22px 28px 18px">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:30px;font-weight:600;letter-spacing:-.04em;line-height:1.1">Dashboard</div>
+      <div style="font-size:14px;color:#6B7385;margin-top:6px">{{ subtitle }}</div>
+    </div>
+    <div style="display:inline-flex;gap:2px;background:#E9EAEE;border-radius:13px;padding:3px">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+        <div onClick="{{ t.onClick }}" style="{{ t.style }}"><i class="{{ t.icon }}" style="font-size:15px"></i>{{ t.label }}<sc-if value="{{ t.soon }}" hint-placeholder-val="{{ false }}"><span style="height:18px;padding:0 7px;border-radius:9px;background:#EEEDFD;color:#4F46E5;font-size:10.5px;font-weight:600;display:inline-flex;align-items:center">Em breve</span></sc-if></div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;padding:0 28px 36px">
+
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;position:relative;z-index:30;flex-wrap:wrap">
+      <div style="position:relative;flex:none">
+        <select value="{{ year }}" onChange="{{ onYearChange }}" style="appearance:none;-webkit-appearance:none;height:46px;border:1px solid #E6E7EB;border-radius:13px;padding:0 34px 0 36px;font-family:inherit;font-size:15px;font-weight:600;color:#0E1220;background:#fff;outline:none;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.05)">
+          <sc-for list="{{ yearOptions }}" as="y" hint-placeholder-count="4"><option value="{{ y }}">{{ y }}</option></sc-for>
+        </select>
+        <i class="ri-calendar-2-line" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;color:#5B6274;pointer-events:none"></i>
+        <i class="ri-arrow-down-s-line" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:15px;color:#8B91A0;pointer-events:none"></i>
+      </div>
+      <div style="display:inline-flex;align-items:center;gap:2px;background:#E9EAEE;border-radius:14px;padding:4px;flex:none">
+        <div onClick="{{ toggleAnoInteiro }}" style="{{ anoInteiroStyle }}">Ano inteiro</div>
+        <span style="width:1px;height:20px;background:#D3D6DC;margin:0 5px"></span>
+        <sc-for list="{{ monthPills }}" as="mp" hint-placeholder-count="12">
+          <div onClick="{{ mp.onClick }}" style="{{ mp.style }}">{{ mp.label }}</div>
+        </sc-for>
+      </div>
+      <div style="flex:1;min-width:12px"></div>
+      <sc-if value="{{ isGeral }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;background:#E9EAEE;border-radius:12px;padding:3px;gap:2px;flex:none">
+          <sc-for list="{{ viewOptions }}" as="v" hint-placeholder-count="2">
+            <div onClick="{{ v.onClick }}" style="{{ v.style }}"><i class="{{ v.icon }}" style="font-size:14px"></i>{{ v.label }}</div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <div style="position:relative;flex:none">
+        <button onClick="{{ togglePeriod }}" style="{{ periodBtnStyle }}"><i class="ri-calendar-line" style="font-size:15px"></i>{{ periodLabel }}<i class="ri-arrow-down-s-line" style="font-size:15px;opacity:.7"></i></button>
+        <sc-if value="{{ periodOpen }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ stop }}" style="position:absolute;top:calc(100% + 8px);right:0;width:620px;background:#fff;border:1px solid #E8E9EC;border-radius:20px;box-shadow:0 30px 70px -24px rgba(16,24,40,.32);z-index:50;padding:18px 20px 16px">
+            <div style="display:flex;align-items:center;margin-bottom:14px">
+              <button onClick="{{ calPrev }}" style="width:30px;height:30px;border-radius:9px;border:1px solid #E6E7EB;background:#fff;color:#5B6274;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-arrow-left-s-line"></i></button>
+              <span style="flex:1;text-align:center;font-size:14px;font-weight:600;color:#0E1220;text-transform:capitalize">{{ calLeftLabel }}</span>
+              <span style="flex:1;text-align:center;font-size:14px;font-weight:600;color:#0E1220;text-transform:capitalize">{{ calRightLabel }}</span>
+              <button onClick="{{ calNext }}" style="width:30px;height:30px;border-radius:9px;border:1px solid #E6E7EB;background:#fff;color:#5B6274;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-arrow-right-s-line"></i></button>
+            </div>
+            <div style="display:flex;gap:20px">
+              <sc-for list="{{ calMonths }}" as="cm" hint-placeholder-count="2">
+                <div style="flex:1;min-width:0">
+                  <div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px">
+                    <sc-for list="{{ cm.weekdays }}" as="wd" hint-placeholder-count="7"><div style="text-align:center;font-size:11px;font-weight:500;color:#9CA3B0">{{ wd }}</div></sc-for>
+                  </div>
+                  <sc-for list="{{ cm.weeks }}" as="wk" hint-placeholder-count="6">
+                    <div style="{{ wk.bandStyle }}"><div style="display:grid;grid-template-columns:repeat(7,1fr)">
+                      <sc-for list="{{ wk.days }}" as="d" hint-placeholder-count="7"><div onClick="{{ d.onClick }}" style="{{ d.style }}">{{ d.label }}</div></sc-for>
+                    </div></div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+            <div style="height:1px;background:#F1F2F4;margin:14px 0 12px"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <button onClick="{{ calClear }}" style="display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:10px;border:1px solid #E6E7EB;background:#fff;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.05);text-decoration:none;white-space:nowrap" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220">Limpar</button>
+              <button onClick="{{ calApply }}" style="height:34px;padding:0 18px;border-radius:10px;border:0;background:#1F5FD6;color:#fff;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 6px 14px -6px rgba(31,95,214,.8)">Aplicar período</button>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+    <sc-if value="{{ noMonths }}" hint-placeholder-val="{{ false }}">
+      <div style="margin:-6px 0 14px;font-size:13px;color:#C8352A;font-weight:500;display:flex;align-items:center;gap:6px"><i class="ri-error-warning-line"></i>Selecione ao menos um mês.</div>
+    </sc-if>
+
+    <sc-if value="{{ isGeral }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <div style="display:flex;align-items:stretch;background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:hidden">
+          <div style="display:flex;flex-direction:column;justify-content:center;gap:6px;padding:14px 22px;background:#1F5FD6;color:#fff;flex:none;min-width:168px;box-shadow:inset 0 1px 0 rgba(255,255,255,.18)">
+            <div style="display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="width:7px;height:7px;border-radius:50%;background:#4ADE80;box-shadow:0 0 0 4px rgba(74,222,128,.28)"></span>Ao vivo</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.8)">atualizado há 12s</div>
+          </div>
+          <sc-for list="{{ liveStats }}" as="l" hint-placeholder-count="7">
+            <a href="{{ l.href }}" title="Abrir em Atendimentos" style="flex:1;min-width:0;padding:14px 18px;border-left:1px solid #F0F1F3;display:flex;flex-direction:column;justify-content:center;gap:5px;text-decoration:none;color:inherit;cursor:pointer;transition:background .15s" style-hover="background:#F3F7FF">
+              <span style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:#6B7385;min-width:0"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ l.label }}</span><i class="ri-arrow-right-up-line" style="font-size:13px;color:#B4BAC6;flex:none;margin-left:auto"></i></span>
+              <span style="{{ l.valueStyle }}">{{ l.value }}</span>
+            </a>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ isCompacta }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px">
+            <sc-for list="{{ metricCards }}" as="m" hint-placeholder-count="11">
+              <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:18px 20px;min-width:0;display:flex;flex-direction:column;grid-column:{{ m.col }}">
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div style="{{ m.iconWrapStyle }}"><i class="{{ m.icon }}" style="{{ m.iconStyleLg }}"></i></div>
+                  <span style="flex:1;min-width:0;font-size:13.5px;font-weight:500;color:#3A4354;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.label }}</span>
+                  <sc-if value="{{ m.isNew }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:600;color:#1F5FD6;background:#EDF2FD;padding:2px 8px;border-radius:999px;flex:none">Novo</span></sc-if>
+
+                </div>
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:18px">
+                  <div style="min-width:0">
+                    <div style="display:flex;align-items:center;gap:10px"><span style="font-size:28px;font-weight:600;letter-spacing:-.035em;line-height:1;white-space:nowrap">{{ m.value }}</span>
+                      <sc-if value="{{ m.hasDelta }}" hint-placeholder-val="{{ true }}"><span style="{{ m.trendStyle }}"><i class="{{ m.trendIcon }}"></i>{{ m.delta }}</span></sc-if></div>
+                    <div style="font-size:12.5px;color:#8B91A0;margin-top:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.subShort }}</div>
+                  </div>
+                  <div style="display:flex;align-items:flex-end;gap:3px;height:42px;flex:none">
+                    <sc-for list="{{ m.spark }}" as="s" hint-placeholder-count="12"><div style="{{ s.style }}"></div></sc-for>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isExpandida }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+            <sc-for list="{{ metricCards }}" as="m" hint-placeholder-count="11">
+              <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:18px 20px 16px;display:flex;flex-direction:column;min-width:0">
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div style="{{ m.iconWrapStyle }}"><i class="{{ m.icon }}" style="{{ m.iconStyleLg }}"></i></div>
+                  <span style="flex:1;min-width:0;font-size:13.5px;font-weight:500;color:#3A4354;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.label }}</span>
+                  <sc-if value="{{ m.isNew }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:600;color:#1F5FD6;background:#EDF2FD;padding:2px 8px;border-radius:999px;flex:none">Novo</span></sc-if>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:16px"><span style="font-size:28px;font-weight:600;letter-spacing:-.035em;line-height:1;white-space:nowrap">{{ m.value }}</span>
+                  <sc-if value="{{ m.hasDelta }}" hint-placeholder-val="{{ true }}"><span style="{{ m.trendStyle }}"><i class="{{ m.trendIcon }}"></i>{{ m.delta }}</span></sc-if></div>
+                <div style="font-size:12.5px;color:#8B91A0;margin:9px 0 16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.sub }}</div>
+                <div style="display:flex;gap:9px">
+                  <div style="width:36px;flex:none;position:relative;height:112px">
+                    <sc-for list="{{ m.ticks }}" as="t" hint-placeholder-count="3"><div style="{{ t.labelStyle }}">{{ t.label }}</div></sc-for>
+                  </div>
+                  <div style="position:relative;flex:1;min-width:0;height:112px;display:flex;align-items:flex-end;gap:4px;border-bottom:1px solid #F0F1F3">
+                    <sc-for list="{{ m.ticks }}" as="t" hint-placeholder-count="3"><div style="{{ t.lineStyle }}"></div></sc-for>
+                    <sc-for list="{{ m.bars }}" as="b" hint-placeholder-count="12">
+                      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0">
+                        <div style="{{ b.labelStyle }}">{{ b.valueLabel }}</div>
+                        <div style="{{ b.barStyle }}"></div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="display:flex;gap:4px;margin-top:8px;padding-left:45px">
+                  <sc-for list="{{ m.bars }}" as="b" hint-placeholder-count="12"><div style="{{ b.monthStyle }}">{{ b.label }}</div></sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <div style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px">
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0">
+            <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Funil de conversão</div><div style="font-size:13px;color:#8B91A0;margin-top:3px">Leads por etapa · taxa de passagem e tempo médio parado</div></div><a href="#comercial" onClick="{{ goComercial }}" style="display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:10px;border:1px solid #E6E7EB;background:#fff;color:#1A2233;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.05);text-decoration:none;white-space:nowrap" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220">Ver pipeline<i class="ri-arrow-right-up-line" style="font-size:15px"></i></a></div>
+            <div style="display:grid;grid-template-columns:150px minmax(0,1fr) 72px 64px 84px;gap:14px;align-items:center;height:34px;padding:0 12px;background:#F7F8FA;border-radius:10px;font-size:12px;font-weight:500;color:#6B7385">
+              <div>Etapa</div><div></div><div style="text-align:right">Leads</div><div style="text-align:right">Passa</div><div style="text-align:right">Parado</div>
+            </div>
+            <sc-for list="{{ funilGeral }}" as="s" hint-placeholder-count="6">
+              <div style="display:grid;grid-template-columns:150px minmax(0,1fr) 72px 64px 84px;gap:14px;align-items:center;height:46px;padding:0 12px;border-bottom:1px solid #F3F4F6">
+                <div style="font-size:13.5px;font-weight:500;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.name }}</div>
+                <div style="height:10px;background:#F1F2F4;border-radius:999px;overflow:hidden"><div style="{{ s.barStyle }}"></div></div>
+                <div style="text-align:right;font-size:13.5px;font-weight:600;color:#0E1220">{{ s.count }}</div>
+                <div style="{{ s.convStyle }}">{{ s.conv }}</div>
+                <div style="text-align:right;font-size:12.5px;color:#8B91A0">{{ s.time }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0;display:flex;flex-direction:column">
+            <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Satisfação no período</div><div style="font-size:13px;color:#8B91A0;margin-top:3px">Escala de 0 a 10 · 224 avaliações</div></div></div>
+            <div style="display:flex;align-items:center;gap:26px;flex:1">
+              <div style="position:relative;flex:none;line-height:0">
+                <svg width="{{ npsDonut.size }}" height="{{ npsDonut.size }}" viewBox="0 0 {{ npsDonut.size }} {{ npsDonut.size }}">
+                  <g transform="rotate(-90 {{ npsDonut.cx }} {{ npsDonut.cy }})">
+                    <sc-for list="{{ npsDonut.arcs }}" as="a" hint-placeholder-count="3">
+                      <circle cx="{{ npsDonut.cx }}" cy="{{ npsDonut.cy }}" r="{{ npsDonut.r }}" fill="none" stroke="{{ a.color }}" strokeWidth="{{ npsDonut.thickness }}" strokeDasharray="{{ a.dasharray }}" strokeDashoffset="{{ a.dashoffset }}"></circle>
+                    </sc-for>
+                  </g>
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1">
+                  <span style="font-size:30px;font-weight:600;letter-spacing:-.04em;color:#0E1220">{{ npsMedia }}</span>
+                  <span style="font-size:12px;color:#8B91A0;margin-top:5px">nota média</span>
+                </div>
+              </div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px">
+                <sc-for list="{{ npsDonut.arcs }}" as="a" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <span style="{{ a.dotStyle }}"></span>
+                    <span style="flex:1;min-width:0;font-size:13.5px;color:#3A4354">{{ a.label }}</span>
+                    <span style="font-size:13px;font-weight:600;color:#0E1220">{{ a.countPct }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="margin-top:16px;padding:11px 14px;border-radius:12px;background:#F7F8FA;display:flex;justify-content:space-between;font-size:13px;color:#6B7385">
+              <span>Taxa de resposta</span><span style="font-weight:600;color:#0E1220">6,9%</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px">
+          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Equipe · desempenho no período</div><div style="font-size:13px;color:#8B91A0;margin-top:3px">Atendimentos, vendas, conversão, 1ª resposta e nota média</div></div><span style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;background:#F4F5F7;border:1px solid #ECEDF0;font-size:12px;font-weight:500;color:#5B6274;white-space:nowrap">Ordenado por vendas fechadas</span><a href="GestaoV2.dc.html" style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:9px;border:1px solid #E6E7EB;background:#fff;color:#5B6274;font-size:12.5px;font-weight:500;cursor:pointer;text-decoration:none" style-hover="background:#F7F8FA;border-color:#DCDFE4;color:#0E1220">Ver equipe<i class="ri-arrow-right-up-line" style="font-size:14px"></i></a></div>
+          <div style="display:grid;grid-template-columns:2.2fr repeat(5,minmax(0,1fr));align-items:center;height:36px;padding:0 14px;background:#F7F8FA;border-radius:10px;font-size:12px;font-weight:500;color:#6B7385">
+            <div>Atendente</div><div style="text-align:right">Atendimentos</div><div style="text-align:right">Vendas</div><div style="text-align:right">Conversão</div><div style="text-align:right">1ª resposta</div><div style="text-align:right">Nota</div>
+          </div>
+          <sc-for list="{{ equipeRows }}" as="r" hint-placeholder-count="8">
+            <div style="display:grid;grid-template-columns:2.2fr repeat(5,minmax(0,1fr));align-items:center;height:54px;padding:0 14px;border-bottom:1px solid #F3F4F6" style-hover="background:#FAFAFB">
+              <div style="display:flex;align-items:center;gap:12px;min-width:0">
+                <span style="{{ r.rankStyle }}">{{ r.rank }}</span>
+                <div style="{{ r.avatarStyle }}">{{ r.initials }}</div>
+                <span style="font-size:13.5px;font-weight:500;color:#0E1220;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</span>
+              </div>
+              <div style="text-align:right;font-size:13.5px;color:#3A4354">{{ r.atend }}</div>
+              <div style="text-align:right;font-size:13.5px;font-weight:600;color:#0E1220">{{ r.vendas }}</div>
+              <div style="{{ r.convStyle }}">{{ r.conv }}</div>
+              <div style="text-align:right;font-size:13px;color:#5B6274">{{ r.tpr }}</div>
+              <div style="display:flex;justify-content:flex-end;align-items:center;gap:5px;font-size:13.5px;font-weight:600;color:#0E1220"><i class="ri-star-fill" style="font-size:13px;color:#F5B83D"></i>{{ r.nota }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px">
+          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Horário de pico</div><div style="font-size:13px;color:#8B91A0;margin-top:3px">Mensagens trocadas em cada hora do dia · passe o mouse nas barras</div></div><span style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;background:#F4F5F7;border:1px solid #ECEDF0;font-size:12px;font-weight:500;color:#5B6274;white-space:nowrap">Picos às 9h e 15h · vale entre 12h e 13h</span></div>
+          <div onMouseLeave="{{ hourLeave }}" style="position:relative;height:250px;margin-top:46px;display:flex;gap:6px">
+            <div style="position:absolute;left:0;right:0;top:0;border-top:1px dashed #ECEDF0"></div>
+            <div style="position:absolute;left:0;right:0;top:33%;border-top:1px dashed #ECEDF0"></div>
+            <div style="position:absolute;left:0;right:0;top:66%;border-top:1px dashed #ECEDF0"></div>
+            <sc-for list="{{ hourBars }}" as="b" hint-placeholder-count="24">
+              <div onMouseEnter="{{ b.onEnter }}" style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;min-width:0;position:relative">
+                <sc-if value="{{ b.isHover }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;inset:-8px -2px 18px;border-radius:12px;background:linear-gradient(180deg,rgba(31,95,214,0),rgba(31,95,214,.09));box-shadow:inset 0 0 0 1px rgba(31,95,214,.16);pointer-events:none"></div>
+                  <div style="position:absolute;top:-14px;left:50%;transform:translate(-50%,-100%);background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border:1px solid #E6E7EB;color:#0E1220;border-radius:12px;padding:8px 11px;white-space:nowrap;z-index:2;box-shadow:0 14px 30px -14px rgba(16,24,40,.4)">
+                    <div style="font-size:11.5px;color:#8B91A0">{{ b.hourLabel }}</div>
+                    <div style="font-size:13.5px;font-weight:600;margin-top:2px;color:#1F5FD6">{{ b.tipLabel }}</div>
+                  </div>
+                </sc-if>
+                <div style="flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center"><div style="{{ b.barStyle }}"></div></div>
+                <div style="font-size:11.5px;color:#9CA3B0;margin-top:8px;height:14px">{{ b.label }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:9px;padding:2px 4px">
+          <i class="ri-information-line" style="font-size:15px;color:#9CA3B0;flex:none"></i>
+          <span style="font-size:12.5px;color:#8B91A0;line-height:1.55">Sem valor em R$: crie o campo customizado <span style="font-family:'Geist Mono',monospace;font-size:12px;color:#3A4354;background:#ECEDF0;padding:1px 6px;border-radius:6px">valor_venda</span> para faturamento e ticket médio · histórico de etapas disponível a partir da V22 · avaliações anteriores à V56 usavam escala 1–5.</span>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isOperacional }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px">
+          <sc-for list="{{ kpisOperacional }}" as="k" hint-placeholder-count="8"><div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:18px 20px;display:flex;flex-direction:column;min-width:0"><div style="display:flex;align-items:center;gap:12px"><div style="{{ k.iconWrapStyle }}"><i class="{{ k.icon }}" style="{{ k.iconStyle }}"></i></div><span style="flex:1;min-width:0;font-size:13.5px;font-weight:500;color:#3A4354;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ k.label }}</span></div><div style="display:flex;align-items:center;gap:10px;margin-top:18px;flex-wrap:wrap"><span style="font-size:28px;font-weight:600;letter-spacing:-.035em;line-height:1;color:#0E1220">{{ k.value }}</span><sc-if value="{{ k.hasTrend }}" hint-placeholder-val="{{ true }}"><span style="{{ k.trendStyle }}"><i class="{{ k.trendIcon }}"></i>{{ k.trendLabel }}</span></sc-if></div><div style="font-size:12.5px;color:#8B91A0;margin-top:9px">{{ k.totalLabel }}</div></div></sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px">
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Atendimentos no tempo</div><div style="font-size:13px;color:#8B91A0;margin-top:3px">Últimos 14 dias</div></div></div><svg width="100%" viewBox="0 0 {{ atendLine.W }} {{ atendLine.H }}" preserveAspectRatio="none" style="display:block;height:220px"><path d="{{ atendLine.area }}" fill="#1F5FD6" opacity="0.08"></path><polyline points="{{ atendLine.points }}" fill="none" stroke="#1F5FD6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"></polyline></svg><div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:#9CA3B0"><span>{{ atendLine.firstLabel }}</span><span>{{ atendLine.lastLabel }}</span></div></div>
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Horário de pico</div><div style="font-size:13px;color:#8B91A0;margin-top:3px">Mensagens por hora</div></div></div><div style="display:flex;align-items:flex-end;gap:6px;height:238px"><sc-for list="{{ peakBars }}" as="b" hint-placeholder-count="12"><div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;height:100%;min-width:0"><div style="{{ b.barStyle }}"></div><div style="font-size:11.5px;color:#9CA3B0">{{ b.label }}</div></div></sc-for></div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px">
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0">
+            <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Volume por dia da semana</div><div style="font-size:13px;color:#8B91A0;margin-top:3px">Sábado em plantão · domingo fechado</div></div></div>
+            <div style="display:grid;grid-template-columns:60px repeat(7,minmax(0,1fr));gap:6px;align-items:center">
+              <div></div>
+              <sc-for list="{{ heatDays }}" as="d" hint-placeholder-count="7"><div style="text-align:center;font-size:12px;font-weight:500;color:#6B7385">{{ d }}</div></sc-for>
+              <sc-for list="{{ heatRows }}" as="row" hint-placeholder-count="3">
+                <div style="font-size:12px;font-weight:500;color:#6B7385">{{ row.label }}</div>
+                <sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="7"><div style="{{ c.style }}">{{ c.value }}</div></sc-for>
+              </sc-for>
+            </div>
+          </div>
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Distribuição de notas</div><div style="font-size:13px;color:#8B91A0;margin-top:3px">CSAT 0–10 · 312 avaliações</div></div></div><div style="display:flex;align-items:flex-end;gap:6px;height:168px"><sc-for list="{{ notesBars }}" as="b" hint-placeholder-count="12"><div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;height:100%;min-width:0"><div style="{{ b.barStyle }}"></div><div style="font-size:11.5px;color:#9CA3B0">{{ b.label }}</div></div></sc-for></div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Top 5 · atendimentos</div></div></div><sc-for list="{{ rankAtendimentos }}" as="it" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:11px;min-height:46px;padding:6px 0;border-top:1px solid #F3F4F6"><span style="{{ it.rankStyle }}">{{ it.rank }}</span><div style="{{ it.avatarStyle }}">{{ it.initials }}</div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:500;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div></div><div style="font-size:13.5px;font-weight:600;color:#0E1220">{{ it.value }}</div></div></sc-for></div>
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Top 5 · avaliação</div></div></div><sc-for list="{{ rankAvaliacao }}" as="it" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:11px;min-height:46px;padding:6px 0;border-top:1px solid #F3F4F6"><span style="{{ it.rankStyle }}">{{ it.rank }}</span><div style="{{ it.avatarStyle }}">{{ it.initials }}</div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:500;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div></div><div style="font-size:13.5px;font-weight:600;color:#0E1220">{{ it.value }}</div></div></sc-for></div>
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Top 5 · tempo de resposta</div></div></div><sc-for list="{{ rankTempo }}" as="it" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:11px;min-height:46px;padding:6px 0;border-top:1px solid #F3F4F6"><span style="{{ it.rankStyle }}">{{ it.rank }}</span><div style="{{ it.avatarStyle }}">{{ it.initials }}</div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:500;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div></div><div style="font-size:13.5px;font-weight:600;color:#0E1220">{{ it.value }}</div></div></sc-for></div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isComercial }}" hint-placeholder-val="{{ false }}">
+      <div id="comercial" style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+          <sc-for list="{{ kpisComercial }}" as="k" hint-placeholder-count="6"><div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:18px 20px;display:flex;flex-direction:column;min-width:0"><div style="display:flex;align-items:center;gap:12px"><div style="{{ k.iconWrapStyle }}"><i class="{{ k.icon }}" style="{{ k.iconStyle }}"></i></div><span style="flex:1;min-width:0;font-size:13.5px;font-weight:500;color:#3A4354;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ k.label }}</span></div><div style="display:flex;align-items:center;gap:10px;margin-top:18px;flex-wrap:wrap"><span style="font-size:28px;font-weight:600;letter-spacing:-.035em;line-height:1;color:#0E1220">{{ k.value }}</span><sc-if value="{{ k.hasTrend }}" hint-placeholder-val="{{ true }}"><span style="{{ k.trendStyle }}"><i class="{{ k.trendIcon }}"></i>{{ k.trendLabel }}</span></sc-if></div><div style="font-size:12.5px;color:#8B91A0;margin-top:9px">{{ k.totalLabel }}</div></div></sc-for>
+        </div>
+        <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px">
+          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Pipeline de vendas</div><div style="font-size:13px;color:#8B91A0;margin-top:3px">Contagem em cada etapa e taxa de passagem</div></div></div>
+          <sc-for list="{{ funilStages }}" as="s" hint-placeholder-count="6">
+            <div style="display:grid;grid-template-columns:170px minmax(0,1fr) 72px;gap:16px;align-items:center;padding:6px 0">
+              <div style="font-size:13.5px;font-weight:500;color:#1A2233">{{ s.name }}</div>
+              <div style="height:38px;background:#F4F5F7;border-radius:10px;position:relative;overflow:hidden">
+                <div style="{{ s.barStyleLg }}"></div>
+                <div style="{{ s.overlayStyleLg }}">{{ s.count }}<sc-if value="{{ s.hasValue }}" hint-placeholder-val="{{ false }}"> · {{ s.value }}</sc-if></div>
+              </div>
+              <div style="text-align:right"><sc-if value="{{ s.hasConv }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:999px;background:#EDF2FD;color:#1F5FD6;font-size:12.5px;font-weight:600">{{ s.convLabel }}</span></sc-if></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px">
+          <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Orçamentos enviados por período</div><div style="font-size:13px;color:#8B91A0;margin-top:3px">Últimos 6 meses · Jul parcial</div></div></div>
+          <div style="display:flex;align-items:flex-end;gap:16px;height:190px">
+            <sc-for list="{{ revenueBars }}" as="b" hint-placeholder-count="6">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;height:100%">
+                <div style="font-size:12.5px;font-weight:600;color:#0E1220">{{ b.value }}</div>
+                <div style="{{ b.barStyle }}"></div>
+                <div style="font-size:12px;color:#9CA3B0">{{ b.label }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Mix de produto</div></div></div><div style="display:flex;align-items:center;gap:22px"><svg width="{{ mixDonut.size }}" height="{{ mixDonut.size }}" viewBox="0 0 {{ mixDonut.size }} {{ mixDonut.size }}" style="flex:none"><g transform="rotate(-90 {{ mixDonut.cx }} {{ mixDonut.cy }})"><sc-for list="{{ mixDonut.arcs }}" as="a" hint-placeholder-count="4"><circle cx="{{ mixDonut.cx }}" cy="{{ mixDonut.cy }}" r="{{ mixDonut.r }}" fill="none" stroke="{{ a.color }}" strokeWidth="{{ mixDonut.thickness }}" strokeDasharray="{{ a.dasharray }}" strokeDashoffset="{{ a.dashoffset }}"></circle></sc-for></g></svg><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px"><sc-for list="{{ mixDonut.arcs }}" as="a" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:9px;font-size:13px;color:#3A4354"><span style="{{ a.dotStyle }}"></span><span style="flex:1;white-space:nowrap">{{ a.label }}</span><span style="font-weight:600;color:#0E1220">{{ a.pctLabel }}</span></div></sc-for></div></div></div>
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Tipo de cliente</div></div></div><div style="display:flex;align-items:center;gap:22px"><svg width="{{ tipoDonut.size }}" height="{{ tipoDonut.size }}" viewBox="0 0 {{ tipoDonut.size }} {{ tipoDonut.size }}" style="flex:none"><g transform="rotate(-90 {{ tipoDonut.cx }} {{ tipoDonut.cy }})"><sc-for list="{{ tipoDonut.arcs }}" as="a" hint-placeholder-count="4"><circle cx="{{ tipoDonut.cx }}" cy="{{ tipoDonut.cy }}" r="{{ tipoDonut.r }}" fill="none" stroke="{{ a.color }}" strokeWidth="{{ tipoDonut.thickness }}" strokeDasharray="{{ a.dasharray }}" strokeDashoffset="{{ a.dashoffset }}"></circle></sc-for></g></svg><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px"><sc-for list="{{ tipoDonut.arcs }}" as="a" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:9px;font-size:13px;color:#3A4354"><span style="{{ a.dotStyle }}"></span><span style="flex:1;white-space:nowrap">{{ a.label }}</span><span style="font-weight:600;color:#0E1220">{{ a.pctLabel }}</span></div></sc-for></div></div></div>
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0">
+            <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Motivo de perda</div></div></div>
+            <sc-for list="{{ lossBars }}" as="l" hint-placeholder-count="5">
+              <div style="margin-bottom:13px">
+                <div style="display:flex;justify-content:space-between;font-size:13px;color:#3A4354;margin-bottom:6px"><span>{{ l.label }}</span><span style="font-weight:600;color:#0E1220">{{ l.pct }}</span></div>
+                <div style="height:8px;background:#F1F2F4;border-radius:999px;overflow:hidden"><div style="{{ l.barStyle }}"></div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px">
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Top 5 · vendas fechadas</div></div></div><sc-for list="{{ rankConversao }}" as="it" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:11px;min-height:46px;padding:6px 0;border-top:1px solid #F3F4F6"><span style="{{ it.rankStyle }}">{{ it.rank }}</span><div style="{{ it.avatarStyle }}">{{ it.initials }}</div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:500;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div></div><div style="font-size:13.5px;font-weight:600;color:#0E1220">{{ it.value }}</div></div></sc-for></div>
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Produtos mais pedidos</div></div></div><sc-for list="{{ rankProdutos }}" as="it" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:11px;min-height:46px;padding:6px 0;border-top:1px solid #F3F4F6"><span style="{{ it.rankStyle }}">{{ it.rank }}</span><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:500;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div></div><div style="font-size:13.5px;font-weight:600;color:#0E1220">{{ it.value }}</div></div></sc-for></div>
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Clientes · recorrência</div></div></div><sc-for list="{{ rankClientes }}" as="it" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:11px;min-height:46px;padding:6px 0;border-top:1px solid #F3F4F6"><span style="{{ it.rankStyle }}">{{ it.rank }}</span><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:500;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div><div style="font-size:12px;color:#8B91A0;margin-top:2px">{{ it.detail }}</div></div></div></sc-for></div>
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Cidades / regiões</div></div></div><sc-for list="{{ rankCidades }}" as="it" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:11px;min-height:46px;padding:6px 0;border-top:1px solid #F3F4F6"><span style="{{ it.rankStyle }}">{{ it.rank }}</span><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:500;color:#1A2233;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div></div><div style="font-size:13.5px;font-weight:600;color:#0E1220">{{ it.value }}</div></div></sc-for></div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isIA }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+          <sc-for list="{{ kpisIA }}" as="k" hint-placeholder-count="4"><div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:18px 20px;display:flex;flex-direction:column;min-width:0"><div style="display:flex;align-items:center;gap:12px"><div style="{{ k.iconWrapStyle }}"><i class="{{ k.icon }}" style="{{ k.iconStyle }}"></i></div><span style="flex:1;min-width:0;font-size:13.5px;font-weight:500;color:#3A4354;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ k.label }}</span></div><div style="display:flex;align-items:center;gap:10px;margin-top:18px;flex-wrap:wrap"><span style="font-size:28px;font-weight:600;letter-spacing:-.035em;line-height:1;color:#0E1220">{{ k.value }}</span><sc-if value="{{ k.hasTrend }}" hint-placeholder-val="{{ true }}"><span style="{{ k.trendStyle }}"><i class="{{ k.trendIcon }}"></i>{{ k.trendLabel }}</span></sc-if></div><div style="font-size:12.5px;color:#8B91A0;margin-top:9px">{{ k.totalLabel }}</div></div></sc-for>
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:18px 20px;display:flex;align-items:center;gap:14px">
+            <div style="width:44px;height:44px;border-radius:50%;background:#E7F6EE;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-link" style="font-size:19px;color:#12855A"></i></div>
+            <div style="flex:1"><div style="font-size:13.5px;color:#3A4354;font-weight:500">Conexão Automação</div><div style="font-size:12.5px;color:#8B91A0;margin-top:3px">Sincronizado há 2 min</div></div>
+            <span style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:999px;background:#E7F6EE;color:#12855A;font-size:12.5px;font-weight:600"><span style="width:7px;height:7px;border-radius:50%;background:#22A35A"></span>Conectado</span>
+          </div>
+          <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:18px 20px;display:flex;align-items:center;gap:14px">
+            <div style="width:44px;height:44px;border-radius:50%;background:#E7F6EE;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-database-2-line" style="font-size:19px;color:#12855A"></i></div>
+            <div style="flex:1"><div style="font-size:13.5px;color:#3A4354;font-weight:500">Status do CRM</div><div style="font-size:12.5px;color:#8B91A0;margin-top:3px">Todos os serviços operando</div></div>
+            <span style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:999px;background:#E7F6EE;color:#12855A;font-size:12.5px;font-weight:600"><span style="width:7px;height:7px;border-radius:50%;background:#22A35A"></span>Online</span>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #E8E9EC;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px 22px;min-width:0"><div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px"><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:600;letter-spacing:-.015em;color:#0E1220">Mensagens respondidas pela IA</div><div style="font-size:13px;color:#8B91A0;margin-top:3px">Últimos 14 dias · volume diário de atendimento automatizado</div></div></div><svg width="100%" viewBox="0 0 {{ iaLine.W }} {{ iaLine.H }}" preserveAspectRatio="none" style="display:block;height:220px"><path d="{{ iaLine.area }}" fill="#1F5FD6" opacity="0.08"></path><polyline points="{{ iaLine.points }}" fill="none" stroke="#1F5FD6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"></polyline></svg><div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:#9CA3B0"><span>{{ iaLine.firstLabel }}</span><span>{{ iaLine.lastLabel }}</span></div></div>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ periodOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closePeriod }}" style="position:absolute;inset:0;z-index:29"></div>
+  </sc-if>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1920,&quot;height&quot;:1080}}">
+class Component extends DCLogic {
+  state = {
+    hoverHour:null, tab:'geral', actionOpen:'orc', viewGeral:'compacta',
+    year:2026, yearMode:'ano', selMonths:[true,true,true,true,true,true,true,true,true,true,true,true],
+    periodOpen:false, rangeFrom:null, rangeTo:null, draftFrom:null, draftTo:null,
+    calBaseYear:2026, calBaseMonth:6
+  };
+
+  MULT_BY_MONTH = [0.68,0.72,0.79,0.83,0.82,0.91,1,0.97,0.88,0.93,0.85,0.74];
+  MONTH_ABBR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  MONTH_FULL = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  WEEKDAYS = ['dom','seg','ter','qua','qui','sex','sab'];
+
+  effectiveMult(){
+    const s=this.state;
+    const idxs = s.yearMode==='ano' ? [0,1,2,3,4,5,6,7,8,9,10,11] : s.selMonths.map((v,i)=>v?i:-1).filter(i=>i>=0);
+    if(!idxs.length) return 1;
+    return idxs.reduce((a,i)=>a+this.MULT_BY_MONTH[i],0)/idxs.length;
+  }
+
+  toggleMonth(i){
+    const s=this.state;
+    const sel = s.selMonths.slice();
+    sel[i] = !sel[i];
+    this.setState({ yearMode: sel.every(Boolean)?'ano':'mes', selMonths: sel });
+  }
+  toggleAnoInteiro(){
+    const all=this.state.selMonths.every(Boolean);
+    this.setState({ yearMode: all?'mes':'ano', selMonths:this.MONTH_ABBR.map(()=>!all) });
+  }
+  selectAllMonths(){ this.setState({ yearMode:'ano', selMonths:this.MONTH_ABBR.map(()=>true) }); }
+
+  togglePeriod(){
+    if(this.state.periodOpen){ this.setState({periodOpen:false}); return; }
+    const s=this.state;
+    let by=s.year, bm=6;
+    if(s.rangeFrom){ const p=s.rangeFrom.split('-'); by=+p[0]; bm=+p[1]-1; }
+    this.setState({ periodOpen:true, draftFrom:s.rangeFrom, draftTo:s.rangeTo, calBaseYear:by, calBaseMonth:bm });
+  }
+  closePeriod(){ this.setState({ periodOpen:false }); }
+  calPrev(){ let y=this.state.calBaseYear, m=this.state.calBaseMonth-1; if(m<0){m=11;y--;} this.setState({calBaseYear:y, calBaseMonth:m}); }
+  calNext(){ let y=this.state.calBaseYear, m=this.state.calBaseMonth+1; if(m>11){m=0;y++;} this.setState({calBaseYear:y, calBaseMonth:m}); }
+  calSelectDay(dateStr){
+    const s=this.state;
+    if(!s.draftFrom || s.draftTo){ this.setState({draftFrom:dateStr, draftTo:null}); return; }
+    if(dateStr < s.draftFrom){ this.setState({draftFrom:dateStr, draftTo:null}); return; }
+    this.setState({draftTo:dateStr});
+  }
+  calClear(){ this.setState({draftFrom:null, draftTo:null, rangeFrom:null, rangeTo:null, periodOpen:false}); }
+  calApply(){ const s=this.state; this.setState({rangeFrom:s.draftFrom, rangeTo:s.draftTo, periodOpen:false}); }
+
+  buildMonthGrid(year,month){
+    const startDow=new Date(year,month,1).getDay();
+    const daysInMonth=new Date(year,month+1,0).getDate();
+    const cells=[];
+    for(let i=startDow;i>0;i--) cells.push(new Date(year,month,1-i));
+    for(let d=1; d<=daysInMonth; d++) cells.push(new Date(year,month,d));
+    while(cells.length%7!==0){ const last=cells[cells.length-1]; cells.push(new Date(last.getFullYear(),last.getMonth(),last.getDate()+1)); }
+    const weeks=[];
+    for(let i=0;i<cells.length;i+=7) weeks.push(cells.slice(i,i+7));
+    return weeks;
+  }
+  fmtDateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+  fmtInt(n){ return Math.round(n).toLocaleString('pt-BR'); }
+
+  kpi(o){
+    const mult = o.mult===false ? 1 : this.effectiveMult();
+    let value;
+    if(o.type==='int') value=this.fmtInt(o.raw*mult);
+    else if(o.type==='cur') value=this.fmtCur(o.raw*mult);
+    else if(o.type==='pct') value=(o.raw*mult).toFixed(1).replace('.',',')+'%';
+    else value=o.raw;
+    let totalLabel=o.totalLabelOverride;
+    if(!totalLabel){
+      if(o.totalRaw!=null) totalLabel = 'Acumulado: '+(o.totalType==='cur'?this.fmtCur(o.totalRaw):this.fmtInt(o.totalRaw));
+      else totalLabel='';
+    }
+    return {
+      icon:o.icon, label:o.label, value,
+      iconWrapStyle:`width:40px;height:40px;border-radius:50%;background:${o.tintBg};box-shadow:inset 0 0 0 1px ${o.tint}26;display:flex;align-items:center;justify-content:center;flex:none`,
+      iconStyle:`font-size:18px;color:${o.tint}`,
+      labelStyle:'font-size:12px;font-weight:600;color:#8B91A0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis',
+      hasTrend: !!o.deltaStr,
+      trendStyle:`display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;color:${o.good?'#12855A':'#C8352A'};background:${o.good?'#E7F6EE':'#FDEDEB'};padding:3px 8px;border-radius:999px;flex:none;white-space:nowrap`,
+      trendIcon: o.dirUp?'ri-arrow-up-line':'ri-arrow-down-line',
+      trendLabel:o.deltaStr,
+      totalLabel
+    };
+  }
+
+  rankStyle(i){
+    const palette=['#1F5FD6','#5B8DEB','#9DB9F0'];
+    const bg = i<3?palette[i]:'#F1F2F4'; const fg = i<3?'#fff':'#8B91A0';
+    return `width:24px;height:24px;border-radius:50%;background:${bg};color:${fg};font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none`;
+  }
+  avatarStyle(tint){ return `width:30px;height:30px;border-radius:50%;background:${tint};color:#fff;font-weight:600;font-size:11px;display:flex;align-items:center;justify-content:center;flex:none`; }
+
+  bars(data, opts){
+    const max = (opts&&opts.max) || Math.max(...data.map(d=>d.v));
+    return data.map(d=>({
+      label:d.l,
+      barStyle:`width:100%;height:${Math.max(4,Math.round(d.v/max*100))}%;border-radius:7px 7px 3px 3px;background:${d.color||'#1F5FD6'}`
+    }));
+  }
+
+  lineChart(data, color){
+    const W=560,H=140,pad=6;
+    const max=Math.max(...data.map(d=>d.v)); const min=0;
+    const stepX=(W-2*pad)/(data.length-1);
+    const pts=data.map((d,i)=>{ const x=pad+i*stepX; const y=H-pad-((d.v-min)/((max-min)||1))*(H-2*pad); return {x,y}; });
+    const points=pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const area=`M${pts[0].x.toFixed(1)},${(H-pad).toFixed(1)} L`+pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L')+` L${pts[pts.length-1].x.toFixed(1)},${(H-pad).toFixed(1)} Z`;
+    return { W,H,points,area, firstLabel:data[0].l, lastLabel:data[data.length-1].l };
+  }
+
+  donut(segments, size){
+    size=size||132; const thickness=14; const r=(size-thickness)/2; const c=2*Math.PI*r; let acc=0;
+    const arcs=segments.map(s=>{
+      const len=c*(s.pct/100);
+      const arc={ color:s.color, dasharray:`${len.toFixed(1)} ${(c-len).toFixed(1)}`, dashoffset:(-acc).toFixed(1), label:s.label, pctLabel:s.pct+'%', dotStyle:`width:8px;height:8px;border-radius:50%;background:${s.color};flex:none` };
+      acc+=len; return arc;
+    });
+    return { size, r, cx:size/2, cy:size/2, thickness, arcs };
+  }
+
+  // ======================= VISÃO GERAL =======================
+  AVAIL = 9; // jan–set/2026 com dados
+
+  GERAL_METRICS = [
+    {label:'Atendimentos', icon:'ri-customer-service-2-fill', kind:'int', tint:'#2563EB', tint2:'#93B4F5', bg:'#EAF1FE',
+     series:[268,244,301,336,352,398,412,486,447,null,null,null],
+     note:'38 em IA · 54 em atendimento humano agora', noteIcon:'ri-pulse-line'},
+    {label:'Novos leads', icon:'ri-user-add-fill', kind:'int', tint:'#2563EB', tint2:'#93B4F5', bg:'#EAF1FE',
+     series:[612,588,701,780,842,905,961,1120,1275,null,null,null],
+     note:'96% entram pelo WhatsApp · 12% sem responsável', noteIcon:'ri-whatsapp-line'},
+    {label:'1ª resposta humana', icon:'ri-user-voice-fill', kind:'min', inverse:true, isNew:true, tint:'#0D9488', tint2:'#7DD3C8', bg:'#E3F5F2',
+     series:[22.5,21,19.4,18.2,16.8,15.5,14.2,13.4,12.6,null,null,null],
+     note:'SLA alvo 15min · 31% fora do horário comercial', noteIcon:'ri-timer-line'},
+    {label:'Duração média', icon:'ri-hourglass-fill', kind:'h', inverse:true, tint:'#0D9488', tint2:'#7DD3C8', bg:'#E3F5F2',
+     series:[19.2,18.6,18.1,17.7,17.2,17,16.9,16.6,16.2,null,null,null],
+     note:'mediana 6h 12min · 28% passam de 24h', noteIcon:'ri-timer-line'},
+    {label:'Vendas fechadas', icon:'ri-shopping-bag-3-fill', kind:'int', tint:'#16A34A', tint2:'#86D7A2', bg:'#E7F7EE',
+     series:[18,22,26,31,29,38,41,52,44,null,null,null],
+     note:'1ª entrada na etapa GANHO · crédito do responsável', noteIcon:'ri-trophy-line'},
+    {label:'Conversão', icon:'ri-percent-fill', kind:'pct', tint:'#16A34A', tint2:'#86D7A2', bg:'#E7F7EE',
+     series:[2.9,3.7,3.7,4,3.4,4.2,4.3,4.6,3.5,null,null,null],
+     note:'vendas ÷ leads recebidos no período', noteIcon:'ri-function-line'},
+    {label:'NPS', icon:'ri-emotion-happy-fill', kind:'nps', stock:true, isNew:true, tint:'#4F46E5', tint2:'#A5A1F3', bg:'#EEEDFD',
+     series:[52,56,60,64,67,70,72,75,77,null,null,null],
+     note:'83% ótimo · 11% bom · 6% ruim', noteIcon:'ri-star-smile-line'},
+    {label:'Avaliação média', icon:'ri-star-fill', kind:'nota', tint:'#CA8A04', tint2:'#F2CB5A', bg:'#FEF6DC',
+     series:[9,9.1,9.2,9.3,9.4,9.4,9.5,9.6,9.5,null,null,null],
+     note:'224 avaliações · 6,9% dos finalizados respondem', noteIcon:'ri-chat-smile-2-line'},
+    {label:'Resolução por IA', icon:'ri-robot-2-fill', kind:'pct', tint:'#9333EA', tint2:'#CBA3F5', bg:'#F4ECFE',
+     series:[31.2,33.8,36.5,38.1,40.4,41.9,43.2,45.8,44.5,null,null,null],
+     note:'finalizados sem nenhuma transferência humana', noteIcon:'ri-magic-line'},
+    {label:'Transf. IA → humano', icon:'ri-arrow-left-right-line', kind:'int', tint:'#9333EA', tint2:'#CBA3F5', bg:'#F4ECFE',
+     series:[152,138,168,188,196,222,230,270,248,null,null,null],
+     note:'19% voltam para a IA depois (paraIa=true)', noteIcon:'ri-repeat-line'},
+    {label:'Leads parados +2 meses', icon:'ri-user-unfollow-fill', kind:'int', stock:true, inverse:true, isNew:true, tint:'#DC2626', tint2:'#F2A0A0', bg:'#FDECEC',
+     series:[820,910,1004,1120,1210,1288,1360,1455,1512,null,null,null],
+     note:'público-alvo da régua de fidelização', noteIcon:'ri-notification-3-line'}
+  ];
+
+  selIdxs(){
+    const s=this.state; const avail=[];
+    for(let i=0;i<this.AVAIL;i++) avail.push(i);
+    if(s.yearMode==='ano') return avail;
+    const sel=avail.filter(i=>s.selMonths[i]);
+    return sel.length?sel:avail;
+  }
+  // int = fluxo (soma no período) · demais kinds e snapshots = valor do último mês
+  pointRule(m){ return !!m.stock || m.kind!=='int'; }
+  aggVal(kind, series, idxs, stock){
+    const vals=idxs.map(i=>series[i]).filter(v=>v!=null);
+    if(!vals.length) return 0;
+    if(stock) return vals[vals.length-1];
+    const sum=vals.reduce((a,b)=>a+b,0);
+    return kind==='int' ? sum : sum/vals.length;
+  }
+  fmtMetric(kind,v){
+    if(kind==='int') return this.fmtInt(v);
+    if(kind==='pct') return v.toFixed(1).replace('.',',')+'%';
+    if(kind==='min'){ const m=Math.floor(v), s=Math.round((v-m)*60); return m+'m '+String(s).padStart(2,'0')+'s'; }
+    if(kind==='h'){ const h=Math.floor(v), m=Math.round((v-h)*60); return h+'h '+String(m).padStart(2,'0')+'min'; }
+    if(kind==='nota') return v.toFixed(1).replace('.',',')+'/10';
+    if(kind==='nps') return String(Math.round(v));
+    return String(v);
+  }
+  shortMetric(kind,v){
+    if(kind==='int') return v>=1000 ? (v/1000).toFixed(1).replace('.',',')+'k' : String(Math.round(v));
+    if(kind==='pct') return v>=10 ? String(Math.round(v)) : v.toFixed(1).replace('.',',');
+    if(kind==='min') return v>=10 ? Math.round(v)+'m' : v.toFixed(1).replace('.',',')+'m';
+    if(kind==='h') return v.toFixed(1).replace('.',',')+'h';
+    if(kind==='nota') return v.toFixed(1).replace('.',',');
+    if(kind==='nps') return String(Math.round(v));
+    return String(v);
+  }
+  axisMax(kind,max){
+    if(kind==='nota') return 10;
+    if(kind==='nps') return 100;
+    if(kind==='pct') return [5,10,15,20,25,50,75,100].filter(x=>x>=max)[0]||100;
+    if(kind==='min') return [5,10,15,20,30,45,60,90,120].filter(x=>x>=max)[0]||180;
+    if(kind==='h') return [6,12,18,24,36,48].filter(x=>x>=max)[0]||72;
+    const e=Math.pow(10,Math.floor(Math.log10(max)));
+    return [1,1.2,1.6,2,3,4,5,6,8,10].map(f=>f*e).filter(x=>x>=max)[0]||10*e;
+  }
+  axisLabel(kind,v){
+    if(kind==='int') return v>=1000 ? (v/1000).toFixed(v%1000?1:0).replace('.',',')+'k' : this.fmtInt(v);
+    if(kind==='pct') return String(v).replace('.',',')+'%';
+    if(kind==='min') return String(v)+'min';
+    if(kind==='h') return String(v)+'h';
+    return String(v);
+  }
+  deltaFor(m, idxs){
+    const n=idxs.length, first=Math.min.apply(null,idxs), last=Math.max.apply(null,idxs), prev=[];
+    for(let k=1;k<=n;k++){ const i=first-k; if(i>=0) prev.push(i); }
+    // sem período anterior comparável (ex.: ano inteiro) → compara os dois últimos meses
+    const curIdx = prev.length ? idxs : [last];
+    if(!prev.length){ if(last-1<0) return null; prev.push(last-1); }
+    const pr=this.pointRule(m);
+    const cur=this.aggVal(m.kind,m.series,curIdx,pr), pv=this.aggVal(m.kind,m.series,prev,pr);
+    if(!pv) return null;
+    const diff=cur-pv; const sign=diff>=0?'+':'-'; let label, flat=false;
+    if(m.kind==='pct'){ flat=Math.abs(diff)<0.05; label=sign+Math.abs(diff).toFixed(1).replace('.',',')+'pp'; }
+    else if(m.kind==='nota'){ flat=Math.abs(diff)<0.05; label=sign+Math.abs(diff).toFixed(1).replace('.',','); }
+    else if(m.kind==='nps'){ flat=Math.abs(diff)<0.5; label=sign+Math.abs(Math.round(diff)); }
+    else { const p=Math.abs(diff/pv*100); flat=p<0.5; label=sign+p.toFixed(0)+'%'; }
+    if(flat) return { label:'estável', flat:true, up:true, good:true };
+    const up=diff>=0;
+    return { label, up, flat:false, good: m.inverse ? !up : up };
+  }
+
+  buildMetricCards(idxs){
+    return this.GERAL_METRICS.map((m,mi)=>{
+      const known=m.series.filter(v=>v!=null);
+      const max=Math.max.apply(null,known), min=Math.min.apply(null,known);
+      const avg=known.reduce((a,b)=>a+b,0)/known.length;
+      const total=known.reduce((a,b)=>a+b,0);
+      const maxIdx=m.series.indexOf(max), minIdx=m.series.indexOf(min);
+      const bestIdx=m.inverse?minIdx:maxIdx, worstIdx=m.inverse?maxIdx:minIdx;
+      const val=this.aggVal(m.kind,m.series,idxs,this.pointRule(m));
+      const d=this.deltaFor(m,idxs);
+      const fg = !d ? '#8B91A0' : (d.flat ? '#5B6274' : (d.good?'#12855A':'#C8352A'));
+      const bgc = !d ? '#F1F2F4' : (d.flat ? '#F1F2F4' : (d.good?'#E7F6EE':'#FDEDEB'));
+      const trendBase=(fs)=>`display:inline-flex;align-items:center;gap:2px;font-size:${fs}px;font-weight:600;color:${fg};background:${bgc};padding:3px 8px;border-radius:999px;flex:none;white-space:nowrap`;
+      const lastIdx=Math.max.apply(null,idxs), lastVal=m.series[lastIdx];
+      const lm=this.MONTH_ABBR[lastIdx].toLowerCase();
+      const V=(v)=>this.fmtMetric(m.kind,v);
+      const prevIdx=lastIdx-1;
+      const sumIdx=(lbl)=>{ const mm=this.GERAL_METRICS.filter(x=>x.label===lbl)[0]; return Math.round(this.aggVal('int',mm.series,idxs)); };
+      const apoioMap={
+        'Atendimentos':this.fmtInt(total)+' acumulados',
+        'Novos leads':'Criados no período',
+        'Duração média':'Entre início e finalização',
+        'Vendas fechadas':this.fmtInt(total)+' acumuladas',
+        'Conversão':sumIdx('Vendas fechadas')+' vendas / '+this.fmtInt(sumIdx('Novos leads'))+' leads recebidos',
+        'Avaliação média':'224 avaliações',
+        'Resolução por IA':'Sem transferência humana'
+      };
+      const subShort = apoioMap[m.label] || ((prevIdx>=0 ? this.MONTH_ABBR[prevIdx]+' '+V(m.series[prevIdx])+'  ·  ' : '')+'média '+V(avg));
+      const sub = 'mín '+this.MONTH_ABBR[minIdx]+' '+V(min)+'  ·  máx '+this.MONTH_ABBR[maxIdx]+' '+V(max)+'  ·  média '+V(avg);
+      const spark=m.series.map((v,i)=>{
+        if(v==null) return { style:`width:${mi===0?10:5}px;height:5px;border-radius:3px;background:#F0F1F3;flex:none` };
+        const on=idxs.indexOf(i)>=0;
+        return { style:`width:${mi===0?10:5}px;height:${Math.max(14,Math.round(v/max*100))}%;border-radius:3px;background:${on?m.tint:'#E3E5E9'};flex:none` };
+      });
+      const aMax=this.axisMax(m.kind,max);
+      const ticks=[1,0.5,0].map(f=>{
+        const v=aMax*f, pos=(f*74).toFixed(1);
+        return { label:this.axisLabel(m.kind, Math.round(v*10)/10),
+          labelStyle:`position:absolute;right:0;bottom:calc(${pos}% - 6px);font-size:9px;font-weight:600;color:#C4C9D2;white-space:nowrap;line-height:1`,
+          lineStyle:`position:absolute;left:0;right:0;bottom:${pos}%;border-top:1px dashed ${f===0?'transparent':'#F2F3F5'};pointer-events:none` };
+      });
+      const bars=m.series.map((v,i)=>{
+        if(v==null) return {
+          label:this.MONTH_ABBR[i], valueLabel:'·',
+          barStyle:'width:74%;height:5px;border-radius:3px;background:#F2F3F5',
+          labelStyle:'font-size:9px;font-weight:600;color:#E3E5E9;height:12px;margin-bottom:4px',
+          monthStyle:'flex:1;text-align:center;font-size:9.5px;font-weight:600;color:#CBD8E6;min-width:0'
+        };
+        const on=idxs.indexOf(i)>=0;
+        return {
+          label:this.MONTH_ABBR[i], valueLabel:this.shortMetric(m.kind,v),
+          barStyle:`width:74%;height:${Math.max(4,Math.round(v/aMax*74))}%;border-radius:4px 4px 0 0;background:${on?(i===bestIdx?m.tint:m.tint2):'#E8EAED'}`,
+          labelStyle:`font-size:9px;font-weight:600;color:${on?(i===bestIdx?m.tint:'#7A8294'):'#CDD1D8'};height:12px;margin-bottom:4px;white-space:nowrap`,
+          monthStyle:`flex:1;text-align:center;font-size:9.5px;font-weight:${on?700:600};color:${on?'#5B6274':'#CDD1D8'};min-width:0`
+        };
+      });
+      return {
+        label:m.label, icon:m.icon, isNew:!!m.isNew, note:m.note, noteIcon:m.noteIcon,
+        value:this.fmtMetric(m.kind,val), sub, subShort,
+        hasDelta:!!d, delta:d?d.label:'',
+        trendIcon: (d&&d.flat)?'':(d&&d.up?'ri-arrow-up-line':'ri-arrow-down-line'),
+        trendStyle:trendBase(11), trendStyleSm:trendBase(10),
+        iconStyle:`font-size:15px;color:${m.tint};flex:none`, col:mi===0?'span 2':'auto',
+        iconStyleLg:`font-size:18px;color:${m.tint}`,
+        iconWrapStyle:`width:40px;height:40px;border-radius:50%;background:${m.bg};box-shadow:inset 0 0 0 1px ${m.tint}26;display:flex;align-items:center;justify-content:center;flex:none`,
+        avgLineStyle:`position:absolute;left:0;right:0;bottom:${Math.round(avg/aMax*74)}%;border-top:1px dashed #C9D6E5;pointer-events:none`,
+        spark, bars, ticks
+      };
+    });
+  }
+
+  geralData(){
+    const view=this.state.viewGeral;
+    const viewOptions=[['compacta','Compacta','ri-layout-grid-fill'],['expandida','Expandida','ri-bar-chart-box-fill']].map(([k,label,icon])=>{
+      const on=view===k;
+      return { label, icon, onClick:()=>this.setState({viewGeral:k}),
+        style:`display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:9px;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap;background:${on?'#fff':'transparent'};color:${on?'#0E1220':'#6B7385'};box-shadow:${on?'0 1px 2px rgba(16,24,40,.08)':'none'}`};
+    });
+
+    const liveStats=[
+      ['Em IA','38',false],
+      ['Em atendimento humano','54',false],
+      ['Aguardando 1ª resposta','9',true],
+      ['Esquecidos +1 hora','12',true],
+      ['Leads novos hoje','46',false],
+      ['Vendas hoje','3',false],
+      ['Atendentes online','5/8',false]
+    ].map(([label,value,alert],i)=>({ label, value, href:'AtendimentosV2.dc.html?filtro='+['ia','humano','aguardando','esquecidos','novos','vendas','online'][i],
+      valueStyle:`font-size:22px;font-weight:600;letter-spacing:-.03em;line-height:1.1;color:${alert?'#C8352A':'#0E1220'}` }));
+
+    // contagens derivadas das mesmas séries dos cards para nunca divergirem
+    const sumSel=(label)=>{ const m=this.GERAL_METRICS.filter(x=>x.label===label)[0];
+      return Math.round(this.aggVal('int',m.series,this.selIdxs())); };
+    const nLeads=sumSel('Novos leads'), nAtend=sumSel('Atendimentos');
+    const nVendas=sumSel('Vendas fechadas');
+    const perdasSerie=[26,31,29,34,30,33,36,39,31];
+    const nPerdas=this.selIdxs().reduce((a,i)=>a+(perdasSerie[i]||0),0);
+    const nOrc=Math.round(nAtend*0.366), nNeg=Math.round(nOrc*0.526);
+    const fRaw=[
+      ['Novo lead',nLeads,null,'—'],
+      ['Em atendimento',nAtend,nAtend/nLeads*100,'4h 20min'],
+      ['Orçamento enviado',nOrc,nOrc/nAtend*100,'1,4 dias'],
+      ['Negociação',nNeg,nNeg/nOrc*100,'2,8 dias'],
+      ['Venda fechada',nVendas,nVendas/nNeg*100,'—'],
+      ['Perdido',nPerdas,null,'—']
+    ];
+    const fMax=fRaw[0][1];
+    const funilGeral=fRaw.map(([name,count,conv,time],i)=>{
+      const lost=name==='Perdido';
+      const pct=Math.max(4,Math.round(count/fMax*100));
+      return { name, count:this.fmtInt(count), time,
+        conv: conv==null?'—':conv.toFixed(1).replace('.',',')+'%',
+        convStyle:`text-align:right;font-size:13px;font-weight:600;color:${conv==null?'#CDD1D8':'#1F5FD6'}`,
+        barStyle:`height:100%;width:${pct}%;border-radius:999px;background:${lost?'#E5867C':'#1F5FD6'}`,
+        overlayStyle:`position:relative;height:100%;display:flex;align-items:center;padding:0 11px;font-size:12px;font-weight:600;color:${pct>8?'#fff':'#3A4354'};z-index:1`
+      };
+    });
+
+    // NPS derivado do próprio histograma de notas (224 avaliações)
+    const nRaw=[1,0,1,2,2,3,4,8,16,52,135];
+    const nTotal=nRaw.reduce((a,b)=>a+b,0);
+    const promo=nRaw[9]+nRaw[10], neutro=nRaw[7]+nRaw[8];
+    const detra=nTotal-promo-neutro;
+    const pP=Math.round(promo/nTotal*100), pN=Math.round(neutro/nTotal*100);
+    const pD=100-pP-pN;
+    const npsScore=pP-pD;
+    const npsMedia=(nRaw.reduce((a,v,i)=>a+v*i,0)/nTotal).toFixed(1).replace('.',',')+'/10';
+    const pc=(n)=>(n/nTotal*100).toFixed(1).replace('.',',')+'%';
+    const npsDonut=this.donut([
+      {label:'Ótimo 9–10',pct:pP,color:'#1F5FD6'},
+      {label:'Bom 7–8',pct:pN,color:'#9DB9F0'},
+      {label:'Ruim 0–6',pct:pD,color:'#E5867C'}
+    ],172);
+    [promo,neutro,detra].forEach((n,i)=>{ npsDonut.arcs[i].countPct=n+' · '+pc(n); });
+
+    const eRaw=[
+      ['Jardel','#2C6BB8',486,62,12.8,'3m 10s','10,0',7],
+      ['Eduarda','#3E8FD0',441,55,12.5,'2m 40s','10,0',5],
+      ['Clayton','#5566A8',398,41,10.3,'4m 05s','9,8',9],
+      ['Nayara','#2F8F86',352,38,10.8,'3m 45s','9,4',4],
+      ['Gustavo','#2C6BB8',311,30,9.6,'5m 20s','9,6',6],
+      ['Andrilene','#5566A8',288,24,8.3,'6m 10s','9,0',8],
+      ['Michele','#2F8F86',244,19,7.8,'7m 30s','8,7',3],
+      ['Daiane','#64748B',196,12,6.1,'9m 15s','6,3',11]
+    ];
+    const loadMax=Math.max.apply(null,eRaw.map(r=>r[7]));
+    const equipeRows=eRaw.map((r,i)=>({
+      rank:i+1, rankStyle:this.rankStyle(i), initials:r[0].slice(0,2).toUpperCase(),
+      avatarStyle:this.avatarStyle(r[1]), name:r[0],
+      atend:this.fmtInt(r[2]), vendas:this.fmtInt(r[3]),
+      conv:r[4].toFixed(1).replace('.',',')+'%',
+      convStyle:`text-align:right;font-size:12.5px;font-weight:600;color:${r[4]>=10?'#12855A':(r[4]>=8?'#3A4354':'#C8352A')}`,
+      tpr:r[5], nota:r[6], abertos:r[7],
+      loadStyle:`height:100%;width:${Math.round(r[7]/loadMax*100)}%;border-radius:4px;background:${r[7]>=8?'#C8352A':'#1F5FD6'}`
+    }));
+
+    const hourRaw=[236,84,87,17,126,123,190,375,6184,7003,6704,5338,3380,3178,5129,5256,5000,3216,475,108,80,113,73,47];
+    const hourMax=Math.max.apply(null,hourRaw);
+    const hh=this.state.hoverHour;
+    const hourBars=hourRaw.map((v,h)=>({ isHover:h===hh, onEnter:()=>{ if(this.state.hoverHour!==h) this.setState({hoverHour:h}); }, tipLabel:this.fmtInt(v)+' mensagens', hourLabel:String(h).padStart(2,'0')+'h – '+String((h+1)%24).padStart(2,'0')+'h',
+      label:h+'h', value:this.fmtInt(v),
+      valueStyle:`font-size:10px;font-weight:600;color:${v>=hourMax*0.6?'#1F5FD6':'#9CA3B0'};margin-bottom:5px;white-space:nowrap`,
+      barStyle:`width:58%;height:${Math.max(2,Math.round(v/hourMax*92))}%;border-radius:8px 8px 3px 3px;background:${h===hh?'linear-gradient(180deg,#6E9BF5,#1F5FD6)':(v>=hourMax*0.6?'#1F5FD6':'#C9D8F5')};box-shadow:${h===hh?'inset 0 1px 0 rgba(255,255,255,.5),0 10px 22px -6px rgba(31,95,214,.65)':'none'};opacity:${hh==null||h===hh?1:.5};transition:opacity .15s,box-shadow .15s`
+    }));
+
+    return {
+      isCompacta:view==='compacta', isExpandida:view==='expandida', viewOptions,
+      metricCards:this.buildMetricCards(this.selIdxs()),
+      liveStats, funilGeral, npsScore, npsMedia, npsDonut, equipeRows, hourBars
+    };
+  }
+
+  renderVals(){
+    const tab=this.state.tab;
+    const subtitleMap={ geral:'Panorama executivo do atendimento, comercial e automação.', operacional:'Volume, tempos de resposta e satisfação do atendimento.', comercial:'Pipeline, orçamentos e conversão de vendas.', ia:'Desempenho do assistente de IA e status da automação.' };
+
+    const yearOptions=['2024','2025','2026','2027'];
+    const onYearChange=(e)=>this.setState({year:parseInt(e.target.value,10)});
+
+    const pillStyle=(active)=>`padding:0 13px;min-width:50px;height:38px;display:inline-flex;align-items:center;justify-content:center;border-radius:11px;font-size:15px;font-weight:${active?600:500};cursor:pointer;white-space:nowrap;background:${active?'#fff':'transparent'};color:${active?'#0E1220':'#7A8294'};box-shadow:${active?'0 1px 2px rgba(16,24,40,.08)':'none'}`;
+    const allSel=this.state.selMonths.every(Boolean);
+    const anoInteiroStyle=pillStyle(allSel);
+    const noMonths=!this.state.selMonths.some(Boolean);
+    const monthPills=this.MONTH_ABBR.map((label,i)=>({ label, onClick:()=>this.toggleMonth(i), style:pillStyle(this.state.selMonths[i]) }));
+
+    const fmtShort=(ds)=>{ const p=ds.split('-'); return parseInt(p[2],10)+' '+this.MONTH_ABBR[parseInt(p[1],10)-1].toLowerCase(); };
+    const periodLabel = (this.state.rangeFrom && this.state.rangeTo) ? (fmtShort(this.state.rangeFrom)+' – '+fmtShort(this.state.rangeTo)) : 'Período de originação';
+    const periodBaseStyle='display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 15px;border-radius:13px;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;box-shadow:0 1px 2px rgba(16,24,40,.05)';
+    let periodBtnStyle;
+    if(this.state.periodOpen || (this.state.rangeFrom && this.state.rangeTo)) periodBtnStyle=`${periodBaseStyle};border:1px solid #D5E1F8;background:#EDF2FD;color:#1F5FD6`;
+    else periodBtnStyle=`${periodBaseStyle};border:1px solid #E6E7EB;background:#fff;color:#1A2233`;
+
+    const calLeftLabel=this.MONTH_FULL[this.state.calBaseMonth]+' '+this.state.calBaseYear;
+    let calNy=this.state.calBaseYear, calNm=this.state.calBaseMonth+1; if(calNm>11){calNm=0;calNy++;}
+    const calRightLabel=this.MONTH_FULL[calNm]+' '+calNy;
+    const buildCalMonth=(year,month)=>{
+      const weeks=this.buildMonthGrid(year,month);
+      const from=this.state.draftFrom, to=this.state.draftTo;
+      return { weekdays:this.WEEKDAYS, weeks:weeks.map(week=>{
+        const strs=week.map(d=>this.fmtDateStr(d));
+        const anyInRange = !!(from && to && strs.some(ds=>ds>=from && ds<=to));
+        return { bandStyle:`background:${anyInRange?'#EDF2FD':'transparent'};border-radius:18px;padding:2px 0`,
+          days: week.map((d,i)=>{
+            const ds=strs[i]; const inMonth=d.getMonth()===month; const isEndpoint = ds===from || ds===to;
+            return { label:d.getDate(), onClick:()=>this.calSelectDay(ds),
+              style:`width:32px;height:32px;margin:0 auto;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:12.5px;font-weight:600;cursor:pointer;background:${isEndpoint?'#1F5FD6':'transparent'};color:${isEndpoint?'#fff':(inMonth?'#1A2233':'#CDD1D8')}`
+            };
+          })
+        };
+      })};
+    };
+    const calMonths=[ buildCalMonth(this.state.calBaseYear,this.state.calBaseMonth), buildCalMonth(calNy,calNm) ];
+
+    const tabsDef=[['geral','Visão geral','ri-layout-grid-line'],['operacional','Operacional','ri-pulse-line'],['comercial','Comercial','ri-funds-line'],['ia','IA e Automação','ri-sparkling-2-line']];
+    const tabs=tabsDef.map(([key,label,icon])=>{ const active=tab===key; return { key,label,icon,soon:key!=='geral',
+      onClick:()=>this.setState({tab:key}),
+      style:`display:flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:10px;font-size:13.5px;font-weight:${active?600:500};color:${active?'#0E1220':'#5B6274'};background:${active?'#fff':'transparent'};box-shadow:${active?'0 1px 2px rgba(16,24,40,.08),0 0 0 1px rgba(16,24,40,.03)':'none'};cursor:pointer;white-space:nowrap`
+    };});
+
+    // ---------- KPIs ----------
+    const kpisOperacional=[
+      this.kpi({icon:'ri-customer-service-2-fill',tint:'#1F5FD6',tintBg:'#EDF2FD',label:'Atendimentos',raw:482,type:'int',deltaStr:'+8%',dirUp:true,good:true,totalRaw:5230,totalType:'int'}),
+      this.kpi({icon:'ri-user-add-fill',tint:'#4C55B8',tintBg:'#E9EAFA',label:'Novos leads',raw:168,type:'int',deltaStr:'+12%',dirUp:true,good:true,totalRaw:1940,totalType:'int'}),
+      this.kpi({icon:'ri-time-line',tint:'#B4690E',tintBg:'#FDF3E2',label:'Pendentes / Ativos',raw:34,type:'int',deltaStr:'-6%',dirUp:false,good:true,totalLabelOverride:'34 em aberto agora'}),
+      this.kpi({icon:'ri-team-fill',tint:'#1F857E',tintBg:'#E0F2F1',label:'Atendentes online',raw:'5 / 8',type:'text',mult:false,totalLabelOverride:'Online agora de um total de 8'}),
+      this.kpi({icon:'ri-message-2-fill',tint:'#1F5FD6',tintBg:'#EDF2FD',label:'Mensagens (env. / receb.)',raw:'3.240 / 2.860',type:'text',mult:false,deltaStr:'+10%',dirUp:true,good:true,totalLabelOverride:'6.100 mensagens no mês'}),
+      this.kpi({icon:'ri-timer-flash-line',tint:'#4C55B8',tintBg:'#E9EAFA',label:'TMA · tempo médio',raw:'18min',type:'text',mult:false,deltaStr:'-12%',dirUp:false,good:true,totalLabelOverride:'Abertura → finalização'}),
+      this.kpi({icon:'ri-flashlight-fill',tint:'#1F5FD6',tintBg:'#EDF2FD',label:'TPR · 1ª resposta',raw:'2min 40s',type:'text',mult:false,deltaStr:'-18%',dirUp:false,good:true,totalLabelOverride:'SLA alvo: 5 minutos'}),
+      this.kpi({icon:'ri-star-fill',tint:'#E0A61C',tintBg:'#FBF3DE',label:'Avaliação média (CSAT)',raw:'9,4 / 10',type:'text',mult:false,deltaStr:'+0,1',dirUp:true,good:true,totalLabelOverride:'312 avaliações no mês'})
+    ];
+
+    const kpisComercial=[
+      this.kpi({icon:'ri-file-list-3-fill',tint:'#1F5FD6',tintBg:'#EDF2FD',label:'Orçamentos enviados',raw:96,type:'int',deltaStr:'+14%',dirUp:true,good:true,totalRaw:1120,totalType:'int'}),
+      this.kpi({icon:'ri-discuss-line',tint:'#B4690E',tintBg:'#FDF3E2',label:'Em negociação',raw:96,type:'int',deltaStr:'+5%',dirUp:true,good:true,totalLabelOverride:'Aguardando decisão do cliente'}),
+      this.kpi({icon:'ri-checkbox-circle-fill',tint:'#12855A',tintBg:'#E7F6EE',label:'Vendas fechadas',raw:58,type:'int',deltaStr:'+9%',dirUp:true,good:true,totalRaw:620,totalType:'int'}),
+      this.kpi({icon:'ri-percent-fill',tint:'#4C55B8',tintBg:'#E9EAFA',label:'Taxa de conversão',raw:12.1,type:'pct',deltaStr:'+1,4pp',dirUp:true,good:true,totalLabelOverride:'Fechados / leads recebidos'}),
+      this.kpi({icon:'ri-hourglass-fill',tint:'#1F857E',tintBg:'#E0F2F1',label:'Tempo médio de fechamento',raw:'9,4 dias',type:'text',mult:false,deltaStr:'-8%',dirUp:false,good:true,totalLabelOverride:'1º contato → venda fechada'}),
+      this.kpi({icon:'ri-ruler-2-fill',tint:'#1F5FD6',tintBg:'#EDF2FD',label:'m² vendidos',raw:612,type:'int',deltaStr:'+11%',dirUp:true,good:true,totalRaw:7040,totalType:'int'})
+    ];
+
+    const kpisIA=[
+      this.kpi({icon:'ri-robot-2-fill',tint:'#4C55B8',tintBg:'#E9EAFA',label:'Mensagens da IA',raw:1284,type:'int',deltaStr:'+22%',dirUp:true,good:true,totalRaw:14200,totalType:'int'}),
+      this.kpi({icon:'ri-check-double-line',tint:'#12855A',tintBg:'#E7F6EE',label:'Resolução por IA',raw:68,type:'pct',mult:false,deltaStr:'+5pp',dirUp:true,good:true,totalLabelOverride:'Sem transferência humana'}),
+      this.kpi({icon:'ri-arrow-left-right-line',tint:'#B4690E',tintBg:'#FDF3E2',label:'Transferências IA → humano',raw:342,type:'int',deltaStr:'-4%',dirUp:false,good:true,totalLabelOverride:'27% dos atendimentos'}),
+      this.kpi({icon:'ri-sparkling-2-fill',tint:'#1F5FD6',tintBg:'#EDF2FD',label:'Resumos / preenchimentos',raw:418,type:'int',deltaStr:'+16%',dirUp:true,good:true,totalLabelOverride:'Gerados automaticamente'})
+    ];
+
+    // ---------- Funil ----------
+    const funilRaw=[
+      {name:'Novo Contato',count:480,value:null,stuck:'—',conv:null},
+      {name:'Aguardando Medidas',count:310,value:null,stuck:'1,2 dias parado',conv:65},
+      {name:'Orçamento',count:190,value:null,stuck:'2,8 dias parado',conv:61},
+      {name:'Negociação',count:96,value:null,stuck:'4,1 dias parado',conv:51},
+      {name:'Fechado',count:58,value:null,stuck:'—',conv:60},
+      {name:'Pós-venda',count:52,value:null,stuck:'—',conv:90}
+    ];
+    const funilMax=funilRaw[0].count;
+    const funilStages=funilRaw.map(s=>{
+      const pct=Math.round(s.count/funilMax*100);
+      return {
+        name:s.name, count:this.fmtInt(s.count), value:s.value, hasValue:!!s.value, stuck:s.stuck,
+        hasConv: s.conv!=null, convLabel: s.conv!=null ? s.conv+'%' : '',
+        barStyle:`position:absolute;inset:0;width:${pct}%;background:linear-gradient(90deg,#1F5FD6,#4C8DE8);border-radius:8px`,
+        barStyleLg:`position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:#1F5FD6;border-radius:10px`,
+        overlayStyle:`position:relative;height:100%;display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:600;color:#fff;z-index:1`,
+        overlayStyleLg:`position:relative;height:100%;display:flex;align-items:center;padding:0 14px;font-size:13px;font-weight:600;color:#fff;z-index:1`
+      };
+    });
+
+    // ---------- Horário de pico ----------
+    const peakData=[[8,42],[9,38],[10,30],[11,22],[12,14],[13,26],[14,35],[15,48],[16,40],[17,33],[18,25],[19,18],[20,10]].map(([h,v])=>({l:h+'h',v}));
+    const peakBars=this.bars(peakData);
+    peakBars.forEach((b,i)=>b.label=peakData[i].l);
+
+    // ---------- Atendimentos no tempo ----------
+    const atendData=[24,28,22,31,19,26,34,30,25,29,33,27,22,31].map((v,i)=>({l:(i+1)+'/07',v}));
+    const atendLine=this.lineChart(atendData);
+
+    // ---------- IA no tempo ----------
+    const iaData=[62,70,58,75,66,80,72,69,77,84,73,79,88,81].map((v,i)=>({l:(i+1)+'/07',v}));
+    const iaLine=this.lineChart(iaData,'#4C55B8');
+
+    // ---------- Heatmap semanal ----------
+    const heatDays=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+    const heatData=[
+      [58,62,60,64,66,20,0],
+      [72,78,74,80,76,12,0],
+      [34,38,36,40,44,8,0]
+    ];
+    const heatMax=Math.max(...heatData.flat());
+    const heatRows=[['Manhã',heatData[0]],['Tarde',heatData[1]],['Noite',heatData[2]]].map(([label,cells])=>({
+      label, cells:cells.map(v=>{
+        const t=v/heatMax; const bg = v===0?'#F4F5F7':`rgba(31,95,214,${(0.07+t*0.85).toFixed(2)})`;
+        return { value: v===0?'—':v, style:`height:40px;border-radius:10px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:${t>0.55?'#fff':'#5B6274'}` };
+      })
+    }));
+
+    // ---------- Distribuição de notas ----------
+    const notesRaw=[0,0,1,1,2,3,5,10,22,38,54];
+    const notesBars=this.bars(notesRaw.map((v,i)=>({l:String(i),v,color:i>=8?'#1F5FD6':(i>=6?'#9DB9F0':'#E3E5E9')})));
+
+    // ---------- Orçamentos enviados por período ----------
+    const revRaw=[['Fev',72],['Mar',78],['Abr',75],['Mai',88],['Jun',84],['Jul',96]];
+    const revMax=Math.max(...revRaw.map(r=>r[1]));
+    const revenueBars=revRaw.map(([l,v])=>({ label:l, value:this.fmtInt(v), barStyle:`width:46%;height:${Math.round(v/revMax*100)}%;border-radius:12px 12px 4px 4px;background:${l==='Jul'?'#1F5FD6':'#C9D8F5'}` }));
+
+    // ---------- Donuts ----------
+    const mixDonut=this.donut([
+      {label:'Box',pct:34,color:'#1F5FD6'},
+      {label:'Temperado',pct:26,color:'#5B8DEB'},
+      {label:'Espelho',pct:18,color:'#9DB9F0'},
+      {label:'Fachada',pct:14,color:'#C9D8F5'},
+      {label:'Outros',pct:8,color:'#E8EAED'}
+    ]);
+    const tipoDonut=this.donut([
+      {label:'B2C',pct:52,color:'#1F5FD6'},
+      {label:'Revenda',pct:24,color:'#5B8DEB'},
+      {label:'Construtora',pct:16,color:'#9DB9F0'},
+      {label:'Condomínio',pct:8,color:'#D5E1F8'}
+    ]);
+
+    // ---------- Motivo de perda ----------
+    const lossRaw=[['Sem retorno',42],['Preço',28],['Prazo',16],['Concorrência',10],['Outros',4]];
+    const lossBars=lossRaw.map(([label,pct])=>({ label, pct:pct+'%', barStyle:`height:100%;width:${pct}%;border-radius:999px;background:#E5867C` }));
+
+    // ---------- Rankings ----------
+    const AT = { js:['JS','Jardel','#2C6BB8'], ab:['AB','Ana Beatriz','#2C6BB8'], da:['DA','Daiane','#2F8F86'], cl:['CL','Clayton','#5566A8'], ed:['ED','Eduarda','#3E8FD0'] };
+    const mkRank=(rows)=>rows.map((r,i)=>({ rank:i+1, rankStyle:this.rankStyle(i), initials:AT[r[0]][0], name:AT[r[0]][1], avatarStyle:this.avatarStyle(AT[r[0]][2]), value:r[1] }));
+
+    const rankAtendimentos=mkRank([['js','142'],['ab','128'],['da','96'],['ed','84'],['cl','61']]);
+    const rankAvaliacao=mkRank([['da','9,8'],['ab','9,6'],['js','9,4'],['ed','9,2'],['cl','8,6']]);
+    const rankTempo=mkRank([['ed','1min 40s'],['da','2min 05s'],['js','2min 40s'],['ab','3min 10s'],['cl','5min 20s']]);
+    const rankConversao=mkRank([['js','18'],['ab','14'],['da','9'],['ed','8'],['cl','5']]);
+    const rankConversaoMini=rankConversao;
+
+    const rankProdutos=[['Box de banheiro',96],['Vidro temperado (chapa)',74],['Espelho bisotê',58],['Guarda-corpo',31],['Porta pivotante',22]].map((r,i)=>({ rank:i+1, rankStyle:this.rankStyle(i), name:r[0], value:this.fmtInt(r[1]) }));
+
+    const rankClientes=[
+      ['Construtora Horizonte','3 pedidos no período'],
+      ['Serralheria Dois Irmãos','27 pedidos no período'],
+      ['Cond. Parque Sul','5 pedidos no período'],
+      ['Vidraçaria Cristal Clara','12 pedidos no período'],
+      ['Loja Vidro & Cia','9 pedidos no período']
+    ].map((r,i)=>({ rank:i+1, rankStyle:this.rankStyle(i), name:r[0], detail:r[1] }));
+
+    const rankCidades=[['Taguatinga',128],['Águas Claras',74],['Ceilândia',66],['Sobradinho',52],['Gama',38]].map((r,i)=>({ rank:i+1, rankStyle:this.rankStyle(i), name:r[0], value:this.fmtInt(r[1]) }));
+
+    // ---------- Ação agora ----------
+    const actionDef=[
+      { id:'orc', icon:'ri-file-list-3-line', title:'Orçamentos aguardando resposta', items:[
+        {initials:'MV',tint:'#2C6BB8',name:'Marcos Vinícius',detail:'Enviado há 2 dias · sem resposta'},
+        {initials:'CN',tint:'#4C55B8',name:'Construtora Horizonte',detail:'Enviado há 4 dias · sem resposta'}
+      ]},
+      { id:'sla', icon:'ri-alarm-warning-line', title:'Pendentes com SLA em risco', items:[
+        {initials:'AP',tint:'#3E8FD0',name:'Ana Paula Ferreira',detail:'Aguardando há 46min · SLA 30min'},
+        {initials:'DR',tint:'#2E8C8C',name:'Diego · V. Reflexo',detail:'Aguardando há 1h 10min'}
+      ]},
+      { id:'fu', icon:'ri-refresh-line', title:'Follow-ups vencidos', items:[
+        {initials:'LA',tint:'#5566A8',name:'Lucas Andrade',detail:'Follow-up de 2 dias vencido'},
+        {initials:'DR',tint:'#2E8C8C',name:'Diego · V. Reflexo',detail:'Tabela não enviada há 3 dias'}
+      ]},
+      { id:'inst', icon:'ri-tools-line', title:'Instalações agendadas', items:[
+        {initials:'MV',tint:'#2C6BB8',name:'Marcos Vinícius',detail:'Qui, 17/07 · 09:00 · box'},
+        {initials:'FL',tint:'#64748B',name:'Fernanda Lima',detail:'Sex, 10/07 · 14:00 · porta'}
+      ]},
+      { id:'lead', icon:'ri-user-unfollow-line', title:'Leads sem retorno', items:[
+        {initials:'AP',tint:'#3E8FD0',name:'Ana Paula Ferreira',detail:'1º contato sem resposta há 6h'},
+        {initials:'DR',tint:'#2E8C8C',name:'Diego · V. Reflexo',detail:'Sem retorno há 2 dias'}
+      ]}
+    ];
+    const actionCats=actionDef.map(ac=>{ const open=this.state.actionOpen===ac.id; return {
+      id:ac.id, icon:ac.icon, title:ac.title, open,
+      onToggle:()=>this.setState({actionOpen: open?null:ac.id}),
+      chevron: open?'ri-arrow-down-s-line':'ri-arrow-right-s-line',
+      count:ac.items.length,
+      badgeStyle:'font-size:10.5px;font-weight:600;color:#5B6274;background:#F1F2F4;padding:1px 8px;border-radius:20px',
+      items:ac.items.map(it=>({ initials:it.initials, name:it.name, detail:it.detail,
+        avatarStyle:this.avatarStyle(it.tint),
+        detailStyle:'font-size:11px;color:#9CA3B0;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis' }))
+    };});
+
+    return {
+      subtitle: subtitleMap[tab], tabs,
+      year:String(this.state.year), yearOptions, onYearChange, monthPills, anoInteiroStyle, noMonths,
+      toggleAnoInteiro:()=>this.toggleAnoInteiro(),
+      periodOpen:this.state.periodOpen, periodLabel, periodBtnStyle,
+      togglePeriod:()=>this.togglePeriod(), closePeriod:()=>this.closePeriod(),
+      calPrev:()=>this.calPrev(), calNext:()=>this.calNext(),
+      calClear:()=>this.calClear(), calApply:()=>this.calApply(),
+      calLeftLabel, calRightLabel, calMonths,
+      stop:(e)=>e.stopPropagation(),
+      isGeral: tab==='geral', isOperacional: tab==='operacional', isComercial: tab==='comercial', isIA: tab==='ia',
+      goComercial:(e)=>{ e.preventDefault(); this.setState({tab:'comercial'}); },
+      kpisOperacional, kpisComercial, kpisIA,
+      ...this.geralData(),
+      funilStages, peakBars, atendLine, iaLine,
+      heatDays, heatRows, notesBars, revenueBars,
+      mixDonut, tipoDonut, lossBars,
+      rankAtendimentos, rankAvaliacao, rankTempo, rankConversao, rankConversaoMini,
+      rankProdutos, rankClientes, rankCidades,
+      actionCats, hourLeave:()=>this.setState({hoverHour:null})
+    };
+  }
+}
+</script>
+</body>
+</html>
